@@ -55,10 +55,7 @@ export function AiTeaserSection() {
         </div>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button
-            asChild
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
+          <Button asChild>
             <Link href="/get-estimate">
               Start with Get Estimate
               <ArrowRight />

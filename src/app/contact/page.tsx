@@ -81,7 +81,7 @@ export default function ContactPage() {
                 </Card>
               </div>
 
-              <Button asChild className="bg-primary text-primary-foreground">
+              <Button asChild>
                 <Link href="/get-estimate">Get Estimate</Link>
               </Button>
             </div>

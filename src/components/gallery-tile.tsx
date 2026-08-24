@@ -47,7 +47,7 @@ function PlaceholderLayers({
             style={{
               background: `linear-gradient(90deg,
                 transparent 0%,
-                rgba(212,175,106,${0.03 + (i % 2) * 0.04}) 50%,
+                rgba(212,175,55,${0.03 + (i % 2) * 0.04}) 50%,
                 transparent 100%)`,
             }}
           >
@@ -55,7 +55,7 @@ function PlaceholderLayers({
           </div>
         ))}
       </div>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_10%,rgba(212,175,106,0.22),transparent_55%)] transition-opacity duration-500 group-hover:opacity-100" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_10%,rgba(212,175,55,0.22),transparent_55%)] transition-opacity duration-500 group-hover:opacity-100" />
       <div className="absolute inset-0 opacity-[0.03] bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,rgba(255,255,255,0.5)_2px,rgba(255,255,255,0.5)_3px)]" />
     </>
   );
@@ -80,7 +80,7 @@ export function GalleryTile({
         "group relative overflow-hidden rounded-2xl",
         "border border-white/[0.06] bg-card/30",
         "shadow-[0_4px_24px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.04)]",
-        "transition-all duration-500 hover:border-primary/20 hover:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_24px_rgba(212,175,106,0.08)]",
+        "transition-all duration-500 hover:border-primary/20 hover:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_24px_rgba(212,175,55,0.08)]",
         aspect === "square" && "aspect-square",
         aspect === "wide" && "aspect-[16/10]",
         aspect === "tall" && "aspect-[3/4]",
@@ -97,7 +97,7 @@ export function GalleryTile({
             className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/35" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_15%,rgba(212,175,106,0.18),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_15%,rgba(212,175,55,0.18),transparent_60%)]" />
         </>
       ) : (
         <PlaceholderLayers index={index} gradient={gradient} />

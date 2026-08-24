@@ -30,7 +30,7 @@ export function SectionShell({
     >
       {variant === "glow" && (
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(212,175,106,0.06),transparent_55%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(212,175,55,0.06),transparent_55%)]"
           aria-hidden
         />
       )}

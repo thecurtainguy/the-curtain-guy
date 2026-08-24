@@ -1,0 +1,50 @@
+---
+description: Visual-first UI for The Curtain Guy — no plain text blocks; use cards, imagery, icons, and luxury layout
+globs: src/**/*.tsx
+alwaysApply: true
+---
+
+# Visual-first UI (The Curtain Guy)
+
+This is a **luxury event drape rental** site. User-facing UI must feel editorial and premium — never like a plain document.
+
+## Default mindset
+
+When adding or editing pages, sections, forms, or summaries:
+
+1. **Never ship a lonely paragraph** as the main content block.
+2. **Always structure information** with hierarchy: eyebrow → headline → short body → visual support.
+3. **Prefer components over copy** — cards, chips, stat tiles, image panels, icon rows, progress, badges.
+4. **Use photography** from `src/data/site.ts` (`imagePaths`, gallery/services assets) when a section needs atmosphere.
+5. **Match the design system**: dark background, gold accents (`primary`), `font-heading` for titles, rounded-2xl/4xl cards, subtle gold radial glows.
+
+## Do
+
+- Split sections into **card layouts** with gradient headers, icons, and borders (`border-border/40`, `bg-card/25`).
+- Use **gold icon badges** in rounded squares for section labels.
+- Break lists into **chips/pills** (service types, goals, add-ons) with Lucide icons.
+- Pair long explanations with a **visual column** (image + glass overlay callout).
+- Show process/trust as **icon grids** (rental, delivery, installation, teardown).
+- Keep body copy **short**; move detail into structured UI.
+
+## Avoid
+
+- Centered `max-w-3xl` paragraphs with no structure.
+- Plain label:value lists when a summary can use tiles, chips, or grouped cards.
+- Walls of text between hero and interactive content.
+- Generic form pages without a branded header card.
+
+## Reference patterns in this repo
+
+- `src/components/estimate/estimate-intro-section.tsx` — intro panel with photo, chips, trust row
+- `src/components/estimate/estimate-contact-card.tsx` — form in a branded header card
+- `src/components/estimate/estimate-summary.tsx` — brief with stat tiles and option chips
+- `src/components/sections/hero-section.tsx` — copy + visual split
+- `src/components/sections/trust-strip.tsx` — icon process row
+
+## Quick checklist before finishing UI work
+
+- [ ] Is there a visual anchor (image, icon header, or card shell)?
+- [ ] Are services/features shown as chips or tiles, not comma-separated text?
+- [ ] Does spacing use the luxury card system (not floating text on black)?
+- [ ] Are gold accents used for eyebrows, icons, and CTAs — not random colors?

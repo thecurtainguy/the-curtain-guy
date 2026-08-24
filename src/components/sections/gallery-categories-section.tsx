@@ -30,7 +30,7 @@ export function GalleryCategoriesSection() {
                   "group overflow-hidden border-border/40 bg-background/50 p-0",
                   "shadow-[0_4px_24px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]",
                   "transition-all duration-500 hover:border-primary/25 hover:bg-background/70",
-                  "hover:shadow-[0_12px_36px_rgba(0,0,0,0.35),0_0_24px_rgba(212,175,106,0.06)]"
+                  "hover:shadow-[0_12px_36px_rgba(0,0,0,0.35),0_0_24px_rgba(212,175,55,0.06)]"
                 )}
               >
                 <div className="relative aspect-[16/10] w-full overflow-hidden">
@@ -44,7 +44,7 @@ export function GalleryCategoriesSection() {
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/20" />
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(212,175,106,0.2),transparent_55%)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(212,175,55,0.2),transparent_55%)]" />
 
                   {Icon && (
                     <div className="absolute left-3 top-3 flex size-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-primary backdrop-blur-sm ring-1 ring-primary/20 transition-colors group-hover:bg-black/60 group-hover:ring-primary/35">
@@ -74,7 +74,7 @@ export function GalleryCategoriesSection() {
 
         <div className="relative mt-14 overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.07] via-background/40 to-background/20 p-6 sm:p-8">
           <div
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_0%,rgba(212,175,106,0.12),transparent_55%)]"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_0%,rgba(212,175,55,0.12),transparent_55%)]"
             aria-hidden
           />
           <div className="relative flex flex-col items-center gap-5 text-center sm:flex-row sm:justify-between sm:text-left">
@@ -88,7 +88,7 @@ export function GalleryCategoriesSection() {
               </p>
             </div>
             <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
-              <Button asChild className="bg-primary text-primary-foreground">
+              <Button asChild>
                 <Link href="/get-estimate">
                   Get Estimate
                   <ArrowRight />

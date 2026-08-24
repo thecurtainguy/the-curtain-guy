@@ -121,7 +121,7 @@ export default function AiStudioPage() {
           </div>
 
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-            <Button asChild className="bg-primary text-primary-foreground">
+            <Button asChild>
               <Link href="/get-estimate">Start with Get Estimate</Link>
             </Button>
             <Button asChild variant="outline">

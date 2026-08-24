@@ -8,7 +8,7 @@ export function HeroSection() {
   return (
     <SectionShell variant="glow" className="overflow-hidden">
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_75%_25%,rgba(212,175,106,0.12),transparent_55%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_75%_25%,rgba(212,175,55,0.12),transparent_55%)]"
         aria-hidden
       />
 
@@ -28,11 +28,7 @@ export function HeroSection() {
             and teardown included. Event draping, not window treatments.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
+            <Button asChild size="lg">
               <Link href="/get-estimate">
                 Get Estimate
                 <ArrowRight className="ml-1" />
@@ -47,11 +43,11 @@ export function HeroSection() {
         <div className="order-1 flex justify-center lg:order-2 lg:justify-end">
           <div className="relative w-full max-w-md lg:max-w-none lg:w-auto">
             <div
-              className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(ellipse_at_center,rgba(212,175,106,0.22),transparent_65%)] blur-3xl"
+              className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.22),transparent_65%)] blur-3xl"
               aria-hidden
             />
             <div
-              className="absolute -inset-2 rounded-[2rem] bg-[radial-gradient(ellipse_at_40%_20%,rgba(212,175,106,0.12),transparent_60%)]"
+              className="absolute -inset-2 rounded-[2rem] bg-[radial-gradient(ellipse_at_40%_20%,rgba(212,175,55,0.12),transparent_60%)]"
               aria-hidden
             />
             <HeroVisual className="relative z-10" />

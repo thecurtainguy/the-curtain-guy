@@ -19,7 +19,7 @@ export function TransformationSection() {
             return (
               <Card
                 key={card.title}
-                className="border-border/40 bg-card/40 shadow-[0_4px_20px_rgba(0,0,0,0.2)] transition-all hover:border-primary/25 hover:bg-card/60 hover:shadow-[0_8px_28px_rgba(0,0,0,0.3),0_0_20px_rgba(212,175,106,0.05)]"
+                className="border-border/40 bg-card/40 shadow-[0_4px_20px_rgba(0,0,0,0.2)] transition-all hover:border-primary/25 hover:bg-card/60 hover:shadow-[0_8px_28px_rgba(0,0,0,0.3),0_0_20px_rgba(212,175,55,0.05)]"
               >
                 <CardContent className="pt-6">
                   <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">

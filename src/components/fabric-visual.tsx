@@ -28,7 +28,7 @@ export function FabricVisual({
       {/* Ambient stage glow */}
       <div
         className={cn(
-          "absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(212,175,106,0.28),transparent_48%)]",
+          "absolute inset-0 bg-[radial-gradient(ellipse_at_50%_85%,rgba(212,175,55,0.28),transparent_48%)]",
           isHero && "opacity-100"
         )}
       />
@@ -36,7 +36,7 @@ export function FabricVisual({
       {/* Primary spotlight — stronger on hero */}
       <div
         className={cn(
-          "absolute inset-0 bg-[radial-gradient(ellipse_at_35%_12%,rgba(212,175,106,0.55),transparent_40%)]",
+          "absolute inset-0 bg-[radial-gradient(ellipse_at_35%_12%,rgba(212,175,55,0.55),transparent_40%)]",
           isHero && "opacity-100"
         )}
       />
@@ -55,7 +55,7 @@ export function FabricVisual({
               background: `linear-gradient(90deg,
                 rgba(6,5,4,0.98) 0%,
                 rgba(32,26,22,${0.65 + (i % 3) * 0.1}) 20%,
-                rgba(212,175,106,${0.12 + (i % 2) * 0.08}) 48%,
+                rgba(212,175,55,${0.12 + (i % 2) * 0.08}) 48%,
                 rgba(24,20,17,0.9) 75%,
                 rgba(5,4,3,0.99) 100%)`,
             }}
@@ -73,10 +73,10 @@ export function FabricVisual({
 
       {/* Stage floor */}
       <div className="absolute inset-x-0 bottom-[22%] h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-[24%] bg-gradient-to-t from-[rgba(212,175,106,0.14)] via-[rgba(12,10,9,0.7)] to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-[24%] bg-gradient-to-t from-[rgba(212,175,55,0.14)] via-[rgba(12,10,9,0.7)] to-transparent" />
 
       {/* Champagne lower glow */}
-      <div className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-[rgba(212,175,106,0.28)] via-[rgba(212,175,106,0.08)] to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-[rgba(212,175,55,0.28)] via-[rgba(212,175,55,0.08)] to-transparent" />
 
       {/* Venue transformation card */}
       <div className="absolute bottom-5 left-4 right-4 rounded-2xl border border-white/15 bg-black/55 p-4 shadow-[0_8px_32px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md sm:bottom-6 sm:left-5 sm:right-5">

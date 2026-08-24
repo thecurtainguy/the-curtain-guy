@@ -58,7 +58,7 @@ export function Header() {
           <Button
             asChild
             size="sm"
-            className="hidden bg-primary text-primary-foreground hover:bg-primary/90 sm:inline-flex"
+            className="hidden sm:inline-flex"
           >
             <Link href="/get-estimate">Get Estimate</Link>
           </Button>
@@ -102,7 +102,7 @@ export function Header() {
                     </Link>
                   );
                 })}
-                <Button asChild className="mt-4 w-full bg-primary text-primary-foreground">
+                <Button asChild className="mt-4 w-full">
                   <Link href="/get-estimate">Get Estimate</Link>
                 </Button>
               </nav>

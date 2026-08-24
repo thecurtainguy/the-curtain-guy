@@ -24,7 +24,7 @@ export function PageHero({
         className
       )}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(212,175,106,0.08),transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(212,175,55,0.08),transparent_60%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(10,9,8,0.4)_100%)]" />
 
       <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
@@ -66,7 +66,7 @@ export function QuoteCTA({
       )}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(212,175,106,0.06),transparent_50%)]" aria-hidden />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(212,175,55,0.06),transparent_50%)]" aria-hidden />
       <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
@@ -76,11 +76,7 @@ export function QuoteCTA({
             {description}
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button
-              asChild
-              size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
+              <Button asChild size="lg">
               <Link href="/get-estimate">Get Estimate</Link>
             </Button>
             <Button asChild variant="outline" size="lg">

@@ -20,7 +20,7 @@ export function ServicesSection() {
             return (
               <Card
                 key={card.title}
-                className="group overflow-hidden border-border/40 bg-background/50 shadow-[0_2px_16px_rgba(0,0,0,0.15)] transition-all hover:border-primary/25 hover:shadow-[0_8px_28px_rgba(0,0,0,0.25),0_0_16px_rgba(212,175,106,0.06)]"
+                className="group overflow-hidden border-border/40 bg-background/50 shadow-[0_2px_16px_rgba(0,0,0,0.15)] transition-all hover:border-primary/25 hover:shadow-[0_8px_28px_rgba(0,0,0,0.25),0_0_16px_rgba(212,175,55,0.06)]"
               >
                 {card.image && (
                   <div className="relative aspect-[16/10] w-full overflow-hidden">

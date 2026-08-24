@@ -40,7 +40,7 @@ export function MediaVisual({
         className="object-cover"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/25" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(212,175,106,0.2),transparent_55%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(212,175,55,0.2),transparent_55%)]" />
       <div className="absolute inset-0 ring-1 ring-inset ring-white/[0.06]" />
     </div>
   );

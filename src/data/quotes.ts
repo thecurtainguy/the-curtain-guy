@@ -94,6 +94,40 @@ export const QUOTE_CATEGORY_LABELS: Record<QuoteLineCategory, string> = {
   custom: "Custom",
 };
 
+/** Suggested line descriptions when picking a category in the admin quote builder. */
+export const QUOTE_CATEGORY_DEFAULT_DESCRIPTIONS: Record<
+  QuoteLineCategory,
+  string
+> = {
+  drape_rental: "Event drape rental — fabric panels for the planned layout",
+  hardware: "Pipe, bases, and mounting hardware for the drape setup",
+  installation: "On-site installation of draping and hardware",
+  delivery: "Delivery to venue",
+  teardown: "Teardown and pickup after the event",
+  labor: "Crew labor for install / event support",
+  rush_special_handling: "Rush timing or special handling",
+  premium_fabric: "Premium fabric upgrade",
+  backdrop: "Backdrop / photo wall draping",
+  room_divider_masking: "Room divider or masking drapes",
+  custom: "Custom draping scope",
+};
+
+export function getQuoteCategoryDefaultDescription(
+  category: QuoteLineCategory
+): string {
+  return QUOTE_CATEGORY_DEFAULT_DESCRIPTIONS[category];
+}
+
+/** True when description is empty or still the previous category’s auto-fill. */
+export function shouldAutofillQuoteDescription(
+  description: string,
+  previousCategory: QuoteLineCategory
+): boolean {
+  const trimmed = description.trim();
+  if (!trimmed) return true;
+  return trimmed === QUOTE_CATEGORY_DEFAULT_DESCRIPTIONS[previousCategory];
+}
+
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   draft: "Draft",
   sent: "Sent",
@@ -150,6 +184,55 @@ export type QuoteTaxCategory = (typeof QUOTE_TAX_CATEGORIES)[number];
 export const DEFAULT_GST_RATE = 0.05;
 export const DEFAULT_QST_RATE = 0.09975;
 
+/** One manual tax line — rate is a decimal fraction of taxable subtotal. */
+export type QuoteManualTaxLine = {
+  label: string;
+  rate: number;
+};
+
+export function normalizeManualTaxLines(
+  value: unknown
+): QuoteManualTaxLine[] {
+  if (!Array.isArray(value)) return [];
+  const lines: QuoteManualTaxLine[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== "object") continue;
+    const record = row as Record<string, unknown>;
+    const label =
+      typeof record.label === "string" ? record.label.trim() : "";
+    const rate = Number(record.rate);
+    if (!Number.isFinite(rate) || rate < 0) continue;
+    lines.push({
+      label: label || "Tax",
+      rate: Math.min(rate, 5), // hard cap 500%
+    });
+  }
+  return lines;
+}
+
+/** Parse UI percent string ("13" / "9.975") into decimal rate. */
+export function percentInputToRate(value: string): number {
+  const n = Number.parseFloat(value.replace("%", "").trim());
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(n / 100, 5);
+}
+
+/** Format decimal rate for percent inputs. */
+export function rateToPercentInput(rate: number): string {
+  const pct = Number((Number(rate) * 100).toFixed(4));
+  if (!Number.isFinite(pct) || pct < 0) return "0";
+  return Number.isInteger(pct) ? String(pct) : String(pct);
+}
+
+export function computeManualTaxLineCents(
+  taxableSubtotalCents: number,
+  rate: number
+): number {
+  const safeRate =
+    Number.isFinite(rate) && rate > 0 ? Math.min(rate, 5) : 0;
+  return Math.max(0, Math.round(taxableSubtotalCents * safeRate));
+}
+
 export type QuoteRow = {
   id: string;
   estimate_request_id: string;
@@ -175,6 +258,8 @@ export type QuoteRow = {
   qst_cents: number;
   manual_tax_label: string | null;
   manual_tax_cents: number;
+  /** Percentage lines for tax_mode = manual. rate is a decimal (0.13 = 13%). */
+  manual_tax_lines: QuoteManualTaxLine[];
   total_before_tax_cents: number;
   total_tax_cents: number;
   valid_until: string | null;
@@ -267,6 +352,8 @@ export type CustomerSafeQuote = {
   qst_cents: number;
   manual_tax_label: string | null;
   manual_tax_cents: number;
+  /** Percentage lines for tax_mode = manual. rate is a decimal (0.13 = 13%). */
+  manual_tax_lines: QuoteManualTaxLine[];
   total_before_tax_cents: number;
   total_tax_cents: number;
   valid_until: string | null;
@@ -290,6 +377,7 @@ export type QuoteTaxTotalsInput = {
   gst_rate?: number | null;
   qst_rate?: number | null;
   manual_tax_cents?: number | null;
+  manual_tax_lines?: QuoteManualTaxLine[] | null;
 };
 
 export type QuoteTaxTotals = {
@@ -333,7 +421,8 @@ export function computeQuoteTaxTotals(
     Number.isFinite(Number(quote.qst_rate)) && Number(quote.qst_rate) >= 0
       ? Number(quote.qst_rate)
       : DEFAULT_QST_RATE;
-  const manualTaxCents = Math.max(
+  const manualLines = normalizeManualTaxLines(quote.manual_tax_lines);
+  const legacyManualTaxCents = Math.max(
     0,
     Math.round(Number(quote.manual_tax_cents) || 0)
   );
@@ -364,7 +453,16 @@ export function computeQuoteTaxTotals(
     qstCents = Math.round(taxable * qstRate);
     totalTax = gstCents + qstCents;
   } else if (taxMode === "manual") {
-    appliedManual = manualTaxCents;
+    if (manualLines.length > 0) {
+      appliedManual = manualLines.reduce(
+        (sum, line) =>
+          sum + computeManualTaxLineCents(taxable, line.rate),
+        0
+      );
+    } else {
+      // Legacy fixed-dollar manual tax
+      appliedManual = legacyManualTaxCents;
+    }
     totalTax = appliedManual;
   }
 
@@ -409,6 +507,7 @@ export function getQuoteTaxBreakdownRows(
     | "qst_rate"
     | "manual_tax_label"
     | "manual_tax_cents"
+    | "manual_tax_lines"
     | "total_cents"
   >,
   options?: { variant?: "admin" | "customer" }
@@ -457,11 +556,31 @@ export function getQuoteTaxBreakdownRows(
       }
     );
   } else if (taxMode === "manual") {
-    rows.push({
-      key: "manual",
-      label: (quote.manual_tax_label || "Tax").trim() || "Tax",
-      amountCents: quote.manual_tax_cents || 0,
-    });
+    const taxable = quote.taxable_subtotal_cents || 0;
+    const manualLines = normalizeManualTaxLines(quote.manual_tax_lines);
+    if (manualLines.length > 0) {
+      if (variant === "admin" || (quote.nontaxable_subtotal_cents || 0) > 0) {
+        rows.push({
+          key: "taxable",
+          label: "Taxable subtotal",
+          amountCents: taxable,
+          emphasis: "muted",
+        });
+      }
+      manualLines.forEach((line, index) => {
+        rows.push({
+          key: `manual-${index}`,
+          label: `${line.label} ${formatTaxPercent(line.rate)}`,
+          amountCents: computeManualTaxLineCents(taxable, line.rate),
+        });
+      });
+    } else {
+      rows.push({
+        key: "manual",
+        label: (quote.manual_tax_label || "Tax").trim() || "Tax",
+        amountCents: quote.manual_tax_cents || 0,
+      });
+    }
   }
 
   rows.push({

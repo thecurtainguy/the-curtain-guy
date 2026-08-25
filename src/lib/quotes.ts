@@ -17,6 +17,7 @@ import {
   computeLineTotalCents,
   computeQuoteTaxTotals,
   formatQuoteDisplayRef,
+  normalizeManualTaxLines,
   resolveQuoteDisplayRef,
 } from "@/data/quotes";
 import { isEmailVerified } from "@/lib/auth";
@@ -97,6 +98,7 @@ export function toCustomerSafeQuote(
     qst_cents: quote.qst_cents ?? 0,
     manual_tax_label: quote.manual_tax_label ?? null,
     manual_tax_cents: quote.manual_tax_cents ?? 0,
+    manual_tax_lines: normalizeManualTaxLines(quote.manual_tax_lines),
     total_before_tax_cents:
       quote.total_before_tax_cents ?? quote.subtotal_cents ?? 0,
     total_tax_cents: quote.total_tax_cents ?? 0,
@@ -349,7 +351,7 @@ export async function recalculateQuoteTotals(quoteId: string): Promise<void> {
     admin
       .from("quotes")
       .select(
-        "tax_mode, gst_rate, qst_rate, manual_tax_cents, manual_tax_label"
+        "tax_mode, gst_rate, qst_rate, manual_tax_cents, manual_tax_label, manual_tax_lines"
       )
       .eq("id", quoteId)
       .maybeSingle(),
@@ -358,11 +360,13 @@ export async function recalculateQuoteTotals(quoteId: string): Promise<void> {
   const taxMode =
     ((quote?.tax_mode as QuoteTaxMode | undefined) ?? "quebec_gst_qst");
   const storedManualTaxCents = Number(quote?.manual_tax_cents ?? 0);
+  const manualTaxLines = normalizeManualTaxLines(quote?.manual_tax_lines);
   const totals = computeQuoteTaxTotals((items || []) as QuoteLineItemRow[], {
     tax_mode: taxMode,
     gst_rate: Number(quote?.gst_rate ?? DEFAULT_GST_RATE),
     qst_rate: Number(quote?.qst_rate ?? DEFAULT_QST_RATE),
     manual_tax_cents: storedManualTaxCents,
+    manual_tax_lines: manualTaxLines,
   });
 
   await admin
@@ -482,6 +486,7 @@ export async function createQuoteRevision(input: {
       qst_rate: Number(source.qst_rate ?? DEFAULT_QST_RATE),
       manual_tax_label: source.manual_tax_label,
       manual_tax_cents: source.manual_tax_cents || 0,
+      manual_tax_lines: normalizeManualTaxLines(source.manual_tax_lines),
       customer_notes: source.customer_notes,
       owner_notes: source.owner_notes,
       terms: source.terms || DEFAULT_QUOTE_TERMS,

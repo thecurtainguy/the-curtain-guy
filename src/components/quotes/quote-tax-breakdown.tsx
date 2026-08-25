@@ -17,6 +17,7 @@ type QuoteTaxFields = Pick<
   | "qst_rate"
   | "manual_tax_label"
   | "manual_tax_cents"
+  | "manual_tax_lines"
   | "total_cents"
 >;
 

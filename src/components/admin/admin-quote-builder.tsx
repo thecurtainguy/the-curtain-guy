@@ -25,9 +25,15 @@ import {
   computeQuoteTaxTotals,
   formatCadFromCents,
   formatQuoteRevisionLabel,
+  getQuoteCategoryDefaultDescription,
+  normalizeManualTaxLines,
+  percentInputToRate,
+  rateToPercentInput,
   resolveQuoteDisplayRef,
+  shouldAutofillQuoteDescription,
   type QuoteLineCategory,
   type QuoteLineStatus,
+  type QuoteManualTaxLine,
   type QuoteRequestStatus,
   type QuoteTaxMode,
 } from "@/data/quotes";
@@ -70,6 +76,13 @@ type DraftLine = {
   isTaxable: boolean;
 };
 
+type DraftManualTaxLine = {
+  key: string;
+  label: string;
+  /** Percent string for the input, e.g. "13" or "9.975" */
+  ratePercent: string;
+};
+
 function toDateInput(value: string | null | undefined): string {
   if (!value) return "";
   return value.slice(0, 10);
@@ -88,11 +101,59 @@ function linesFromQuote(quote: QuoteWithRelations): DraftLine[] {
   }));
 }
 
+function emptyManualTaxLine(): DraftManualTaxLine {
+  return {
+    key: `tax-${crypto.randomUUID()}`,
+    label: "Sales tax",
+    ratePercent: "0",
+  };
+}
+
+function manualTaxLinesFromQuote(
+  quote: QuoteWithRelations
+): DraftManualTaxLine[] {
+  const stored = normalizeManualTaxLines(quote.manual_tax_lines);
+  if (stored.length > 0) {
+    return stored.map((line) => ({
+      key: `tax-${crypto.randomUUID()}`,
+      label: line.label,
+      ratePercent: rateToPercentInput(line.rate),
+    }));
+  }
+
+  // Legacy fixed-dollar → approximate % from taxable subtotal when possible
+  if (quote.manual_tax_label || (quote.manual_tax_cents || 0) > 0) {
+    const taxable = quote.taxable_subtotal_cents || 0;
+    const cents = quote.manual_tax_cents || 0;
+    const rate = taxable > 0 ? cents / taxable : 0;
+    return [
+      {
+        key: `tax-${crypto.randomUUID()}`,
+        label: quote.manual_tax_label?.trim() || "Sales tax",
+        ratePercent: rateToPercentInput(rate),
+      },
+    ];
+  }
+
+  return [emptyManualTaxLine()];
+}
+
+function toStoredManualTaxLines(
+  drafts: DraftManualTaxLine[]
+): QuoteManualTaxLine[] {
+  return drafts
+    .map((line) => ({
+      label: line.label.trim() || "Tax",
+      rate: percentInputToRate(line.ratePercent),
+    }))
+    .filter((line) => line.rate > 0 || line.label.length > 0);
+}
+
 function emptyLine(): DraftLine {
   return {
     key: `new-${crypto.randomUUID()}`,
     category: "drape_rental",
-    description: "",
+    description: getQuoteCategoryDefaultDescription("drape_rental"),
     quantity: 1,
     unitPriceDollars: "0.00",
     status: "priced",
@@ -127,11 +188,8 @@ export function AdminQuoteBuilder({
   const [taxMode, setTaxMode] = useState<QuoteTaxMode>(
     quote.tax_mode || "quebec_gst_qst"
   );
-  const [manualTaxLabel, setManualTaxLabel] = useState(
-    quote.manual_tax_label ?? "Sales tax"
-  );
-  const [manualTaxDollars, setManualTaxDollars] = useState(
-    centsToDollarInput(quote.manual_tax_cents || 0)
+  const [manualTaxLines, setManualTaxLines] = useState<DraftManualTaxLine[]>(
+    () => manualTaxLinesFromQuote(quote)
   );
 
   const [sending, setSending] = useState(false);
@@ -162,8 +220,7 @@ export function AdminQuoteBuilder({
     setTerms(source.terms ?? "");
     setLines(linesFromQuote(source));
     setTaxMode(source.tax_mode || "quebec_gst_qst");
-    setManualTaxLabel(source.manual_tax_label ?? "Sales tax");
-    setManualTaxDollars(centsToDollarInput(source.manual_tax_cents || 0));
+    setManualTaxLines(manualTaxLinesFromQuote(source));
   }
 
   useEffect(() => {
@@ -173,6 +230,11 @@ export function AdminQuoteBuilder({
     // Sync when server quote refreshes while viewing
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when quote identity/content updates outside edit
   }, [quote.id, quote.updated_at, isEditing]);
+
+  const draftManualLines = useMemo(
+    () => toStoredManualTaxLines(manualTaxLines),
+    [manualTaxLines]
+  );
 
   const draftTotals = useMemo(() => {
     const draftItems = lines.map((line) => ({
@@ -187,9 +249,9 @@ export function AdminQuoteBuilder({
       tax_mode: taxMode,
       gst_rate: quote.gst_rate,
       qst_rate: quote.qst_rate,
-      manual_tax_cents: dollarsToCents(manualTaxDollars),
+      manual_tax_lines: draftManualLines,
     });
-  }, [lines, taxMode, manualTaxDollars, quote.gst_rate, quote.qst_rate]);
+  }, [lines, taxMode, draftManualLines, quote.gst_rate, quote.qst_rate]);
 
   const draftBreakdownQuote = useMemo(
     () => ({
@@ -201,14 +263,12 @@ export function AdminQuoteBuilder({
       qst_cents: draftTotals.qst_cents,
       gst_rate: Number(quote.gst_rate) || 0.05,
       qst_rate: Number(quote.qst_rate) || 0.09975,
-      manual_tax_label: manualTaxLabel,
-      manual_tax_cents:
-        taxMode === "manual"
-          ? draftTotals.manual_tax_cents
-          : dollarsToCents(manualTaxDollars),
+      manual_tax_label: draftManualLines[0]?.label ?? null,
+      manual_tax_cents: draftTotals.manual_tax_cents,
+      manual_tax_lines: draftManualLines,
       total_cents: draftTotals.total_cents,
     }),
-    [draftTotals, taxMode, manualTaxLabel, manualTaxDollars, quote.gst_rate, quote.qst_rate]
+    [draftTotals, taxMode, draftManualLines, quote.gst_rate, quote.qst_rate]
   );
 
   useEffect(() => {
@@ -268,8 +328,7 @@ export function AdminQuoteBuilder({
         sort_order: index,
       })),
       tax_mode: taxMode,
-      manual_tax_label: manualTaxLabel,
-      manual_tax_cents: dollarsToCents(manualTaxDollars),
+      manual_tax_lines: draftManualLines,
     };
   }
 
@@ -448,7 +507,27 @@ export function AdminQuoteBuilder({
 
   function updateLine(key: string, patch: Partial<DraftLine>) {
     setLines((prev) =>
-      prev.map((line) => (line.key === key ? { ...line, ...patch } : line))
+      prev.map((line) => {
+        if (line.key !== key) return line;
+
+        if (patch.category && patch.category !== line.category) {
+          const nextCategory = patch.category;
+          const shouldFill = shouldAutofillQuoteDescription(
+            line.description,
+            line.category
+          );
+          return {
+            ...line,
+            ...patch,
+            category: nextCategory,
+            description: shouldFill
+              ? getQuoteCategoryDefaultDescription(nextCategory)
+              : (patch.description ?? line.description),
+          };
+        }
+
+        return { ...line, ...patch };
+      })
     );
   }
 
@@ -838,7 +917,11 @@ export function AdminQuoteBuilder({
           <div>
             <h2 className="font-heading text-lg font-semibold">Tax</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Quebec GST 5% + QST 9.975% on taxable line items. CAD.
+              {taxMode === "manual"
+                ? "Manual percentage lines on taxable line items. CAD."
+                : taxMode === "quebec_gst_qst"
+                  ? "Quebec GST 5% + QST 9.975% on taxable line items. CAD."
+                  : "No tax applied. CAD."}
             </p>
           </div>
         </div>
@@ -886,27 +969,94 @@ export function AdminQuoteBuilder({
             ) : null}
 
             {taxMode === "manual" ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="manual_tax_label">Manual tax label</Label>
-                  <Input
-                    id="manual_tax_label"
-                    value={manualTaxLabel}
-                    disabled={!isEditing}
-                    onChange={(e) => setManualTaxLabel(e.target.value)}
-                    placeholder="Sales tax"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="manual_tax_amount">Manual tax CAD</Label>
-                  <Input
-                    id="manual_tax_amount"
-                    inputMode="decimal"
-                    value={manualTaxDollars}
-                    disabled={!isEditing}
-                    onChange={(e) => setManualTaxDollars(e.target.value)}
-                  />
-                </div>
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Each line is a percentage of the taxable subtotal.
+                </p>
+                {manualTaxLines.map((line) => (
+                  <div
+                    key={line.key}
+                    className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_110px_auto]"
+                  >
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        Tax label
+                      </Label>
+                      <Input
+                        value={line.label}
+                        disabled={!isEditing}
+                        onChange={(e) =>
+                          setManualTaxLines((prev) =>
+                            prev.map((row) =>
+                              row.key === line.key
+                                ? { ...row, label: e.target.value }
+                                : row
+                            )
+                          )
+                        }
+                        placeholder="Sales tax"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">
+                        Rate %
+                      </Label>
+                      <Input
+                        inputMode="decimal"
+                        value={line.ratePercent}
+                        disabled={!isEditing}
+                        onChange={(e) =>
+                          setManualTaxLines((prev) =>
+                            prev.map((row) =>
+                              row.key === line.key
+                                ? { ...row, ratePercent: e.target.value }
+                                : row
+                            )
+                          )
+                        }
+                        placeholder="13"
+                      />
+                    </div>
+                    {isEditing ? (
+                      <div className="flex items-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Remove tax line"
+                          disabled={manualTaxLines.length <= 1}
+                          onClick={() =>
+                            setManualTaxLines((prev) =>
+                              prev.length <= 1
+                                ? prev
+                                : prev.filter((row) => row.key !== line.key)
+                            )
+                          }
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div />
+                    )}
+                  </div>
+                ))}
+                {isEditing ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setManualTaxLines((prev) => [
+                        ...prev,
+                        emptyManualTaxLine(),
+                      ])
+                    }
+                  >
+                    <Plus className="size-4" />
+                    Add tax line
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -1011,11 +1161,15 @@ export function AdminQuoteBuilder({
                       <select
                         className={selectClass}
                         value={convertCategory}
-                        onChange={(e) =>
-                          setConvertCategory(
-                            e.target.value as QuoteLineCategory
-                          )
-                        }
+                        onChange={(e) => {
+                          const next = e.target.value as QuoteLineCategory;
+                          setConvertCategory(next);
+                          setConvertDescription((prev) =>
+                            shouldAutofillQuoteDescription(prev, convertCategory)
+                              ? getQuoteCategoryDefaultDescription(next)
+                              : prev
+                          );
+                        }}
                       >
                         {QUOTE_LINE_CATEGORIES.map((cat) => (
                           <option key={cat} value={cat}>

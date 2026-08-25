@@ -823,7 +823,7 @@ export function QuoteProposalView({
           </div>
         </div>
 
-        <aside className="hidden space-y-3 lg:sticky lg:top-4 lg:block">
+        <aside className="hidden space-y-3 lg:sticky lg:top-[calc(4.25rem+0.75rem)] lg:block">
           {totalCard}
           {respondCard}
           {customCard}

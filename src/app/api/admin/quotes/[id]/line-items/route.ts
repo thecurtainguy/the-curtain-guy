@@ -5,6 +5,7 @@ import {
   isQuoteLineCategory,
   isQuoteLineStatus,
   isQuoteTaxMode,
+  normalizeManualTaxLines,
 } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
 import { upsertLineItems, type LineItemInput } from "@/lib/quotes";
@@ -96,17 +97,23 @@ export async function POST(request: Request, context: RouteContext) {
       taxUpdates.qst_rate = DEFAULT_QST_RATE;
     }
   }
-  if ("manual_tax_label" in body) {
-    taxUpdates.manual_tax_label =
-      typeof body.manual_tax_label === "string"
-        ? body.manual_tax_label.trim() || null
-        : null;
-  }
-  if ("manual_tax_cents" in body) {
-    taxUpdates.manual_tax_cents = Math.max(
-      0,
-      Math.round(Number(body.manual_tax_cents) || 0)
-    );
+  if ("manual_tax_lines" in body) {
+    const lines = normalizeManualTaxLines(body.manual_tax_lines);
+    taxUpdates.manual_tax_lines = lines;
+    taxUpdates.manual_tax_label = lines[0]?.label ?? null;
+  } else {
+    if ("manual_tax_label" in body) {
+      taxUpdates.manual_tax_label =
+        typeof body.manual_tax_label === "string"
+          ? body.manual_tax_label.trim() || null
+          : null;
+    }
+    if ("manual_tax_cents" in body) {
+      taxUpdates.manual_tax_cents = Math.max(
+        0,
+        Math.round(Number(body.manual_tax_cents) || 0)
+      );
+    }
   }
   if (Object.keys(taxUpdates).length > 0) {
     const admin = createAdminSupabaseClient();

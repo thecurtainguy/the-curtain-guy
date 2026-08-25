@@ -61,13 +61,25 @@ export function Header() {
   }, [pathname]);
 
   useEffect(() => {
-    const threshold = 28;
+    // Compact is visual-only (no layout height change). Still use hysteresis so
+    // the shadow/logo scale doesn't chatter at the threshold.
+    const COMPACT_ON = 48;
+    const COMPACT_OFF = 8;
     let frame = 0;
+    let lockedUntil = 0;
 
     const update = () => {
       frame = 0;
-      const next = window.scrollY > threshold;
-      setCompact((prev) => (prev === next ? prev : next));
+      if (Date.now() < lockedUntil) return;
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      setCompact((prev) => {
+        const next = prev ? y > COMPACT_OFF : y > COMPACT_ON;
+        if (next !== prev) {
+          // Ignore scroll while CSS transitions settle.
+          lockedUntil = Date.now() + 320;
+        }
+        return next;
+      });
     };
 
     const onScroll = () => {
@@ -86,7 +98,8 @@ export function Header() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl supports-backdrop-filter:bg-background/60",
+        // overflow-anchor-none: sticky height/style changes must not re-anchor scroll
+        "sticky top-0 z-50 overflow-anchor-none border-b border-border/40 bg-background/70 backdrop-blur-xl supports-backdrop-filter:bg-background/60",
         "transition-[background-color,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         "motion-reduce:transition-none",
         compact &&
@@ -95,19 +108,14 @@ export function Header() {
     >
       <div
         className={cn(
-          "mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8",
-          "transition-[height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          "motion-reduce:transition-none",
-          compact ? "h-14 sm:h-16" : "h-20 sm:h-24"
+          // Fixed height — never animate layout height while sticky
+          "mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-[4.25rem] sm:gap-4 sm:px-6 lg:px-8"
         )}
       >
         <BrandLogo href="/" size="header" compact={compact} priority />
 
         <nav
-          className={cn(
-            "hidden items-center lg:flex",
-            compact ? "gap-0.5" : "gap-1"
-          )}
+          className="hidden items-center gap-1 lg:flex"
           aria-label="Main"
         >
           {navLinks.map((link) => {
@@ -122,8 +130,7 @@ export function Header() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-xl text-sm font-medium transition-[color,background-color,box-shadow,transform,padding] duration-200 xl:px-3 motion-reduce:transition-none",
-                  compact ? "px-2 py-1.5" : "px-2.5 py-2",
+                  "inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-200 xl:px-3 motion-reduce:transition-none",
                   link.special
                     ? "text-primary hover:bg-primary/10"
                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",

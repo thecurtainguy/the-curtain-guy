@@ -34,12 +34,12 @@ const sizeMap = {
     asset: "mark" as const,
     quality: 90,
   },
-  /** Top-left site header — horizontal lockup, retina-ready */
+  /** Top-left site header — horizontal lockup, retina-ready.
+   * Layout box stays constant; compact mode scales visually so sticky
+   * height never changes (avoids scroll bounce / flicker). */
   header: {
-    box: "h-12 w-[11rem] sm:h-14 sm:w-[13.75rem] lg:h-16 lg:w-[15.75rem]",
-    compactBox:
-      "h-9 w-[9.25rem] sm:h-10 sm:w-[11rem] lg:h-11 lg:w-[12.75rem]",
-    sizes: "(max-width: 640px) 176px, (max-width: 1024px) 220px, 252px",
+    box: "h-11 w-[10.5rem] sm:h-12 sm:w-[12.5rem] lg:h-[3.25rem] lg:w-[14.5rem]",
+    sizes: "(max-width: 640px) 168px, (max-width: 1024px) 200px, 232px",
     asset: "horizontal" as const,
     quality: 100,
   },
@@ -76,17 +76,15 @@ export function BrandLogo({
 }: BrandLogoProps) {
   const dims = sizeMap[size];
   const logo = dims.asset === "horizontal" ? brandLogoHorizontal : brandLogo;
-  const boxClass =
-    size === "header" && compact && "compactBox" in dims
-      ? dims.compactBox
-      : dims.box;
+  const boxClass = dims.box;
 
   const mark = (
     <span
       className={cn(
         "relative block shrink-0 overflow-hidden bg-transparent",
-        "transition-[width,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "origin-left transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         "motion-reduce:transition-none",
+        size === "header" && compact && "scale-[0.88]",
         boxClass,
         className
       )}

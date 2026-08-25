@@ -327,8 +327,12 @@ export async function getCustomerJob(
 
 export async function createJobFromQuote(
   quoteId: string,
-  ownerUserId: string,
-  options?: { allowNonAccepted?: boolean }
+  actorUserId: string | null,
+  options?: {
+    allowNonAccepted?: boolean;
+    /** Who triggered creation — affects timeline copy. */
+    source?: "owner" | "customer_accept";
+  }
 ): Promise<{ jobId: string; created: boolean; message?: string }> {
   const existing = await fetchJobByQuoteId(quoteId);
   if (existing) {
@@ -345,6 +349,9 @@ export async function createJobFromQuote(
   }
 
   const estimate = await fetchEstimateById(quote.estimate_request_id);
+  const source = options?.source ?? "owner";
+  const createdByUserId =
+    actorUserId ?? quote.created_by_user_id ?? estimate?.user_id ?? null;
 
   const admin = createAdminSupabaseClient();
   const insertPayload = {
@@ -352,7 +359,7 @@ export async function createJobFromQuote(
     estimate_request_id: quote.estimate_request_id,
     quote_id: quote.id,
     customer_user_id: estimate?.user_id ?? null,
-    created_by_user_id: ownerUserId,
+    created_by_user_id: createdByUserId,
     customer_name: quote.customer_name ?? estimate?.customer_name ?? null,
     customer_email: quote.customer_email ?? estimate?.customer_email ?? null,
     customer_phone: estimate?.customer_phone ?? null,
@@ -382,32 +389,70 @@ export async function createJobFromQuote(
   }
 
   const jobId = job.id as string;
+  const quoteRef = formatQuoteDisplayRef(
+    quote.opportunity_ref,
+    quote.revision_number
+  );
 
   await createDefaultChecklist(jobId);
 
   await recordJobEvent({
     jobId,
-    actorUserId: ownerUserId,
-    actorRole: "owner",
+    actorUserId: actorUserId,
+    actorRole:
+      source === "customer_accept"
+        ? "customer"
+        : actorUserId
+          ? "owner"
+          : "system",
     eventType: "job_created",
-    title: "Event job created",
-    body: `Booked event created from ${formatQuoteDisplayRef(quote.opportunity_ref, quote.revision_number)}.`,
+    title: "Draft event job created",
+    body:
+      source === "customer_accept"
+        ? `Draft booked event created automatically after ${quoteRef} was accepted.`
+        : `Booked event created from ${quoteRef}.`,
     customerVisible: true,
-    metadata: { quote_id: quoteId },
+    metadata: { quote_id: quoteId, source },
   });
 
   await recordJobEvent({
     jobId,
-    actorUserId: ownerUserId,
-    actorRole: "owner",
+    actorUserId: actorUserId,
+    actorRole:
+      source === "customer_accept"
+        ? "customer"
+        : actorUserId
+          ? "owner"
+          : "system",
     eventType: "quote_linked",
     title: "Quote linked",
-    body: formatQuoteDisplayRef(quote.opportunity_ref, quote.revision_number),
+    body: quoteRef,
     customerVisible: false,
     metadata: { quote_id: quoteId },
   });
 
   return { jobId, created: true };
+}
+
+/**
+ * After a quote is accepted, ensure a draft job exists.
+ * Never throws — acceptance must succeed even if job creation fails.
+ */
+export async function ensureDraftJobAfterQuoteAccepted(input: {
+  quoteId: string;
+  actorUserId?: string | null;
+}): Promise<{ jobId: string | null; created: boolean }> {
+  try {
+    const result = await createJobFromQuote(
+      input.quoteId,
+      input.actorUserId ?? null,
+      { source: "customer_accept" }
+    );
+    return { jobId: result.jobId, created: result.created };
+  } catch (err) {
+    console.error("[jobs] ensureDraftJobAfterQuoteAccepted failed", err);
+    return { jobId: null, created: false };
+  }
 }
 
 export type JobUpdatePayload = Partial<

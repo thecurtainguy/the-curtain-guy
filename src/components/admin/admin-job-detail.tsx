@@ -29,9 +29,11 @@ import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import type { JobWithRelations } from "@/lib/jobs";
 import { Button } from "@/components/ui/button";
+import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { TimeInput } from "@/components/ui/time-input";
 import { cn } from "@/lib/utils";
 
 function toDateInput(value: string | null | undefined): string {
@@ -369,15 +371,25 @@ export function AdminJobDetail({
             </div>
             <div className="space-y-2">
               <Label htmlFor="event_date">Event date</Label>
-              <Input id="event_date" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+              <DateInput id="event_date" value={eventDate} onChange={setEventDate} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="event_start">Start time</Label>
-              <Input id="event_start" value={eventStart} onChange={(e) => setEventStart(e.target.value)} placeholder="e.g. 6:00 PM" />
+              <TimeInput
+                id="event_start"
+                value={eventStart}
+                onChange={setEventStart}
+                placeholder="e.g. 6:00 PM"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="event_end">End time</Label>
-              <Input id="event_end" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)} placeholder="e.g. 11:00 PM" />
+              <TimeInput
+                id="event_end"
+                value={eventEnd}
+                onChange={setEventEnd}
+                placeholder="e.g. 11:00 PM"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="guest_count">Guest count</Label>
@@ -423,29 +435,29 @@ export function AdminJobDetail({
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2 sm:col-span-3">
               <Label>Install date</Label>
-              <Input type="date" value={installDate} onChange={(e) => setInstallDate(e.target.value)} />
+              <DateInput value={installDate} onChange={setInstallDate} />
             </div>
             <div className="space-y-2">
               <Label>Install start</Label>
-              <Input value={installStart} onChange={(e) => setInstallStart(e.target.value)} />
+              <TimeInput value={installStart} onChange={setInstallStart} />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Install end</Label>
-              <Input value={installEnd} onChange={(e) => setInstallEnd(e.target.value)} />
+              <TimeInput value={installEnd} onChange={setInstallEnd} />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2 sm:col-span-3">
               <Label>Teardown date</Label>
-              <Input type="date" value={teardownDate} onChange={(e) => setTeardownDate(e.target.value)} />
+              <DateInput value={teardownDate} onChange={setTeardownDate} />
             </div>
             <div className="space-y-2">
               <Label>Teardown start</Label>
-              <Input value={teardownStart} onChange={(e) => setTeardownStart(e.target.value)} />
+              <TimeInput value={teardownStart} onChange={setTeardownStart} />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Teardown end</Label>
-              <Input value={teardownEnd} onChange={(e) => setTeardownEnd(e.target.value)} />
+              <TimeInput value={teardownEnd} onChange={setTeardownEnd} />
             </div>
           </div>
         </div>

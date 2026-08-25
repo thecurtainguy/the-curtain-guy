@@ -29,6 +29,7 @@ import {
 import { QuoteShareBar } from "@/components/quotes/quote-share-bar";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { CelebrationConfetti } from "@/components/ui/celebration-confetti";
 import { Reveal } from "@/components/animation/reveal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -248,6 +249,7 @@ export function QuoteProposalView({
   const [confirmNote, setConfirmNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [requestingKey, setRequestingKey] = useState<string | null>(null);
+  const [celebrateAccept, setCelebrateAccept] = useState(false);
 
   const status = optimisticStatus ?? quote.status;
   const pendingKeys = useMemo(() => {
@@ -309,6 +311,7 @@ export function QuoteProposalView({
       if (data.status === "accepted" || payload.action === "accept") {
         setOptimisticStatus("accepted");
         setConfirmNote("Thank you — we’ve noted your acceptance.");
+        setCelebrateAccept(true);
       } else if (data.status === "declined" || payload.action === "decline") {
         setOptimisticStatus("declined");
         setConfirmNote("We’ve recorded your response.");
@@ -470,6 +473,8 @@ export function QuoteProposalView({
         </div>
       </header>
 
+      {celebrateAccept ? <CelebrationConfetti /> : null}
+
       {status === "accepted" ? (
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 sm:p-6">
           <div className="flex items-start gap-3">
@@ -480,12 +485,12 @@ export function QuoteProposalView({
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Thank you
-                {quote.accepted_by_name ? (
+                {quote.accepted_by_name || acceptName.trim() ? (
                   <>
                     {" "}
                     — accepted by{" "}
                     <span className="font-medium text-foreground">
-                      {quote.accepted_by_name}
+                      {quote.accepted_by_name || acceptName.trim()}
                     </span>
                   </>
                 ) : null}

@@ -93,7 +93,6 @@ export const navLinks: NavLink[] = [
   { label: "Home", href: "/" },
   { label: "Services", href: "/services" },
   { label: "Gallery", href: "/gallery" },
-  { label: "Get Estimate", href: "/get-estimate" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
   { label: "Studio", href: "/studio", icon: Box, special: true },

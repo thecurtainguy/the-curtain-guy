@@ -9,6 +9,7 @@ import {
   fetchQuoteByPublicToken,
   logQuoteEvent,
 } from "@/lib/quotes";
+import { ensureDraftJobAfterQuoteAccepted } from "@/lib/jobs";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -103,7 +104,15 @@ export async function POST(request: Request, context: RouteContext) {
       "Customer accepted quote",
       `Accepted by ${acceptedByName}`
     );
-    return NextResponse.json({ ok: true, status: "accepted" });
+    const jobResult = await ensureDraftJobAfterQuoteAccepted({
+      quoteId: quote.id,
+    });
+    return NextResponse.json({
+      ok: true,
+      status: "accepted",
+      jobId: jobResult.jobId,
+      jobCreated: jobResult.created,
+    });
   }
 
   if (action === "decline") {

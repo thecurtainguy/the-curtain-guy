@@ -65,7 +65,7 @@ export function AdminQuoteJobActions({
             <p className="mt-1 max-w-lg text-sm text-muted-foreground">
               {existingJobId
                 ? "This accepted quote already has a booked event workflow."
-                : "Create the booked event workflow from this accepted quote."}
+                : "A draft job is usually created automatically on accept. Use this if one is missing."}
             </p>
           </div>
         </div>

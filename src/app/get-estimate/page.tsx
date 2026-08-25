@@ -4,6 +4,7 @@ import { EstimateBuilder } from "@/components/estimate/estimate-builder";
 import { EstimateIntroSection } from "@/components/estimate/estimate-intro-section";
 import { GuardedLink } from "@/components/ui/guarded-link";
 import { createPageMetadata } from "@/lib/seo";
+import { Reveal } from "@/components/animation/reveal";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Get an Event Drape Rental Estimate",
@@ -26,9 +27,11 @@ export default function GetEstimatePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <EstimateIntroSection />
 
-          <div className="rounded-[min(var(--radius-4xl),24px)] border border-border/40 bg-card/30 p-4 shadow-sm ring-1 ring-foreground/5 sm:p-8 lg:p-10">
-            <EstimateBuilder />
-          </div>
+          <Reveal variant="fade-up" delay={0.05}>
+            <div className="rounded-[min(var(--radius-4xl),24px)] border border-border/40 bg-card/30 p-4 shadow-sm ring-1 ring-foreground/5 sm:p-8 lg:p-10">
+              <EstimateBuilder />
+            </div>
+          </Reveal>
 
           <p className="mt-10 text-center text-sm text-muted-foreground">
             Prefer to explore the future experience?{" "}

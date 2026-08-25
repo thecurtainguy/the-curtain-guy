@@ -25,7 +25,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       type="button"
       variant="outline"
       size="icon-sm"
-      className={cn("shrink-0", className)}
+      className={cn("relative shrink-0 overflow-hidden", className)}
       aria-label={
         mounted
           ? isDark
@@ -37,11 +37,26 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
       {mounted ? (
-        isDark ? (
-          <Sun className="size-4" aria-hidden />
-        ) : (
-          <Moon className="size-4" aria-hidden />
-        )
+        <span className="relative flex size-4 items-center justify-center">
+          <Sun
+            className={cn(
+              "absolute size-4 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none",
+              isDark
+                ? "rotate-0 scale-100 opacity-100"
+                : "rotate-90 scale-50 opacity-0"
+            )}
+            aria-hidden
+          />
+          <Moon
+            className={cn(
+              "absolute size-4 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none",
+              isDark
+                ? "-rotate-90 scale-50 opacity-0"
+                : "rotate-0 scale-100 opacity-100"
+            )}
+            aria-hidden
+          />
+        </span>
       ) : (
         <Sun className="size-4 opacity-50" aria-hidden />
       )}

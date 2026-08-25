@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import type { SiteMediaKey } from "@/data/site-media";
+import { Reveal } from "@/components/animation/reveal";
 import { cn } from "@/lib/utils";
 
 type CtaBandProps = {
@@ -51,7 +52,7 @@ export function CtaBand({
         aria-hidden
       />
       <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal variant="fade-up" className="mx-auto max-w-2xl text-center">
           {eyebrow && (
             <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
               {eyebrow}
@@ -80,7 +81,7 @@ export function CtaBand({
               </Button>
             )}
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

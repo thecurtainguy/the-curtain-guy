@@ -18,7 +18,7 @@ import { QUOTE_CATEGORY_LABELS, formatCadFromCents } from "@/data/quotes";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
 import type { JobWithRelations } from "@/lib/jobs";
-import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -276,9 +276,14 @@ export function CustomerEventDetail({
           />
           {feedback ? <p className="text-sm text-emerald-600 dark:text-emerald-300">{feedback}</p> : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <Button type="button" onClick={() => void sendMessage()} disabled={sending}>
+          <LoadingButton
+            type="button"
+            onClick={() => void sendMessage()}
+            isLoading={sending}
+            loadingText="Sending..."
+          >
             Send message
-          </Button>
+          </LoadingButton>
         </div>
       </section>
     </div>

@@ -2,6 +2,7 @@ import { navLinks, siteConfig } from "@/data/site";
 import { services } from "@/data/services";
 import { BrandLogo } from "@/components/brand-logo";
 import { GuardedLink } from "@/components/ui/guarded-link";
+import { Reveal } from "@/components/animation/reveal";
 
 const footerExtras = [
   { label: "Reviews", href: "/reviews" },
@@ -16,7 +17,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-border/40 bg-card/30">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <Reveal variant="fade-up" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2 lg:col-span-1">
             <BrandLogo href="/" size="footer" />
@@ -112,7 +113,7 @@ export function Footer() {
           </p>
           <p>{siteConfig.domain}</p>
         </div>
-      </div>
+      </Reveal>
     </footer>
   );
 }

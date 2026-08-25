@@ -28,8 +28,8 @@ export function OptionCard({
       aria-checked={selected}
       onClick={onSelect}
       className={cn(
-        "group relative flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-200",
-        "border-border/40 bg-card/40 hover:border-primary/30 hover:bg-card/60",
+        "group relative flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-200 motion-reduce:transition-none",
+        "border-border/40 bg-card/40 hover:border-primary/30 hover:bg-card/60 hover:-translate-y-px active:scale-[0.99] motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100",
         "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
         selected &&
           "border-primary/50 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]",

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import {
+  DEFAULT_GST_RATE,
+  DEFAULT_QST_RATE,
   isQuoteLineCategory,
   isQuoteLineStatus,
+  isQuoteTaxMode,
 } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
 import { upsertLineItems, type LineItemInput } from "@/lib/quotes";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -22,9 +26,9 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-  let body: { items?: unknown };
+  let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as { items?: unknown };
+    body = (await request.json()) as Record<string, unknown>;
   } catch {
     return NextResponse.json(
       { ok: false, message: "Invalid JSON body." },
@@ -76,9 +80,37 @@ export async function POST(request: Request, context: RouteContext) {
       status,
       customer_visible:
         typeof row.customer_visible === "boolean" ? row.customer_visible : true,
+      is_taxable: typeof row.is_taxable === "boolean" ? row.is_taxable : true,
+      tax_category:
+        typeof row.tax_category === "string" ? row.tax_category : "standard",
       sort_order:
         typeof row.sort_order === "number" ? row.sort_order : undefined,
     });
+  }
+
+  const taxUpdates: Record<string, unknown> = {};
+  if (typeof body.tax_mode === "string" && isQuoteTaxMode(body.tax_mode)) {
+    taxUpdates.tax_mode = body.tax_mode;
+    if (body.tax_mode === "quebec_gst_qst") {
+      taxUpdates.gst_rate = DEFAULT_GST_RATE;
+      taxUpdates.qst_rate = DEFAULT_QST_RATE;
+    }
+  }
+  if ("manual_tax_label" in body) {
+    taxUpdates.manual_tax_label =
+      typeof body.manual_tax_label === "string"
+        ? body.manual_tax_label.trim() || null
+        : null;
+  }
+  if ("manual_tax_cents" in body) {
+    taxUpdates.manual_tax_cents = Math.max(
+      0,
+      Math.round(Number(body.manual_tax_cents) || 0)
+    );
+  }
+  if (Object.keys(taxUpdates).length > 0) {
+    const admin = createAdminSupabaseClient();
+    await admin.from("quotes").update(taxUpdates).eq("id", id);
   }
 
   const result = await upsertLineItems({

@@ -1,5 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import {
+  DEFAULT_GST_RATE,
+  DEFAULT_QST_RATE,
   DEFAULT_QUOTE_TERMS,
   type CustomerSafeQuote,
   type QuoteCustomerRequestRow,
@@ -10,10 +12,12 @@ import {
   type QuoteRequestType,
   type QuoteRow,
   type QuoteStatus,
+  type QuoteTaxCategory,
+  type QuoteTaxMode,
   computeLineTotalCents,
+  computeQuoteTaxTotals,
   formatQuoteDisplayRef,
   resolveQuoteDisplayRef,
-  sumPricedSubtotalCents,
 } from "@/data/quotes";
 import { isEmailVerified } from "@/lib/auth";
 import type { EstimateRequestRow } from "@/lib/estimate-access";
@@ -83,6 +87,18 @@ export function toCustomerSafeQuote(
     currency: quote.currency,
     subtotal_cents: quote.subtotal_cents,
     total_cents: quote.total_cents,
+    tax_mode: quote.tax_mode ?? "none",
+    gst_rate: Number(quote.gst_rate ?? DEFAULT_GST_RATE),
+    qst_rate: Number(quote.qst_rate ?? DEFAULT_QST_RATE),
+    taxable_subtotal_cents: quote.taxable_subtotal_cents ?? 0,
+    nontaxable_subtotal_cents: quote.nontaxable_subtotal_cents ?? 0,
+    gst_cents: quote.gst_cents ?? 0,
+    qst_cents: quote.qst_cents ?? 0,
+    manual_tax_label: quote.manual_tax_label ?? null,
+    manual_tax_cents: quote.manual_tax_cents ?? 0,
+    total_before_tax_cents:
+      quote.total_before_tax_cents ?? quote.subtotal_cents ?? 0,
+    total_tax_cents: quote.total_tax_cents ?? 0,
     valid_until: quote.valid_until,
     customer_notes: quote.customer_notes,
     terms: quote.terms,
@@ -325,17 +341,41 @@ export async function listQuotesForCustomer(user: User): Promise<QuoteRow[]> {
 
 export async function recalculateQuoteTotals(quoteId: string): Promise<void> {
   const admin = createAdminSupabaseClient();
-  const { data: items } = await admin
-    .from("quote_line_items")
-    .select("*")
-    .eq("quote_id", quoteId);
+  const [{ data: items }, { data: quote }] = await Promise.all([
+    admin.from("quote_line_items").select("*").eq("quote_id", quoteId),
+    admin
+      .from("quotes")
+      .select(
+        "tax_mode, gst_rate, qst_rate, manual_tax_cents, manual_tax_label"
+      )
+      .eq("id", quoteId)
+      .maybeSingle(),
+  ]);
 
-  const subtotal = sumPricedSubtotalCents((items || []) as QuoteLineItemRow[]);
+  const taxMode =
+    ((quote?.tax_mode as QuoteTaxMode | undefined) ?? "quebec_gst_qst");
+  const storedManualTaxCents = Number(quote?.manual_tax_cents ?? 0);
+  const totals = computeQuoteTaxTotals((items || []) as QuoteLineItemRow[], {
+    tax_mode: taxMode,
+    gst_rate: Number(quote?.gst_rate ?? DEFAULT_GST_RATE),
+    qst_rate: Number(quote?.qst_rate ?? DEFAULT_QST_RATE),
+    manual_tax_cents: storedManualTaxCents,
+  });
+
   await admin
     .from("quotes")
     .update({
-      subtotal_cents: subtotal,
-      total_cents: subtotal,
+      subtotal_cents: totals.subtotal_cents,
+      taxable_subtotal_cents: totals.taxable_subtotal_cents,
+      nontaxable_subtotal_cents: totals.nontaxable_subtotal_cents,
+      gst_cents: totals.gst_cents,
+      qst_cents: totals.qst_cents,
+      // Preserve owner-entered manual amount when not in manual mode.
+      manual_tax_cents:
+        taxMode === "manual" ? totals.manual_tax_cents : storedManualTaxCents,
+      total_before_tax_cents: totals.total_before_tax_cents,
+      total_tax_cents: totals.total_tax_cents,
+      total_cents: totals.total_cents,
     })
     .eq("id", quoteId);
 }
@@ -371,6 +411,9 @@ export async function createQuoteFromEstimate(input: {
       city_area: input.estimate.city_area,
       status: "draft",
       currency: "CAD",
+      tax_mode: "quebec_gst_qst",
+      gst_rate: DEFAULT_GST_RATE,
+      qst_rate: DEFAULT_QST_RATE,
       terms: DEFAULT_QUOTE_TERMS,
       created_by_user_id: input.createdByUserId,
     })
@@ -431,6 +474,11 @@ export async function createQuoteRevision(input: {
       city_area: source.city_area,
       status: "draft",
       currency: "CAD",
+      tax_mode: source.tax_mode || "quebec_gst_qst",
+      gst_rate: Number(source.gst_rate ?? DEFAULT_GST_RATE),
+      qst_rate: Number(source.qst_rate ?? DEFAULT_QST_RATE),
+      manual_tax_label: source.manual_tax_label,
+      manual_tax_cents: source.manual_tax_cents || 0,
       customer_notes: source.customer_notes,
       owner_notes: source.owner_notes,
       terms: source.terms || DEFAULT_QUOTE_TERMS,
@@ -454,6 +502,8 @@ export async function createQuoteRevision(input: {
       line_total_cents: item.line_total_cents,
       status: item.status === "pending_owner_review" ? "priced" : item.status,
       customer_visible: item.customer_visible,
+      is_taxable: item.is_taxable !== false,
+      tax_category: item.tax_category || "standard",
       sort_order: item.sort_order ?? index,
     }));
     const { error: lineError } = await admin
@@ -531,6 +581,8 @@ export type LineItemInput = {
   unit_price_cents: number;
   status?: string;
   customer_visible?: boolean;
+  is_taxable?: boolean;
+  tax_category?: QuoteTaxCategory | string;
   sort_order?: number;
 };
 
@@ -568,6 +620,14 @@ export async function upsertLineItems(input: {
     const quantity = Number(item.quantity) || 0;
     const unitPrice = Math.round(Number(item.unit_price_cents) || 0);
     const lineTotal = computeLineTotalCents(quantity, unitPrice);
+    const taxCategory =
+      item.tax_category === "exempt" || item.tax_category === "custom"
+        ? item.tax_category
+        : "standard";
+    const isTaxable =
+      typeof item.is_taxable === "boolean"
+        ? item.is_taxable
+        : taxCategory !== "exempt";
     const payload = {
       quote_id: input.quoteId,
       category: item.category,
@@ -577,6 +637,8 @@ export async function upsertLineItems(input: {
       line_total_cents: lineTotal,
       status: item.status || "priced",
       customer_visible: item.customer_visible ?? true,
+      is_taxable: isTaxable,
+      tax_category: isTaxable ? taxCategory : "exempt",
       sort_order: item.sort_order ?? index,
     };
 
@@ -730,6 +792,8 @@ export async function reviewCustomerRequest(input: {
       line_total_cents: lineTotal,
       status: "priced",
       customer_visible: true,
+      is_taxable: true,
+      tax_category: "standard",
       sort_order: nextSort,
     });
 

@@ -130,9 +130,24 @@ export const DEFAULT_QUOTE_TERMS = [
   "Final pricing may adjust after venue confirmation, measurements, access, and install window are verified.",
   "Availability is not guaranteed until The Curtain Guy confirms the booking.",
   "Setup, installation, and teardown are scheduled around your event timeline.",
-  "Taxes or venue fees are only included when listed as line items.",
+  "Applicable sales tax is shown in the proposal total when included.",
   "Currency is CAD.",
 ].join("\n\n");
+
+export const QUOTE_TAX_MODES = ["quebec_gst_qst", "none", "manual"] as const;
+export type QuoteTaxMode = (typeof QUOTE_TAX_MODES)[number];
+
+export const QUOTE_TAX_MODE_LABELS: Record<QuoteTaxMode, string> = {
+  quebec_gst_qst: "Quebec GST/QST",
+  none: "No tax",
+  manual: "Manual tax",
+};
+
+export const QUOTE_TAX_CATEGORIES = ["standard", "exempt", "custom"] as const;
+export type QuoteTaxCategory = (typeof QUOTE_TAX_CATEGORIES)[number];
+
+export const DEFAULT_GST_RATE = 0.05;
+export const DEFAULT_QST_RATE = 0.09975;
 
 export type QuoteRow = {
   id: string;
@@ -150,6 +165,17 @@ export type QuoteRow = {
   currency: string;
   subtotal_cents: number;
   total_cents: number;
+  tax_mode: QuoteTaxMode;
+  gst_rate: number;
+  qst_rate: number;
+  taxable_subtotal_cents: number;
+  nontaxable_subtotal_cents: number;
+  gst_cents: number;
+  qst_cents: number;
+  manual_tax_label: string | null;
+  manual_tax_cents: number;
+  total_before_tax_cents: number;
+  total_tax_cents: number;
   valid_until: string | null;
   customer_notes: string | null;
   owner_notes: string | null;
@@ -175,6 +201,8 @@ export type QuoteLineItemRow = {
   line_total_cents: number;
   status: QuoteLineStatus;
   customer_visible: boolean;
+  is_taxable: boolean;
+  tax_category: QuoteTaxCategory;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -227,6 +255,17 @@ export type CustomerSafeQuote = {
   currency: string;
   subtotal_cents: number;
   total_cents: number;
+  tax_mode: QuoteTaxMode;
+  gst_rate: number;
+  qst_rate: number;
+  taxable_subtotal_cents: number;
+  nontaxable_subtotal_cents: number;
+  gst_cents: number;
+  qst_cents: number;
+  manual_tax_label: string | null;
+  manual_tax_cents: number;
+  total_before_tax_cents: number;
+  total_tax_cents: number;
   valid_until: string | null;
   customer_notes: string | null;
   terms: string | null;
@@ -240,6 +279,195 @@ export type CustomerSafeQuote = {
   requests: QuoteCustomerRequestRow[];
   share_url?: string | null;
 };
+
+export type QuoteTaxTotalsInput = {
+  tax_mode?: QuoteTaxMode | string | null;
+  gst_rate?: number | null;
+  qst_rate?: number | null;
+  manual_tax_cents?: number | null;
+};
+
+export type QuoteTaxTotals = {
+  subtotal_cents: number;
+  taxable_subtotal_cents: number;
+  nontaxable_subtotal_cents: number;
+  gst_cents: number;
+  qst_cents: number;
+  manual_tax_cents: number;
+  total_before_tax_cents: number;
+  total_tax_cents: number;
+  total_cents: number;
+};
+
+export type QuoteTaxBreakdownRow = {
+  key: string;
+  label: string;
+  amountCents: number;
+  emphasis?: "muted" | "total";
+};
+
+/**
+ * Compute quote totals from priced line items + tax mode.
+ * GST/QST round per-tax from taxable subtotal only.
+ */
+export function computeQuoteTaxTotals(
+  items: Array<
+    Pick<QuoteLineItemRow, "status" | "line_total_cents" | "is_taxable">
+  >,
+  quote: QuoteTaxTotalsInput = {}
+): QuoteTaxTotals {
+  const rawMode = quote.tax_mode || "quebec_gst_qst";
+  const taxMode: QuoteTaxMode = isQuoteTaxMode(rawMode)
+    ? rawMode
+    : "quebec_gst_qst";
+  const gstRate =
+    Number.isFinite(Number(quote.gst_rate)) && Number(quote.gst_rate) >= 0
+      ? Number(quote.gst_rate)
+      : DEFAULT_GST_RATE;
+  const qstRate =
+    Number.isFinite(Number(quote.qst_rate)) && Number(quote.qst_rate) >= 0
+      ? Number(quote.qst_rate)
+      : DEFAULT_QST_RATE;
+  const manualTaxCents = Math.max(
+    0,
+    Math.round(Number(quote.manual_tax_cents) || 0)
+  );
+
+  let subtotal = 0;
+  let taxable = 0;
+  let nontaxable = 0;
+
+  for (const item of items) {
+    if (item.status !== "priced" && item.status !== "included") continue;
+    if (item.status === "included") continue;
+    const lineTotal = Number(item.line_total_cents) || 0;
+    subtotal += lineTotal;
+    if (item.is_taxable !== false) {
+      taxable += lineTotal;
+    } else {
+      nontaxable += lineTotal;
+    }
+  }
+
+  let gstCents = 0;
+  let qstCents = 0;
+  let appliedManual = 0;
+  let totalTax = 0;
+
+  if (taxMode === "quebec_gst_qst") {
+    gstCents = Math.round(taxable * gstRate);
+    qstCents = Math.round(taxable * qstRate);
+    totalTax = gstCents + qstCents;
+  } else if (taxMode === "manual") {
+    appliedManual = manualTaxCents;
+    totalTax = appliedManual;
+  }
+
+  return {
+    subtotal_cents: subtotal,
+    taxable_subtotal_cents: taxable,
+    nontaxable_subtotal_cents: nontaxable,
+    gst_cents: gstCents,
+    qst_cents: qstCents,
+    manual_tax_cents: appliedManual,
+    total_before_tax_cents: subtotal,
+    total_tax_cents: totalTax,
+    total_cents: subtotal + totalTax,
+  };
+}
+
+function formatTaxPercent(rate: number): string {
+  const pct = Number((Number(rate) * 100).toFixed(3));
+  const label = Number.isInteger(pct) ? String(pct) : String(pct);
+  return `${label}%`;
+}
+
+export function isQuoteTaxMode(value: string): value is QuoteTaxMode {
+  return (QUOTE_TAX_MODES as readonly string[]).includes(value);
+}
+
+export function isQuoteTaxCategory(value: string): value is QuoteTaxCategory {
+  return (QUOTE_TAX_CATEGORIES as readonly string[]).includes(value);
+}
+
+/** Shared tax rows for admin, customer proposal, PDF, and email. */
+export function getQuoteTaxBreakdownRows(
+  quote: Pick<
+    QuoteRow,
+    | "tax_mode"
+    | "subtotal_cents"
+    | "taxable_subtotal_cents"
+    | "nontaxable_subtotal_cents"
+    | "gst_cents"
+    | "qst_cents"
+    | "gst_rate"
+    | "qst_rate"
+    | "manual_tax_label"
+    | "manual_tax_cents"
+    | "total_cents"
+  >,
+  options?: { variant?: "admin" | "customer" }
+): QuoteTaxBreakdownRow[] {
+  const variant = options?.variant ?? "customer";
+  const taxMode = isQuoteTaxMode(quote.tax_mode || "")
+    ? quote.tax_mode
+    : "none";
+  const rows: QuoteTaxBreakdownRow[] = [
+    {
+      key: "subtotal",
+      label: "Subtotal",
+      amountCents: quote.subtotal_cents || 0,
+    },
+  ];
+
+  if (taxMode === "quebec_gst_qst") {
+    const showSplit =
+      variant === "admin" || (quote.nontaxable_subtotal_cents || 0) > 0;
+    if (showSplit) {
+      rows.push({
+        key: "taxable",
+        label: "Taxable subtotal",
+        amountCents: quote.taxable_subtotal_cents || 0,
+        emphasis: "muted",
+      });
+      if ((quote.nontaxable_subtotal_cents || 0) > 0) {
+        rows.push({
+          key: "nontaxable",
+          label: "Non-taxable subtotal",
+          amountCents: quote.nontaxable_subtotal_cents || 0,
+          emphasis: "muted",
+        });
+      }
+    }
+    rows.push(
+      {
+        key: "gst",
+        label: `GST ${formatTaxPercent(Number(quote.gst_rate) || DEFAULT_GST_RATE)}`,
+        amountCents: quote.gst_cents || 0,
+      },
+      {
+        key: "qst",
+        label: `QST ${formatTaxPercent(Number(quote.qst_rate) || DEFAULT_QST_RATE)}`,
+        amountCents: quote.qst_cents || 0,
+      }
+    );
+  } else if (taxMode === "manual") {
+    rows.push({
+      key: "manual",
+      label: (quote.manual_tax_label || "Tax").trim() || "Tax",
+      amountCents: quote.manual_tax_cents || 0,
+    });
+  }
+
+  rows.push({
+    key: "total",
+    label: "Total CAD",
+    amountCents: quote.total_cents || 0,
+    emphasis: "total",
+  });
+
+  return rows;
+}
 
 export function formatCadFromCents(cents: number): string {
   const value = (Number(cents) || 0) / 100;

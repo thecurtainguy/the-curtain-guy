@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import {
   sendEstimateCustomerConfirmationEmail,
   sendEstimateNotificationEmail,
@@ -16,6 +16,17 @@ import {
   ESTIMATE_MAX_FILES,
 } from "@/lib/estimate-files";
 import { getResendApiKey, getSupabaseServerConfig } from "@/lib/env";
+
+type EstimateViewerRole = "guest" | "customer" | "owner";
+
+function resolveViewerRole(
+  authenticated: boolean,
+  role: string | null | undefined
+): EstimateViewerRole {
+  if (!authenticated) return "guest";
+  if (role === "owner") return "owner";
+  return "customer";
+}
 
 function parseExpectedFileCount(payload: unknown): number {
   if (!payload || typeof payload !== "object") return 0;
@@ -113,7 +124,13 @@ export async function POST(request: NextRequest) {
   const uploadBundle =
     expectedFileCount > 0 ? createUploadToken() : null;
 
-  const user = await getCurrentUser();
+  // Server-side session only — never trust a client-provided user_id.
+  const authUser = await getCurrentUser();
+  const currentProfile = authUser ? await getCurrentProfile() : null;
+  const viewerRole = resolveViewerRole(
+    Boolean(authUser),
+    currentProfile?.profile.role
+  );
 
   const insertResult = await insertEstimateRequest(
     supabaseConfig,
@@ -122,7 +139,7 @@ export async function POST(request: NextRequest) {
       submittedFromUrl:
         request.headers.get("referer") ?? request.headers.get("origin"),
       userAgent: request.headers.get("user-agent"),
-      userId: user?.id ?? null,
+      userId: authUser?.id ?? null,
       uploadTokenHash: uploadBundle?.hash ?? null,
       uploadTokenExpiresAt: uploadBundle?.expiresAt ?? null,
     }
@@ -188,13 +205,25 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const requestId = insertResult.id;
+  const isAuthenticated = Boolean(authUser);
+  const accountEstimateHref = isAuthenticated
+    ? `/account/estimates/${requestId}`
+    : null;
+  const adminEstimateHref =
+    viewerRole === "owner" ? `/admin/estimates/${requestId}` : null;
+
   return NextResponse.json({
     ok: true,
-    requestId: insertResult.id,
+    requestId,
     opportunity_ref: insertResult.opportunity_ref,
     opportunity_number: insertResult.opportunity_number,
     uploadToken: uploadBundle?.token ?? null,
     expectedFileCount,
+    isAuthenticated,
+    viewerRole,
+    accountEstimateHref,
+    adminEstimateHref,
     message: "Your estimate brief was submitted successfully.",
   });
 }

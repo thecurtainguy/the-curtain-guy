@@ -17,18 +17,23 @@ import {
   QUOTE_LINE_CATEGORIES,
   QUOTE_LINE_STATUS_LABELS,
   QUOTE_LINE_STATUSES,
+  QUOTE_TAX_MODE_LABELS,
+  QUOTE_TAX_MODES,
   computeLineTotalCents,
+  computeQuoteTaxTotals,
   formatCadFromCents,
   formatQuoteRevisionLabel,
   resolveQuoteDisplayRef,
   type QuoteLineCategory,
   type QuoteLineStatus,
   type QuoteRequestStatus,
+  type QuoteTaxMode,
 } from "@/data/quotes";
 import {
   QuoteRequestStatusBadge,
   QuoteStatusBadge,
 } from "@/components/quotes/quote-status-badge";
+import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
 import type { QuoteWithRelations } from "@/lib/quotes";
 import {
   centsToDollarInput,
@@ -51,6 +56,7 @@ type DraftLine = {
   quantity: number;
   unitPriceDollars: string;
   status: QuoteLineStatus;
+  isTaxable: boolean;
 };
 
 function toDateInput(value: string | null | undefined): string {
@@ -67,6 +73,7 @@ function linesFromQuote(quote: QuoteWithRelations): DraftLine[] {
     quantity: item.quantity,
     unitPriceDollars: centsToDollarInput(item.unit_price_cents),
     status: item.status,
+    isTaxable: item.is_taxable !== false,
   }));
 }
 
@@ -78,6 +85,7 @@ function emptyLine(): DraftLine {
     quantity: 1,
     unitPriceDollars: "0.00",
     status: "priced",
+    isTaxable: true,
   };
 }
 
@@ -94,6 +102,15 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
   const [ownerNotes, setOwnerNotes] = useState(quote.owner_notes ?? "");
   const [terms, setTerms] = useState(quote.terms ?? "");
   const [lines, setLines] = useState<DraftLine[]>(() => linesFromQuote(quote));
+  const [taxMode, setTaxMode] = useState<QuoteTaxMode>(
+    quote.tax_mode || "quebec_gst_qst"
+  );
+  const [manualTaxLabel, setManualTaxLabel] = useState(
+    quote.manual_tax_label ?? "Sales tax"
+  );
+  const [manualTaxDollars, setManualTaxDollars] = useState(
+    centsToDollarInput(quote.manual_tax_cents || 0)
+  );
 
   const [savingDetails, setSavingDetails] = useState(false);
   const [savingLines, setSavingLines] = useState(false);
@@ -112,17 +129,42 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
   const [convertPrice, setConvertPrice] = useState("0.00");
   const [requestBusy, setRequestBusy] = useState<string | null>(null);
 
-  const draftSubtotal = useMemo(() => {
-    return lines.reduce((sum, line) => {
-      if (line.status !== "priced" && line.status !== "included") return sum;
-      if (line.status === "included") return sum;
-      return (
-        sum +
-        computeLineTotalCents(line.quantity, dollarsToCents(line.unitPriceDollars))
-      );
-    }, 0);
-  }, [lines]);
+  const draftTotals = useMemo(() => {
+    const draftItems = lines.map((line) => ({
+      status: line.status,
+      line_total_cents: computeLineTotalCents(
+        line.quantity,
+        dollarsToCents(line.unitPriceDollars)
+      ),
+      is_taxable: line.isTaxable,
+    }));
+    return computeQuoteTaxTotals(draftItems, {
+      tax_mode: taxMode,
+      gst_rate: quote.gst_rate,
+      qst_rate: quote.qst_rate,
+      manual_tax_cents: dollarsToCents(manualTaxDollars),
+    });
+  }, [lines, taxMode, manualTaxDollars, quote.gst_rate, quote.qst_rate]);
 
+  const draftBreakdownQuote = useMemo(
+    () => ({
+      tax_mode: taxMode,
+      subtotal_cents: draftTotals.subtotal_cents,
+      taxable_subtotal_cents: draftTotals.taxable_subtotal_cents,
+      nontaxable_subtotal_cents: draftTotals.nontaxable_subtotal_cents,
+      gst_cents: draftTotals.gst_cents,
+      qst_cents: draftTotals.qst_cents,
+      gst_rate: Number(quote.gst_rate) || 0.05,
+      qst_rate: Number(quote.qst_rate) || 0.09975,
+      manual_tax_label: manualTaxLabel,
+      manual_tax_cents:
+        taxMode === "manual"
+          ? draftTotals.manual_tax_cents
+          : dollarsToCents(manualTaxDollars),
+      total_cents: draftTotals.total_cents,
+    }),
+    [draftTotals, taxMode, manualTaxLabel, manualTaxDollars, quote.gst_rate, quote.qst_rate]
+  );
   function flash(okMessage?: string, err?: string) {
     setMessage(okMessage ?? null);
     setError(err ?? null);
@@ -177,12 +219,19 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
         unit_price_cents: dollarsToCents(line.unitPriceDollars),
         status: line.status,
         customer_visible: true,
+        is_taxable: line.isTaxable,
+        tax_category: line.isTaxable ? "standard" : "exempt",
         sort_order: index,
       }));
       const response = await fetch(`/api/admin/quotes/${quote.id}/line-items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({
+          items,
+          tax_mode: taxMode,
+          manual_tax_label: manualTaxLabel,
+          manual_tax_cents: dollarsToCents(manualTaxDollars),
+        }),
       });
       const payload = (await response.json()) as {
         ok?: boolean;
@@ -198,9 +247,13 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
         quote?: QuoteWithRelations;
       };
       if (refreshed.ok && refreshedPayload.quote) {
-        setLines(linesFromQuote(refreshedPayload.quote));
+        const next = refreshedPayload.quote;
+        setLines(linesFromQuote(next));
+        setTaxMode(next.tax_mode || "quebec_gst_qst");
+        setManualTaxLabel(next.manual_tax_label ?? "Sales tax");
+        setManualTaxDollars(centsToDollarInput(next.manual_tax_cents || 0));
       }
-      flash("Line items saved.");
+      flash("Line items & tax saved.");
       router.refresh();
     } catch {
       flash(undefined, "Could not save line items.");
@@ -209,6 +262,16 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
     }
   }
 
+  function applyQuebecTaxToAll() {
+    setTaxMode("quebec_gst_qst");
+    setLines((prev) => prev.map((line) => ({ ...line, isTaxable: true })));
+    flash("Quebec GST/QST applied to all line items. Save to persist.");
+  }
+
+  function markAllNonTaxable() {
+    setLines((prev) => prev.map((line) => ({ ...line, isTaxable: false })));
+    flash("All line items marked non-taxable. Save to persist.");
+  }
   async function sendQuote() {
     setSending(true);
     flash();
@@ -362,11 +425,11 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
             Total CAD
           </p>
           <p className="mt-1 font-heading text-3xl font-semibold text-primary">
-            {formatCadFromCents(quote.total_cents)}
+            {formatCadFromCents(draftTotals.total_cents)}
           </p>
-          {draftSubtotal !== quote.total_cents ? (
-            <p className="mt-1 text-xs text-amber-300">
-              Draft lines: {formatCadFromCents(draftSubtotal)}
+          {draftTotals.total_cents !== quote.total_cents ? (
+            <p className="mt-1 text-xs text-amber-600 dark:text-amber-300">
+              Saved: {formatCadFromCents(quote.total_cents)} · unsaved changes
             </p>
           ) : null}
         </div>
@@ -535,7 +598,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
               return (
                 <div
                   key={line.key}
-                  className="grid gap-3 rounded-2xl border border-border/40 bg-background/40 p-4 lg:grid-cols-[1.1fr_1.6fr_0.6fr_0.8fr_1.1fr_auto]"
+                  className="grid gap-3 rounded-2xl border border-border/40 bg-background/40 p-4 lg:grid-cols-[1.1fr_1.6fr_0.55fr_0.75fr_1fr_0.7fr_auto]"
                 >
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
@@ -617,6 +680,24 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
                       ))}
                     </select>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Tax</Label>
+                    <label className="flex h-8 items-center gap-2 rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm">
+                      <input
+                        type="checkbox"
+                        className="size-4 rounded border-border accent-primary"
+                        checked={line.isTaxable}
+                        onChange={(e) =>
+                          updateLine(line.key, {
+                            isTaxable: e.target.checked,
+                          })
+                        }
+                      />
+                      <span className="text-xs text-foreground">
+                        {line.isTaxable ? "Taxable" : "Non-taxable"}
+                      </span>
+                    </label>
+                  </div>
                   <div className="flex items-end justify-between gap-3 lg:flex-col lg:items-end">
                     <p className="text-sm font-medium tabular-nums">
                       {formatCadFromCents(lineTotal)}
@@ -640,6 +721,96 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
               );
             })
           )}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-lg font-semibold">Tax</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Quebec GST 5% + QST 9.975% on taxable line items. CAD.
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={() => void saveLineItems()}
+            disabled={savingLines}
+          >
+            {savingLines ? <Loader2 className="size-4 animate-spin" /> : null}
+            Save tax & lines
+          </Button>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="tax_mode">Tax mode</Label>
+              <select
+                id="tax_mode"
+                className={selectClass}
+                value={taxMode}
+                onChange={(e) =>
+                  setTaxMode(e.target.value as QuoteTaxMode)
+                }
+              >
+                {QUOTE_TAX_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {QUOTE_TAX_MODE_LABELS[mode]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={applyQuebecTaxToAll}
+              >
+                Apply Quebec GST/QST to all line items
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={markAllNonTaxable}
+              >
+                Mark all non-taxable
+              </Button>
+            </div>
+
+            {taxMode === "manual" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="manual_tax_label">Manual tax label</Label>
+                  <Input
+                    id="manual_tax_label"
+                    value={manualTaxLabel}
+                    onChange={(e) => setManualTaxLabel(e.target.value)}
+                    placeholder="Sales tax"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="manual_tax_amount">Manual tax CAD</Label>
+                  <Input
+                    id="manual_tax_amount"
+                    inputMode="decimal"
+                    value={manualTaxDollars}
+                    onChange={(e) => setManualTaxDollars(e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-2xl border border-border/40 bg-background/40 p-4">
+            <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
+              Totals preview
+            </p>
+            <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" />
+          </div>
         </div>
       </section>
 

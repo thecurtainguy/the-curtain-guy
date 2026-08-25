@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import {
+  DEFAULT_GST_RATE,
+  DEFAULT_QST_RATE,
   isQuoteStatus,
+  isQuoteTaxMode,
   type QuoteStatus,
+  type QuoteTaxMode,
 } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
-import { fetchQuoteById, logQuoteEvent } from "@/lib/quotes";
+import {
+  fetchQuoteById,
+  logQuoteEvent,
+  recalculateQuoteTotals,
+} from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -104,6 +112,43 @@ export async function PUT(request: Request, context: RouteContext) {
     updates.status = body.status as QuoteStatus;
   }
 
+  let shouldRecalculate = false;
+
+  if ("tax_mode" in body) {
+    if (typeof body.tax_mode !== "string" || !isQuoteTaxMode(body.tax_mode)) {
+      return NextResponse.json(
+        { ok: false, message: "Invalid tax mode." },
+        { status: 400 }
+      );
+    }
+    updates.tax_mode = body.tax_mode as QuoteTaxMode;
+    if (body.tax_mode === "quebec_gst_qst") {
+      updates.gst_rate = DEFAULT_GST_RATE;
+      updates.qst_rate = DEFAULT_QST_RATE;
+    }
+    shouldRecalculate = true;
+  }
+
+  if ("manual_tax_label" in body) {
+    updates.manual_tax_label =
+      typeof body.manual_tax_label === "string"
+        ? body.manual_tax_label.trim() || null
+        : null;
+    shouldRecalculate = true;
+  }
+
+  if ("manual_tax_cents" in body) {
+    const cents = Math.round(Number(body.manual_tax_cents) || 0);
+    if (!Number.isFinite(cents) || cents < 0) {
+      return NextResponse.json(
+        { ok: false, message: "Invalid manual tax amount." },
+        { status: 400 }
+      );
+    }
+    updates.manual_tax_cents = cents;
+    shouldRecalculate = true;
+  }
+
   if (typeof body.customer_email === "string" && !body.customer_email.trim()) {
     return NextResponse.json(
       { ok: false, message: "Customer email is required." },
@@ -133,6 +178,10 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
 
+  if (shouldRecalculate) {
+    await recalculateQuoteTotals(id);
+  }
+
   await logQuoteEvent({
     quoteId: id,
     actorType: "owner",
@@ -143,5 +192,12 @@ export async function PUT(request: Request, context: RouteContext) {
     metadata: { fields: Object.keys(updates) },
   });
 
-  return NextResponse.json({ ok: true, quote: data });
+  const refreshed = shouldRecalculate
+    ? await fetchQuoteById(id, { includeEvents: true })
+    : null;
+
+  return NextResponse.json({
+    ok: true,
+    quote: refreshed ?? data,
+  });
 }

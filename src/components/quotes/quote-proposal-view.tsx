@@ -23,6 +23,8 @@ import {
 } from "@/components/quotes/quote-status-badge";
 import { QuoteShareBar } from "@/components/quotes/quote-share-bar";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { Reveal } from "@/components/animation/reveal";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -32,6 +34,7 @@ import {
   type CustomerSafeQuote,
   type QuoteLineCategory,
 } from "@/data/quotes";
+import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
 import {
   getAddOnUpsells,
   getServiceUpsells,
@@ -245,7 +248,7 @@ export function QuoteProposalView({
   }
 
   return (
-    <div className="relative mx-auto max-w-4xl space-y-8 pb-16">
+    <Reveal variant="fade-up" immediate className="relative mx-auto max-w-4xl space-y-8 pb-16">
       {/* Header */}
       <header
         className={cn(
@@ -418,7 +421,7 @@ export function QuoteProposalView({
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_80%_20%,rgba(212,175,55,0.14),transparent_50%)]"
           aria-hidden
         />
-        <div className="relative flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="relative grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
               Proposal total · CAD
@@ -430,6 +433,9 @@ export function QuoteProposalView({
               Based on priced and included line items. Final figures may adjust
               after venue confirmation.
             </p>
+          </div>
+          <div className="rounded-2xl border border-border/40 bg-background/40 p-4 sm:p-5">
+            <QuoteTaxBreakdown quote={quote} variant="customer" />
           </div>
         </div>
       </section>
@@ -608,13 +614,14 @@ export function QuoteProposalView({
                 Confirm you’d like to move forward with this proposal as
                 outlined. Our team will follow up on scheduling.
               </p>
-              <Button
+              <LoadingButton
                 type="button"
-                disabled={busy}
+                isLoading={busy}
+                loadingText="Sending…"
                 onClick={() => void postAction({ action: "accept" })}
               >
-                {busy ? "Sending…" : "Confirm acceptance"}
-              </Button>
+                Confirm acceptance
+              </LoadingButton>
             </div>
           ) : null}
 
@@ -628,9 +635,11 @@ export function QuoteProposalView({
                 rows={4}
                 placeholder="I’d like to adjust the backdrop height and add masking near the entrance…"
               />
-              <Button
+              <LoadingButton
                 type="button"
-                disabled={busy || !message.trim()}
+                disabled={!message.trim()}
+                isLoading={busy}
+                loadingText="Sending…"
                 onClick={() =>
                   void postAction({
                     action: "request_changes",
@@ -638,8 +647,8 @@ export function QuoteProposalView({
                   })
                 }
               >
-                {busy ? "Sending…" : "Send change request"}
-              </Button>
+                Send change request
+              </LoadingButton>
             </div>
           ) : null}
 
@@ -655,10 +664,11 @@ export function QuoteProposalView({
                 rows={3}
                 placeholder="Timing no longer works for our venue…"
               />
-              <Button
+              <LoadingButton
                 type="button"
                 variant="destructive"
-                disabled={busy}
+                isLoading={busy}
+                loadingText="Sending…"
                 onClick={() =>
                   void postAction({
                     action: "decline",
@@ -666,8 +676,8 @@ export function QuoteProposalView({
                   })
                 }
               >
-                {busy ? "Sending…" : "Confirm decline"}
-              </Button>
+                Confirm decline
+              </LoadingButton>
             </div>
           ) : null}
 
@@ -681,9 +691,11 @@ export function QuoteProposalView({
                 rows={3}
                 placeholder="Can teardown happen the morning after the event?"
               />
-              <Button
+              <LoadingButton
                 type="button"
-                disabled={busy || !message.trim()}
+                disabled={!message.trim()}
+                isLoading={busy}
+                loadingText="Sending…"
                 onClick={() =>
                   void postAction({
                     action: "ask_question",
@@ -691,8 +703,8 @@ export function QuoteProposalView({
                   })
                 }
               >
-                {busy ? "Sending…" : "Send question"}
-              </Button>
+                Send question
+              </LoadingButton>
             </div>
           ) : null}
         </section>
@@ -764,10 +776,12 @@ export function QuoteProposalView({
               rows={4}
               placeholder="Can you also add draping around the DJ area?"
             />
-            <Button
+            <LoadingButton
               type="button"
               variant="outline"
-              disabled={busy || !customMessage.trim()}
+              disabled={!customMessage.trim()}
+              isLoading={busy}
+              loadingText="Sending…"
               onClick={() =>
                 void postAction({
                   action: "custom_request",
@@ -777,8 +791,8 @@ export function QuoteProposalView({
                 })
               }
             >
-              {busy ? "Sending…" : "Add to quote for review"}
-            </Button>
+              Add to quote for review
+            </LoadingButton>
           </div>
         </section>
       ) : null}
@@ -805,7 +819,7 @@ export function QuoteProposalView({
           <QuoteShareBar shareUrl={shareUrl} quoteRef={quote.quote_display_ref} />
         </div>
       </section>
-    </div>
+    </Reveal>
   );
 }
 
@@ -838,16 +852,18 @@ function UpsellCard({
           </p>
         </div>
       </div>
-      <Button
+      <LoadingButton
         type="button"
         variant="outline"
         size="sm"
         className="mt-4 w-full sm:w-auto"
-        disabled={disabled}
+        disabled={disabled && !busy}
+        isLoading={busy}
+        loadingText="Sending…"
         onClick={onRequest}
       >
-        {busy ? "Sending…" : "Add to quote for review"}
-      </Button>
+        Add to quote for review
+      </LoadingButton>
     </div>
   );
 }

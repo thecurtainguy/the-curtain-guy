@@ -9,6 +9,9 @@ import { createPageMetadata } from "@/lib/seo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload } from "lucide-react";
+import { Reveal } from "@/components/animation/reveal";
+import { Stagger } from "@/components/animation/stagger";
+import { AnimatedCard } from "@/components/animation/animated-card";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Event Drape Rental Gallery",
@@ -61,6 +64,7 @@ export default function GalleryPage() {
 
               return (
                 <div key={category.id} id={category.id} className="scroll-mt-24">
+                  <Reveal variant="fade-up">
                   <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
@@ -84,34 +88,40 @@ export default function GalleryPage() {
                       </Button>
                     )}
                   </div>
+                  </Reveal>
 
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
+                  <Stagger className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4" stagger={0.06}>
                     {keys.map((mediaKey, index) => (
-                      <div
+                      <AnimatedCard
                         key={mediaKey}
-                        className="media-frame group relative aspect-[4/3] overflow-hidden rounded-2xl bg-card/30"
+                        variant="scale-in"
+                        hover={false}
+                        className="aspect-[4/3] min-h-0"
                       >
-                        <SiteMediaImage
-                          mediaKey={mediaKey}
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          className="absolute inset-0"
-                          imageClassName="transition-transform duration-700 group-hover:scale-[1.03]"
-                          showCaption={index === 0}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
-                        <div className="absolute bottom-3 left-3">
-                          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary/90">
-                            Inspiration
-                          </p>
+                        <div className="media-frame group relative size-full overflow-hidden rounded-2xl bg-card/30">
+                          <SiteMediaImage
+                            mediaKey={mediaKey}
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                            className="absolute inset-0"
+                            imageClassName="transition-transform duration-700 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                            showCaption={index === 0}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-80" />
+                          <div className="absolute bottom-3 left-3">
+                            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary/90">
+                              Inspiration
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      </AnimatedCard>
                     ))}
-                  </div>
+                  </Stagger>
                 </div>
               );
             })}
           </div>
 
+          <Reveal variant="fade-up">
           <Card className="mt-14 border-border/40 bg-card/40">
             <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
               <div className="flex gap-4">
@@ -133,6 +143,7 @@ export default function GalleryPage() {
               </Button>
             </CardContent>
           </Card>
+          </Reveal>
         </div>
       </section>
 

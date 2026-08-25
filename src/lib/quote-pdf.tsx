@@ -9,6 +9,7 @@ import {
 import {
   QUOTE_CATEGORY_LABELS,
   formatCadFromCents,
+  getQuoteTaxBreakdownRows,
   type CustomerSafeQuote,
   type QuoteLineCategory,
 } from "@/data/quotes";
@@ -83,25 +84,37 @@ const styles = StyleSheet.create({
   colQty: { width: "10%", textAlign: "right" },
   colUnit: { width: "13%", textAlign: "right" },
   colTotal: { width: "13%", textAlign: "right" },
-  totalBox: {
+  totalsBox: {
     marginTop: 14,
     padding: 12,
     backgroundColor: "#f8f5ec",
     borderRadius: 6,
     borderWidth: 1,
     borderColor: "#e7d7a5",
+  },
+  totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    marginBottom: 4,
   },
   totalLabel: {
-    fontFamily: "Helvetica-Bold",
-    fontSize: 11,
+    fontSize: 10,
+    color: "#4b5563",
   },
   totalValue: {
+    fontSize: 10,
+    color: "#111827",
+  },
+  totalFinalLabel: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 11,
+    marginTop: 4,
+  },
+  totalFinalValue: {
     fontFamily: "Helvetica-Bold",
     fontSize: 14,
     color: "#8a6d1d",
+    marginTop: 2,
   },
   notes: {
     marginTop: 8,
@@ -133,6 +146,7 @@ function QuotePdfDocument({
   const pricedItems = quote.line_items.filter(
     (item) => item.status === "priced" || item.status === "included"
   );
+  const taxRows = getQuoteTaxBreakdownRows(quote, { variant: "customer" });
 
   return (
     <Document
@@ -227,11 +241,24 @@ function QuotePdfDocument({
           ))
         )}
 
-        <View style={styles.totalBox}>
-          <Text style={styles.totalLabel}>Proposal total (CAD)</Text>
-          <Text style={styles.totalValue}>
-            {formatCadFromCents(quote.total_cents)}
-          </Text>
+        <View style={styles.totalsBox}>
+          {taxRows.map((row) => {
+            const isTotal = row.emphasis === "total";
+            return (
+              <View key={row.key} style={styles.totalRow}>
+                <Text
+                  style={isTotal ? styles.totalFinalLabel : styles.totalLabel}
+                >
+                  {row.label}
+                </Text>
+                <Text
+                  style={isTotal ? styles.totalFinalValue : styles.totalValue}
+                >
+                  {formatCadFromCents(row.amountCents)}
+                </Text>
+              </View>
+            );
+          })}
         </View>
 
         {quote.customer_notes ? (

@@ -1,5 +1,6 @@
 import {
   formatCadFromCents,
+  getQuoteTaxBreakdownRows,
   resolveQuoteDisplayRef,
   type QuoteRow,
 } from "@/data/quotes";
@@ -72,6 +73,25 @@ function brandShell(title: string, innerHtml: string): string {
 </html>`;
 }
 
+function quoteTaxEmailLines(quote: QuoteRow): {
+  textLines: string[];
+  htmlBlock: string;
+} {
+  const rows = getQuoteTaxBreakdownRows(quote, { variant: "customer" });
+  const textLines = rows.map(
+    (row) => `${row.label}: ${formatCadFromCents(row.amountCents)}`
+  );
+  const htmlBlock = rows
+    .map((row) => {
+      const isTotal = row.emphasis === "total";
+      return `<p style="margin:${isTotal ? "10px" : "0"} 0 ${isTotal ? "0" : "4px"};font-size:${isTotal ? "18px" : "13px"};color:${isTotal ? "#d4af37" : "#cfc8b8"};">
+        ${escapeHtml(row.label)}: ${escapeHtml(formatCadFromCents(row.amountCents))}
+      </p>`;
+    })
+    .join("");
+  return { textLines, htmlBlock };
+}
+
 export async function sendQuoteReadyEmail(input: {
   apiKey: string;
   quote: QuoteRow;
@@ -79,7 +99,7 @@ export async function sendQuoteReadyEmail(input: {
 }): Promise<void> {
   const { quote, publicQuoteUrl, apiKey } = input;
   const displayRef = resolveQuoteDisplayRef(quote);
-  const total = formatCadFromCents(quote.total_cents);
+  const tax = quoteTaxEmailLines(quote);
   const eventBits = [
     quote.event_type,
     quote.event_date,
@@ -93,7 +113,7 @@ export async function sendQuoteReadyEmail(input: {
     "",
     `Opportunity: ${quote.opportunity_ref}`,
     eventBits ? `Event: ${eventBits}` : "",
-    `Total: ${total} CAD`,
+    ...tax.textLines,
     "",
     "Review your proposal, request options, or ask for changes:",
     publicQuoteUrl,
@@ -104,7 +124,9 @@ export async function sendQuoteReadyEmail(input: {
     .filter(Boolean)
     .join("\n");
 
-  const html = brandShell("Your proposal is ready", `
+  const html = brandShell(
+    "Your proposal is ready",
+    `
     <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#d7d2c6;">
       ${escapeHtml(quote.customer_name || "Hello")}, your Curtain Guy quote is ready to review.
     </p>
@@ -113,7 +135,7 @@ export async function sendQuoteReadyEmail(input: {
       <p style="margin:0 0 10px;font-size:20px;color:#f8f5ec;">${escapeHtml(displayRef)}</p>
       <p style="margin:0;font-size:14px;color:#cfc8b8;">Opportunity ${escapeHtml(quote.opportunity_ref)}</p>
       ${eventBits ? `<p style="margin:8px 0 0;font-size:14px;color:#cfc8b8;">${escapeHtml(eventBits)}</p>` : ""}
-      <p style="margin:12px 0 0;font-size:18px;color:#d4af37;">${escapeHtml(total)}</p>
+      <div style="margin:12px 0 0;">${tax.htmlBlock}</div>
     </div>
     <p style="margin:0 0 18px;font-size:14px;line-height:1.7;color:#d7d2c6;">
       Open your proposal to accept, request changes, or add options for owner review. No payment is collected on this page.
@@ -126,7 +148,8 @@ export async function sendQuoteReadyEmail(input: {
     <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#8b909a;">
       Availability is not guaranteed until confirmed. Setup, installation, and teardown are planned around your event timeline.
     </p>
-  `);
+  `
+  );
 
   await sendResendEmail({
     apiKey,
@@ -153,12 +176,15 @@ export async function sendQuoteOwnerActionNotification(input: {
     `Action: ${input.actionLabel}`,
     input.details || "",
     `Customer: ${input.quote.customer_name || "—"} <${input.quote.customer_email}>`,
+    `Total: ${formatCadFromCents(input.quote.total_cents)} CAD`,
     `Admin: ${adminUrl}`,
   ]
     .filter(Boolean)
     .join("\n");
 
-  const html = brandShell("Quote activity", `
+  const html = brandShell(
+    "Quote activity",
+    `
     <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#d7d2c6;">
       ${escapeHtml(input.actionLabel)} on <strong style="color:#f8f5ec;">${escapeHtml(displayRef)}</strong>
     </p>
@@ -170,10 +196,14 @@ export async function sendQuoteOwnerActionNotification(input: {
     <p style="margin:0 0 16px;font-size:14px;color:#cfc8b8;">
       ${escapeHtml(input.quote.customer_name || "Customer")} · ${escapeHtml(input.quote.customer_email)}
     </p>
+    <p style="margin:0 0 16px;font-size:16px;color:#d4af37;">
+      ${escapeHtml(formatCadFromCents(input.quote.total_cents))}
+    </p>
     <a href="${escapeHtml(adminUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
       Open in admin
     </a>
-  `);
+  `
+  );
 
   await sendResendEmail({
     apiKey: input.apiKey,

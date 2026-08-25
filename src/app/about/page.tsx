@@ -6,6 +6,9 @@ import { MediaVisual } from "@/components/media-visual";
 import { siteConfig } from "@/data/site";
 import { getSiteMedia } from "@/lib/site-media";
 import { createPageMetadata } from "@/lib/seo";
+import { Reveal } from "@/components/animation/reveal";
+import { Stagger } from "@/components/animation/stagger";
+import { AnimatedCard } from "@/components/animation/animated-card";
 
 export const metadata: Metadata = createPageMetadata({
   title: "About Our Montreal Event Drape Rental Company",
@@ -51,7 +54,7 @@ export default function AboutPage() {
       <section className="py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div className="mx-auto max-w-3xl lg:mx-0">
+            <Reveal variant="slide-left" className="mx-auto max-w-3xl lg:mx-0">
               <h2 className="font-heading text-2xl font-semibold text-foreground">
                 What we do
               </h2>
@@ -62,7 +65,7 @@ export default function AboutPage() {
                 transformations. Our event curtain rentals include pipe and
                 drape, wedding draping, stage backdrop rentals, blackout drape,
                 step-and-repeat backdrops, and room divider draping — all
-                installed and struck by our team.
+                with delivery, installation, and teardown by our team.
               </p>
               <p className="mt-6 text-base leading-relaxed text-muted-foreground sm:text-lg">
                 Every project begins with your venue, your event type, and the
@@ -72,17 +75,20 @@ export default function AboutPage() {
                 we shape the right setup and handle full-service drape installation
                 and teardown on event day.
               </p>
-            </div>
+            </Reveal>
+            <Reveal variant="slide-right">
             <MediaVisual
               image={aboutMedia.path}
               alt={aboutMedia.alt}
               className="mx-auto w-full max-w-md shadow-2xl shadow-black/40"
             />
+            </Reveal>
           </div>
 
-          <div className="mt-16 grid gap-4 sm:grid-cols-2">
+          <Stagger className="mt-16 grid gap-4 sm:grid-cols-2">
             {values.map((value) => (
-              <Card key={value.title} className="border-border/40 bg-card/40">
+              <AnimatedCard key={value.title} hover={false}>
+              <Card className="border-border/40 bg-card/40 h-full">
                 <CardContent className="pt-6">
                   <h3 className="font-heading text-base font-medium text-foreground">
                     {value.title}
@@ -92,8 +98,9 @@ export default function AboutPage() {
                   </p>
                 </CardContent>
               </Card>
+              </AnimatedCard>
             ))}
-          </div>
+          </Stagger>
         </div>
       </section>
 

@@ -5,7 +5,6 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Loader2,
   Mail,
 } from "lucide-react";
 import {
@@ -31,7 +30,10 @@ import {
 import { DateInput } from "@/components/ui/date-input";
 import { OptionCard } from "@/components/estimate/option-card";
 import { EstimateContactCard } from "@/components/estimate/estimate-contact-card";
-import { EstimateSubmitSuccess } from "@/components/estimate/estimate-submit-success";
+import {
+  EstimateSubmitSuccess,
+  type EstimateSuccessViewerRole,
+} from "@/components/estimate/estimate-submit-success";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import {
   EstimateFilePicker,
@@ -41,9 +43,12 @@ import {
 } from "@/components/estimates/estimate-file-picker";
 import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { StepTransition } from "@/components/animation/step-transition";
+import { Reveal } from "@/components/animation/reveal";
 
 function toggleSelection(values: string[], id: string): string[] {
   return values.includes(id)
@@ -62,6 +67,7 @@ function toggleFabricDirection(current: string[], id: string): string[] {
 export function EstimateBuilder() {
   const { setDirty, clearDirty } = useOptionalUnsavedChanges();
   const [currentStep, setCurrentStep] = useState(0);
+  const [stepDirection, setStepDirection] = useState<1 | -1>(1);
   const [formData, setFormData] = useState<EstimateFormData>(
     initialEstimateFormData
   );
@@ -80,7 +86,9 @@ export function EstimateBuilder() {
     reference?: string;
     uploadFailed?: number;
     uploadUploaded?: number;
-    isLoggedIn?: boolean;
+    viewerRole: EstimateSuccessViewerRole;
+    accountEstimateHref?: string | null;
+    adminEstimateHref?: string | null;
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -138,6 +146,7 @@ export function EstimateBuilder() {
 
     setStepError(null);
     if (!isLastStep) {
+      setStepDirection(1);
       setCurrentStep((prev) => prev + 1);
     }
   }
@@ -145,6 +154,7 @@ export function EstimateBuilder() {
   function goBack() {
     if (!isFirstStep) {
       setStepError(null);
+      setStepDirection(-1);
       setCurrentStep((prev) => prev - 1);
     }
   }
@@ -152,6 +162,7 @@ export function EstimateBuilder() {
   function handleStepJump(index: number) {
     if (index <= currentStep) {
       setStepError(null);
+      setStepDirection(index < currentStep ? -1 : 1);
       setCurrentStep(index);
       return;
     }
@@ -159,6 +170,7 @@ export function EstimateBuilder() {
     for (let i = currentStep; i < index; i++) {
       const result = validateEstimateStep(estimateBuilderSteps[i].id, formData);
       if (!result.valid) {
+        setStepDirection(i < currentStep ? -1 : 1);
         setCurrentStep(i);
         setStepError(result.message ?? "Please complete the required fields.");
         return;
@@ -166,6 +178,7 @@ export function EstimateBuilder() {
     }
 
     setStepError(null);
+    setStepDirection(1);
     setCurrentStep(index);
   }
 
@@ -204,6 +217,10 @@ export function EstimateBuilder() {
           opportunity_ref?: string | null;
           opportunity_number?: number | null;
           uploadToken?: string | null;
+          isAuthenticated?: boolean;
+          viewerRole?: EstimateSuccessViewerRole;
+          accountEstimateHref?: string | null;
+          adminEstimateHref?: string | null;
         };
 
         if (!response.ok || !payload.ok) {
@@ -227,21 +244,14 @@ export function EstimateBuilder() {
           uploadUploaded = uploadResult.uploaded;
         }
 
-        let isLoggedIn = false;
-        let isOwner = false;
-        try {
-          const sessionRes = await fetch("/api/account/session", {
-            cache: "no-store",
-          });
-          const sessionPayload = (await sessionRes.json()) as {
-            authenticated?: boolean;
-            role?: string | null;
-          };
-          isLoggedIn = Boolean(sessionPayload.authenticated);
-          isOwner = sessionPayload.role === "owner";
-        } catch {
-          isLoggedIn = false;
-        }
+        const viewerRole: EstimateSuccessViewerRole =
+          payload.viewerRole === "owner" ||
+          payload.viewerRole === "customer" ||
+          payload.viewerRole === "guest"
+            ? payload.viewerRole
+            : payload.isAuthenticated
+              ? "customer"
+              : "guest";
 
         setSubmitSuccess({
           requestId: payload.requestId,
@@ -253,7 +263,9 @@ export function EstimateBuilder() {
             : undefined,
           uploadFailed,
           uploadUploaded,
-          isLoggedIn: isLoggedIn && !isOwner,
+          viewerRole,
+          accountEstimateHref: payload.accountEstimateHref,
+          adminEstimateHref: payload.adminEstimateHref,
         });
         clearDirty();
       } catch {
@@ -268,16 +280,25 @@ export function EstimateBuilder() {
 
   if (submitSuccess) {
     return (
-      <div className="space-y-4">
+      <Reveal variant="reveal-soft" immediate className="space-y-4">
         <EstimateSubmitSuccess
           reference={submitSuccess.reference}
           uploadUploaded={submitSuccess.uploadUploaded}
           uploadFailed={submitSuccess.uploadFailed}
-          isLoggedIn={submitSuccess.isLoggedIn}
+          viewerRole={submitSuccess.viewerRole}
           email={formData.email}
+          accountEstimateHref={submitSuccess.accountEstimateHref}
+          adminEstimateHref={submitSuccess.adminEstimateHref}
           uploadProgress={uploadProgress}
+          onSubmitAnother={() => {
+            setSubmitSuccess(null);
+            setUploadProgress([]);
+            setSelectedFiles([]);
+            setSubmitError(null);
+            setCurrentStep(0);
+          }}
         />
-      </div>
+      </Reveal>
     );
   }
 
@@ -354,10 +375,7 @@ export function EstimateBuilder() {
       </div>
 
       {/* Step content */}
-      <div
-        key={step.id}
-        className="animate-in fade-in slide-in-from-bottom-2 duration-300"
-      >
+      <StepTransition stepKey={step.id} direction={stepDirection}>
         {step.id === "event-basics" && (
           <div className="space-y-8">
             <fieldset className="space-y-3">
@@ -686,7 +704,7 @@ export function EstimateBuilder() {
             <EstimateSummary data={formData} />
           </div>
         )}
-      </div>
+      </StepTransition>
 
       {submitError && isLastStep && (
         <div
@@ -738,19 +756,17 @@ export function EstimateBuilder() {
               <ArrowRight className="size-4" />
             </Button>
           ) : (
-            <Button
+            <LoadingButton
               type="button"
               onClick={handleRequestClick}
-              disabled={!canSubmit || isSubmitting}
-              className={cn((!canSubmit || isSubmitting) && "opacity-60")}
+              disabled={!canSubmit}
+              isLoading={isSubmitting}
+              loadingText="Submitting..."
+              icon={<Mail className="size-4" />}
+              className={cn(!canSubmit && "opacity-60")}
             >
-              {isSubmitting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Mail className="size-4" />
-              )}
-              {isSubmitting ? "Sending..." : "Request Final Estimate"}
-            </Button>
+              Request Final Estimate
+            </LoadingButton>
           )}
         </div>
       </div>

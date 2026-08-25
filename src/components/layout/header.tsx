@@ -87,11 +87,12 @@ export function Header() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors xl:px-3",
+                  "inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-[color,background-color,box-shadow,transform] duration-200 xl:px-3 motion-reduce:transition-none",
                   link.special
                     ? "text-primary hover:bg-primary/10"
                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                  isActive && "bg-muted/60 text-foreground"
+                  isActive &&
+                    "bg-muted/60 text-foreground shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"
                 )}
               >
                 {Icon && <Icon className="size-3.5" />}

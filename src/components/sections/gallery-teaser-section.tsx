@@ -6,6 +6,9 @@ import { SectionHeading } from "@/components/section-heading";
 import { SectionShell } from "@/components/section-shell";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Button } from "@/components/ui/button";
+import { Reveal } from "@/components/animation/reveal";
+import { Stagger } from "@/components/animation/stagger";
+import { AnimatedCard } from "@/components/animation/animated-card";
 
 const teaserKeys: Record<string, SiteMediaKey> = {
   wedding: "home.gallery.wedding",
@@ -20,50 +23,58 @@ export function GalleryTeaserSection() {
   return (
     <SectionShell variant="fabric" divider="top" className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
-          <SectionHeading
-            eyebrow="Gallery"
-            title="Event draping inspiration by category."
-            description="Browse visual examples of the drape installations we plan and quote. Images are licensed inspiration until owner project photography is added."
-          />
-          <Button asChild variant="outline" className="min-h-11 shrink-0">
-            <Link href="/gallery">
-              Explore Gallery
-              <ArrowRight />
-            </Link>
-          </Button>
-        </div>
+        <Reveal variant="fade-up">
+          <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
+            <SectionHeading
+              eyebrow="Gallery"
+              title="Event draping inspiration by category."
+              description="Browse visual examples of the drape installations we plan and quote. Images are licensed inspiration until owner project photography is added."
+            />
+            <Button asChild variant="outline" className="min-h-11 shrink-0">
+              <Link href="/gallery">
+                Explore Gallery
+                <ArrowRight />
+              </Link>
+            </Button>
+          </div>
+        </Reveal>
 
-        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:gap-4">
+        <Stagger className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:gap-4" stagger={0.07}>
           {galleryCategories.map((category) => {
             const mediaKey = teaserKeys[category.id];
             return (
-              <Link
+              <AnimatedCard
                 key={category.id}
-                href={`/gallery#${category.id}`}
-                className="media-frame group relative aspect-square overflow-hidden rounded-2xl bg-card/30"
+                variant="scale-in"
+                hover={false}
+                className="aspect-square min-h-0"
               >
-                {mediaKey && (
-                  <SiteMediaImage
-                    mediaKey={mediaKey}
-                    sizes="(max-width: 640px) 50vw, 33vw"
-                    className="absolute inset-0"
-                    imageClassName="transition-transform duration-700 group-hover:scale-[1.03]"
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
-                <div className="absolute inset-x-0 bottom-0 p-4">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary/80">
-                    Inspiration
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-foreground">
-                    {category.label}
-                  </p>
-                </div>
-              </Link>
+                <Link
+                  href={`/gallery#${category.id}`}
+                  className="media-frame group relative block size-full overflow-hidden rounded-2xl bg-card/30"
+                >
+                  {mediaKey && (
+                    <SiteMediaImage
+                      mediaKey={mediaKey}
+                      sizes="(max-width: 640px) 50vw, 33vw"
+                      className="absolute inset-0"
+                      imageClassName="transition-transform duration-700 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
+                  <div className="absolute inset-x-0 bottom-0 p-4">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary/80">
+                      Inspiration
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-foreground">
+                      {category.label}
+                    </p>
+                  </div>
+                </Link>
+              </AnimatedCard>
             );
           })}
-        </div>
+        </Stagger>
       </div>
     </SectionShell>
   );

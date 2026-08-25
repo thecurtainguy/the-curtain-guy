@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { SectionShell } from "@/components/section-shell";
+import { Reveal } from "@/components/animation/reveal";
 import { cn } from "@/lib/utils";
 
 type PageHeroProps = {
@@ -35,20 +36,22 @@ export function PageHero({
       />
 
       <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-        {eyebrow && (
-          <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
-            {eyebrow}
-          </p>
-        )}
-        <h1 className="mt-3 max-w-3xl font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            {description}
-          </p>
-        )}
-        {children}
+        <Reveal variant="fade-up" immediate>
+          {eyebrow && (
+            <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
+              {eyebrow}
+            </p>
+          )}
+          <h1 className="mt-3 max-w-3xl font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+            {title}
+          </h1>
+          {description && (
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+              {description}
+            </p>
+          )}
+          {children}
+        </Reveal>
       </div>
     </SectionShell>
   );
@@ -81,7 +84,7 @@ export function QuoteCTA({
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,rgba(212,175,55,0.06),transparent_50%)]" aria-hidden />
       <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal variant="fade-up" className="mx-auto max-w-2xl text-center">
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
             {headline}
           </h2>
@@ -96,7 +99,7 @@ export function QuoteCTA({
               <Link href="/contact">Contact Us</Link>
             </Button>
           </div>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

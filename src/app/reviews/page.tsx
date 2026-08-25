@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
 import { createPageMetadata } from "@/lib/seo";
+import { Reveal } from "@/components/animation/reveal";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Client Reviews",
@@ -24,6 +25,7 @@ export default function ReviewsPage() {
 
       <section className="py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <Reveal variant="fade-up">
           <Card className="mx-auto max-w-2xl border-border/40 bg-card/40">
             <CardContent className="flex flex-col items-center py-12 text-center">
               <div className="mb-6 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -45,6 +47,7 @@ export default function ReviewsPage() {
               </Button>
             </CardContent>
           </Card>
+          </Reveal>
         </div>
       </section>
 

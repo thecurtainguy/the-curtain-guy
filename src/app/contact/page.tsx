@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { MapPin, Mail, Phone } from "lucide-react";
 import { createPageMetadata } from "@/lib/seo";
+import { Reveal } from "@/components/animation/reveal";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Contact Our Montreal Event Drape Rental Team",
@@ -27,7 +28,7 @@ export default function ContactPage() {
 
       <section className="py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mb-10 overflow-hidden rounded-2xl border border-border/40">
+          <Reveal variant="scale-in" className="mb-10 overflow-hidden rounded-2xl border border-border/40">
             <div className="relative aspect-[21/9] min-h-[140px] sm:min-h-[200px]">
               <SiteMediaImage
                 mediaKey="contact.atmosphere"
@@ -36,10 +37,10 @@ export default function ContactPage() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/55 via-transparent via-30% to-transparent dark:from-background dark:via-background/20 dark:to-transparent" />
             </div>
-          </div>
+          </Reveal>
 
           <div className="grid gap-12 lg:grid-cols-2">
-            <div className="space-y-8">
+            <Reveal variant="slide-left" className="space-y-8">
               <div>
                 <h2 className="font-heading text-xl font-semibold text-foreground">
                   Plan your event draping
@@ -113,8 +114,9 @@ export default function ContactPage() {
               <Button asChild className="min-h-11">
                 <Link href="/get-estimate">Get Estimate</Link>
               </Button>
-            </div>
+            </Reveal>
 
+            <Reveal variant="slide-right">
             <Card className="border-border/40 bg-card/40">
               <CardContent className="pt-6">
                 <h2 className="font-heading text-lg font-medium text-foreground">
@@ -127,6 +129,7 @@ export default function ContactPage() {
                 <ContactForm />
               </CardContent>
             </Card>
+            </Reveal>
           </div>
         </div>
       </section>

@@ -2,7 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { CheckCircle2, Clock3, MapPin, UserPlus } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock3,
+  LayoutDashboard,
+  MapPin,
+  Plus,
+  Shield,
+  UserPlus,
+} from "lucide-react";
 import { estimateDisclaimer } from "@/data/estimate";
 import { siteConfig } from "@/data/site";
 import { Button } from "@/components/ui/button";
@@ -13,22 +21,30 @@ import {
   type FileUploadProgress,
 } from "@/components/estimates/estimate-file-picker";
 
+export type EstimateSuccessViewerRole = "guest" | "customer" | "owner";
+
 type EstimateSubmitSuccessProps = {
   reference?: string;
   uploadUploaded?: number;
   uploadFailed?: number;
-  isLoggedIn?: boolean;
+  viewerRole?: EstimateSuccessViewerRole;
   email: string;
+  accountEstimateHref?: string | null;
+  adminEstimateHref?: string | null;
   uploadProgress: FileUploadProgress[];
+  onSubmitAnother?: () => void;
 };
 
 export function EstimateSubmitSuccess({
   reference,
   uploadUploaded,
   uploadFailed,
-  isLoggedIn,
+  viewerRole = "guest",
   email,
+  accountEstimateHref,
+  adminEstimateHref,
   uploadProgress,
+  onSubmitAnother,
 }: EstimateSubmitSuccessProps) {
   const stageRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +67,9 @@ export function EstimateSubmitSuccess({
 
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  const accountHref = accountEstimateHref ?? "/account/estimates";
+  const adminHref = adminEstimateHref ?? "/admin/estimates";
 
   return (
     <div ref={stageRef}>
@@ -129,11 +148,7 @@ export function EstimateSubmitSuccess({
           </div>
         ) : null}
 
-        {isLoggedIn ? (
-          <Button asChild className="min-h-10">
-            <Link href="/account/estimates">View your estimates</Link>
-          </Button>
-        ) : (
+        {viewerRole === "guest" ? (
           <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
             <p className="text-sm font-medium text-foreground">
               Create an account to view this estimate, upload more files, and
@@ -153,7 +168,70 @@ export function EstimateSubmitSuccess({
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
+
+        {viewerRole === "customer" ? (
+          <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
+            <p className="text-sm font-medium text-foreground">
+              This estimate is now saved to your account.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <Button asChild className="min-h-10">
+                <Link href={accountHref}>View estimate in account</Link>
+              </Button>
+              <Button asChild variant="outline" className="min-h-10">
+                <Link href="/account">
+                  <LayoutDashboard className="size-4" />
+                  Account dashboard
+                </Link>
+              </Button>
+              {onSubmitAnother ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-10"
+                  onClick={onSubmitAnother}
+                >
+                  <Plus className="size-4" />
+                  Submit another estimate
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {viewerRole === "owner" ? (
+          <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
+            <p className="text-sm font-medium text-foreground">
+              Estimate received.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <Button asChild className="min-h-10">
+                <Link href={adminHref}>
+                  <Shield className="size-4" />
+                  View in admin
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="min-h-10">
+                <Link href="/admin">
+                  <LayoutDashboard className="size-4" />
+                  Admin dashboard
+                </Link>
+              </Button>
+              {onSubmitAnother ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-10"
+                  onClick={onSubmitAnother}
+                >
+                  <Plus className="size-4" />
+                  Submit another estimate
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </CurtainReveal>
     </div>
   );

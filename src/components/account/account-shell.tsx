@@ -8,6 +8,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Reveal } from "@/components/animation/reveal";
 
 const links = [
   { href: "/account", label: "Overview", exact: true },
@@ -79,7 +80,7 @@ export function AccountShell({
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                  "rounded-xl px-3 py-2 text-sm font-medium transition-[color,background-color,transform] duration-200 motion-reduce:transition-none active:scale-[0.98]",
                   active
                     ? "bg-primary/10 text-primary ring-1 ring-primary/30 dark:bg-primary/15 dark:ring-0"
                     : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
@@ -91,7 +92,11 @@ export function AccountShell({
           })}
         </nav>
       </header>
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">{children}</div>
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <Reveal variant="fade-up" immediate duration={0.32}>
+          {children}
+        </Reveal>
+      </div>
     </div>
   );
 }

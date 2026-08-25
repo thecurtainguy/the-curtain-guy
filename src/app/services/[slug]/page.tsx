@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, ArrowRight } from "lucide-react";
 import type { SiteMediaKey } from "@/data/site-media";
+import { Reveal } from "@/components/animation/reveal";
+import { Stagger } from "@/components/animation/stagger";
+import { AnimatedCard } from "@/components/animation/animated-card";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -71,6 +74,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
             <div className="space-y-8">
+              <Reveal variant="slide-left">
               <Card className="border-border/40 bg-card/25">
                 <CardContent className="p-6 sm:p-8">
                   <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
@@ -84,8 +88,10 @@ export default async function ServiceDetailPage({ params }: PageProps) {
                   </p>
                 </CardContent>
               </Card>
+              </Reveal>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <Stagger className="grid gap-4 sm:grid-cols-2">
+                <AnimatedCard hover={false}>
                 <Card className="border-border/40 bg-card/25">
                   <CardContent className="p-6">
                     <h2 className="font-heading text-lg font-medium text-foreground">
@@ -104,7 +110,9 @@ export default async function ServiceDetailPage({ params }: PageProps) {
                     </ul>
                   </CardContent>
                 </Card>
+                </AnimatedCard>
 
+                <AnimatedCard hover={false}>
                 <Card className="border-border/40 bg-card/25">
                   <CardContent className="p-6">
                     <h2 className="font-heading text-lg font-medium text-foreground">
@@ -123,8 +131,10 @@ export default async function ServiceDetailPage({ params }: PageProps) {
                     </ul>
                   </CardContent>
                 </Card>
-              </div>
+                </AnimatedCard>
+              </Stagger>
 
+              <Reveal variant="fade-up">
               <Card className="border-border/40 bg-card/25">
                 <CardContent className="p-6 sm:p-8">
                   <h2 className="font-heading text-lg font-medium text-foreground">
@@ -143,6 +153,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
                   </ul>
                 </CardContent>
               </Card>
+              </Reveal>
 
               {service.faq.length > 0 && (
                 <div className="space-y-4">
@@ -171,6 +182,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
             </div>
 
             <aside className="space-y-4 lg:sticky lg:top-24">
+              <Reveal variant="scale-in">
               <Card className="overflow-hidden border-border/40 bg-card/30">
                 <div className="relative aspect-[4/3]">
                   {(asideKey || heroKey) && (
@@ -205,6 +217,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
                   </Button>
                 </CardContent>
               </Card>
+              </Reveal>
 
               {related.length > 0 && (
                 <Card className="border-border/40 bg-card/25">
@@ -232,7 +245,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
           </div>
 
           {detailKey && (
-            <div className="mt-10 overflow-hidden rounded-2xl border border-border/40">
+            <Reveal variant="scale-in" className="mt-10 overflow-hidden rounded-2xl border border-border/40">
               <div className="relative aspect-[21/9] min-h-[180px] sm:min-h-[240px]">
                 <SiteMediaImage
                   mediaKey={detailKey}
@@ -253,7 +266,7 @@ export default async function ServiceDetailPage({ params }: PageProps) {
                   </p>
                 </div>
               </div>
-            </div>
+            </Reveal>
           )}
         </div>
       </section>

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { eventTypes } from "@/data/estimate";
 import { siteConfig } from "@/data/site";
-import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -285,14 +285,15 @@ export function ContactForm() {
         </p>
       ) : null}
 
-      <Button
+      <LoadingButton
         type="submit"
         className="w-full min-h-11"
-        disabled={isSubmitting}
+        isLoading={isSubmitting}
+        loadingText="Sending..."
+        icon={<Send className="size-4" />}
       >
-        <Send className="size-4" />
-        {isSubmitting ? "Sending..." : "Send Message"}
-      </Button>
+        Send Message
+      </LoadingButton>
     </form>
   );
 }

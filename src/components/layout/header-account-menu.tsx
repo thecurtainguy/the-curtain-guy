@@ -12,6 +12,7 @@ import {
   LogOut,
   PanelsTopLeft,
   Shield,
+  Star,
   UserRound,
 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -55,6 +56,7 @@ const ownerLinks: MenuLink[] = [
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/studio", label: "Studio", icon: PanelsTopLeft },
 ];
 

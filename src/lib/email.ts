@@ -27,6 +27,7 @@ import {
 
 export type SendEstimateNotificationInput = {
   requestId: string;
+  opportunityRef?: string | null;
   data: EstimateFormData;
   apiKey: string;
   fileCount?: number;
@@ -34,6 +35,7 @@ export type SendEstimateNotificationInput = {
 
 export type SendEstimateCustomerConfirmationInput = {
   requestId: string;
+  opportunityRef?: string | null;
   data: EstimateFormData;
   apiKey: string;
   fileCount?: number;
@@ -72,11 +74,12 @@ function escapeHtml(value: string): string {
 function buildEstimateEmailContext(
   requestId: string,
   data: EstimateFormData,
-  fileCount = 0
+  fileCount = 0,
+  opportunityRef?: string | null
 ): EstimateEmailContext {
   return {
     requestId,
-    reference: formatEstimateReference(requestId),
+    reference: formatEstimateReference(requestId, opportunityRef),
     data,
     fileCount: Math.max(0, fileCount),
   };
@@ -267,7 +270,7 @@ function buildNotificationHtml(ctx: EstimateEmailContext): string {
       </div>
       <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
         <div style="margin-bottom:24px;padding:14px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;">
-          <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;"><strong>Planning brief only.</strong> Review measurements, availability, delivery, installation, and strike before confirming final pricing.</p>
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;"><strong>Planning brief only.</strong> Review measurements, availability, delivery, installation, and teardown before confirming final pricing.</p>
         </div>
         ${filesBlock}
         ${sections}
@@ -385,8 +388,13 @@ async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
 export async function sendEstimateNotificationEmail(
   input: SendEstimateNotificationInput
 ): Promise<void> {
-  const { requestId, data, apiKey, fileCount = 0 } = input;
-  const ctx = buildEstimateEmailContext(requestId, data, fileCount);
+  const { requestId, opportunityRef, data, apiKey, fileCount = 0 } = input;
+  const ctx = buildEstimateEmailContext(
+    requestId,
+    data,
+    fileCount,
+    opportunityRef
+  );
   const customerEmail = data.email.trim();
 
   await sendResendEmail({
@@ -407,14 +415,19 @@ export async function sendEstimateCustomerConfirmationEmail(
     return;
   }
 
-  const { requestId, data, apiKey, fileCount = 0 } = input;
+  const { requestId, opportunityRef, data, apiKey, fileCount = 0 } = input;
   const customerEmail = data.email.trim();
 
   if (!customerEmail) {
     return;
   }
 
-  const ctx = buildEstimateEmailContext(requestId, data, fileCount);
+  const ctx = buildEstimateEmailContext(
+    requestId,
+    data,
+    fileCount,
+    opportunityRef
+  );
 
   await sendResendEmail({
     apiKey,

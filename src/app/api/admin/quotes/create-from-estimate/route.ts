@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveQuoteDisplayRef } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
 import { fetchEstimateById } from "@/lib/estimate-access";
 import { createQuoteFromEstimate } from "@/lib/quotes";
@@ -56,6 +57,6 @@ export async function POST(request: Request) {
     ok: true,
     quoteId: result.quote.id,
     created: result.created,
-    quoteDisplayRef: result.quote.quote_display_ref,
+    quoteDisplayRef: resolveQuoteDisplayRef(result.quote),
   });
 }

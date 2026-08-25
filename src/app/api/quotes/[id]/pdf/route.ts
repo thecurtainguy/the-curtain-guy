@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
-import { requireOwner } from "@/lib/auth";
+import { formatQuoteFilenameStem } from "@/data/quotes";
+import { getCurrentUser, requireOwner } from "@/lib/auth";
 import { fetchEstimateById } from "@/lib/estimate-access";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import {
@@ -62,7 +62,7 @@ export async function GET(_request: Request, context: RouteContext) {
     summary: "PDF downloaded",
   });
 
-  const filename = `${quote.opportunity_ref}-R${quote.revision_number}.pdf`;
+  const filename = `${formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number)}.pdf`;
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {

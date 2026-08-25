@@ -13,7 +13,7 @@ import { listQuotesForCustomer } from "@/lib/quotes";
 import { EstimateStatusBadge } from "@/components/estimates/status-badge";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import { formatEstimateReference } from "@/data/estimate";
-import { formatCadFromCents } from "@/data/quotes";
+import { formatCadFromCents, resolveQuoteDisplayRef } from "@/data/quotes";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -108,7 +108,7 @@ export default async function AccountHomePage() {
                   >
                     <div>
                       <p className="font-medium text-foreground">
-                        {row.quote_display_ref}
+                        {resolveQuoteDisplayRef(row)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {row.opportunity_ref}
@@ -151,7 +151,7 @@ export default async function AccountHomePage() {
                   >
                     <div>
                       <p className="font-medium text-foreground">
-                        {formatEstimateReference(row.id)}
+                        {formatEstimateReference(row.id, row.opportunity_ref)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {row.event_type || "Event"}

@@ -32,7 +32,7 @@ export default async function AdminEstimatesPage({
   let query = admin
     .from("estimate_requests")
     .select(
-      "id, status, customer_name, customer_email, customer_phone, event_type, event_date, venue_name, city_area, created_at"
+      "id, status, customer_name, customer_email, customer_phone, event_type, event_date, venue_name, city_area, created_at, opportunity_ref"
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -59,16 +59,18 @@ export default async function AdminEstimatesPage({
     }
   }
 
-  // Reference search: also filter client-side for TCG-XXXXXXXX style
+  // Reference search: opportunity_ref (TCG-10000) or legacy TCG-{uuid8}
   const filtered = (rows ?? []).filter((row) => {
     if (!q) return true;
-    const ref = formatEstimateReference(row.id).toLowerCase();
+    const needle = q.toLowerCase();
+    const ref = formatEstimateReference(row.id, row.opportunity_ref).toLowerCase();
     return (
-      ref.includes(q.toLowerCase()) ||
-      row.customer_name.toLowerCase().includes(q.toLowerCase()) ||
-      row.customer_email.toLowerCase().includes(q.toLowerCase()) ||
-      (row.customer_phone ?? "").toLowerCase().includes(q.toLowerCase()) ||
-      row.id.toLowerCase().includes(q.toLowerCase())
+      ref.includes(needle) ||
+      (row.opportunity_ref || "").toLowerCase().includes(needle) ||
+      row.customer_name.toLowerCase().includes(needle) ||
+      row.customer_email.toLowerCase().includes(needle) ||
+      (row.customer_phone ?? "").toLowerCase().includes(needle) ||
+      row.id.toLowerCase().includes(needle)
     );
   });
 
@@ -154,7 +156,7 @@ export default async function AdminEstimatesPage({
                           href={`/admin/estimates/${row.id}`}
                           className="font-medium text-primary hover:underline"
                         >
-                          {formatEstimateReference(row.id)}
+                          {formatEstimateReference(row.id, row.opportunity_ref)}
                         </Link>
                       </td>
                       <td className="px-4 py-3">

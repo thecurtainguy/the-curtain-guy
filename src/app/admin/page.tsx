@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ClipboardList } from "lucide-react";
+import { CalendarDays, ClipboardList } from "lucide-react";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { EstimateStatusBadge } from "@/components/estimates/status-badge";
 import { formatEstimateReference } from "@/data/estimate";
+import { listAdminJobs } from "@/lib/jobs";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -31,10 +32,21 @@ export default async function AdminDashboardPage() {
     )
   ) as Record<(typeof STATUSES)[number], number>;
 
+  const today = new Date().toISOString().slice(0, 10);
+  const allJobs = await listAdminJobs({ limit: 500 });
+  const upcomingEvents = allJobs.filter(
+    (j) => j.event_date && j.event_date >= today && j.status !== "cancelled" && j.status !== "closed"
+  ).length;
+  const needsDetails = allJobs.filter((j) =>
+    ["draft", "details_needed"].includes(j.status)
+  ).length;
+  const installScheduled = allJobs.filter((j) => j.status === "install_scheduled").length;
+  const teardownScheduled = allJobs.filter((j) => j.status === "teardown_scheduled").length;
+
   const { data: recent } = await admin
     .from("estimate_requests")
     .select(
-      "id, status, customer_name, customer_email, event_type, event_date, city_area, created_at"
+      "id, status, customer_name, customer_email, event_type, event_date, city_area, created_at, opportunity_ref"
     )
     .order("created_at", { ascending: false })
     .limit(8);
@@ -76,6 +88,41 @@ export default async function AdminDashboardPage() {
           ))}
         </div>
 
+        <div>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="font-heading text-lg font-semibold text-foreground">
+              Booked events
+            </h2>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/jobs">
+                <CalendarDays className="size-4" />
+                All jobs
+              </Link>
+            </Button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: "Upcoming events", value: upcomingEvents, href: "/admin/jobs?upcoming=1" },
+              { label: "Needs details", value: needsDetails, href: "/admin/jobs?status=details_needed" },
+              { label: "Install scheduled", value: installScheduled, href: "/admin/jobs?status=install_scheduled" },
+              { label: "Teardown scheduled", value: teardownScheduled, href: "/admin/jobs?status=teardown_scheduled" },
+            ].map((card) => (
+              <Link
+                key={card.label}
+                href={card.href}
+                className="rounded-2xl border border-border/40 bg-card/25 p-4 transition-colors hover:border-primary/30 hover:bg-card/40"
+              >
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  {card.label}
+                </p>
+                <p className="mt-2 font-heading text-3xl font-semibold text-foreground">
+                  {card.value}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+
         <section className="rounded-3xl border border-border/40 bg-card/20 overflow-hidden">
           <div className="border-b border-border/40 px-5 py-4">
             <h2 className="font-heading text-lg font-semibold text-foreground">
@@ -114,7 +161,7 @@ export default async function AdminDashboardPage() {
                           href={`/admin/estimates/${row.id}`}
                           className="font-medium text-primary hover:underline"
                         >
-                          {formatEstimateReference(row.id)}
+                          {formatEstimateReference(row.id, row.opportunity_ref)}
                         </Link>
                       </td>
                       <td className="px-4 py-3">

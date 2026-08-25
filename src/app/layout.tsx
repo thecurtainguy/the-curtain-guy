@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SiteShell } from "@/components/layout/site-shell";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { UnsavedChangesProvider } from "@/components/providers/unsaved-changes-provider";
 import { siteConfig } from "@/data/site";
 import { organizationJsonLd } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/env";
@@ -91,7 +92,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           }}
         />
         <ThemeProvider>
-          <SiteShell>{children}</SiteShell>
+          <UnsavedChangesProvider>
+            <SiteShell>{children}</SiteShell>
+          </UnsavedChangesProvider>
         </ThemeProvider>
       </body>
     </html>

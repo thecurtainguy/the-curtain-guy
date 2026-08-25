@@ -23,7 +23,7 @@ export default function ServicesHubPage() {
       <PageHero
         eyebrow="Services"
         title="Luxury Event Drape Rental Services in Montreal"
-        description="Temporary event draping for weddings, corporate events, galas, celebrations, stages, and venue transformations — with delivery, installation, and strike. Not residential curtains. Not e-commerce."
+        description="Temporary event draping for weddings, corporate events, galas, celebrations, stages, and venue transformations — with delivery, installation, and teardown. Not residential curtains. Not e-commerce."
       >
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg" className="min-h-11">

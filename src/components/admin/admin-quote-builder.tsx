@@ -19,6 +19,8 @@ import {
   QUOTE_LINE_STATUSES,
   computeLineTotalCents,
   formatCadFromCents,
+  formatQuoteRevisionLabel,
+  resolveQuoteDisplayRef,
   type QuoteLineCategory,
   type QuoteLineStatus,
   type QuoteRequestStatus,
@@ -326,12 +328,21 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
             Quote builder
           </p>
           <h1 className="font-heading text-3xl font-semibold text-foreground">
-            {quote.quote_display_ref}
+            {resolveQuoteDisplayRef(quote)}
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span>{quote.opportunity_ref}</span>
-            <span aria-hidden>·</span>
-            <span>Rev {quote.revision_number}</span>
+            {(() => {
+              const revLabel = formatQuoteRevisionLabel(quote.revision_number, {
+                hideOriginal: true,
+              });
+              return revLabel ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>{revLabel}</span>
+                </>
+              ) : null;
+            })()}
             <QuoteStatusBadge status={quote.status} />
           </div>
           {quote.estimate_request_id ? (

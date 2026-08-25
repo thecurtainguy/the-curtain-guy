@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
   Loader2,
   Mail,
 } from "lucide-react";
@@ -16,7 +14,6 @@ import {
   canSubmitEstimate,
   drapeGoals,
   estimateBuilderSteps,
-  estimateDisclaimer,
   eventTypes,
   fabricDirections,
   floorPlanOptions,
@@ -34,6 +31,7 @@ import {
 import { DateInput } from "@/components/ui/date-input";
 import { OptionCard } from "@/components/estimate/option-card";
 import { EstimateContactCard } from "@/components/estimate/estimate-contact-card";
+import { EstimateSubmitSuccess } from "@/components/estimate/estimate-submit-success";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
 import {
   EstimateFilePicker,
@@ -41,6 +39,7 @@ import {
   type FileUploadProgress,
   type SelectedEstimateFile,
 } from "@/components/estimates/estimate-file-picker";
+import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +60,7 @@ function toggleFabricDirection(current: string[], id: string): string[] {
 }
 
 export function EstimateBuilder() {
+  const { setDirty, clearDirty } = useOptionalUnsavedChanges();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<EstimateFormData>(
     initialEstimateFormData
@@ -91,6 +91,32 @@ export function EstimateBuilder() {
   const canSubmit = canSubmitEstimate(formData);
 
   const mailtoHref = useMemo(() => buildEstimateMailto(formData), [formData]);
+
+  useEffect(() => {
+    if (submitSuccess) {
+      clearDirty();
+      return;
+    }
+
+    const formDirty =
+      JSON.stringify(formData) !== JSON.stringify(initialEstimateFormData);
+    const stepDirty = currentStep > 0;
+    const filesDirty = selectedFiles.length > 0;
+    setDirty(formDirty || stepDirty || filesDirty);
+  }, [
+    formData,
+    currentStep,
+    selectedFiles,
+    submitSuccess,
+    setDirty,
+    clearDirty,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      clearDirty();
+    };
+  }, [clearDirty]);
 
   function updateField<K extends keyof EstimateFormData>(
     field: K,
@@ -175,6 +201,8 @@ export function EstimateBuilder() {
           ok?: boolean;
           message?: string;
           requestId?: string;
+          opportunity_ref?: string | null;
+          opportunity_number?: number | null;
           uploadToken?: string | null;
         };
 
@@ -218,12 +246,16 @@ export function EstimateBuilder() {
         setSubmitSuccess({
           requestId: payload.requestId,
           reference: payload.requestId
-            ? formatEstimateReference(payload.requestId)
+            ? formatEstimateReference(
+                payload.requestId,
+                payload.opportunity_ref
+              )
             : undefined,
           uploadFailed,
           uploadUploaded,
           isLoggedIn: isLoggedIn && !isOwner,
         });
+        clearDirty();
       } catch {
         setSubmitError(
           "We could not submit your estimate online. Please use email instead."
@@ -232,6 +264,21 @@ export function EstimateBuilder() {
         setIsSubmitting(false);
       }
     })();
+  }
+
+  if (submitSuccess) {
+    return (
+      <div className="space-y-4">
+        <EstimateSubmitSuccess
+          reference={submitSuccess.reference}
+          uploadUploaded={submitSuccess.uploadUploaded}
+          uploadFailed={submitSuccess.uploadFailed}
+          isLoggedIn={submitSuccess.isLoggedIn}
+          email={formData.email}
+          uploadProgress={uploadProgress}
+        />
+      </div>
+    );
   }
 
   return (
@@ -622,14 +669,12 @@ export function EstimateBuilder() {
 
         {step.id === "contact-summary" && (
           <div className="w-full space-y-8">
-            {!submitSuccess ? (
-              <EstimateFilePicker
-                files={selectedFiles}
-                onChange={setSelectedFiles}
-                disabled={isSubmitting}
-                uploadProgress={isSubmitting ? uploadProgress : undefined}
-              />
-            ) : null}
+            <EstimateFilePicker
+              files={selectedFiles}
+              onChange={setSelectedFiles}
+              disabled={isSubmitting}
+              uploadProgress={isSubmitting ? uploadProgress : undefined}
+            />
 
             <EstimateContactCard
               data={formData}
@@ -642,94 +687,6 @@ export function EstimateBuilder() {
           </div>
         )}
       </div>
-
-      {submitSuccess && isLastStep && (
-        <div
-          role="status"
-          className="space-y-4 rounded-2xl border border-primary/30 bg-primary/10 p-5 sm:p-6"
-        >
-          <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
-              <CheckCircle2 className="size-5" />
-            </span>
-            <div className="space-y-2">
-              <p className="font-heading text-lg font-semibold text-foreground">
-                Estimate brief sent
-              </p>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Your estimate brief was sent
-                {submitSuccess.reference ? (
-                  <>
-                    . Reference:{" "}
-                    <span className="font-medium text-foreground">
-                      {submitSuccess.reference}
-                    </span>
-                  </>
-                ) : null}
-                . The Curtain Guy team will review your event details and follow
-                up by email.
-              </p>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                A confirmation email has been sent if the email address was
-                entered correctly.
-              </p>
-              {typeof submitSuccess.uploadUploaded === "number" &&
-              submitSuccess.uploadUploaded > 0 ? (
-                <p className="text-sm leading-relaxed text-emerald-200">
-                  {submitSuccess.uploadUploaded} file
-                  {submitSuccess.uploadUploaded === 1 ? "" : "s"} uploaded and
-                  attached to your estimate.
-                </p>
-              ) : null}
-              {submitSuccess.uploadFailed && submitSuccess.uploadFailed > 0 ? (
-                <p className="text-sm leading-relaxed text-amber-200">
-                  Your estimate was received, but{" "}
-                  {submitSuccess.uploadFailed} file
-                  {submitSuccess.uploadFailed === 1 ? "" : "s"} failed to
-                  upload. You can add files later from your account.
-                </p>
-              ) : null}
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {estimateDisclaimer}
-              </p>
-            </div>
-          </div>
-
-          {uploadProgress.length > 0 ? (
-            <EstimateFilePicker
-              files={[]}
-              onChange={() => {}}
-              disabled
-              uploadProgress={uploadProgress}
-            />
-          ) : null}
-
-          {submitSuccess.isLoggedIn ? (
-            <Button asChild>
-              <Link href="/account/estimates">View your estimates</Link>
-            </Button>
-          ) : (
-            <div className="rounded-2xl border border-border/40 bg-background/40 p-4">
-              <p className="text-sm font-medium text-foreground">
-                Create an account to view this estimate, upload more files, and
-                track updates.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button asChild>
-                  <Link
-                    href={`/account/signup?email=${encodeURIComponent(formData.email.trim())}`}
-                  >
-                    Create an account
-                  </Link>
-                </Button>
-                <Button asChild variant="outline">
-                  <Link href="/account/login">Sign in</Link>
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {submitError && isLastStep && (
         <div
@@ -784,10 +741,8 @@ export function EstimateBuilder() {
             <Button
               type="button"
               onClick={handleRequestClick}
-              disabled={!canSubmit || isSubmitting || submitSuccess !== null}
-              className={cn(
-                (!canSubmit || isSubmitting || submitSuccess) && "opacity-60"
-              )}
+              disabled={!canSubmit || isSubmitting}
+              className={cn((!canSubmit || isSubmitting) && "opacity-60")}
             >
               {isSubmitting ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -800,7 +755,7 @@ export function EstimateBuilder() {
         </div>
       </div>
 
-      {isLastStep && !submitSuccess && (
+      {isLastStep && (
         <p className="text-center text-xs text-muted-foreground">
           {canSubmit
             ? "Submit online or use email if submission fails."

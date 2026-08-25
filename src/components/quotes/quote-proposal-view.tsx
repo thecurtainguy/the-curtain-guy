@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatCadFromCents,
+  getCustomerRevisionNumber,
   QUOTE_CATEGORY_LABELS,
   type CustomerSafeQuote,
   type QuoteLineCategory,
@@ -280,9 +281,12 @@ export function QuoteProposalView({
                   </h1>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {quote.opportunity_ref}
-                    {quote.revision_number > 1
-                      ? ` · Revision ${quote.revision_number}`
-                      : ""}
+                    {(() => {
+                      const rev = getCustomerRevisionNumber(
+                        quote.revision_number
+                      );
+                      return rev ? ` · Revision ${rev}` : "";
+                    })()}
                   </p>
                 </div>
               </div>

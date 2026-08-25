@@ -46,7 +46,10 @@ export default async function AccountEstimateDetailPage({ params }: PageProps) {
   const files = (await fetchEstimateFiles(id, ["uploaded", "pending"])).filter(
     (file) => file.upload_status === "uploaded" || file.upload_status === "pending"
   );
-  const reference = formatEstimateReference(estimate.id);
+  const reference = formatEstimateReference(
+    estimate.id,
+    estimate.opportunity_ref
+  );
   const canClaim = verified && !estimate.user_id;
 
   return (

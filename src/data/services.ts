@@ -53,7 +53,7 @@ export const services: ServicePage[] = [
       "Ceremony vs. reception timing and room turns",
       "Fabric color, fullness, and lighting goals",
       "Guest flow, photo sightlines, and existing décor",
-      "Delivery access, install window, and strike schedule",
+      "Delivery access, install window, and teardown schedule",
     ],
     whatWeHandle: [
       "Planning the drape layout around your venue",
@@ -85,7 +85,7 @@ export const services: ServicePage[] = [
     ],
     metaTitle: "Wedding Draping Montreal",
     metaDescription:
-      "Luxury wedding draping in Montreal — ceremony backdrops, reception room transformation, sweetheart tables, and photo areas. Full-service rental with delivery, install, and strike.",
+      "Luxury wedding draping in Montreal — ceremony backdrops, reception room transformation, sweetheart tables, and photo areas. Full-service rental with delivery, install, and teardown.",
     icon: Layers,
   },
   {
@@ -110,7 +110,7 @@ export const services: ServicePage[] = [
       "Base plate and safety footprint in guest areas",
       "Fabric opacity, color, and finish",
       "Doorways, AV, catering paths, and fire egress",
-      "Install and strike windows at the venue",
+      "Install and teardown windows at the venue",
     ],
     whatWeHandle: [
       "Hardware and fabric scoping for your layout",
@@ -142,7 +142,7 @@ export const services: ServicePage[] = [
     ],
     metaTitle: "Pipe and Drape Rental Montreal",
     metaDescription:
-      "Pipe and drape rental in Montreal for modular event walls, partitions, registration areas, and venue zoning. Full-service delivery, installation, and strike.",
+      "Pipe and drape rental in Montreal for modular event walls, partitions, registration areas, and venue zoning. Full-service delivery, installation, and teardown.",
     icon: LayoutGrid,
   },
   {
@@ -172,7 +172,7 @@ export const services: ServicePage[] = [
     whatWeHandle: [
       "Layout planning for stage and room polish",
       "Backdrop and perimeter fabric selection",
-      "Delivery, installation, and strike",
+      "Delivery, installation, and teardown",
       "Coordination with planners, AV, and venues",
     ],
     faq: [
@@ -199,7 +199,7 @@ export const services: ServicePage[] = [
     ],
     metaTitle: "Corporate Event Draping Montreal",
     metaDescription:
-      "Corporate event and gala draping in Montreal — conferences, product launches, sponsor backdrops, and room polish. Full-service rental with install and strike.",
+      "Corporate event and gala draping in Montreal — conferences, product launches, sponsor backdrops, and room polish. Full-service rental with install and teardown.",
     icon: Building2,
   },
   {
@@ -229,7 +229,7 @@ export const services: ServicePage[] = [
     whatWeHandle: [
       "Backdrop sizing to your stage",
       "Masking and surround planning",
-      "Hardware, delivery, install, and strike",
+      "Hardware, delivery, install, and teardown",
       "Notes for AV and production teams",
     ],
     faq: [
@@ -256,7 +256,7 @@ export const services: ServicePage[] = [
     ],
     metaTitle: "Stage Backdrop Rentals Montreal",
     metaDescription:
-      "Stage backdrop rental in Montreal for presentations, ceremonies, DJ areas, and productions. Full-service event stage drapes with delivery, install, and strike.",
+      "Stage backdrop rental in Montreal for presentations, ceremonies, DJ areas, and productions. Full-service event stage drapes with delivery, install, and teardown.",
     icon: Theater,
   },
   {
@@ -298,7 +298,7 @@ export const services: ServicePage[] = [
       {
         question: "Are room divider drapes permanent?",
         answer:
-          "No. They are temporary rental partitions installed for your event and removed during strike.",
+          "No. They are temporary rental partitions installed for your event and removed during teardown.",
       },
     ],
     relatedSlugs: [
@@ -313,7 +313,7 @@ export const services: ServicePage[] = [
     ],
     metaTitle: "Blackout & Room Divider Drapes Montreal",
     metaDescription:
-      "Blackout drape rental and room divider drapes in Montreal for light control, masking, and venue zoning. Full-service delivery, installation, and strike.",
+      "Blackout drape rental and room divider drapes in Montreal for light control, masking, and venue zoning. Full-service delivery, installation, and teardown.",
     icon: EyeOff,
   },
   {
@@ -370,7 +370,7 @@ export const services: ServicePage[] = [
     ],
     metaTitle: "Bar & Bat Mitzvah Draping Montreal",
     metaDescription:
-      "Bar and Bat Mitzvah draping in Montreal — celebration room transformation, stage backdrops, entrances, and photo moments. Full-service rental with install and strike.",
+      "Bar and Bat Mitzvah draping in Montreal — celebration room transformation, stage backdrops, entrances, and photo moments. Full-service rental with install and teardown.",
     icon: PartyPopper,
   },
 ];

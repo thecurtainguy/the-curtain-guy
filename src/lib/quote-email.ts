@@ -1,4 +1,8 @@
-import { formatCadFromCents, type QuoteRow } from "@/data/quotes";
+import {
+  formatCadFromCents,
+  resolveQuoteDisplayRef,
+  type QuoteRow,
+} from "@/data/quotes";
 import {
   getEstimateNotifyTo,
   getQuoteFrom,
@@ -74,6 +78,7 @@ export async function sendQuoteReadyEmail(input: {
   publicQuoteUrl: string;
 }): Promise<void> {
   const { quote, publicQuoteUrl, apiKey } = input;
+  const displayRef = resolveQuoteDisplayRef(quote);
   const total = formatCadFromCents(quote.total_cents);
   const eventBits = [
     quote.event_type,
@@ -84,7 +89,7 @@ export async function sendQuoteReadyEmail(input: {
     .join(" · ");
 
   const text = [
-    `Your Curtain Guy quote is ready — ${quote.quote_display_ref}`,
+    `Your Curtain Guy quote is ready — ${displayRef}`,
     "",
     `Opportunity: ${quote.opportunity_ref}`,
     eventBits ? `Event: ${eventBits}` : "",
@@ -105,7 +110,7 @@ export async function sendQuoteReadyEmail(input: {
     </p>
     <div style="margin:0 0 18px;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.2);">
       <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#b8860b;">Quote</p>
-      <p style="margin:0 0 10px;font-size:20px;color:#f8f5ec;">${escapeHtml(quote.quote_display_ref)}</p>
+      <p style="margin:0 0 10px;font-size:20px;color:#f8f5ec;">${escapeHtml(displayRef)}</p>
       <p style="margin:0;font-size:14px;color:#cfc8b8;">Opportunity ${escapeHtml(quote.opportunity_ref)}</p>
       ${eventBits ? `<p style="margin:8px 0 0;font-size:14px;color:#cfc8b8;">${escapeHtml(eventBits)}</p>` : ""}
       <p style="margin:12px 0 0;font-size:18px;color:#d4af37;">${escapeHtml(total)}</p>
@@ -128,7 +133,7 @@ export async function sendQuoteReadyEmail(input: {
     from: getQuoteFrom(),
     to: [quote.customer_email],
     replyTo: getEstimateNotifyTo(),
-    subject: `Your Curtain Guy quote is ready — ${quote.quote_display_ref}`,
+    subject: `Your Curtain Guy quote is ready — ${displayRef}`,
     text,
     html,
   });
@@ -142,8 +147,9 @@ export async function sendQuoteOwnerActionNotification(input: {
 }): Promise<void> {
   const siteUrl = getSiteUrl().replace(/\/$/, "");
   const adminUrl = `${siteUrl}/admin/quotes/${input.quote.id}`;
+  const displayRef = resolveQuoteDisplayRef(input.quote);
   const text = [
-    `Customer action on ${input.quote.quote_display_ref}`,
+    `Customer action on ${displayRef}`,
     `Action: ${input.actionLabel}`,
     input.details || "",
     `Customer: ${input.quote.customer_name || "—"} <${input.quote.customer_email}>`,
@@ -154,7 +160,7 @@ export async function sendQuoteOwnerActionNotification(input: {
 
   const html = brandShell("Quote activity", `
     <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#d7d2c6;">
-      ${escapeHtml(input.actionLabel)} on <strong style="color:#f8f5ec;">${escapeHtml(input.quote.quote_display_ref)}</strong>
+      ${escapeHtml(input.actionLabel)} on <strong style="color:#f8f5ec;">${escapeHtml(displayRef)}</strong>
     </p>
     ${
       input.details
@@ -174,7 +180,7 @@ export async function sendQuoteOwnerActionNotification(input: {
     from: getQuoteFrom(),
     to: [getEstimateNotifyTo()],
     replyTo: input.quote.customer_email,
-    subject: `${input.actionLabel} — ${input.quote.quote_display_ref}`,
+    subject: `${input.actionLabel} — ${displayRef}`,
     text,
     html,
   });

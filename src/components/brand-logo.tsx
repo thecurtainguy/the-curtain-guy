@@ -1,7 +1,9 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
 import { brandLogo, siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
+import { GuardedLink } from "@/components/ui/guarded-link";
 
 type BrandLogoProps = {
   href?: string;
@@ -77,7 +79,7 @@ export function BrandLogo({
   }
 
   return (
-    <Link
+    <GuardedLink
       href={href}
       onClick={onClick}
       className="group inline-flex shrink-0 items-center outline-none transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -85,6 +87,6 @@ export function BrandLogo({
     >
       {content}
       {!showWordmark && <span className="sr-only">{siteConfig.name}</span>}
-    </Link>
+    </GuardedLink>
   );
 }

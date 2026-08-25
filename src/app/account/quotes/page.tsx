@@ -9,7 +9,7 @@ import {
   EmailVerificationBanner,
 } from "@/components/account/account-page-frame";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
-import { formatCadFromCents } from "@/data/quotes";
+import { formatCadFromCents, resolveQuoteDisplayRef } from "@/data/quotes";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
 import { listQuotesForCustomer } from "@/lib/quotes";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,7 @@ export default async function AccountQuotesPage() {
                           href={`/account/quotes/${row.id}`}
                           className="font-medium text-primary hover:underline"
                         >
-                          {row.quote_display_ref}
+                          {resolveQuoteDisplayRef(row)}
                         </Link>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {row.opportunity_ref}

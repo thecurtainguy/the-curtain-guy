@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { navLinks, siteConfig } from "@/data/site";
 import { services } from "@/data/services";
 import { BrandLogo } from "@/components/brand-logo";
+import { GuardedLink } from "@/components/ui/guarded-link";
 
 const footerExtras = [
   { label: "Reviews", href: "/reviews" },
@@ -23,7 +23,7 @@ export function Footer() {
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Luxury event drape rentals for Montreal weddings, corporate events,
               galas, mitzvahs, and venue transformations. Full-service rental
-              with delivery, installation, and strike.
+              with delivery, installation, and teardown.
             </p>
             <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-primary/80">
               {siteConfig.motto}
@@ -38,12 +38,12 @@ export function Footer() {
             <ul className="mt-4 space-y-2">
               {footerNav.map((link) => (
                 <li key={link.href}>
-                  <Link
+                  <GuardedLink
                     href={link.href}
                     className="text-sm text-muted-foreground transition-colors hover:text-primary"
                   >
                     {link.label}
-                  </Link>
+                  </GuardedLink>
                 </li>
               ))}
             </ul>
@@ -54,12 +54,12 @@ export function Footer() {
             <ul className="mt-4 space-y-2">
               {services.map((service) => (
                 <li key={service.slug}>
-                  <Link
+                  <GuardedLink
                     href={`/services/${service.slug}`}
                     className="text-sm text-muted-foreground transition-colors hover:text-primary"
                   >
                     {service.shortTitle}
-                  </Link>
+                  </GuardedLink>
                 </li>
               ))}
             </ul>
@@ -86,20 +86,20 @@ export function Footer() {
               </li>
               <li>{siteConfig.location}</li>
               <li>
-                <Link
+                <GuardedLink
                   href="/get-estimate"
                   className="transition-colors hover:text-primary"
                 >
                   Get Estimate
-                </Link>
+                </GuardedLink>
               </li>
               <li>
-                <Link
+                <GuardedLink
                   href="/privacy"
                   className="transition-colors hover:text-primary"
                 >
                   Privacy
-                </Link>
+                </GuardedLink>
               </li>
             </ul>
           </div>

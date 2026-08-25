@@ -30,7 +30,7 @@ export default function HomePage() {
       <AiTeaserSection />
       <QuoteCTA
         headline="Tell us what you are planning."
-        description="Share your venue, event type, and draping goals. We review your brief and follow up with a rental estimate conversation — full-service delivery, installation, and strike."
+        description="Share your venue, event type, and draping goals. We review your brief and follow up with a rental estimate conversation — full-service delivery, installation, and teardown."
       />
     </>
   );

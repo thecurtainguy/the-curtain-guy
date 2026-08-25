@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ClipboardList, FileText, LayoutDashboard, LogOut } from "lucide-react";
+import { ClipboardList, CalendarDays, FileText, LayoutDashboard, LogOut } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -13,6 +13,7 @@ const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
+  { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
 ];
 
 export function AdminShell({

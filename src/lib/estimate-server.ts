@@ -19,7 +19,12 @@ export type EstimateInsertMeta = {
 };
 
 export type EstimateInsertResult =
-  | { ok: true; id: string }
+  | {
+      ok: true;
+      id: string;
+      opportunity_ref: string | null;
+      opportunity_number: number | null;
+    }
   | { ok: false; message: string };
 
 function asString(value: unknown): string {
@@ -220,8 +225,13 @@ export async function insertEstimateRequest(
     };
   }
 
-  const rows = (await response.json()) as Array<{ id?: string }>;
-  const id = rows[0]?.id;
+  const rows = (await response.json()) as Array<{
+    id?: string;
+    opportunity_ref?: string | null;
+    opportunity_number?: number | null;
+  }>;
+  const inserted = rows[0];
+  const id = inserted?.id;
 
   if (!id) {
     return {
@@ -230,5 +240,13 @@ export async function insertEstimateRequest(
     };
   }
 
-  return { ok: true, id };
+  return {
+    ok: true,
+    id,
+    opportunity_ref: inserted?.opportunity_ref?.trim() || null,
+    opportunity_number:
+      typeof inserted?.opportunity_number === "number"
+        ? inserted.opportunity_number
+        : null,
+  };
 }

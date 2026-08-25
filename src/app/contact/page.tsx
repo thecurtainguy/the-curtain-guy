@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHero, QuoteCTA } from "@/components/page-hero";
+import { ContactForm } from "@/components/contact/contact-form";
 import { siteConfig } from "@/data/site";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { MapPin, Mail, Phone } from "lucide-react";
@@ -123,40 +121,10 @@ export default function ContactPage() {
                   Send a message
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Form submission coming soon. For now, email us directly with
-                  your event type, venue, and draping requirements.
+                  Share your event type, venue, date, and draping goals. We
+                  typically respond within one business day.
                 </p>
-                <div
-                  className="mt-6 space-y-4"
-                  role="form"
-                  aria-label="Contact form"
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="contact-name">Name</Label>
-                    <Input id="contact-name" placeholder="Your name" disabled />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact-email">Email</Label>
-                    <Input
-                      id="contact-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      disabled
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact-message">Message</Label>
-                    <Textarea
-                      id="contact-message"
-                      placeholder="Event type, venue, date, and draping needs..."
-                      rows={4}
-                      disabled
-                    />
-                  </div>
-                  <Button type="button" disabled className="w-full">
-                    Send — Coming Soon
-                  </Button>
-                </div>
+                <ContactForm />
               </CardContent>
             </Card>
           </div>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { formatQuoteFilenameStem } from "@/data/quotes";
 import { getSiteUrl } from "@/lib/env";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
@@ -39,7 +40,7 @@ export async function GET(_request: Request, context: RouteContext) {
     summary: "PDF downloaded via public link",
   });
 
-  const filename = `${quote.opportunity_ref}-R${quote.revision_number}.pdf`;
+  const filename = `${formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number)}.pdf`;
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {

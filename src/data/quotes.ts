@@ -249,11 +249,74 @@ export function formatCadFromCents(cents: number): string {
   }).format(value);
 }
 
+/**
+ * Customer-facing quote reference.
+ * Internal revision_number 1 = original (no -R suffix).
+ * revision_number 2 = first revision → Quote TCG-10004-R1
+ */
 export function formatQuoteDisplayRef(
   opportunityRef: string,
   revisionNumber: number
 ): string {
-  return `Quote ${opportunityRef}-R${revisionNumber}`;
+  const ref = opportunityRef.trim() || "TCG-PENDING";
+  if (!Number.isFinite(revisionNumber) || revisionNumber <= 1) {
+    return `Quote ${ref}`;
+  }
+  return `Quote ${ref}-R${revisionNumber - 1}`;
+}
+
+/** Draft admin heading — never includes -R1 for the original quote. */
+export function formatDraftQuoteHeading(opportunityRef: string): string {
+  const ref = opportunityRef.trim() || "TCG-PENDING";
+  return `Draft Quote — ${ref}`;
+}
+
+/**
+ * Resolve display ref from live opportunity + revision.
+ * Prefer this over stored quote_display_ref so older "-R1" originals display correctly.
+ */
+export function resolveQuoteDisplayRef(quote: {
+  opportunity_ref: string;
+  revision_number: number;
+  status?: QuoteStatus | string | null;
+}): string {
+  if (quote.status === "draft" && quote.revision_number <= 1) {
+    return formatDraftQuoteHeading(quote.opportunity_ref);
+  }
+  return formatQuoteDisplayRef(quote.opportunity_ref, quote.revision_number);
+}
+
+/**
+ * Metadata label: Original (or null) for first quote; Rev 1 for second version, etc.
+ */
+export function formatQuoteRevisionLabel(
+  revisionNumber: number,
+  options?: { hideOriginal?: boolean }
+): string | null {
+  if (!Number.isFinite(revisionNumber) || revisionNumber <= 1) {
+    return options?.hideOriginal ? null : "Original";
+  }
+  return `Rev ${revisionNumber - 1}`;
+}
+
+/** Customer-visible revision index, or null for the original quote. */
+export function getCustomerRevisionNumber(
+  revisionNumber: number
+): number | null {
+  if (!Number.isFinite(revisionNumber) || revisionNumber <= 1) return null;
+  return revisionNumber - 1;
+}
+
+/** PDF / download filename stem without the "Quote " prefix. */
+export function formatQuoteFilenameStem(
+  opportunityRef: string,
+  revisionNumber: number
+): string {
+  const ref = opportunityRef.trim() || "TCG-PENDING";
+  if (!Number.isFinite(revisionNumber) || revisionNumber <= 1) {
+    return ref;
+  }
+  return `${ref}-R${revisionNumber - 1}`;
 }
 
 export function computeLineTotalCents(

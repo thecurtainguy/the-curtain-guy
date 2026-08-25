@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { navLinks, siteConfig } from "@/data/site";
@@ -9,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { GuardedLink } from "@/components/ui/guarded-link";
 import {
   Sheet,
   SheetContent,
@@ -83,7 +83,7 @@ export function Header() {
                 : pathname === link.href || pathname.startsWith(`${link.href}/`);
 
             return (
-              <Link
+              <GuardedLink
                 key={link.href}
                 href={link.href}
                 className={cn(
@@ -96,7 +96,7 @@ export function Header() {
               >
                 {Icon && <Icon className="size-3.5" />}
                 {link.label}
-              </Link>
+              </GuardedLink>
             );
           })}
         </nav>
@@ -109,10 +109,10 @@ export function Header() {
             size="sm"
             className="hidden sm:inline-flex"
           >
-            <Link href={accountHref}>{accountLabel}</Link>
+            <GuardedLink href={accountHref}>{accountLabel}</GuardedLink>
           </Button>
           <Button asChild size="sm" className="hidden sm:inline-flex">
-            <Link href="/get-estimate">Get Estimate</Link>
+            <GuardedLink href="/get-estimate">Get Estimate</GuardedLink>
           </Button>
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -145,7 +145,7 @@ export function Header() {
                         pathname.startsWith(`${link.href}/`);
 
                   return (
-                    <Link
+                    <GuardedLink
                       key={link.href}
                       href={link.href}
                       onClick={() => setMobileOpen(false)}
@@ -159,28 +159,28 @@ export function Header() {
                     >
                       {Icon && <Icon className="size-4" />}
                       {link.label}
-                    </Link>
+                    </GuardedLink>
                   );
                 })}
                 <Button asChild variant="outline" className="mt-4 w-full">
-                  <Link
+                  <GuardedLink
                     href={accountHref}
                     onClick={() => setMobileOpen(false)}
                   >
                     {accountLabel}
-                  </Link>
+                  </GuardedLink>
                 </Button>
                 <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
                   <span className="text-sm text-muted-foreground">Theme</span>
                   <ThemeToggle />
                 </div>
                 <Button asChild className="mt-2 w-full">
-                  <Link
+                  <GuardedLink
                     href="/get-estimate"
                     onClick={() => setMobileOpen(false)}
                   >
                     Get Estimate
-                  </Link>
+                  </GuardedLink>
                 </Button>
               </nav>
             </SheetContent>

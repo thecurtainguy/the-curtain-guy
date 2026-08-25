@@ -6,10 +6,13 @@ import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import {
   QUOTE_STATUSES,
   formatCadFromCents,
+  formatQuoteRevisionLabel,
   isQuoteStatus,
+  resolveQuoteDisplayRef,
   type QuoteStatus,
 } from "@/data/quotes";
 import { listQuotes } from "@/lib/quotes";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -50,12 +53,26 @@ export default async function AdminQuotesPage({
     const needle = q.toLowerCase();
     return (
       row.quote_display_ref.toLowerCase().includes(needle) ||
+      resolveQuoteDisplayRef(row).toLowerCase().includes(needle) ||
       row.opportunity_ref.toLowerCase().includes(needle) ||
       (row.customer_name || "").toLowerCase().includes(needle) ||
       row.customer_email.toLowerCase().includes(needle) ||
       row.id.toLowerCase().includes(needle)
     );
   });
+
+  const admin = createAdminSupabaseClient();
+  const quoteIds = filtered.map((row) => row.id);
+  const jobByQuoteId = new Map<string, string>();
+  if (quoteIds.length > 0) {
+    const { data: linkedJobs } = await admin
+      .from("event_jobs")
+      .select("id, quote_id")
+      .in("quote_id", quoteIds);
+    for (const row of linkedJobs || []) {
+      if (row.quote_id) jobByQuoteId.set(row.quote_id as string, row.id as string);
+    }
+  }
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -139,7 +156,7 @@ export default async function AdminQuotesPage({
                           href={`/admin/quotes/${row.id}`}
                           className="font-medium text-primary hover:underline"
                         >
-                          {row.quote_display_ref}
+                          {resolveQuoteDisplayRef(row)}
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
@@ -155,6 +172,14 @@ export default async function AdminQuotesPage({
                       </td>
                       <td className="px-4 py-3">
                         <QuoteStatusBadge status={row.status} />
+                        {row.status === "accepted" && jobByQuoteId.has(row.id) ? (
+                          <Link
+                            href={`/admin/jobs/${jobByQuoteId.get(row.id)}`}
+                            className="mt-1 block text-[10px] uppercase tracking-wide text-primary hover:underline"
+                          >
+                            Job linked
+                          </Link>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 font-medium tabular-nums">
                         {formatCadFromCents(row.total_cents)}
@@ -163,7 +188,7 @@ export default async function AdminQuotesPage({
                         {row.event_date || "—"}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        R{row.revision_number}
+                        {formatQuoteRevisionLabel(row.revision_number) ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         <div>S {formatStamp(row.sent_at)}</div>

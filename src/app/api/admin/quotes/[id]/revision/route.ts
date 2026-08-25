@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveQuoteDisplayRef } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
 import { createQuoteRevision } from "@/lib/quotes";
 
@@ -33,6 +34,6 @@ export async function POST(_request: Request, context: RouteContext) {
   return NextResponse.json({
     ok: true,
     quoteId: result.quote.id,
-    quoteDisplayRef: result.quote.quote_display_ref,
+    quoteDisplayRef: resolveQuoteDisplayRef(result.quote),
   });
 }

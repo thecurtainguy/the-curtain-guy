@@ -98,7 +98,7 @@ export default async function AccountEstimatesPage() {
                           href={`/account/estimates/${row.id}`}
                           className="font-medium text-primary hover:underline"
                         >
-                          {formatEstimateReference(row.id)}
+                          {formatEstimateReference(row.id, row.opportunity_ref)}
                         </Link>
                         {!row.user_id && (
                           <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">

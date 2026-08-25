@@ -53,6 +53,22 @@ export function getEstimateFrom(): string {
   );
 }
 
+export function getContactNotifyTo(): string {
+  return (
+    process.env.TCG_CONTACT_NOTIFY_TO?.trim() ||
+    process.env.TCG_ESTIMATE_NOTIFY_TO?.trim() ||
+    "info@thecurtainguy.com"
+  );
+}
+
+export function getContactFrom(): string {
+  return (
+    process.env.TCG_CONTACT_FROM?.trim() ||
+    process.env.TCG_ESTIMATE_FROM?.trim() ||
+    "The Curtain Guy <onboarding@resend.dev>"
+  );
+}
+
 export function getQuoteFrom(): string {
   return (
     process.env.TCG_QUOTE_FROM?.trim() ||

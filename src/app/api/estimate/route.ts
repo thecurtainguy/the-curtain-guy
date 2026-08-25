@@ -146,6 +146,7 @@ export async function POST(request: NextRequest) {
     try {
       await sendEstimateNotificationEmail({
         requestId: insertResult.id,
+        opportunityRef: insertResult.opportunity_ref,
         data,
         apiKey: resendApiKey,
         fileCount: expectedFileCount,
@@ -161,6 +162,7 @@ export async function POST(request: NextRequest) {
     try {
       await sendEstimateCustomerConfirmationEmail({
         requestId: insertResult.id,
+        opportunityRef: insertResult.opportunity_ref,
         data,
         apiKey: resendApiKey,
         fileCount: expectedFileCount,
@@ -189,6 +191,8 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     requestId: insertResult.id,
+    opportunity_ref: insertResult.opportunity_ref,
+    opportunity_number: insertResult.opportunity_number,
     uploadToken: uploadBundle?.token ?? null,
     expectedFileCount,
     message: "Your estimate brief was submitted successfully.",

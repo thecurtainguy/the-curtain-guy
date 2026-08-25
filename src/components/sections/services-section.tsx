@@ -14,7 +14,7 @@ export function ServicesSection() {
           <SectionHeading
             eyebrow="Event Drape Rental Services"
             title="Montreal event draping for every occasion."
-            description="Wedding draping, pipe and drape, corporate and gala setups, stage backdrops, blackout dividers, and celebration draping — each with full-service install and strike."
+            description="Wedding draping, pipe and drape, corporate and gala setups, stage backdrops, blackout dividers, and celebration draping — each with full-service install and teardown."
           />
           <Button asChild variant="outline" className="min-h-11 shrink-0">
             <Link href="/services">

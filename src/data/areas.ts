@@ -22,7 +22,7 @@ export const areas: AreaPage[] = [
     name: "Montreal",
     title: "Luxury Event Drape Rentals in Montreal",
     intro:
-      "Luxury event drape rentals in Montreal for weddings, galas, corporate events, stages, room dividers, and venue transformations — with full-service delivery, installation, and strike.",
+      "Luxury event drape rentals in Montreal for weddings, galas, corporate events, stages, room dividers, and venue transformations — with full-service delivery, installation, and teardown.",
     servicesAvailable: [
       "Wedding draping and ceremony backdrops",
       "Pipe and drape rental for walls and zoning",
@@ -42,11 +42,11 @@ export const areas: AreaPage[] = [
       "Downtown and island venues often have tight load-in windows — share access details early.",
       "Ballrooms, hotels, lofts, and historic spaces each need different hardware footprints.",
       "Floor plans and venue photos help us scope pipe and drape accurately.",
-      "We plan install and strike around your ceremony, program, or dinner timing.",
+      "We plan install and teardown around your ceremony, program, or dinner timing.",
     ],
     metaTitle: "Event Drape Rentals Montreal",
     metaDescription:
-      "Luxury event drape rentals in Montreal for weddings, galas, corporate events, stages, and venue transformations. Full-service delivery, installation, and strike.",
+      "Luxury event drape rentals in Montreal for weddings, galas, corporate events, stages, and venue transformations. Full-service delivery, installation, and teardown.",
     icon: Building2,
     relatedServiceSlugs: [
       "wedding-draping",
@@ -60,7 +60,7 @@ export const areas: AreaPage[] = [
     name: "Laval",
     title: "Event Drape Rentals in Laval",
     intro:
-      "Event drape rentals for Laval venues and celebrations, with planning for delivery, setup, installation, and strike across banquet halls, hotels, and private event spaces.",
+      "Event drape rentals for Laval venues and celebrations, with planning for delivery, setup, installation, and teardown across banquet halls, hotels, and private event spaces.",
     servicesAvailable: [
       "Wedding and celebration draping",
       "Pipe and drape walls and partitions",
@@ -82,7 +82,7 @@ export const areas: AreaPage[] = [
     ],
     metaTitle: "Event Drape Rentals Laval",
     metaDescription:
-      "Event drape rentals for Laval venues — weddings, corporate events, backdrops, and room masking with delivery, setup, installation, and strike.",
+      "Event drape rentals for Laval venues — weddings, corporate events, backdrops, and room masking with delivery, setup, installation, and teardown.",
     icon: MapPin,
     relatedServiceSlugs: [
       "wedding-draping",
@@ -114,7 +114,7 @@ export const areas: AreaPage[] = [
       "South Shore venues vary widely — hotel ballrooms, community halls, and private spaces.",
       "Allow time for ferry or bridge logistics when sharing your event day timeline.",
       "Upload floor plans or photos with your estimate request when available.",
-      "We coordinate strike so the venue is clear after your event.",
+      "We coordinate teardown so the venue is clear after your event.",
     ],
     metaTitle: "Event Drape Rentals Longueuil",
     metaDescription:
@@ -132,7 +132,7 @@ export const areas: AreaPage[] = [
     name: "West Island",
     title: "Event Drape Rentals on the West Island",
     intro:
-      "Wedding and corporate draping for West Island venues, private events, banquet halls, and community spaces — with full-service rental planning from delivery through strike.",
+      "Wedding and corporate draping for West Island venues, private events, banquet halls, and community spaces — with full-service rental planning from delivery through teardown.",
     servicesAvailable: [
       "Wedding ceremony and reception draping",
       "Corporate and private event polish",
@@ -154,7 +154,7 @@ export const areas: AreaPage[] = [
     ],
     metaTitle: "Event Drape Rentals West Island",
     metaDescription:
-      "Wedding and corporate draping for West Island venues, banquet halls, and private events. Full-service event drape rental with delivery, install, and strike.",
+      "Wedding and corporate draping for West Island venues, banquet halls, and private events. Full-service event drape rental with delivery, install, and teardown.",
     icon: Trees,
     relatedServiceSlugs: [
       "wedding-draping",

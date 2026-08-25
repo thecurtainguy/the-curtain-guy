@@ -12,6 +12,7 @@ import {
   type QuoteStatus,
   computeLineTotalCents,
   formatQuoteDisplayRef,
+  resolveQuoteDisplayRef,
   sumPricedSubtotalCents,
 } from "@/data/quotes";
 import { isEmailVerified } from "@/lib/auth";
@@ -71,7 +72,7 @@ export function toCustomerSafeQuote(
     estimate_request_id: quote.estimate_request_id,
     opportunity_ref: quote.opportunity_ref,
     revision_number: quote.revision_number,
-    quote_display_ref: quote.quote_display_ref,
+    quote_display_ref: resolveQuoteDisplayRef(quote),
     customer_name: quote.customer_name,
     customer_email: quote.customer_email,
     event_date: quote.event_date,
@@ -469,7 +470,7 @@ export async function createQuoteRevision(input: {
     actorType: "owner",
     actorUserId: input.createdByUserId,
     eventType: "revision_created",
-    summary: `Created ${displayRef} from ${source.quote_display_ref}`,
+    summary: `Created ${displayRef} from ${formatQuoteDisplayRef(source.opportunity_ref, source.revision_number)}`,
     metadata: { source_quote_id: source.id },
   });
 

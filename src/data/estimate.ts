@@ -286,7 +286,7 @@ export const measurementsReassurance =
   "Not sure? No problem. The Curtain Guy team can help calculate this from your venue details or floor plan.";
 
 export const estimateDisclaimer =
-  "This is a planning brief, not final pricing. The Curtain Guy team will review measurements, availability, labor, delivery, installation, and strike before confirming a final rental estimate.";
+  "This is a planning brief, not final pricing. The Curtain Guy team will review measurements, availability, labor, delivery, installation, and teardown before confirming a final rental estimate.";
 
 export const SUMMARY_NOT_SURE = "Not sure — team to review";
 export const SUMMARY_NOT_PROVIDED = "Not provided";
@@ -481,7 +481,17 @@ export function formatHeightSummaryValue(data: EstimateFormData): string {
   return data.heightNeeded.trim();
 }
 
-export function formatEstimateReference(id: string): string {
+/**
+ * Display reference for an estimate / opportunity.
+ * Prefer master opportunity_ref (TCG-10000). Fall back to legacy TCG-{uuid8}.
+ * Never includes quote revision suffixes (those belong on quotes only).
+ */
+export function formatEstimateReference(
+  id: string,
+  opportunityRef?: string | null
+): string {
+  const ref = opportunityRef?.trim();
+  if (ref) return ref;
   return `TCG-${id.slice(0, 8).toUpperCase()}`;
 }
 

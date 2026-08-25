@@ -8,6 +8,7 @@ import {
   fetchEstimateFiles,
 } from "@/lib/estimate-access";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { fetchJobByEstimateId } from "@/lib/jobs";
 import { AdminEstimateActions } from "@/components/admin/admin-estimate-actions";
 import { AdminEstimateQuotesSection } from "@/components/admin/admin-estimate-quotes-section";
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
@@ -20,7 +21,6 @@ import {
   formatVenueSetting,
 } from "@/lib/estimate-display";
 import {
-  getLegacyOrOpportunityRef,
   listQuotesForEstimate,
 } from "@/lib/quotes";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
 
   const files = await fetchEstimateFiles(id, ["uploaded", "pending"]);
   const quotes = await listQuotesForEstimate(id);
+  const linkedJob = await fetchJobByEstimateId(id);
 
   const admin = createAdminSupabaseClient();
   await admin
@@ -57,8 +58,10 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
     .update({ last_viewed_by_owner_at: new Date().toISOString() })
     .eq("id", id);
 
-  const reference = formatEstimateReference(estimate.id);
-  const opportunityRef = getLegacyOrOpportunityRef(estimate);
+  const reference = formatEstimateReference(
+    estimate.id,
+    estimate.opportunity_ref
+  );
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -74,18 +77,6 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
             <h1 className="mt-1 font-heading text-3xl font-semibold text-foreground">
               {reference}
             </h1>
-            {opportunityRef && opportunityRef !== reference ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Opportunity{" "}
-                <span className="font-medium text-foreground">
-                  {opportunityRef}
-                </span>
-              </p>
-            ) : opportunityRef ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Opportunity {opportunityRef}
-              </p>
-            ) : null}
             <p className="mt-1 text-sm text-muted-foreground">
               Submitted {new Date(estimate.created_at).toLocaleString()}
             </p>
@@ -239,6 +230,8 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
             <AdminEstimateQuotesSection
               estimateId={estimate.id}
               quotes={quotes}
+              linkedJobId={linkedJob?.id}
+              linkedJobRef={linkedJob?.opportunity_ref}
             />
 
             <section className="rounded-3xl border border-border/40 bg-card/25 p-5">

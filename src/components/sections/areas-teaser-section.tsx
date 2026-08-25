@@ -14,7 +14,7 @@ export function AreasTeaserSection() {
         <SectionHeading
           eyebrow="Service area"
           title="Montreal and surrounding areas."
-          description="Event drape rentals for Montreal, Laval, Longueuil, the West Island, and nearby venues — planned with delivery, installation, and strike."
+          description="Event drape rentals for Montreal, Laval, Longueuil, the West Island, and nearby venues — planned with delivery, installation, and teardown."
         />
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

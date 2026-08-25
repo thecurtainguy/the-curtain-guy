@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { FileText, Loader2 } from "lucide-react";
 import {
   formatCadFromCents,
+  formatQuoteRevisionLabel,
+  resolveQuoteDisplayRef,
   type QuoteRow,
 } from "@/data/quotes";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
@@ -14,9 +16,13 @@ import { Button } from "@/components/ui/button";
 export function AdminEstimateQuotesSection({
   estimateId,
   quotes,
+  linkedJobId,
+  linkedJobRef,
 }: {
   estimateId: string;
   quotes: QuoteRow[];
+  linkedJobId?: string | null;
+  linkedJobRef?: string | null;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -92,6 +98,20 @@ export function AdminEstimateQuotesSection({
         </p>
       ) : null}
 
+      {linkedJobId ? (
+        <div className="mt-4 rounded-2xl border border-primary/25 bg-primary/5 px-3 py-3">
+          <p className="text-xs uppercase tracking-wide text-primary">Linked job</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium text-foreground">
+              Event {linkedJobRef ?? linkedJobId.slice(0, 8)}
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/admin/jobs/${linkedJobId}`}>Open job</Link>
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {quotes.length > 0 ? (
         <ul className="mt-4 space-y-2">
           {quotes.map((quote) => (
@@ -104,11 +124,17 @@ export function AdminEstimateQuotesSection({
                   href={`/admin/quotes/${quote.id}`}
                   className="font-medium text-primary hover:underline"
                 >
-                  {quote.quote_display_ref}
+                  {resolveQuoteDisplayRef(quote)}
                 </Link>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <QuoteStatusBadge status={quote.status} />
-                  <span>R{quote.revision_number}</span>
+                  {(() => {
+                    const revLabel = formatQuoteRevisionLabel(
+                      quote.revision_number,
+                      { hideOriginal: true }
+                    );
+                    return revLabel ? <span>{revLabel}</span> : null;
+                  })()}
                   <span className="tabular-nums text-foreground">
                     {formatCadFromCents(quote.total_cents)}
                   </span>

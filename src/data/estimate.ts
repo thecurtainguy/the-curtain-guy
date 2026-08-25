@@ -286,7 +286,7 @@ export const measurementsReassurance =
   "Not sure? No problem. The Curtain Guy team can help calculate this from your venue details or floor plan.";
 
 export const estimateDisclaimer =
-  "This is a planning brief, not final pricing. The Curtain Guy team will review details and confirm availability, measurements, labor, and final rental estimate.";
+  "This is a planning brief, not final pricing. The Curtain Guy team will review measurements, availability, labor, delivery, installation, and strike before confirming a final rental estimate.";
 
 export const SUMMARY_NOT_SURE = "Not sure — team to review";
 export const SUMMARY_NOT_PROVIDED = "Not provided";
@@ -481,7 +481,11 @@ export function formatHeightSummaryValue(data: EstimateFormData): string {
   return data.heightNeeded.trim();
 }
 
-export function buildEstimateMailto(data: EstimateFormData): string {
+export function formatEstimateReference(id: string): string {
+  return `TCG-${id.slice(0, 8).toUpperCase()}`;
+}
+
+export function buildEstimateBrief(data: EstimateFormData): string {
   const eventType = getOptionLabel(eventTypes, data.eventType) ?? data.eventType;
   const venueSetting =
     getOptionLabel(venueSettings, data.venueSetting) ?? data.venueSetting;
@@ -498,15 +502,7 @@ export function buildEstimateMailto(data: EstimateFormData): string {
     getOptionLabel(measurementsKnownOptions, data.measurementsKnown) ??
     data.measurementsKnown;
 
-  const subject = encodeURIComponent(
-    `Event Drape Rental Estimate Request — ${eventType || "Montreal Event"}`
-  );
-
-  const bodyLines = [
-    "Hi The Curtain Guy team,",
-    "",
-    "I'd like to request a final event drape rental estimate based on my planning brief:",
-    "",
+  return [
     "--- EVENT BASICS ---",
     `Event type: ${eventType || "—"}`,
     `Event date: ${data.eventDate || "—"}`,
@@ -541,6 +537,24 @@ export function buildEstimateMailto(data: EstimateFormData): string {
     "",
     "--- NOTES ---",
     data.message || "—",
+    "",
+    estimateDisclaimer,
+  ].join("\n");
+}
+
+export function buildEstimateMailto(data: EstimateFormData): string {
+  const eventType = getOptionLabel(eventTypes, data.eventType) ?? data.eventType;
+
+  const subject = encodeURIComponent(
+    `Event Drape Rental Estimate Request — ${eventType || "Montreal Event"}`
+  );
+
+  const bodyLines = [
+    "Hi The Curtain Guy team,",
+    "",
+    "I'd like to request a final event drape rental estimate based on my planning brief:",
+    "",
+    buildEstimateBrief(data),
     "",
     "Submitted via the Get Estimate builder on thecurtainguy.com",
   ];

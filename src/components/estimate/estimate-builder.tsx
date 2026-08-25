@@ -1,16 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, ArrowLeft, ArrowRight, Mail } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Loader2,
+  Mail,
+} from "lucide-react";
 import {
   addOnOptions,
   buildEstimateMailto,
   canSubmitEstimate,
   drapeGoals,
   estimateBuilderSteps,
+  estimateDisclaimer,
   eventTypes,
   fabricDirections,
   floorPlanOptions,
+  formatEstimateReference,
   fullnessOptions,
   heightOptions,
   initialEstimateFormData,
@@ -51,6 +60,12 @@ export function EstimateBuilder() {
   );
   const [stepError, setStepError] = useState<string | null>(null);
   const [showContactHint, setShowContactHint] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState<{
+    requestId: string;
+    reference: string;
+  } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const step = estimateBuilderSteps[currentStep];
   const isFirstStep = currentStep === 0;
@@ -112,14 +127,54 @@ export function EstimateBuilder() {
   }
 
   function handleRequestClick() {
+    if (isSubmitting || submitSuccess) return;
+
     const result = validateEstimateStep("contact-summary", formData);
     if (!result.valid) {
       setShowContactHint(true);
       setStepError(result.message ?? "Please add your name and email.");
       return;
     }
+
     setShowContactHint(false);
-    window.location.href = mailtoHref;
+    setStepError(null);
+    setSubmitError(null);
+    setIsSubmitting(true);
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/estimate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+
+        const payload = (await response.json()) as {
+          ok?: boolean;
+          message?: string;
+          requestId?: string;
+        };
+
+        if (!response.ok || !payload.ok || !payload.requestId) {
+          setSubmitError(
+            payload.message ??
+              "We could not submit your estimate online. Please use email instead."
+          );
+          return;
+        }
+
+        setSubmitSuccess({
+          requestId: payload.requestId,
+          reference: formatEstimateReference(payload.requestId),
+        });
+      } catch {
+        setSubmitError(
+          "We could not submit your estimate online. Please use email instead."
+        );
+      } finally {
+        setIsSubmitting(false);
+      }
+    })();
   }
 
   return (
@@ -511,6 +566,55 @@ export function EstimateBuilder() {
         )}
       </div>
 
+      {submitSuccess && isLastStep && (
+        <div
+          role="status"
+          className="rounded-2xl border border-primary/30 bg-primary/10 p-5 sm:p-6"
+        >
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
+              <CheckCircle2 className="size-5" />
+            </span>
+            <div className="space-y-2">
+              <p className="font-heading text-lg font-semibold text-foreground">
+                Estimate brief sent
+              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Your estimate brief was sent. Reference:{" "}
+                <span className="font-medium text-foreground">
+                  {submitSuccess.reference}
+                </span>
+                . The Curtain Guy team will review your event details and follow
+                up by email.
+              </p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {estimateDisclaimer}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {submitError && isLastStep && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-destructive/30 bg-destructive/10 p-5 sm:p-6"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+            <div className="space-y-3">
+              <p className="text-sm text-foreground">{submitError}</p>
+              <Button asChild variant="outline" size="sm">
+                <a href={mailtoHref}>
+                  <Mail className="size-4" />
+                  Send via email instead
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {stepError && (
         <div
           role="alert"
@@ -544,20 +648,26 @@ export function EstimateBuilder() {
             <Button
               type="button"
               onClick={handleRequestClick}
-              disabled={!canSubmit}
-              className={cn(!canSubmit && "opacity-60")}
+              disabled={!canSubmit || isSubmitting || submitSuccess !== null}
+              className={cn(
+                (!canSubmit || isSubmitting || submitSuccess) && "opacity-60"
+              )}
             >
-              <Mail className="size-4" />
-              Request Final Estimate
+              {isSubmitting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Mail className="size-4" />
+              )}
+              {isSubmitting ? "Sending..." : "Request Final Estimate"}
             </Button>
           )}
         </div>
       </div>
 
-      {isLastStep && (
+      {isLastStep && !submitSuccess && (
         <p className="text-center text-xs text-muted-foreground">
           {canSubmit
-            ? "Opens your email client with your estimate brief pre-filled. Online submission coming soon."
+            ? "Submit online or use email if submission fails."
             : "Add your name and email to enable the request button."}
         </p>
       )}

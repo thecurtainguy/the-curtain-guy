@@ -1,21 +1,22 @@
 "use client";
 
-import type { StudioPoint } from "@/data/studio";
+import type { StudioFloorFinish, StudioPoint } from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { FLOOR_FINISHES, getFloorTexture } from "./scene-finishes";
 
 const SCALE = 1 / 12;
 
 export function StudioFloor({
   floor,
   bounds,
-  darkTheme,
+  finish,
   onClearSelection,
 }: {
   floor: StudioPoint[];
   bounds: StudioBounds;
-  darkTheme: boolean;
+  finish: StudioFloorFinish;
   onClearSelection: () => void;
 }) {
   const geometry = useMemo(() => {
@@ -34,19 +35,24 @@ export function StudioFloor({
     return () => geometry.dispose();
   }, [geometry]);
 
+  const appearance = FLOOR_FINISHES[finish];
+  const texture = getFloorTexture(finish);
+
   return (
     <mesh
       geometry={geometry}
       rotation={[-Math.PI / 2, 0, 0]}
+      receiveShadow
       onClick={(event) => {
         event.stopPropagation();
         onClearSelection();
       }}
     >
       <meshStandardMaterial
-        color={darkTheme ? "#5a5145" : "#c7baa5"}
-        roughness={0.93}
-        metalness={0.02}
+        color={appearance.color}
+        map={texture}
+        roughness={appearance.roughness}
+        metalness={appearance.metalness}
       />
     </mesh>
   );

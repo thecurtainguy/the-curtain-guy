@@ -1,6 +1,9 @@
 "use client";
 
-import type { StudioDesignJson } from "@/data/studio";
+import type {
+  StudioDesignJson,
+  StudioWallFinish,
+} from "@/data/studio";
 import {
   clampOpeningToWall,
   getPointAlongWall,
@@ -9,7 +12,9 @@ import {
   type StudioWallSegment,
 } from "@/lib/studio-geometry";
 import { Fragment, useMemo } from "react";
+import * as THREE from "three";
 import type { StudioSelection } from "../studio-types";
+import { WALL_FINISHES } from "./scene-finishes";
 
 const SCALE = 1 / 12;
 const WALL_THICKNESS = 0.16;
@@ -48,20 +53,22 @@ export function StudioWalls({
   selection,
   onSelect,
   transparent,
-  darkTheme,
+  finish,
 }: {
   design: StudioDesignJson;
   bounds: StudioBounds;
   selection: StudioSelection;
   onSelect: (selection: StudioSelection) => void;
   transparent: boolean;
-  darkTheme: boolean;
+  finish: StudioWallFinish;
 }) {
   const walls = useMemo(
     () => getWallSegments(design.room.floor),
     [design.room.floor]
   );
   const height = design.room.wallHeight * SCALE;
+  const appearance = WALL_FINISHES[finish];
+  const seamColor = finish === "black_box" ? "#5f5548" : "#8d7d69";
 
   return (
     <group>
@@ -78,34 +85,66 @@ export function StudioWalls({
                 (piece.start + piece.end) / 2
               );
               return (
-                <mesh
-                  key={`${wall.index}-${pieceIndex}`}
-                  position={[
-                    (center.x - bounds.centerX) * SCALE,
-                    height / 2,
-                    (center.z - bounds.centerZ) * SCALE,
-                  ]}
-                  rotation={[0, -wall.angle, 0]}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onSelect({ kind: "wall", index: wall.index });
-                  }}
-                >
-                  <boxGeometry args={[length, height, WALL_THICKNESS]} />
-                  <meshStandardMaterial
-                    color={
-                      selected
-                        ? "#d4af55"
-                        : darkTheme
-                          ? "#d9d2c5"
-                          : "#f2ede3"
-                    }
-                    roughness={0.88}
-                    transparent={transparent}
-                    opacity={transparent ? 0.24 : 0.78}
-                    depthWrite={!transparent}
-                  />
-                </mesh>
+                <Fragment key={`${wall.index}-${pieceIndex}`}>
+                  <mesh
+                    position={[
+                      (center.x - bounds.centerX) * SCALE,
+                      height / 2,
+                      (center.z - bounds.centerZ) * SCALE,
+                    ]}
+                    rotation={[0, -wall.angle, 0]}
+                    receiveShadow
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelect({ kind: "wall", index: wall.index });
+                    }}
+                  >
+                    <boxGeometry args={[length, height, WALL_THICKNESS]} />
+                    {selected ? (
+                      <mesh scale={[1.008, 1.006, 1.08]}>
+                        <boxGeometry args={[length, height, WALL_THICKNESS]} />
+                        <meshBasicMaterial
+                          color="#d4af55"
+                          side={THREE.BackSide}
+                          transparent
+                          opacity={0.5}
+                          depthWrite={false}
+                          toneMapped={false}
+                        />
+                      </mesh>
+                    ) : null}
+                    <meshStandardMaterial
+                      color={appearance.color}
+                      roughness={appearance.roughness}
+                      metalness={0}
+                      emissive={selected ? "#3c2b0b" : "#000000"}
+                      emissiveIntensity={selected ? 0.08 : 0}
+                      transparent={transparent}
+                      opacity={transparent ? 0.18 : 0.94}
+                      depthWrite={!transparent}
+                    />
+                  </mesh>
+                  <mesh
+                    position={[
+                      (center.x - bounds.centerX) * SCALE,
+                      0.045,
+                      (center.z - bounds.centerZ) * SCALE,
+                    ]}
+                    rotation={[0, -wall.angle, 0]}
+                    receiveShadow
+                  >
+                    <boxGeometry
+                      args={[length, 0.09, WALL_THICKNESS + 0.075]}
+                    />
+                    <meshStandardMaterial
+                      color={seamColor}
+                      roughness={0.72}
+                      metalness={0.04}
+                      transparent={transparent}
+                      opacity={transparent ? 0.42 : 0.72}
+                    />
+                  </mesh>
+                </Fragment>
               );
             })}
             {design.openings
@@ -147,10 +186,10 @@ export function StudioWalls({
                         ]}
                       />
                       <meshStandardMaterial
-                        color="#c6a054"
-                        roughness={0.72}
+                        color={appearance.color}
+                        roughness={appearance.roughness}
                         transparent={transparent}
-                        opacity={transparent ? 0.4 : 0.9}
+                        opacity={transparent ? 0.25 : 0.94}
                       />
                     </mesh>
                     <mesh position={[0, 0.06, 0]}>

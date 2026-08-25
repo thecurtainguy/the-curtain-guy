@@ -1,7 +1,10 @@
 "use client";
 
 import { useThree } from "@react-three/fiber";
-import type { StudioDesignJson } from "@/data/studio";
+import {
+  getStudioMaterials,
+  type StudioDesignJson,
+} from "@/data/studio";
 import { getStudioBounds } from "@/lib/studio-geometry";
 import { useEffect, useMemo } from "react";
 import type { StudioSelection } from "../studio-types";
@@ -9,6 +12,7 @@ import { StudioCameraControls } from "./camera-controls";
 import { StudioDrapes } from "./drapes";
 import { StudioFloor } from "./floor";
 import { StudioObjects } from "./objects";
+import { LIGHTING_MOODS } from "./scene-finishes";
 import { StudioWalls } from "./walls";
 
 export function RoomScene({
@@ -32,7 +36,13 @@ export function RoomScene({
     () => getStudioBounds(design.room.floor),
     [design.room.floor]
   );
+  const materials = getStudioMaterials(design);
+  const lighting = LIGHTING_MOODS[materials.lighting];
   const { invalidate } = useThree();
+  const sceneSize = Math.max(bounds.width, bounds.depth) / 12;
+  const wallHeight = design.room.wallHeight / 12;
+  const shadowSpan = Math.max(14, sceneSize * 0.72);
+  const lightHeight = Math.max(16, wallHeight * 1.7);
 
   useEffect(() => {
     invalidate();
@@ -41,25 +51,43 @@ export function RoomScene({
   return (
     <>
       <ambientLight
-        intensity={darkTheme ? 0.62 : 0.82}
-        color={darkTheme ? "#f8ead0" : "#fff9ed"}
+        intensity={lighting.ambientIntensity}
+        color={lighting.ambientColor}
       />
       <hemisphereLight
-        intensity={0.72}
-        color="#fff1cf"
-        groundColor={darkTheme ? "#362f27" : "#b5aa98"}
+        intensity={lighting.hemisphereIntensity}
+        color={lighting.hemisphereSky}
+        groundColor={lighting.hemisphereGround}
       />
       <directionalLight
-        position={[12, 24, 8]}
-        intensity={1.2}
-        color="#ffe1a8"
+        position={[sceneSize * 0.42, lightHeight, sceneSize * 0.32]}
+        intensity={lighting.keyIntensity}
+        color={lighting.keyColor}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+        shadow-camera-left={-shadowSpan}
+        shadow-camera-right={shadowSpan}
+        shadow-camera-top={shadowSpan}
+        shadow-camera-bottom={-shadowSpan}
+        shadow-camera-near={0.5}
+        shadow-camera-far={Math.max(80, sceneSize * 3)}
+        shadow-bias={-0.00035}
+        shadow-normalBias={0.025}
+        shadow-radius={2.5}
       />
-      <pointLight position={[-14, 10, -12]} intensity={0.5} color="#cda85e" />
+      <pointLight
+        position={[-sceneSize * 0.38, wallHeight * 0.72, sceneSize * 0.28]}
+        intensity={lighting.fillIntensity}
+        color={lighting.fillColor}
+        distance={Math.max(45, sceneSize * 2.2)}
+        decay={1.25}
+      />
 
       <StudioFloor
         floor={design.room.floor}
         bounds={bounds}
-        darkTheme={darkTheme}
+        finish={materials.floor}
         onClearSelection={() => onSelect(null)}
       />
       <StudioWalls
@@ -68,7 +96,7 @@ export function RoomScene({
         selection={selection}
         onSelect={onSelect}
         transparent={transparentWalls}
-        darkTheme={darkTheme}
+        finish={materials.walls}
       />
       <StudioDrapes
         design={design}

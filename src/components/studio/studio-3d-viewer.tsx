@@ -1,12 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { getStudioMaterials } from "@/data/studio";
 import { Canvas } from "@react-three/fiber";
-import { Eye, Focus, RotateCcw } from "lucide-react";
+import { Eye, Focus, RotateCcw, Sparkles } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState } from "react";
+import * as THREE from "three";
 import type { StudioEditorProps } from "./studio-types";
 import { RoomScene } from "./three/room-scene";
+import { LIGHTING_MOODS } from "./three/scene-finishes";
 
 export function Studio3DViewer({
   design,
@@ -18,7 +21,11 @@ export function Studio3DViewer({
   const [fitSignal, setFitSignal] = useState(0);
   const { resolvedTheme } = useTheme();
   const darkTheme = resolvedTheme === "dark";
-  const sceneBackground = darkTheme ? "#171411" : "#e9e2d7";
+  const materials = getStudioMaterials(design);
+  const lighting = LIGHTING_MOODS[materials.lighting];
+  const sceneBackground = darkTheme
+    ? lighting.backgroundDark
+    : lighting.backgroundLight;
   const transparentWalls = Boolean(design.view.transparentWalls);
 
   return (
@@ -29,11 +36,14 @@ export function Studio3DViewer({
       <Canvas
         frameloop="demand"
         dpr={[1, 1.5]}
-        camera={{ position: [18, 16, 18], fov: 42, near: 0.1, far: 1000 }}
+        shadows={{ type: THREE.PCFShadowMap }}
+        camera={{ position: [24, 18, 28], fov: 41, near: 0.1, far: 1000 }}
         gl={{
           antialias: true,
           alpha: false,
           powerPreference: "high-performance",
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: lighting.exposure,
         }}
         onPointerMissed={() => onSelect(null)}
       >
@@ -49,6 +59,24 @@ export function Studio3DViewer({
           darkTheme={darkTheme}
         />
       </Canvas>
+
+      {design.drapeRuns.length === 0 ? (
+        <div className="pointer-events-none absolute top-3 left-3 max-w-[min(18rem,calc(100%-10rem))] rounded-2xl border border-primary/25 bg-background/82 p-3 shadow-lg backdrop-blur-md">
+          <div className="flex gap-2.5">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+              <Sparkles className="size-4" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-[0.62rem] font-semibold tracking-[0.18em] text-primary uppercase">
+                Preview ready
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-foreground/80">
+                Select a wall and add a drape treatment to preview the setup.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="absolute top-3 right-3 flex flex-wrap justify-end gap-1.5">
         <Button

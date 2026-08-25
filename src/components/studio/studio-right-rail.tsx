@@ -26,6 +26,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { DrapeRunEditor } from "./drape-run-editor";
+import { RoomFinishPanel } from "./room-finish-panel";
 import { StudioEmptyState } from "./studio-empty-state";
 import {
   feetInput,
@@ -204,6 +205,13 @@ export function StudioRightRail({
           </div>
         </div>
       )}
+
+      <div className="my-5 h-px bg-border/60" />
+      <RoomFinishPanel
+        design={design}
+        onChange={onChange}
+        idPrefix={`${idPrefix}-finish`}
+      />
     </aside>
   );
 }

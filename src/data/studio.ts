@@ -15,6 +15,46 @@ export type StudioDesignStatus = (typeof STUDIO_STATUSES)[number];
 export const ROOM_SHAPES = ["rectangle", "l_shape", "custom"] as const;
 export type StudioRoomShape = (typeof ROOM_SHAPES)[number];
 
+export const STUDIO_FLOOR_FINISHES = [
+  { value: "warm_wood", label: "Warm ballroom wood" },
+  { value: "event_carpet", label: "Neutral event carpet" },
+  { value: "polished_concrete", label: "Polished venue concrete" },
+  { value: "black_event", label: "Black event floor" },
+  { value: "light_neutral", label: "Light neutral floor" },
+] as const;
+export type StudioFloorFinish =
+  (typeof STUDIO_FLOOR_FINISHES)[number]["value"];
+
+export const STUDIO_WALL_FINISHES = [
+  { value: "warm_ivory", label: "Warm ivory" },
+  { value: "soft_grey", label: "Soft grey" },
+  { value: "black_box", label: "Black box" },
+  { value: "neutral_beige", label: "Neutral beige" },
+] as const;
+export type StudioWallFinish =
+  (typeof STUDIO_WALL_FINISHES)[number]["value"];
+
+export const STUDIO_LIGHTING_MOODS = [
+  { value: "neutral", label: "Neutral" },
+  { value: "warm_gala", label: "Warm gala" },
+  { value: "dark_venue", label: "Dark venue" },
+  { value: "bright_setup", label: "Bright setup" },
+] as const;
+export type StudioLightingMood =
+  (typeof STUDIO_LIGHTING_MOODS)[number]["value"];
+
+export type StudioMaterials = {
+  floor: StudioFloorFinish;
+  walls: StudioWallFinish;
+  lighting: StudioLightingMood;
+};
+
+export const DEFAULT_STUDIO_MATERIALS: StudioMaterials = {
+  floor: "warm_wood",
+  walls: "warm_ivory",
+  lighting: "warm_gala",
+};
+
 export type StudioPoint = {
   x: number;
   z: number;
@@ -73,6 +113,8 @@ export const DRAPE_COLORS = [
   { value: "gold", label: "Gold", hex: "#b98b3d" },
   { value: "navy", label: "Navy", hex: "#1d2a44" },
   { value: "burgundy", label: "Burgundy", hex: "#5a1f2b" },
+  { value: "blush", label: "Blush", hex: "#c99b9e" },
+  { value: "charcoal", label: "Charcoal", hex: "#343333" },
 ] as const;
 export type DrapeColor = (typeof DRAPE_COLORS)[number]["value"];
 
@@ -114,6 +156,7 @@ export type StudioDesignJson = {
     cameraMode: "orbit";
     transparentWalls?: boolean;
   };
+  materials?: StudioMaterials;
   notes: string;
 };
 
@@ -156,6 +199,7 @@ export const STUDIO_TEMPLATES: Record<StudioTemplateKey, StudioDesignJson> = {
     objects: [],
     drapeRuns: [],
     view: { cameraMode: "orbit", transparentWalls: false },
+    materials: { ...DEFAULT_STUDIO_MATERIALS },
     notes: "",
   },
   l_shape: {
@@ -184,6 +228,7 @@ export const STUDIO_TEMPLATES: Record<StudioTemplateKey, StudioDesignJson> = {
     objects: [],
     drapeRuns: [],
     view: { cameraMode: "orbit", transparentWalls: false },
+    materials: { ...DEFAULT_STUDIO_MATERIALS },
     notes: "",
   },
   custom: {
@@ -204,6 +249,7 @@ export const STUDIO_TEMPLATES: Record<StudioTemplateKey, StudioDesignJson> = {
     objects: [],
     drapeRuns: [],
     view: { cameraMode: "orbit", transparentWalls: false },
+    materials: { ...DEFAULT_STUDIO_MATERIALS },
     notes: "",
   },
 };
@@ -267,6 +313,28 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function getStudioMaterials(design: {
+  materials?: unknown;
+}): StudioMaterials {
+  const materials = isRecord(design.materials) ? design.materials : {};
+  const floor = STUDIO_FLOOR_FINISHES.some(
+    (option) => option.value === materials.floor
+  )
+    ? (materials.floor as StudioFloorFinish)
+    : DEFAULT_STUDIO_MATERIALS.floor;
+  const walls = STUDIO_WALL_FINISHES.some(
+    (option) => option.value === materials.walls
+  )
+    ? (materials.walls as StudioWallFinish)
+    : DEFAULT_STUDIO_MATERIALS.walls;
+  const lighting = STUDIO_LIGHTING_MOODS.some(
+    (option) => option.value === materials.lighting
+  )
+    ? (materials.lighting as StudioLightingMood)
+    : DEFAULT_STUDIO_MATERIALS.lighting;
+  return { floor, walls, lighting };
 }
 
 function hasStableId(
@@ -770,10 +838,35 @@ export function validateStudioDesign(
     errors.push("Studio view settings are invalid.");
   }
 
+  if (value.materials !== undefined) {
+    const materials = value.materials;
+    if (
+      !isRecord(materials) ||
+      !STUDIO_FLOOR_FINISHES.some(
+        (option) => option.value === materials.floor
+      ) ||
+      !STUDIO_WALL_FINISHES.some(
+        (option) => option.value === materials.walls
+      ) ||
+      !STUDIO_LIGHTING_MOODS.some(
+        (option) => option.value === materials.lighting
+      )
+    ) {
+      errors.push("Studio room finish settings are invalid.");
+    }
+  }
+
   if (errors.length > 0) {
     return { valid: false, errors, bytes };
   }
-  return { valid: true, design: value as StudioDesignJson, bytes };
+  return {
+    valid: true,
+    design: {
+      ...(value as StudioDesignJson),
+      materials: getStudioMaterials(value),
+    },
+    bytes,
+  };
 }
 
 export function createStudioItemId(prefix: "drape" | "object" | "opening"): string {

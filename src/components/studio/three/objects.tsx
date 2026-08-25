@@ -41,6 +41,8 @@ export function StudioObjects({
               (object.z - bounds.centerZ) * SCALE,
             ]}
             rotation={[0, (-object.rotation * Math.PI) / 180, 0]}
+            castShadow
+            receiveShadow
             onClick={(event) => {
               event.stopPropagation();
               onSelect({ kind: "object", id: object.id });

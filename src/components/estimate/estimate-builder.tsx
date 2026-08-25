@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   ArrowLeft,
@@ -34,6 +35,12 @@ import { DateInput } from "@/components/ui/date-input";
 import { OptionCard } from "@/components/estimate/option-card";
 import { EstimateContactCard } from "@/components/estimate/estimate-contact-card";
 import { EstimateSummary } from "@/components/estimate/estimate-summary";
+import {
+  EstimateFilePicker,
+  uploadEstimateFiles,
+  type FileUploadProgress,
+  type SelectedEstimateFile,
+} from "@/components/estimates/estimate-file-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,9 +69,18 @@ export function EstimateBuilder() {
   const [showContactHint, setShowContactHint] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [honeypot, setHoneypot] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<SelectedEstimateFile[]>(
+    []
+  );
+  const [uploadProgress, setUploadProgress] = useState<FileUploadProgress[]>(
+    []
+  );
   const [submitSuccess, setSubmitSuccess] = useState<{
     requestId?: string;
     reference?: string;
+    uploadFailed?: number;
+    uploadUploaded?: number;
+    isLoggedIn?: boolean;
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -140,6 +156,7 @@ export function EstimateBuilder() {
     setShowContactHint(false);
     setStepError(null);
     setSubmitError(null);
+    setUploadProgress([]);
     setIsSubmitting(true);
 
     void (async () => {
@@ -147,13 +164,18 @@ export function EstimateBuilder() {
         const response = await fetch("/api/estimate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...formData, website: honeypot }),
+          body: JSON.stringify({
+            ...formData,
+            website: honeypot,
+            expectedFileCount: selectedFiles.length,
+          }),
         });
 
         const payload = (await response.json()) as {
           ok?: boolean;
           message?: string;
           requestId?: string;
+          uploadToken?: string | null;
         };
 
         if (!response.ok || !payload.ok) {
@@ -164,11 +186,43 @@ export function EstimateBuilder() {
           return;
         }
 
+        let uploadFailed = 0;
+        let uploadUploaded = 0;
+        if (payload.requestId && selectedFiles.length > 0) {
+          const uploadResult = await uploadEstimateFiles({
+            estimateRequestId: payload.requestId,
+            uploadToken: payload.uploadToken ?? null,
+            files: selectedFiles,
+            onProgress: setUploadProgress,
+          });
+          uploadFailed = uploadResult.failed;
+          uploadUploaded = uploadResult.uploaded;
+        }
+
+        let isLoggedIn = false;
+        let isOwner = false;
+        try {
+          const sessionRes = await fetch("/api/account/session", {
+            cache: "no-store",
+          });
+          const sessionPayload = (await sessionRes.json()) as {
+            authenticated?: boolean;
+            role?: string | null;
+          };
+          isLoggedIn = Boolean(sessionPayload.authenticated);
+          isOwner = sessionPayload.role === "owner";
+        } catch {
+          isLoggedIn = false;
+        }
+
         setSubmitSuccess({
           requestId: payload.requestId,
           reference: payload.requestId
             ? formatEstimateReference(payload.requestId)
             : undefined,
+          uploadFailed,
+          uploadUploaded,
+          isLoggedIn: isLoggedIn && !isOwner,
         });
       } catch {
         setSubmitError(
@@ -568,6 +622,15 @@ export function EstimateBuilder() {
 
         {step.id === "contact-summary" && (
           <div className="w-full space-y-8">
+            {!submitSuccess ? (
+              <EstimateFilePicker
+                files={selectedFiles}
+                onChange={setSelectedFiles}
+                disabled={isSubmitting}
+                uploadProgress={isSubmitting ? uploadProgress : undefined}
+              />
+            ) : null}
+
             <EstimateContactCard
               data={formData}
               onFieldChange={updateField}
@@ -583,7 +646,7 @@ export function EstimateBuilder() {
       {submitSuccess && isLastStep && (
         <div
           role="status"
-          className="rounded-2xl border border-primary/30 bg-primary/10 p-5 sm:p-6"
+          className="space-y-4 rounded-2xl border border-primary/30 bg-primary/10 p-5 sm:p-6"
         >
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
@@ -610,11 +673,61 @@ export function EstimateBuilder() {
                 A confirmation email has been sent if the email address was
                 entered correctly.
               </p>
+              {typeof submitSuccess.uploadUploaded === "number" &&
+              submitSuccess.uploadUploaded > 0 ? (
+                <p className="text-sm leading-relaxed text-emerald-200">
+                  {submitSuccess.uploadUploaded} file
+                  {submitSuccess.uploadUploaded === 1 ? "" : "s"} uploaded and
+                  attached to your estimate.
+                </p>
+              ) : null}
+              {submitSuccess.uploadFailed && submitSuccess.uploadFailed > 0 ? (
+                <p className="text-sm leading-relaxed text-amber-200">
+                  Your estimate was received, but{" "}
+                  {submitSuccess.uploadFailed} file
+                  {submitSuccess.uploadFailed === 1 ? "" : "s"} failed to
+                  upload. You can add files later from your account.
+                </p>
+              ) : null}
               <p className="text-xs leading-relaxed text-muted-foreground">
                 {estimateDisclaimer}
               </p>
             </div>
           </div>
+
+          {uploadProgress.length > 0 ? (
+            <EstimateFilePicker
+              files={[]}
+              onChange={() => {}}
+              disabled
+              uploadProgress={uploadProgress}
+            />
+          ) : null}
+
+          {submitSuccess.isLoggedIn ? (
+            <Button asChild>
+              <Link href="/account/estimates">View your estimates</Link>
+            </Button>
+          ) : (
+            <div className="rounded-2xl border border-border/40 bg-background/40 p-4">
+              <p className="text-sm font-medium text-foreground">
+                Create an account to view this estimate, upload more files, and
+                track updates.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link
+                    href={`/account/signup?email=${encodeURIComponent(formData.email.trim())}`}
+                  >
+                    Create an account
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/account/login">Sign in</Link>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

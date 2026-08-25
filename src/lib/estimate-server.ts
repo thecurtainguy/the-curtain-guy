@@ -13,6 +13,9 @@ export type EstimateSubmissionValidation = {
 export type EstimateInsertMeta = {
   submittedFromUrl?: string | null;
   userAgent?: string | null;
+  userId?: string | null;
+  uploadTokenHash?: string | null;
+  uploadTokenExpiresAt?: string | null;
 };
 
 export type EstimateInsertResult =
@@ -180,6 +183,9 @@ export function buildEstimateInsertRow(
     raw_payload: data,
     submitted_from_url: meta.submittedFromUrl ?? null,
     user_agent: meta.userAgent ?? null,
+    user_id: meta.userId ?? null,
+    upload_token_hash: meta.uploadTokenHash ?? null,
+    upload_token_expires_at: meta.uploadTokenExpiresAt ?? null,
   };
 }
 

@@ -14,6 +14,12 @@ Sign in to [Supabase](https://supabase.com/dashboard) and open **The Curtain Guy
 
 This creates the `estimate_requests` table, indexes, RLS (enabled with no public policies), and an `updated_at` trigger.
 
+For auth, owner/customer profiles, and private file uploads, also run:
+
+`supabase/migrations/20260825012700_tcg_auth_owner_customer_uploads.sql`
+
+See `docs/owner-auth-setup.md` and `docs/production-setup.md`.
+
 ## 3. Copy API credentials
 
 1. Go to **Project Settings → API**.

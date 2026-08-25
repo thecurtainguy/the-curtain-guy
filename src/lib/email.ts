@@ -29,18 +29,21 @@ export type SendEstimateNotificationInput = {
   requestId: string;
   data: EstimateFormData;
   apiKey: string;
+  fileCount?: number;
 };
 
 export type SendEstimateCustomerConfirmationInput = {
   requestId: string;
   data: EstimateFormData;
   apiKey: string;
+  fileCount?: number;
 };
 
 type EstimateEmailContext = {
   requestId: string;
   reference: string;
   data: EstimateFormData;
+  fileCount: number;
 };
 
 type EmailSection = {
@@ -68,12 +71,14 @@ function escapeHtml(value: string): string {
 
 function buildEstimateEmailContext(
   requestId: string,
-  data: EstimateFormData
+  data: EstimateFormData,
+  fileCount = 0
 ): EstimateEmailContext {
   return {
     requestId,
     reference: formatEstimateReference(requestId),
     data,
+    fileCount: Math.max(0, fileCount),
   };
 }
 
@@ -181,7 +186,7 @@ function buildNotificationSubject(data: EstimateFormData, reference: string): st
 }
 
 function buildNotificationText(ctx: EstimateEmailContext): string {
-  const { requestId, reference, data } = ctx;
+  const { requestId, reference, data, fileCount } = ctx;
   const sections = buildAdminEmailSections(data);
 
   const lines = [
@@ -193,6 +198,14 @@ function buildNotificationText(ctx: EstimateEmailContext): string {
     "This is a planning brief, not final pricing.",
     "",
   ];
+
+  if (fileCount > 0) {
+    lines.push(
+      `Files selected: ${fileCount}`,
+      "Uploaded files are available in the admin dashboard once transfer completes.",
+      ""
+    );
+  }
 
   for (const section of sections) {
     lines.push(`--- ${section.title.toUpperCase()} ---`);
@@ -231,11 +244,17 @@ function renderEmailSectionHtml(section: EmailSection): string {
 }
 
 function buildNotificationHtml(ctx: EstimateEmailContext): string {
-  const { reference, data } = ctx;
+  const { reference, data, fileCount } = ctx;
   const sections = buildAdminEmailSections(data)
     .map(renderEmailSectionHtml)
     .join("");
   const brief = escapeHtml(buildEstimateBrief(data)).replace(/\n/g, "<br>");
+  const filesBlock =
+    fileCount > 0
+      ? `<div style="margin-bottom:24px;padding:14px 16px;border-radius:12px;background:#f0fdf4;border:1px solid #bbf7d0;">
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#166534;"><strong>${fileCount} file${fileCount === 1 ? "" : "s"} selected.</strong> View and download uploads from the admin dashboard once transfer completes.</p>
+        </div>`
+      : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -250,6 +269,7 @@ function buildNotificationHtml(ctx: EstimateEmailContext): string {
         <div style="margin-bottom:24px;padding:14px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;">
           <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;"><strong>Planning brief only.</strong> Review measurements, availability, delivery, installation, and strike before confirming final pricing.</p>
         </div>
+        ${filesBlock}
         ${sections}
         <div style="margin-top:8px;padding-top:20px;border-top:1px solid #e5e7eb;">
           <h2 style="margin:0 0 12px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#b8860b;">Full brief</h2>
@@ -267,28 +287,44 @@ function buildCustomerConfirmationSubject(reference: string): string {
 }
 
 function buildCustomerConfirmationText(ctx: EstimateEmailContext): string {
-  const { reference } = ctx;
+  const { reference, fileCount } = ctx;
 
-  return [
+  const lines = [
     "Hi,",
     "",
     "Thank you — we received your event drape estimate brief.",
     "",
     `Reference number: ${reference}`,
     "",
+  ];
+
+  if (fileCount > 0) {
+    lines.push(
+      `You selected ${fileCount} file${fileCount === 1 ? "" : "s"} with this request. Files that finished uploading are attached to your estimate brief.`,
+      ""
+    );
+  }
+
+  lines.push(
     "The Curtain Guy team will review your measurements, availability, delivery, installation, and teardown before preparing your rental estimate.",
     "",
     "This is a planning brief, not final pricing. We will follow up by email once we have reviewed your details.",
     "",
-    "Need to add updates, photos, or a floor plan? Reply to this email and we will include them in your file.",
+    "Need to add updates, photos, or a floor plan? Create an account or reply to this email and we will include them in your file.",
     "",
     "— The Curtain Guy",
-    "thecurtainguy.com",
-  ].join("\n");
+    "thecurtainguy.com"
+  );
+
+  return lines.join("\n");
 }
 
 function buildCustomerConfirmationHtml(ctx: EstimateEmailContext): string {
-  const { reference } = ctx;
+  const { reference, fileCount } = ctx;
+  const filesBlock =
+    fileCount > 0
+      ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">You selected <strong>${fileCount} file${fileCount === 1 ? "" : "s"}</strong> with this request. Files that finished uploading are attached to your estimate brief.</p>`
+      : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -304,11 +340,12 @@ function buildCustomerConfirmationHtml(ctx: EstimateEmailContext): string {
           <p style="margin:0 0 4px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">Reference number</p>
           <p style="margin:0;font-size:20px;font-weight:600;color:#111827;">${escapeHtml(reference)}</p>
         </div>
+        ${filesBlock}
         <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">We will review measurements, availability, delivery, installation, and teardown before preparing your rental estimate.</p>
         <div style="margin:0 0 20px;padding:14px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;">
           <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;"><strong>Planning brief only.</strong> This is not final pricing. We will follow up by email once your details are reviewed.</p>
         </div>
-        <p style="margin:0;font-size:15px;line-height:1.7;color:#374151;">Have updates, photos, or a floor plan to share? Reply to this email and we will add them to your file.</p>
+        <p style="margin:0;font-size:15px;line-height:1.7;color:#374151;">Have updates, photos, or a floor plan to share? Create an account or reply to this email and we will add them to your file.</p>
       </div>
       <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">The Curtain Guy · Montreal event drape rental</p>
     </div>
@@ -348,8 +385,8 @@ async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
 export async function sendEstimateNotificationEmail(
   input: SendEstimateNotificationInput
 ): Promise<void> {
-  const { requestId, data, apiKey } = input;
-  const ctx = buildEstimateEmailContext(requestId, data);
+  const { requestId, data, apiKey, fileCount = 0 } = input;
+  const ctx = buildEstimateEmailContext(requestId, data, fileCount);
   const customerEmail = data.email.trim();
 
   await sendResendEmail({
@@ -370,14 +407,14 @@ export async function sendEstimateCustomerConfirmationEmail(
     return;
   }
 
-  const { requestId, data, apiKey } = input;
+  const { requestId, data, apiKey, fileCount = 0 } = input;
   const customerEmail = data.email.trim();
 
   if (!customerEmail) {
     return;
   }
 
-  const ctx = buildEstimateEmailContext(requestId, data);
+  const ctx = buildEstimateEmailContext(requestId, data, fileCount);
 
   await sendResendEmail({
     apiKey,

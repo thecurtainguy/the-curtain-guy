@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import {
   sendEstimateCustomerConfirmationEmail,
   sendEstimateNotificationEmail,
@@ -10,7 +11,18 @@ import {
   parseEstimateFormPayload,
   validateEstimateSubmission,
 } from "@/lib/estimate-server";
+import {
+  createUploadToken,
+  ESTIMATE_MAX_FILES,
+} from "@/lib/estimate-files";
 import { getResendApiKey, getSupabaseServerConfig } from "@/lib/env";
+
+function parseExpectedFileCount(payload: unknown): number {
+  if (!payload || typeof payload !== "object") return 0;
+  const raw = (payload as Record<string, unknown>).expectedFileCount;
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return 0;
+  return Math.max(0, Math.min(ESTIMATE_MAX_FILES, Math.floor(raw)));
+}
 
 export async function POST(request: NextRequest) {
   const contentLength = request.headers.get("content-length");
@@ -97,6 +109,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const expectedFileCount = parseExpectedFileCount(payload);
+  const uploadBundle =
+    expectedFileCount > 0 ? createUploadToken() : null;
+
+  const user = await getCurrentUser();
+
   const insertResult = await insertEstimateRequest(
     supabaseConfig,
     data,
@@ -104,6 +122,9 @@ export async function POST(request: NextRequest) {
       submittedFromUrl:
         request.headers.get("referer") ?? request.headers.get("origin"),
       userAgent: request.headers.get("user-agent"),
+      userId: user?.id ?? null,
+      uploadTokenHash: uploadBundle?.hash ?? null,
+      uploadTokenExpiresAt: uploadBundle?.expiresAt ?? null,
     }
   );
 
@@ -127,6 +148,7 @@ export async function POST(request: NextRequest) {
         requestId: insertResult.id,
         data,
         apiKey: resendApiKey,
+        fileCount: expectedFileCount,
       });
     } catch {
       adminEmailFailed = true;
@@ -141,6 +163,7 @@ export async function POST(request: NextRequest) {
         requestId: insertResult.id,
         data,
         apiKey: resendApiKey,
+        fileCount: expectedFileCount,
       });
     } catch {
       customerEmailFailed = true;
@@ -166,6 +189,8 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     requestId: insertResult.id,
+    uploadToken: uploadBundle?.token ?? null,
+    expectedFileCount,
     message: "Your estimate brief was submitted successfully.",
   });
 }

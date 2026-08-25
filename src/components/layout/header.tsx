@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
@@ -15,8 +16,56 @@ import {
 } from "@/components/ui/sheet";
 import { siteConfig } from "@/data/site";
 
+type SessionState = {
+  authenticated: boolean;
+  role: "owner" | "customer" | null;
+};
+
 export function Header() {
   const pathname = usePathname();
+  const [session, setSession] = useState<SessionState>({
+    authenticated: false,
+    role: null,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/account/session", { cache: "no-store" });
+        const payload = (await res.json()) as {
+          authenticated?: boolean;
+          role?: "owner" | "customer" | null;
+        };
+        if (!cancelled) {
+          setSession({
+            authenticated: Boolean(payload.authenticated),
+            role: payload.role ?? null,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setSession({ authenticated: false, role: null });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  const accountHref =
+    session.role === "owner"
+      ? "/admin"
+      : session.authenticated
+        ? "/account"
+        : "/account/login";
+  const accountLabel =
+    session.role === "owner"
+      ? "Admin"
+      : session.authenticated
+        ? "Account"
+        : "Sign in";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
@@ -57,9 +106,13 @@ export function Header() {
         <div className="flex items-center gap-2">
           <Button
             asChild
+            variant="outline"
             size="sm"
             className="hidden sm:inline-flex"
           >
+            <Link href={accountHref}>{accountLabel}</Link>
+          </Button>
+          <Button asChild size="sm" className="hidden sm:inline-flex">
             <Link href="/get-estimate">Get Estimate</Link>
           </Button>
 
@@ -102,7 +155,10 @@ export function Header() {
                     </Link>
                   );
                 })}
-                <Button asChild className="mt-4 w-full">
+                <Button asChild variant="outline" className="mt-4 w-full">
+                  <Link href={accountHref}>{accountLabel}</Link>
+                </Button>
+                <Button asChild className="mt-2 w-full">
                   <Link href="/get-estimate">Get Estimate</Link>
                 </Button>
               </nav>

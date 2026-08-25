@@ -6,7 +6,7 @@ import { SiteShell } from "@/components/layout/site-shell";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UnsavedChangesProvider } from "@/components/providers/unsaved-changes-provider";
 import { siteConfig } from "@/data/site";
-import { organizationJsonLd } from "@/lib/seo";
+import { buildSiteGraphJsonLd } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/env";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -88,7 +88,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(organizationJsonLd),
+            __html: JSON.stringify(buildSiteGraphJsonLd()),
           }}
         />
         <ThemeProvider>

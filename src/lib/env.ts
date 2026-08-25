@@ -78,7 +78,16 @@ export function getQuoteFrom(): string {
 }
 
 export function getSiteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://thecurtainguy.com";
+  let url =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.thecurtainguy.com";
+  url = url.replace(/\/$/, "");
+
+  // Production redirects to www — keep canonicals aligned even if env is apex-only.
+  if (url === "https://thecurtainguy.com") {
+    return "https://www.thecurtainguy.com";
+  }
+
+  return url;
 }
 
 export function shouldSendCustomerConfirmation(): boolean {

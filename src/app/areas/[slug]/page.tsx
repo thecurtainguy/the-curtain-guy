@@ -8,7 +8,8 @@ import { PageHero } from "@/components/page-hero";
 import { CtaBand } from "@/components/marketing/cta-band";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { findSiteMedia } from "@/lib/site-media";
-import { createPageMetadata } from "@/lib/seo";
+import { createBreadcrumbJsonLd, createPageMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, ArrowRight, MapPin } from "lucide-react";
@@ -52,6 +53,12 @@ export default async function AreaDetailPage({ params }: PageProps) {
 
   return (
     <>
+      <JsonLd
+        data={createBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: area.name, path: `/areas/${area.slug}` },
+        ])}
+      />
       <PageHero
         eyebrow={`${area.name} · Service Area`}
         title={area.title}

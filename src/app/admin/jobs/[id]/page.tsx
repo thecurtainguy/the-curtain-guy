@@ -36,6 +36,7 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
           file_size_bytes: f.file_size_bytes,
           uploaded_at: f.uploaded_at,
           upload_status: f.upload_status,
+          customer_visible: f.customer_visible !== false,
         }))}
       />
     </AdminPageFrame>

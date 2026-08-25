@@ -77,6 +77,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (!isOwner && file.customer_visible === false) {
+    return NextResponse.json(
+      { ok: false, message: "File not found." },
+      { status: 404 }
+    );
+  }
+
   const { data: signed, error: signError } = await admin.storage
     .from(file.bucket || ESTIMATE_FILES_BUCKET)
     .createSignedUrl(file.object_path, SIGNED_READ_URL_EXPIRES_SEC);

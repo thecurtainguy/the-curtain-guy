@@ -30,7 +30,11 @@ export default async function AccountEventDetailPage({ params }: PageProps) {
   if (!job) notFound();
 
   const files = job.estimate_request_id
-    ? await fetchEstimateFiles(job.estimate_request_id, ["uploaded"])
+    ? (
+        await fetchEstimateFiles(job.estimate_request_id, ["uploaded"], {
+          customerVisibleOnly: true,
+        })
+      )
     : [];
 
   return (

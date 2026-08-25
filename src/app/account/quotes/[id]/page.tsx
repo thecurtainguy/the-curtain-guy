@@ -12,10 +12,14 @@ import {
 } from "@/components/account/account-page-frame";
 import { QuoteProposalView } from "@/components/quotes/quote-proposal-view";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
+import { OpportunityFilesPanel } from "@/components/estimates/opportunity-files-panel";
 import { PortalBackLink } from "@/components/portal/portal-back-link";
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
-import { fetchEstimateById } from "@/lib/estimate-access";
+import {
+  fetchEstimateById,
+  fetchEstimateFiles,
+} from "@/lib/estimate-access";
 import {
   customerCanAccessQuote,
   fetchQuoteById,
@@ -55,6 +59,16 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
   const shareUrl = `${siteUrl}/account/quotes/${id}`;
   const safe = toCustomerSafeQuote(quote, { shareUrl });
   const initialGuestUrl = await findActivePublicQuoteUrl(id, siteUrl);
+
+  const allFiles = quote.estimate_request_id
+    ? await fetchEstimateFiles(quote.estimate_request_id, [
+        "uploaded",
+        "pending",
+      ])
+    : [];
+  const sharedFiles = allFiles.filter(
+    (file) => file.customer_visible !== false
+  );
 
   return (
     <AccountPageFrame email={current.profile.email}>
@@ -105,6 +119,15 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
             shareUrl={shareUrl}
             heroImageSrc={heroImage.image}
           />
+          {quote.estimate_request_id ? (
+            <OpportunityFilesPanel
+              estimateRequestId={quote.estimate_request_id}
+              files={sharedFiles}
+              totalFileCount={allFiles.length}
+              audience="customer"
+              title="Shared files"
+            />
+          ) : null}
         </div>
 
         <aside className="space-y-6 xl:sticky xl:top-4">

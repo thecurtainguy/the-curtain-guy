@@ -530,7 +530,7 @@ export function AdminJobDetail({
         <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
           <h2 className="font-heading text-lg font-semibold">Estimate uploads</h2>
           <div className="mt-4">
-            <EstimateFilesList files={estimateFiles} />
+            <EstimateFilesList files={estimateFiles} showVisibility />
           </div>
         </section>
       ) : null}

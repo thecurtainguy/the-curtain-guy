@@ -1,6 +1,7 @@
 import {
   addOnOptions,
   drapeGoals,
+  eventTypes,
   fabricDirections,
   floorPlanOptions,
   formatHeightSummaryValue,
@@ -36,6 +37,10 @@ function asStringArray(value: unknown): string[] {
 
 function labelList(options: EstimateOption[], ids: string[]): string {
   return getOptionLabels(options, ids).join(", ") || "—";
+}
+
+export function asOptionIds(value: unknown): string[] {
+  return asStringArray(value);
 }
 
 /** Friendly rows for owner admin estimate detail (not raw JSON). */
@@ -125,6 +130,17 @@ export function buildAdminMeasurementRows(measurements: unknown): DetailRow[] {
   ];
 }
 
+export function getLookAndFabricIds(lookAndFabric: unknown): {
+  fabricDirections: string[];
+  fullnessPreference: string;
+} {
+  const data = asRecord(lookAndFabric);
+  return {
+    fabricDirections: asStringArray(data.fabricDirections),
+    fullnessPreference: asString(data.fullnessPreference),
+  };
+}
+
 export function formatDrapeGoals(value: unknown): string {
   return labelList(drapeGoals, asStringArray(value));
 }
@@ -139,3 +155,16 @@ export function formatVenueSetting(value: string | null): string {
   if (!value) return "—";
   return getOptionLabel(venueSettings, value) ?? value;
 }
+
+export function formatEventType(value: string | null | undefined): string {
+  if (!value) return "—";
+  return getOptionLabel(eventTypes, value) ?? value;
+}
+
+export {
+  addOnOptions,
+  drapeGoals,
+  eventTypes,
+  fabricDirections,
+  fullnessOptions,
+};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   Loader2,
+  Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -37,19 +38,26 @@ import {
 import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
+import {
+  OpportunityFilesPanel,
+  type OpportunityFileItem,
+} from "@/components/estimates/opportunity-files-panel";
+import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
 import type { QuoteWithRelations } from "@/lib/quotes";
 import {
   centsToDollarInput,
   dollarsToCents,
 } from "@/lib/quote-tokens";
 import { Button } from "@/components/ui/button";
+import { DateInput } from "@/components/ui/date-input";
+import { EventTypeInput } from "@/components/ui/event-type-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const selectClass =
-  "flex h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30";
+  "flex h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-70";
 
 type DraftLine = {
   key: string;
@@ -95,11 +103,16 @@ function emptyLine(): DraftLine {
 export function AdminQuoteBuilder({
   quote,
   initialGuestUrl = null,
+  opportunityFiles = [],
 }: {
   quote: QuoteWithRelations;
   initialGuestUrl?: string | null;
+  opportunityFiles?: OpportunityFileItem[];
 }) {
   const router = useRouter();
+  const { setDirty, clearDirty } = useOptionalUnsavedChanges();
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [customerName, setCustomerName] = useState(quote.customer_name ?? "");
   const [customerEmail, setCustomerEmail] = useState(quote.customer_email ?? "");
   const [eventDate, setEventDate] = useState(toDateInput(quote.event_date));
@@ -121,8 +134,6 @@ export function AdminQuoteBuilder({
     centsToDollarInput(quote.manual_tax_cents || 0)
   );
 
-  const [savingDetails, setSavingDetails] = useState(false);
-  const [savingLines, setSavingLines] = useState(false);
   const [sending, setSending] = useState(false);
   const [revising, setRevising] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -137,6 +148,31 @@ export function AdminQuoteBuilder({
   const [convertQty, setConvertQty] = useState(1);
   const [convertPrice, setConvertPrice] = useState("0.00");
   const [requestBusy, setRequestBusy] = useState<string | null>(null);
+
+  function resetFromQuote(source: QuoteWithRelations) {
+    setCustomerName(source.customer_name ?? "");
+    setCustomerEmail(source.customer_email ?? "");
+    setEventDate(toDateInput(source.event_date));
+    setEventType(source.event_type ?? "");
+    setVenueName(source.venue_name ?? "");
+    setCityArea(source.city_area ?? "");
+    setValidUntil(toDateInput(source.valid_until));
+    setCustomerNotes(source.customer_notes ?? "");
+    setOwnerNotes(source.owner_notes ?? "");
+    setTerms(source.terms ?? "");
+    setLines(linesFromQuote(source));
+    setTaxMode(source.tax_mode || "quebec_gst_qst");
+    setManualTaxLabel(source.manual_tax_label ?? "Sales tax");
+    setManualTaxDollars(centsToDollarInput(source.manual_tax_cents || 0));
+  }
+
+  useEffect(() => {
+    if (!isEditing) {
+      resetFromQuote(quote);
+    }
+    // Sync when server quote refreshes while viewing
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when quote identity/content updates outside edit
+  }, [quote.id, quote.updated_at, isEditing]);
 
   const draftTotals = useMemo(() => {
     const draftItems = lines.map((line) => ({
@@ -174,53 +210,52 @@ export function AdminQuoteBuilder({
     }),
     [draftTotals, taxMode, manualTaxLabel, manualTaxDollars, quote.gst_rate, quote.qst_rate]
   );
+
+  useEffect(() => {
+    setDirty(isEditing);
+  }, [isEditing, setDirty]);
+
+  useEffect(() => {
+    return () => {
+      clearDirty();
+    };
+  }, [clearDirty]);
+
   function flash(okMessage?: string, err?: string) {
     setMessage(okMessage ?? null);
     setError(err ?? null);
   }
 
-  async function saveDetails() {
-    setSavingDetails(true);
+  function startEditing() {
     flash();
-    try {
-      const response = await fetch(`/api/admin/quotes/${quote.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_name: customerName,
-          customer_email: customerEmail,
-          event_date: eventDate || null,
-          event_type: eventType,
-          venue_name: venueName,
-          city_area: cityArea,
-          valid_until: validUntil || null,
-          customer_notes: customerNotes,
-          owner_notes: ownerNotes,
-          terms,
-        }),
-      });
-      const payload = (await response.json()) as {
-        ok?: boolean;
-        message?: string;
-      };
-      if (!response.ok || !payload.ok) {
-        flash(undefined, payload.message ?? "Could not save details.");
-        return;
-      }
-      flash("Details saved.");
-      router.refresh();
-    } catch {
-      flash(undefined, "Could not save details.");
-    } finally {
-      setSavingDetails(false);
-    }
+    setIsEditing(true);
   }
 
-  async function saveLineItems() {
-    setSavingLines(true);
+  function cancelEditing() {
+    resetFromQuote(quote);
+    setIsEditing(false);
     flash();
-    try {
-      const items = lines.map((line, index) => ({
+    clearDirty();
+  }
+
+  function detailsPayload() {
+    return {
+      customer_name: customerName,
+      customer_email: customerEmail,
+      event_date: eventDate || null,
+      event_type: eventType,
+      venue_name: venueName,
+      city_area: cityArea,
+      valid_until: validUntil || null,
+      customer_notes: customerNotes,
+      owner_notes: ownerNotes,
+      terms,
+    };
+  }
+
+  function lineItemsPayload() {
+    return {
+      items: lines.map((line, index) => ({
         id: line.id,
         category: line.category,
         description: line.description,
@@ -231,43 +266,71 @@ export function AdminQuoteBuilder({
         is_taxable: line.isTaxable,
         tax_category: line.isTaxable ? "standard" : "exempt",
         sort_order: index,
-      }));
-      const response = await fetch(`/api/admin/quotes/${quote.id}/line-items`, {
-        method: "POST",
+      })),
+      tax_mode: taxMode,
+      manual_tax_label: manualTaxLabel,
+      manual_tax_cents: dollarsToCents(manualTaxDollars),
+    };
+  }
+
+  async function saveAll() {
+    setSaving(true);
+    flash();
+    try {
+      const detailsResponse = await fetch(`/api/admin/quotes/${quote.id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items,
-          tax_mode: taxMode,
-          manual_tax_label: manualTaxLabel,
-          manual_tax_cents: dollarsToCents(manualTaxDollars),
-        }),
+        body: JSON.stringify(detailsPayload()),
       });
-      const payload = (await response.json()) as {
+      const detailsPayloadResult = (await detailsResponse.json()) as {
         ok?: boolean;
         message?: string;
       };
-      if (!response.ok || !payload.ok) {
-        flash(undefined, payload.message ?? "Could not save line items.");
+      if (!detailsResponse.ok || !detailsPayloadResult.ok) {
+        flash(
+          undefined,
+          detailsPayloadResult.message ?? "Could not save quote details."
+        );
         return;
       }
+
+      const linesResponse = await fetch(
+        `/api/admin/quotes/${quote.id}/line-items`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(lineItemsPayload()),
+        }
+      );
+      const linesResult = (await linesResponse.json()) as {
+        ok?: boolean;
+        message?: string;
+      };
+      if (!linesResponse.ok || !linesResult.ok) {
+        flash(
+          undefined,
+          linesResult.message ??
+            "Customer & event details were saved, but line items and tax could not be saved. Fix and save again."
+        );
+        return;
+      }
+
       const refreshed = await fetch(`/api/admin/quotes/${quote.id}`);
       const refreshedPayload = (await refreshed.json()) as {
         ok?: boolean;
         quote?: QuoteWithRelations;
       };
       if (refreshed.ok && refreshedPayload.quote) {
-        const next = refreshedPayload.quote;
-        setLines(linesFromQuote(next));
-        setTaxMode(next.tax_mode || "quebec_gst_qst");
-        setManualTaxLabel(next.manual_tax_label ?? "Sales tax");
-        setManualTaxDollars(centsToDollarInput(next.manual_tax_cents || 0));
+        resetFromQuote(refreshedPayload.quote);
       }
-      flash("Line items & tax saved.");
+      setIsEditing(false);
+      clearDirty();
+      flash("Quote saved.");
       router.refresh();
     } catch {
-      flash(undefined, "Could not save line items.");
+      flash(undefined, "Could not save quote.");
     } finally {
-      setSavingLines(false);
+      setSaving(false);
     }
   }
 
@@ -426,20 +489,53 @@ export function AdminQuoteBuilder({
           </>
         }
         actions={
-          <div className="text-left sm:text-right">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-              Total CAD
-            </p>
-            <p className="mt-1 font-heading text-3xl font-semibold text-primary">
-              {formatCadFromCents(draftTotals.total_cents)}
-            </p>
-            {draftTotals.total_cents !== quote.total_cents ? (
-              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                Saved: {formatCadFromCents(quote.total_cents)} · unsaved changes
+          <div className="flex flex-col items-stretch gap-3 sm:items-end">
+            <div className="text-left sm:text-right">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                Total CAD
               </p>
-            ) : (
-              <p className="mt-1 text-xs text-muted-foreground">Saved</p>
-            )}
+              <p className="mt-1 font-heading text-3xl font-semibold text-primary">
+                {formatCadFromCents(draftTotals.total_cents)}
+              </p>
+              {isEditing && draftTotals.total_cents !== quote.total_cents ? (
+                <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                  Saved: {formatCadFromCents(quote.total_cents)} · unsaved changes
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {isEditing ? "Editing" : "Saved"}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              {isEditing ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cancelEditing}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => void saveAll()}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : null}
+                    Save quote
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" onClick={startEditing}>
+                  <Pencil className="size-4" />
+                  Edit
+                </Button>
+              )}
+            </div>
           </div>
         }
       />
@@ -463,14 +559,6 @@ export function AdminQuoteBuilder({
       <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-heading text-lg font-semibold">Customer & event</h2>
-          <Button
-            type="button"
-            onClick={() => void saveDetails()}
-            disabled={savingDetails}
-          >
-            {savingDetails ? <Loader2 className="size-4 animate-spin" /> : null}
-            Save details
-          </Button>
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
@@ -479,6 +567,7 @@ export function AdminQuoteBuilder({
               id="customer_name"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
+              disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
@@ -488,23 +577,25 @@ export function AdminQuoteBuilder({
               type="email"
               value={customerEmail}
               onChange={(e) => setCustomerEmail(e.target.value)}
+              disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="event_date">Event date</Label>
-            <Input
+            <DateInput
               id="event_date"
-              type="date"
               value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
+              onChange={setEventDate}
+              disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="event_type">Event type</Label>
-            <Input
+            <EventTypeInput
               id="event_type"
               value={eventType}
-              onChange={(e) => setEventType(e.target.value)}
+              onChange={setEventType}
+              disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
@@ -513,6 +604,7 @@ export function AdminQuoteBuilder({
               id="venue_name"
               value={venueName}
               onChange={(e) => setVenueName(e.target.value)}
+              disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
@@ -521,15 +613,16 @@ export function AdminQuoteBuilder({
               id="city_area"
               value={cityArea}
               onChange={(e) => setCityArea(e.target.value)}
+              disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="valid_until">Valid until</Label>
-            <Input
+            <DateInput
               id="valid_until"
-              type="date"
               value={validUntil}
-              onChange={(e) => setValidUntil(e.target.value)}
+              onChange={setValidUntil}
+              disabled={!isEditing}
             />
           </div>
         </div>
@@ -542,6 +635,7 @@ export function AdminQuoteBuilder({
               rows={4}
               value={customerNotes}
               onChange={(e) => setCustomerNotes(e.target.value)}
+              disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
@@ -551,6 +645,7 @@ export function AdminQuoteBuilder({
               rows={4}
               value={ownerNotes}
               onChange={(e) => setOwnerNotes(e.target.value)}
+              disabled={!isEditing}
             />
           </div>
           <div className="space-y-2">
@@ -560,6 +655,7 @@ export function AdminQuoteBuilder({
               rows={4}
               value={terms}
               onChange={(e) => setTerms(e.target.value)}
+              disabled={!isEditing}
             />
           </div>
         </div>
@@ -574,7 +670,7 @@ export function AdminQuoteBuilder({
               event close-out.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {isEditing ? (
             <Button
               type="button"
               variant="outline"
@@ -584,21 +680,15 @@ export function AdminQuoteBuilder({
               <Plus className="size-4" />
               Add row
             </Button>
-            <Button
-              type="button"
-              onClick={() => void saveLineItems()}
-              disabled={savingLines}
-            >
-              {savingLines ? <Loader2 className="size-4 animate-spin" /> : null}
-              Save line items
-            </Button>
-          </div>
+          ) : null}
         </div>
 
         <div className="mt-4 space-y-3">
           {lines.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border/40 px-4 py-8 text-center text-sm text-muted-foreground">
-              No line items yet. Add a row to start pricing.
+              {isEditing
+                ? "No line items yet. Add a row to start pricing."
+                : "No line items yet."}
             </p>
           ) : (
             lines.map((line) => {
@@ -618,6 +708,7 @@ export function AdminQuoteBuilder({
                     <select
                       className={selectClass}
                       value={line.category}
+                      disabled={!isEditing}
                       onChange={(e) =>
                         updateLine(line.key, {
                           category: e.target.value as QuoteLineCategory,
@@ -637,6 +728,7 @@ export function AdminQuoteBuilder({
                     </Label>
                     <Input
                       value={line.description}
+                      disabled={!isEditing}
                       onChange={(e) =>
                         updateLine(line.key, { description: e.target.value })
                       }
@@ -650,6 +742,7 @@ export function AdminQuoteBuilder({
                       min={0}
                       step={1}
                       value={line.quantity}
+                      disabled={!isEditing}
                       onChange={(e) =>
                         updateLine(line.key, {
                           quantity: Number(e.target.value) || 0,
@@ -664,6 +757,7 @@ export function AdminQuoteBuilder({
                     <Input
                       inputMode="decimal"
                       value={line.unitPriceDollars}
+                      disabled={!isEditing}
                       onChange={(e) =>
                         updateLine(line.key, {
                           unitPriceDollars: e.target.value,
@@ -678,6 +772,7 @@ export function AdminQuoteBuilder({
                     <select
                       className={selectClass}
                       value={line.status}
+                      disabled={!isEditing}
                       onChange={(e) =>
                         updateLine(line.key, {
                           status: e.target.value as QuoteLineStatus,
@@ -698,6 +793,7 @@ export function AdminQuoteBuilder({
                         type="checkbox"
                         className="size-4 rounded border-border accent-primary"
                         checked={line.isTaxable}
+                        disabled={!isEditing}
                         onChange={(e) =>
                           updateLine(line.key, {
                             isTaxable: e.target.checked,
@@ -713,20 +809,22 @@ export function AdminQuoteBuilder({
                     <p className="text-sm font-medium tabular-nums">
                       {formatCadFromCents(lineTotal)}
                     </p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() =>
-                        setLines((prev) =>
-                          prev.filter((row) => row.key !== line.key)
-                        )
-                      }
-                      aria-label="Remove line"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    {isEditing ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() =>
+                          setLines((prev) =>
+                            prev.filter((row) => row.key !== line.key)
+                          )
+                        }
+                        aria-label="Remove line"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -743,14 +841,6 @@ export function AdminQuoteBuilder({
               Quebec GST 5% + QST 9.975% on taxable line items. CAD.
             </p>
           </div>
-          <Button
-            type="button"
-            onClick={() => void saveLineItems()}
-            disabled={savingLines}
-          >
-            {savingLines ? <Loader2 className="size-4 animate-spin" /> : null}
-            Save tax & lines
-          </Button>
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
@@ -761,6 +851,7 @@ export function AdminQuoteBuilder({
                 id="tax_mode"
                 className={selectClass}
                 value={taxMode}
+                disabled={!isEditing}
                 onChange={(e) =>
                   setTaxMode(e.target.value as QuoteTaxMode)
                 }
@@ -773,24 +864,26 @@ export function AdminQuoteBuilder({
               </select>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={applyQuebecTaxToAll}
-              >
-                Apply Quebec GST/QST to all line items
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={markAllNonTaxable}
-              >
-                Mark all non-taxable
-              </Button>
-            </div>
+            {isEditing ? (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={applyQuebecTaxToAll}
+                >
+                  Apply Quebec GST/QST to all line items
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={markAllNonTaxable}
+                >
+                  Mark all non-taxable
+                </Button>
+              </div>
+            ) : null}
 
             {taxMode === "manual" ? (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -799,6 +892,7 @@ export function AdminQuoteBuilder({
                   <Input
                     id="manual_tax_label"
                     value={manualTaxLabel}
+                    disabled={!isEditing}
                     onChange={(e) => setManualTaxLabel(e.target.value)}
                     placeholder="Sales tax"
                   />
@@ -809,6 +903,7 @@ export function AdminQuoteBuilder({
                     id="manual_tax_amount"
                     inputMode="decimal"
                     value={manualTaxDollars}
+                    disabled={!isEditing}
                     onChange={(e) => setManualTaxDollars(e.target.value)}
                   />
                 </div>
@@ -997,6 +1092,14 @@ export function AdminQuoteBuilder({
         ensureEndpoint={`/api/admin/quotes/${quote.id}/guest-link`}
         initialUrl={publicUrl}
       />
+      {quote.estimate_request_id ? (
+        <OpportunityFilesPanel
+          estimateRequestId={quote.estimate_request_id}
+          files={opportunityFiles}
+          audience="admin"
+          title="Opportunity files"
+        />
+      ) : null}
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="font-heading text-lg font-semibold">Quote summary</h2>
         <div className="mt-4 rounded-2xl border border-border/40 bg-background/40 p-4">

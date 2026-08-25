@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getCurrentProfile, isOwnerProfile } from "@/lib/auth";
 import {
   canManageEstimateUploads,
   countEstimateFiles,
@@ -20,6 +20,8 @@ type SignBody = {
   originalFileName?: string;
   contentType?: string;
   fileSizeBytes?: number;
+  /** Admin only. Customers/token uploads are always shared. Default: shared for customers, internal for owners. */
+  customerVisible?: boolean;
 };
 
 export async function POST(request: NextRequest) {
@@ -101,6 +103,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const isOwner = isOwnerProfile(current?.profile ?? null);
+  // Owners choose visibility (default internal). Everyone else is always shared.
+  const customerVisible = isOwner
+    ? body.customerVisible === true
+    : true;
+
   const admin = createAdminSupabaseClient();
   const fileId = crypto.randomUUID();
   const objectPath = buildEstimateObjectPath({
@@ -123,8 +131,9 @@ export async function POST(request: NextRequest) {
       content_type: contentType,
       file_size_bytes: fileSizeBytes,
       upload_status: "pending",
+      customer_visible: customerVisible,
     })
-    .select("id, object_path, bucket")
+    .select("id, object_path, bucket, customer_visible")
     .single();
 
   if (insertError || !inserted) {
@@ -159,5 +168,6 @@ export async function POST(request: NextRequest) {
     signedUrl: signed.signedUrl,
     token: signed.token,
     path: signed.path,
+    customerVisible: inserted.customer_visible !== false,
   });
 }

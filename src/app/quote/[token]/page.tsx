@@ -36,7 +36,7 @@ export default async function PublicQuotePage({ params }: PageProps) {
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(212,175,55,0.1),transparent_50%)]"
         aria-hidden
       />
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         <QuoteProposalView
           quote={safe}
           mode="public"

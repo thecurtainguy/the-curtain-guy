@@ -48,6 +48,7 @@ export type EstimateFileRow = {
   content_type: string;
   file_size_bytes: number;
   upload_status: string;
+  customer_visible: boolean;
   created_at: string;
   uploaded_at: string | null;
 };
@@ -118,18 +119,28 @@ export async function fetchEstimateById(
 
 export async function fetchEstimateFiles(
   estimateId: string,
-  statuses: string[] = ["uploaded", "pending"]
+  statuses: string[] = ["uploaded", "pending"],
+  options: { customerVisibleOnly?: boolean } = {}
 ): Promise<EstimateFileRow[]> {
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
+  let query = admin
     .from("estimate_files")
     .select("*")
     .eq("estimate_request_id", estimateId)
     .in("upload_status", statuses)
     .order("created_at", { ascending: true });
 
+  if (options.customerVisibleOnly) {
+    query = query.eq("customer_visible", true);
+  }
+
+  const { data, error } = await query;
+
   if (error || !data) return [];
-  return data as EstimateFileRow[];
+  return (data as EstimateFileRow[]).map((row) => ({
+    ...row,
+    customer_visible: row.customer_visible !== false,
+  }));
 }
 
 export async function countEstimateFiles(estimateId: string): Promise<number> {

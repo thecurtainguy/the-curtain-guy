@@ -12,14 +12,17 @@ export type FileListItem = {
   file_size_bytes: number;
   uploaded_at: string | null;
   upload_status: string;
+  customer_visible?: boolean;
 };
 
 export function EstimateFilesList({
   files,
   emptyMessage = "No files attached.",
+  showVisibility = false,
 }: {
   files: FileListItem[];
   emptyMessage?: string;
+  showVisibility?: boolean;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +64,16 @@ export function EstimateFilesList({
             className="flex flex-col gap-3 bg-card/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-foreground">
-                {file.original_file_name}
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {file.original_file_name}
+                </p>
+                {showVisibility ? (
+                  <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    {file.customer_visible === false ? "Internal" : "Shared"}
+                  </span>
+                ) : null}
+              </div>
               <p className="text-xs text-muted-foreground">
                 {file.content_type} · {formatFileSize(file.file_size_bytes)}
                 {file.uploaded_at

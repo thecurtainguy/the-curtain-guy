@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClipboardList, FileUp, PanelsTopLeft } from "lucide-react";
+import { ClipboardList, PanelsTopLeft } from "lucide-react";
 import {
   isEmailVerified,
   requireAccountPage,
@@ -11,6 +11,7 @@ import {
   EmailVerificationBanner,
 } from "@/components/account/account-page-frame";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
+import { EstimateBriefView } from "@/components/estimates/estimate-brief-view";
 import {
   customerCanAccessEstimate,
   fetchEstimateById,
@@ -18,8 +19,7 @@ import {
   toCustomerSafeEstimate,
 } from "@/lib/estimate-access";
 import { ClaimEstimateButton } from "@/components/account/claim-estimate-button";
-import { AccountEstimateUploader } from "@/components/account/account-estimate-uploader";
-import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
+import { OpportunityFilesPanel } from "@/components/estimates/opportunity-files-panel";
 import { EstimateStatusBadge } from "@/components/estimates/status-badge";
 import { formatEstimateReference } from "@/data/estimate";
 
@@ -43,9 +43,8 @@ export default async function AccountEstimateDetailPage({ params }: PageProps) {
   }
 
   const safe = toCustomerSafeEstimate(estimate);
-  const files = (await fetchEstimateFiles(id, ["uploaded", "pending"])).filter(
-    (file) => file.upload_status === "uploaded" || file.upload_status === "pending"
-  );
+  const allFiles = await fetchEstimateFiles(id, ["uploaded", "pending"]);
+  const files = allFiles.filter((file) => file.customer_visible !== false);
   const reference = formatEstimateReference(
     estimate.id,
     estimate.opportunity_ref
@@ -76,29 +75,9 @@ export default async function AccountEstimateDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-          <h2 className="font-heading text-lg font-semibold">Event</h2>
-          <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
-            <div>
-              <dt className="text-muted-foreground">Type</dt>
-              <dd className="font-medium">{safe.event_type || "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Date</dt>
-              <dd className="font-medium">{safe.event_date || "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Venue</dt>
-              <dd className="font-medium">{safe.venue_name || "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">City / area</dt>
-              <dd className="font-medium">{safe.city_area || "—"}</dd>
-            </div>
-          </dl>
-        </section>
+        <EstimateBriefView estimate={safe} audience="customer" />
 
-        <section className="rounded-3xl border border-primary/25 bg-primary/[0.06] p-5">
+        <section className="rounded-2xl border border-primary/25 bg-primary/[0.06] p-5">
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
               <PanelsTopLeft className="size-5" />
@@ -132,45 +111,12 @@ export default async function AccountEstimateDetailPage({ params }: PageProps) {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-          <h2 className="font-heading text-lg font-semibold">Your brief</h2>
-          <pre className="mt-4 max-w-full overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-border/40 bg-background/40 p-4 font-mono text-xs leading-relaxed">
-            {safe.estimate_brief}
-          </pre>
-          {safe.notes && (
-            <div className="mt-4 text-sm">
-              <p className="text-muted-foreground">Your notes</p>
-              <p className="mt-1 whitespace-pre-wrap">{safe.notes}</p>
-            </div>
-          )}
-        </section>
-
-        <section className="space-y-4 rounded-3xl border border-primary/30 bg-card/25 p-5">
-          <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
-              <FileUp className="size-5" />
-            </span>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-                Files
-              </p>
-              <h2 className="mt-1 font-heading text-lg font-semibold">
-                Floor plans & inspiration
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                View attached files or upload more (PDF, PNG, JPG, WEBP · max 5
-                total · 10MB each).
-              </p>
-            </div>
-          </div>
-          <EstimateFilesList files={files} />
-          <div className="border-t border-border/40 pt-4">
-            <AccountEstimateUploader
-              estimateId={estimate.id}
-              remainingSlots={Math.max(0, 5 - files.length)}
-            />
-          </div>
-        </section>
+        <OpportunityFilesPanel
+          estimateRequestId={estimate.id}
+          files={files}
+          totalFileCount={allFiles.length}
+          audience="customer"
+        />
       </div>
     </AccountPageFrame>
   );

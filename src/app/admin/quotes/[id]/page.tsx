@@ -7,6 +7,7 @@ import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import { AdminQuoteBuilder } from "@/components/admin/admin-quote-builder";
 import { AdminQuoteJobActions } from "@/components/admin/admin-quote-job-actions";
 import { getSiteUrl } from "@/lib/env";
+import { fetchEstimateFiles } from "@/lib/estimate-access";
 import { fetchJobByQuoteId } from "@/lib/jobs";
 import { fetchQuoteById, findActivePublicQuoteUrl } from "@/lib/quotes";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,12 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
 
   const linkedJob = await fetchJobByQuoteId(id);
   const initialGuestUrl = await findActivePublicQuoteUrl(id, getSiteUrl());
+  const estimateFiles = quote.estimate_request_id
+    ? await fetchEstimateFiles(quote.estimate_request_id, [
+        "uploaded",
+        "pending",
+      ])
+    : [];
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -66,7 +73,11 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
             </Button>
           </div>
         </section>
-        <AdminQuoteBuilder quote={quote} initialGuestUrl={initialGuestUrl} />
+        <AdminQuoteBuilder
+          quote={quote}
+          initialGuestUrl={initialGuestUrl}
+          opportunityFiles={estimateFiles}
+        />
       </div>
     </AdminPageFrame>
   );

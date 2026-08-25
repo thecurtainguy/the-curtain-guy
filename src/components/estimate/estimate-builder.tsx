@@ -61,9 +61,10 @@ export function EstimateBuilder() {
   const [stepError, setStepError] = useState<string | null>(null);
   const [showContactHint, setShowContactHint] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [honeypot, setHoneypot] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState<{
-    requestId: string;
-    reference: string;
+    requestId?: string;
+    reference?: string;
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -146,7 +147,7 @@ export function EstimateBuilder() {
         const response = await fetch("/api/estimate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, website: honeypot }),
         });
 
         const payload = (await response.json()) as {
@@ -155,7 +156,7 @@ export function EstimateBuilder() {
           requestId?: string;
         };
 
-        if (!response.ok || !payload.ok || !payload.requestId) {
+        if (!response.ok || !payload.ok) {
           setSubmitError(
             payload.message ??
               "We could not submit your estimate online. Please use email instead."
@@ -165,7 +166,9 @@ export function EstimateBuilder() {
 
         setSubmitSuccess({
           requestId: payload.requestId,
-          reference: formatEstimateReference(payload.requestId),
+          reference: payload.requestId
+            ? formatEstimateReference(payload.requestId)
+            : undefined,
         });
       } catch {
         setSubmitError(
@@ -179,6 +182,17 @@ export function EstimateBuilder() {
 
   return (
     <div className="space-y-8">
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        value={honeypot}
+        onChange={(event) => setHoneypot(event.target.value)}
+        className="pointer-events-none absolute -left-[9999px] h-px w-px opacity-0"
+      />
+
       {/* Progress */}
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
@@ -580,12 +594,21 @@ export function EstimateBuilder() {
                 Estimate brief sent
               </p>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Your estimate brief was sent. Reference:{" "}
-                <span className="font-medium text-foreground">
-                  {submitSuccess.reference}
-                </span>
+                Your estimate brief was sent
+                {submitSuccess.reference ? (
+                  <>
+                    . Reference:{" "}
+                    <span className="font-medium text-foreground">
+                      {submitSuccess.reference}
+                    </span>
+                  </>
+                ) : null}
                 . The Curtain Guy team will review your event details and follow
                 up by email.
+              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                A confirmation email has been sent if the email address was
+                entered correctly.
               </p>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 {estimateDisclaimer}

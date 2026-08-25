@@ -35,3 +35,13 @@ export function getEstimateFrom(): string {
 export function getSiteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://thecurtainguy.com";
 }
+
+export function shouldSendCustomerConfirmation(): boolean {
+  const value = process.env.TCG_SEND_CUSTOMER_CONFIRMATION?.trim().toLowerCase();
+
+  if (!value) {
+    return true;
+  }
+
+  return value === "true" || value === "1" || value === "yes";
+}

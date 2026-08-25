@@ -28,6 +28,19 @@ function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+export const ESTIMATE_MAX_PAYLOAD_BYTES = 64 * 1024;
+
+export function isHoneypotTriggered(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") {
+    return false;
+  }
+
+  const raw = payload as Record<string, unknown>;
+  const honeypot = raw.website;
+
+  return typeof honeypot === "string" && honeypot.trim().length > 0;
+}
+
 export function parseEstimateFormPayload(
   payload: unknown
 ): EstimateFormData | null {

@@ -54,14 +54,17 @@ export default async function AdminDashboardPage() {
   return (
     <AdminPageFrame email={owner.profile.email}>
       <div className="space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-border/30 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
               Dashboard
             </p>
-            <h1 className="mt-1 font-heading text-3xl font-semibold text-foreground">
-              Estimate requests
+            <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+              Operations overview
             </h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Scan estimate pipeline health and upcoming booked events.
+            </p>
           </div>
           <Button asChild>
             <Link href="/admin/estimates">

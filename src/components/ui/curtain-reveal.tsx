@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type CurtainRevealProps = {
@@ -51,6 +53,52 @@ export function CurtainReveal({
         className="contact-curtain-panel contact-curtain-panel-right pointer-events-none absolute inset-y-0 right-0 z-20 w-[52%]"
         aria-hidden
       />
+    </div>
+  );
+}
+
+const VIEWPORT_CURTAIN_MS = 2400;
+
+type ViewportCurtainOpenProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+/**
+ * Full-viewport velvet curtain open — same motion language as contact/estimate success,
+ * but covering the entire screen on first paint.
+ */
+export function ViewportCurtainOpen({
+  children,
+  className,
+}: ViewportCurtainOpenProps) {
+  const [showCurtains, setShowCurtains] = useState(true);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timeout = window.setTimeout(
+      () => {
+        setShowCurtains(false);
+      },
+      reduced ? 0 : VIEWPORT_CURTAIN_MS
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  return (
+    <div className={cn("relative", className)}>
+      <div className="contact-curtain-reveal">{children}</div>
+
+      {showCurtains ? (
+        <div
+          className="pointer-events-none fixed inset-0 z-[100] overflow-hidden"
+          aria-hidden
+        >
+          <div className="contact-curtain-panel contact-curtain-panel-left absolute inset-y-0 left-0 w-[52%]" />
+          <div className="contact-curtain-panel contact-curtain-panel-right absolute inset-y-0 right-0 w-[52%]" />
+        </div>
+      ) : null}
     </div>
   );
 }

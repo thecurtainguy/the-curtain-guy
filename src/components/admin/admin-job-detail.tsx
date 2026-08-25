@@ -278,17 +278,20 @@ export function AdminJobDetail({
     : null;
 
   return (
-    <div className="space-y-8">
-      <header className="rounded-3xl border border-border/40 bg-card/25 p-5">
-        <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-          <Link href="/admin/jobs">← All jobs</Link>
-        </Button>
+    <div className="space-y-6">
+      <header className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <Link
+          href="/admin/jobs"
+          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
+        >
+          ← All jobs
+        </Link>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
-              Booked event
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
+              Job detail
             </p>
-            <h1 className="mt-1 font-heading text-3xl font-semibold text-foreground">
+            <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               {formatJobRef(job.opportunity_ref)}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -347,7 +350,253 @@ export function AdminJobDetail({
         </div>
       )}
 
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="min-w-0 space-y-6">
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+          <h2 className="font-heading text-lg font-semibold">Event details</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="event_name">Event name</Label>
+              <Input id="event_name" value={eventName} onChange={(e) => setEventName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event_type">Event type</Label>
+              <Input id="event_type" value={eventType} onChange={(e) => setEventType(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event_date">Event date</Label>
+              <Input id="event_date" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event_start">Start time</Label>
+              <Input id="event_start" value={eventStart} onChange={(e) => setEventStart(e.target.value)} placeholder="e.g. 6:00 PM" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event_end">End time</Label>
+              <Input id="event_end" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)} placeholder="e.g. 11:00 PM" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="guest_count">Guest count</Label>
+              <Input id="guest_count" value={guestCount} onChange={(e) => setGuestCount(e.target.value)} />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+          <h2 className="font-heading text-lg font-semibold">Venue</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="venue_name">Venue name</Label>
+              <Input id="venue_name" value={venueName} onChange={(e) => setVenueName(e.target.value)} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="venue_address">Address</Label>
+              <Input id="venue_address" value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="venue_city">City</Label>
+              <Input id="venue_city" value={venueCity} onChange={(e) => setVenueCity(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="venue_region">Region</Label>
+              <Input id="venue_region" value={venueRegion} onChange={(e) => setVenueRegion(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="venue_postal">Postal code</Label>
+              <Input id="venue_postal" value={venuePostal} onChange={(e) => setVenuePostal(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="venue_country">Country</Label>
+              <Input id="venue_country" value={venueCountry} onChange={(e) => setVenueCountry(e.target.value)} />
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <h2 className="font-heading text-lg font-semibold">Install & teardown schedule</h2>
+        <div className="mt-4 grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2 sm:col-span-3">
+              <Label>Install date</Label>
+              <Input type="date" value={installDate} onChange={(e) => setInstallDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Install start</Label>
+              <Input value={installStart} onChange={(e) => setInstallStart(e.target.value)} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Install end</Label>
+              <Input value={installEnd} onChange={(e) => setInstallEnd(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2 sm:col-span-3">
+              <Label>Teardown date</Label>
+              <Input type="date" value={teardownDate} onChange={(e) => setTeardownDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Teardown start</Label>
+              <Input value={teardownStart} onChange={(e) => setTeardownStart(e.target.value)} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Teardown end</Label>
+              <Input value={teardownEnd} onChange={(e) => setTeardownEnd(e.target.value)} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <h2 className="font-heading text-lg font-semibold">Venue & access notes</h2>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          {[
+            ["Access", accessNotes, setAccessNotes],
+            ["Loading", loadingNotes, setLoadingNotes],
+            ["Parking", parkingNotes, setParkingNotes],
+            ["Elevator", elevatorNotes, setElevatorNotes],
+            ["Room / areas", roomNotes, setRoomNotes],
+          ].map(([label, value, setter]) => (
+            <div key={label as string} className="space-y-2">
+              <Label>{label as string}</Label>
+              <Textarea
+                value={value as string}
+                onChange={(e) => (setter as (v: string) => void)(e.target.value)}
+                rows={3}
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <h2 className="font-heading text-lg font-semibold">Production & notes</h2>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <div className="space-y-2">
+            <Label>Production notes (internal)</Label>
+            <Textarea value={productionNotes} onChange={(e) => setProductionNotes(e.target.value)} rows={4} />
+          </div>
+          <div className="space-y-2">
+            <Label>Customer-visible notes</Label>
+            <Textarea value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} rows={4} />
+          </div>
+          <div className="space-y-2">
+            <Label>Internal notes</Label>
+            <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={4} />
+          </div>
+        </div>
+      </section>
+
+      {job.quote ? (
+        <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-heading text-lg font-semibold">Accepted quote</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {resolveQuoteDisplayRef(job.quote)} ·{" "}
+                {formatCadFromCents(job.accepted_quote_total_cents ?? job.quote.total_cents)}
+              </p>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/admin/quotes/${job.quote_id}`}>
+                <ExternalLink className="size-4" />
+                Open quote
+              </Link>
+            </Button>
+          </div>
+          <ul className="mt-4 divide-y divide-border/40 rounded-2xl border border-border/40">
+            {(job.quote_line_items || []).map((item) => (
+              <li key={item.id} className="flex flex-wrap justify-between gap-2 px-4 py-3 text-sm">
+                <div>
+                  <p className="font-medium">{item.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {QUOTE_CATEGORY_LABELS[item.category]}
+                  </p>
+                </div>
+                <p className="tabular-nums text-foreground">
+                  {formatCadFromCents(item.line_total_cents)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {estimateFiles.length > 0 ? (
+        <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+          <h2 className="font-heading text-lg font-semibold">Estimate uploads</h2>
+          <div className="mt-4">
+            <EstimateFilesList files={estimateFiles} />
+          </div>
+        </section>
+      ) : null}
+
+
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <h2 className="font-heading text-lg font-semibold">Messages</h2>
+        <div className="mt-4 space-y-4">
+          {customerMessages.length > 0 ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Customer</p>
+              <ul className="mt-2 space-y-2">
+                {customerMessages.map((m) => (
+                  <li key={m.id} className="rounded-2xl border border-border/40 bg-background/40 p-3 text-sm">
+                    <p className="text-xs text-muted-foreground">
+                      {m.sender_name || m.sender_role} · {new Date(m.created_at).toLocaleString()}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap">{m.message}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {internalMessages.length > 0 ? (
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Internal</p>
+              <ul className="mt-2 space-y-2">
+                {internalMessages.map((m) => (
+                  <li key={m.id} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
+                    <p className="text-xs text-muted-foreground">
+                      {m.sender_name || "Owner"} · {new Date(m.created_at).toLocaleString()}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap">{m.message}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          <div className="space-y-2">
+            <Label htmlFor="owner_message">Add message</Label>
+            <Textarea
+              id="owner_message"
+              value={ownerMessage}
+              onChange={(e) => setOwnerMessage(e.target.value)}
+              rows={3}
+              placeholder="Customer-visible update or internal note…"
+            />
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={ownerMessageInternal}
+                onChange={(e) => setOwnerMessageInternal(e.target.checked)}
+              />
+              Internal only (not visible to customer)
+            </label>
+            <Button type="button" onClick={() => void sendOwnerMessage()} disabled={messageBusy}>
+              {messageBusy ? <Loader2 className="size-4 animate-spin" /> : null}
+              Send message
+            </Button>
+          </div>
+        </div>
+      </section>
+
+
+      </div>
+
+      <aside className="space-y-6 xl:sticky xl:top-20">
+<section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <h2 className="font-heading text-lg font-semibold">Status workflow</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Current: {getJobStatusLabel(job.status)}
@@ -388,187 +637,33 @@ export function AdminJobDetail({
         </details>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-          <h2 className="font-heading text-lg font-semibold">Event details</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="event_name">Event name</Label>
-              <Input id="event_name" value={eventName} onChange={(e) => setEventName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event_type">Event type</Label>
-              <Input id="event_type" value={eventType} onChange={(e) => setEventType(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event_date">Event date</Label>
-              <Input id="event_date" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event_start">Start time</Label>
-              <Input id="event_start" value={eventStart} onChange={(e) => setEventStart(e.target.value)} placeholder="e.g. 6:00 PM" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event_end">End time</Label>
-              <Input id="event_end" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)} placeholder="e.g. 11:00 PM" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="guest_count">Guest count</Label>
-              <Input id="guest_count" value={guestCount} onChange={(e) => setGuestCount(e.target.value)} />
-            </div>
-          </div>
-        </section>
 
-        <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-          <h2 className="font-heading text-lg font-semibold">Venue</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="venue_name">Venue name</Label>
-              <Input id="venue_name" value={venueName} onChange={(e) => setVenueName(e.target.value)} />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="venue_address">Address</Label>
-              <Input id="venue_address" value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="venue_city">City</Label>
-              <Input id="venue_city" value={venueCity} onChange={(e) => setVenueCity(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="venue_region">Region</Label>
-              <Input id="venue_region" value={venueRegion} onChange={(e) => setVenueRegion(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="venue_postal">Postal code</Label>
-              <Input id="venue_postal" value={venuePostal} onChange={(e) => setVenuePostal(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="venue_country">Country</Label>
-              <Input id="venue_country" value={venueCountry} onChange={(e) => setVenueCountry(e.target.value)} />
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-        <h2 className="font-heading text-lg font-semibold">Install & teardown schedule</h2>
-        <div className="mt-4 grid gap-6 lg:grid-cols-2">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2 sm:col-span-3">
-              <Label>Install date</Label>
-              <Input type="date" value={installDate} onChange={(e) => setInstallDate(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Install start</Label>
-              <Input value={installStart} onChange={(e) => setInstallStart(e.target.value)} />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Install end</Label>
-              <Input value={installEnd} onChange={(e) => setInstallEnd(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2 sm:col-span-3">
-              <Label>Teardown date</Label>
-              <Input type="date" value={teardownDate} onChange={(e) => setTeardownDate(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Teardown start</Label>
-              <Input value={teardownStart} onChange={(e) => setTeardownStart(e.target.value)} />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Teardown end</Label>
-              <Input value={teardownEnd} onChange={(e) => setTeardownEnd(e.target.value)} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-        <h2 className="font-heading text-lg font-semibold">Venue & access notes</h2>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          {[
-            ["Access", accessNotes, setAccessNotes],
-            ["Loading", loadingNotes, setLoadingNotes],
-            ["Parking", parkingNotes, setParkingNotes],
-            ["Elevator", elevatorNotes, setElevatorNotes],
-            ["Room / areas", roomNotes, setRoomNotes],
-          ].map(([label, value, setter]) => (
-            <div key={label as string} className="space-y-2">
-              <Label>{label as string}</Label>
-              <Textarea
-                value={value as string}
-                onChange={(e) => (setter as (v: string) => void)(e.target.value)}
-                rows={3}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-        <h2 className="font-heading text-lg font-semibold">Production & notes</h2>
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Production notes (internal)</Label>
-            <Textarea value={productionNotes} onChange={(e) => setProductionNotes(e.target.value)} rows={4} />
-          </div>
-          <div className="space-y-2">
-            <Label>Customer-visible notes</Label>
-            <Textarea value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)} rows={4} />
-          </div>
-          <div className="space-y-2">
-            <Label>Internal notes</Label>
-            <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={4} />
-          </div>
-        </div>
-      </section>
-
-      {job.quote ? (
-        <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-lg font-semibold">Accepted quote</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {resolveQuoteDisplayRef(job.quote)} ·{" "}
-                {formatCadFromCents(job.accepted_quote_total_cents ?? job.quote.total_cents)}
-              </p>
-            </div>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/admin/quotes/${job.quote_id}`}>
-                <ExternalLink className="size-4" />
-                Open quote
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <h2 className="font-heading text-lg font-semibold">Links</h2>
+        <div className="mt-3 flex flex-col gap-2">
+          {job.quote_id ? (
+            <Button asChild variant="outline" size="sm" className="justify-start">
+              <Link href={`/admin/quotes/${job.quote_id}`}>Open quote</Link>
+            </Button>
+          ) : null}
+          {job.estimate_request_id ? (
+            <Button asChild variant="outline" size="sm" className="justify-start">
+              <Link href={`/admin/estimates/${job.estimate_request_id}`}>
+                Open estimate
               </Link>
             </Button>
+          ) : null}
+          <div className="rounded-xl border border-border/40 bg-background/40 px-3 py-2 text-sm">
+            <p className="text-xs text-muted-foreground">Checklist</p>
+            <p className="mt-1 font-heading text-xl font-semibold tabular-nums">
+              {checklistProgress.completed}/{checklistProgress.total}
+            </p>
           </div>
-          <ul className="mt-4 divide-y divide-border/40 rounded-2xl border border-border/40">
-            {(job.quote_line_items || []).map((item) => (
-              <li key={item.id} className="flex flex-wrap justify-between gap-2 px-4 py-3 text-sm">
-                <div>
-                  <p className="font-medium">{item.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {QUOTE_CATEGORY_LABELS[item.category]}
-                  </p>
-                </div>
-                <p className="tabular-nums text-foreground">
-                  {formatCadFromCents(item.line_total_cents)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+        </div>
+      </section>
 
-      {estimateFiles.length > 0 ? (
-        <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-          <h2 className="font-heading text-lg font-semibold">Estimate uploads</h2>
-          <div className="mt-4">
-            <EstimateFilesList files={estimateFiles} />
-          </div>
-        </section>
-      ) : null}
 
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+<section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-heading text-lg font-semibold">Planning checklist</h2>
@@ -630,65 +725,7 @@ export function AdminJobDetail({
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-        <h2 className="font-heading text-lg font-semibold">Messages</h2>
-        <div className="mt-4 space-y-4">
-          {customerMessages.length > 0 ? (
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Customer</p>
-              <ul className="mt-2 space-y-2">
-                {customerMessages.map((m) => (
-                  <li key={m.id} className="rounded-2xl border border-border/40 bg-background/40 p-3 text-sm">
-                    <p className="text-xs text-muted-foreground">
-                      {m.sender_name || m.sender_role} · {new Date(m.created_at).toLocaleString()}
-                    </p>
-                    <p className="mt-1 whitespace-pre-wrap">{m.message}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {internalMessages.length > 0 ? (
-            <div>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Internal</p>
-              <ul className="mt-2 space-y-2">
-                {internalMessages.map((m) => (
-                  <li key={m.id} className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
-                    <p className="text-xs text-muted-foreground">
-                      {m.sender_name || "Owner"} · {new Date(m.created_at).toLocaleString()}
-                    </p>
-                    <p className="mt-1 whitespace-pre-wrap">{m.message}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <div className="space-y-2">
-            <Label htmlFor="owner_message">Add message</Label>
-            <Textarea
-              id="owner_message"
-              value={ownerMessage}
-              onChange={(e) => setOwnerMessage(e.target.value)}
-              rows={3}
-              placeholder="Customer-visible update or internal note…"
-            />
-            <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={ownerMessageInternal}
-                onChange={(e) => setOwnerMessageInternal(e.target.checked)}
-              />
-              Internal only (not visible to customer)
-            </label>
-            <Button type="button" onClick={() => void sendOwnerMessage()} disabled={messageBusy}>
-              {messageBusy ? <Loader2 className="size-4 animate-spin" /> : null}
-              Send message
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+<section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <h2 className="font-heading text-lg font-semibold">Activity timeline</h2>
         <ul className="mt-4 space-y-3">
           {job.events.length === 0 ? (
@@ -715,6 +752,9 @@ export function AdminJobDetail({
           )}
         </ul>
       </section>
+      </aside>
+      </div>
+
     </div>
   );
 }

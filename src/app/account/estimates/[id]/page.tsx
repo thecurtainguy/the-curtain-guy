@@ -21,7 +21,6 @@ import { AccountEstimateUploader } from "@/components/account/account-estimate-u
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
 import { EstimateStatusBadge } from "@/components/estimates/status-badge";
 import { formatEstimateReference } from "@/data/estimate";
-import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Estimate detail",
@@ -55,13 +54,18 @@ export default async function AccountEstimateDetailPage({ params }: PageProps) {
   return (
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
-      <div className="space-y-8">
-        <div>
-          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-            <Link href="/account/estimates">← Your estimates</Link>
-          </Button>
+      <div className="space-y-6">
+        <div className="border-b border-border/30 pb-6">
+          <Link
+            href="/account/estimates"
+            className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
+          >
+            ← Your estimates
+          </Link>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-heading text-3xl font-semibold">{reference}</h1>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+              {reference}
+            </h1>
             <EstimateStatusBadge status={safe.status} />
           </div>
           <p className="mt-2 text-sm text-muted-foreground">

@@ -78,20 +78,20 @@ export function CustomerEventDetail({
   }
 
   return (
-    <div className="space-y-8">
-      <header className="overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-card/40 via-card/25 to-primary/5">
-        <div className="border-b border-border/40 px-5 py-4">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+    <div className="space-y-6">
+      <header className="overflow-hidden rounded-2xl border border-border/40 bg-card/25">
+        <div className="border-b border-border/40 px-5 py-4 sm:px-6">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
             Your event
           </p>
-          <h1 className="mt-1 font-heading text-3xl font-semibold text-foreground">
+          <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {formatJobRef(job.opportunity_ref)}
           </h1>
           <div className="mt-3">
             <JobStatusBadge status={job.status} />
           </div>
         </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-3">
+        <div className="grid gap-4 p-5 sm:grid-cols-3 sm:px-6">
           <div className="flex gap-3 rounded-2xl border border-border/40 bg-background/40 p-4">
             <Calendar className="size-5 shrink-0 text-primary" />
             <div>
@@ -123,7 +123,7 @@ export function CustomerEventDetail({
         </div>
       </header>
 
-      <section className="rounded-3xl border border-border/40 bg-card/20 p-5">
+      <section className="rounded-2xl border border-border/40 bg-card/20 p-5">
         <h2 className="font-heading text-lg font-semibold">Event progress</h2>
         <ol className="mt-4 flex flex-wrap gap-2">
           {(

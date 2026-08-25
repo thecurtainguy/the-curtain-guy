@@ -11,7 +11,6 @@ import {
 } from "@/components/account/account-page-frame";
 import { QuoteProposalView } from "@/components/quotes/quote-proposal-view";
 import { heroImage } from "@/data/site";
-import { Button } from "@/components/ui/button";
 import { getSiteUrl } from "@/lib/env";
 import { fetchEstimateById } from "@/lib/estimate-access";
 import {
@@ -54,10 +53,13 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
   return (
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
-      <div className="mb-6">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/account/quotes">← Your proposals</Link>
-        </Button>
+      <div className="mb-6 border-b border-border/30 pb-4">
+        <Link
+          href="/account/quotes"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
+        >
+          ← Your quotes
+        </Link>
       </div>
       <QuoteProposalView
         quote={safe}

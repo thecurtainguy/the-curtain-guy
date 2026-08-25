@@ -35,16 +35,15 @@ export default async function AccountEventsPage() {
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-6">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+        <div className="border-b border-border/30 pb-6">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
             Events
           </p>
-          <h1 className="mt-1 font-heading text-3xl font-semibold">
-            Your booked events
+          <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+            Events
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Track install and teardown scheduling, view your accepted proposal,
-            and send updates to our team.
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            View your confirmed event details and updates.
           </p>
         </div>
 

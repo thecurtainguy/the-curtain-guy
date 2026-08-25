@@ -2,20 +2,66 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ClipboardList, CalendarDays, FileText, LayoutDashboard, LogOut } from "lucide-react";
+import {
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  Globe,
+  LayoutDashboard,
+  LogOut,
+  Sparkles,
+} from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Reveal } from "@/components/animation/reveal";
+import { PortalShell } from "@/components/portal/portal-shell";
+import {
+  PortalSidebarAction,
+  PortalSidebarBrand,
+  PortalSidebarFooter,
+  PortalSidebarNav,
+  type PortalNavItem,
+} from "@/components/portal/portal-sidebar";
 
-const links = [
+const links: PortalNavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
+  { href: "/", label: "Site", icon: Globe, exact: true },
+  {
+    href: "/admin/ai-studio",
+    label: "AI Studio",
+    icon: Sparkles,
+    disabled: true,
+    badge: "Soon",
+  },
 ];
+
+function sectionFromPath(pathname: string): { title: string; subtitle: string } {
+  if (pathname.startsWith("/admin/estimates")) {
+    return {
+      title: "Estimates",
+      subtitle: "Review briefs and create proposals",
+    };
+  }
+  if (pathname.startsWith("/admin/quotes")) {
+    return {
+      title: "Quotes",
+      subtitle: "Build, send, and track proposals",
+    };
+  }
+  if (pathname.startsWith("/admin/jobs")) {
+    return {
+      title: "Jobs",
+      subtitle: "Booked events, install, and teardown",
+    };
+  }
+  return {
+    title: "Dashboard",
+    subtitle: "Owner operations overview",
+  };
+}
 
 export function AdminShell({
   children,
@@ -26,6 +72,7 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const section = sectionFromPath(pathname);
 
   async function signOut() {
     const supabase = createBrowserSupabaseClient();
@@ -34,70 +81,58 @@ export function AdminShell({
     router.refresh();
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,oklch(0.76_0.15_88/0.08),transparent_55%)]" />
-      <header className="border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <BrandLogo href="/admin" size="sm" />
-            <div className="min-w-0">
-              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-                Owner
-              </p>
-              <Link
-                href="/admin"
-                className="font-heading text-lg font-semibold text-foreground"
-              >
-                The Curtain Guy Admin
-              </Link>
-              {email && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {email}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button asChild variant="outline" size="sm">
-              <Link href="/">Site</Link>
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => void signOut()}>
-              <LogOut className="size-4" />
-              Sign out
-            </Button>
-          </div>
+  const sidebar = (
+    <>
+      <PortalSidebarBrand
+        href="/admin"
+        portalLabel="Owner Portal"
+        email={email}
+      />
+      <PortalSidebarNav items={links} pathname={pathname} />
+      <PortalSidebarFooter>
+        <div className="mb-2 flex items-center justify-between px-3">
+          <span className="text-xs text-muted-foreground">Theme</span>
+          <ThemeToggle />
         </div>
-        <nav className="mx-auto flex max-w-7xl gap-1 px-4 pb-3 sm:px-6 lg:px-8">
-          {links.map((link) => {
-            const Icon = link.icon;
-            const active = link.exact
-              ? pathname === link.href
-              : pathname.startsWith(link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-[color,background-color,transform] duration-200 motion-reduce:transition-none active:scale-[0.98]",
-                  active
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                )}
-              >
-                <Icon className="size-4" />
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </header>
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <Reveal variant="fade-up" immediate duration={0.3}>
-          {children}
-        </Reveal>
-      </div>
-    </div>
+        <PortalSidebarAction href="/" icon={Globe}>
+          Back to site
+        </PortalSidebarAction>
+        <PortalSidebarAction icon={LogOut} onClick={() => void signOut()}>
+          Sign out
+        </PortalSidebarAction>
+      </PortalSidebarFooter>
+    </>
+  );
+
+  return (
+    <PortalShell
+      sidebar={sidebar}
+      topbarTitle={section.title}
+      topbarSubtitle={section.subtitle}
+      topbarBadge={
+        <span className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+          Owner
+        </span>
+      }
+      topbarActions={
+        <>
+          <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
+            <Link href="/">Site</Link>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void signOut()}
+            className="hidden sm:inline-flex"
+          >
+            <LogOut className="size-4" />
+            Sign out
+          </Button>
+        </>
+      }
+    >
+      {children}
+    </PortalShell>
   );
 }

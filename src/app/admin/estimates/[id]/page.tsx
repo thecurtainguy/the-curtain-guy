@@ -23,7 +23,6 @@ import {
 import {
   listQuotesForEstimate,
 } from "@/lib/quotes";
-import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Estimate detail",
@@ -65,16 +64,19 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
 
   return (
     <AdminPageFrame email={owner.profile.email}>
-      <div className="space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 border-b border-border/30 pb-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <Button asChild variant="ghost" size="sm" className="-ml-2 mb-2">
-              <Link href="/admin/estimates">← All estimates</Link>
-            </Button>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+            <Link
+              href="/admin/estimates"
+              className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
+            >
+              ← All estimates
+            </Link>
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
               Estimate detail
             </p>
-            <h1 className="mt-1 font-heading text-3xl font-semibold text-foreground">
+            <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               {reference}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -83,9 +85,9 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0 space-y-6">
+            <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
               <h2 className="font-heading text-lg font-semibold">Customer</h2>
               <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
                 <div>
@@ -113,7 +115,7 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
               </dl>
             </section>
 
-            <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+            <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
               <h2 className="font-heading text-lg font-semibold">Event</h2>
               <dl className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
                 <div>
@@ -152,7 +154,7 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
               </dl>
             </section>
 
-            <section className="rounded-3xl border border-border/40 bg-card/25 p-5 space-y-6">
+            <section className="rounded-2xl border border-border/40 bg-card/25 p-5 space-y-6">
               <h2 className="font-heading text-lg font-semibold">Brief</h2>
 
               <div className="text-sm">
@@ -218,7 +220,7 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
             </details>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6 xl:sticky xl:top-20">
             <AdminEstimateActions
               estimateId={estimate.id}
               initialStatus={estimate.status}
@@ -234,7 +236,7 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
               linkedJobRef={linkedJob?.opportunity_ref}
             />
 
-            <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+            <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
               <h2 className="font-heading text-lg font-semibold">Files</h2>
               <div className="mt-4">
                 <EstimateFilesList files={files} />

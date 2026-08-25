@@ -6,6 +6,10 @@ import { Menu } from "lucide-react";
 import { navLinks, siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
+import {
+  HeaderAccountMenu,
+  type HeaderSession,
+} from "@/components/layout/header-account-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { GuardedLink } from "@/components/ui/guarded-link";
@@ -17,17 +21,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-type SessionState = {
-  authenticated: boolean;
-  role: "owner" | "customer" | null;
-};
-
 export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [session, setSession] = useState<SessionState>({
+  const [session, setSession] = useState<HeaderSession>({
     authenticated: false,
     role: null,
+    email: null,
   });
 
   useEffect(() => {
@@ -38,16 +38,18 @@ export function Header() {
         const payload = (await res.json()) as {
           authenticated?: boolean;
           role?: "owner" | "customer" | null;
+          email?: string | null;
         };
         if (!cancelled) {
           setSession({
             authenticated: Boolean(payload.authenticated),
             role: payload.role ?? null,
+            email: payload.email ?? null,
           });
         }
       } catch {
         if (!cancelled) {
-          setSession({ authenticated: false, role: null });
+          setSession({ authenticated: false, role: null, email: null });
         }
       }
     })();
@@ -55,19 +57,6 @@ export function Header() {
       cancelled = true;
     };
   }, [pathname]);
-
-  const accountHref =
-    session.role === "owner"
-      ? "/admin"
-      : session.authenticated
-        ? "/account"
-        : "/account/login";
-  const accountLabel =
-    session.role === "owner"
-      ? "Admin"
-      : session.authenticated
-        ? "Account"
-        : "Sign in";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
@@ -104,14 +93,7 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="hidden sm:inline-flex"
-          >
-            <GuardedLink href={accountHref}>{accountLabel}</GuardedLink>
-          </Button>
+          <HeaderAccountMenu session={session} />
           <Button asChild size="sm" className="hidden sm:inline-flex">
             <GuardedLink href="/get-estimate">Get Estimate</GuardedLink>
           </Button>
@@ -163,14 +145,13 @@ export function Header() {
                     </GuardedLink>
                   );
                 })}
-                <Button asChild variant="outline" className="mt-4 w-full">
-                  <GuardedLink
-                    href={accountHref}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {accountLabel}
-                  </GuardedLink>
-                </Button>
+
+                <HeaderAccountMenu
+                  session={session}
+                  variant="mobile"
+                  onNavigate={() => setMobileOpen(false)}
+                />
+
                 <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
                   <span className="text-sm text-muted-foreground">Theme</span>
                   <ThemeToggle />

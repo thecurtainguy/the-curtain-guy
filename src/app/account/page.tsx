@@ -33,15 +33,15 @@ export default async function AccountHomePage() {
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-8">
-        <div className="rounded-3xl border border-border/40 bg-card/25 p-6">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+        <div className="rounded-2xl border border-border/40 bg-card/25 p-6 sm:p-8">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
             Welcome
           </p>
-          <h1 className="mt-2 font-heading text-3xl font-semibold text-foreground">
+          <h1 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {current.profile.full_name || "Your account"}
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            View estimate briefs, proposals, attached files, and profile details.
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            View estimate briefs, proposals, booked events, and profile details.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>

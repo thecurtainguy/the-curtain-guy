@@ -381,16 +381,19 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
   }
 
   return (
-    <div className="space-y-8">
-      <header className="flex flex-col gap-4 rounded-3xl border border-border/40 bg-card/25 p-5 sm:flex-row sm:items-start sm:justify-between">
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 rounded-2xl border border-border/40 bg-card/25 p-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
-          <Button asChild variant="ghost" size="sm" className="-ml-2 mb-1">
-            <Link href="/admin/quotes">← All quotes</Link>
-          </Button>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+          <Link
+            href="/admin/quotes"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
+          >
+            ← All quotes
+          </Link>
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
             Quote builder
           </p>
-          <h1 className="font-heading text-3xl font-semibold text-foreground">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
             {resolveQuoteDisplayRef(quote)}
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -420,7 +423,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
             </p>
           ) : null}
         </div>
-        <div className="shrink-0 text-right">
+        <div className="shrink-0 sm:text-right">
           <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
             Total CAD
           </p>
@@ -428,10 +431,12 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
             {formatCadFromCents(draftTotals.total_cents)}
           </p>
           {draftTotals.total_cents !== quote.total_cents ? (
-            <p className="mt-1 text-xs text-amber-600 dark:text-amber-300">
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
               Saved: {formatCadFromCents(quote.total_cents)} · unsaved changes
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">Saved</p>
+          )}
         </div>
       </header>
 
@@ -441,7 +446,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
             "rounded-2xl border px-4 py-3 text-sm",
             error
               ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
           )}
           role={error ? "alert" : undefined}
         >
@@ -449,7 +454,9 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
         </div>
       )}
 
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="min-w-0 space-y-6">
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-heading text-lg font-semibold">Customer & event</h2>
           <Button
@@ -554,7 +561,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-heading text-lg font-semibold">Line items</h2>
@@ -598,7 +605,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
               return (
                 <div
                   key={line.key}
-                  className="grid gap-3 rounded-2xl border border-border/40 bg-background/40 p-4 lg:grid-cols-[1.1fr_1.6fr_0.55fr_0.75fr_1fr_0.7fr_auto]"
+                  className="grid gap-3 rounded-2xl border border-border/40 bg-background/40 p-4 xl:grid-cols-[minmax(140px,0.9fr)_minmax(0,1.8fr)_72px_100px_minmax(110px,0.9fr)_120px_auto]"
                 >
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
@@ -724,7 +731,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="font-heading text-lg font-semibold">Tax</h2>
@@ -814,90 +821,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-        <h2 className="font-heading text-lg font-semibold">Send & share</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Customer sees{" "}
-          <code className="text-xs text-primary">/quote/[token]</code> after
-          send. Account preview is not available for the owner here.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button type="button" onClick={() => void sendQuote()} disabled={sending}>
-            {sending ? <Loader2 className="size-4 animate-spin" /> : null}
-            Send quote
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void createRevision()}
-            disabled={revising}
-          >
-            {revising ? <Loader2 className="size-4 animate-spin" /> : null}
-            Create revision
-          </Button>
-          <Button asChild variant="outline">
-            <a href={`/api/quotes/${quote.id}/pdf`} target="_blank" rel="noreferrer">
-              <Download className="size-4" />
-              Download PDF
-            </a>
-          </Button>
-          {publicUrl ? (
-            <>
-              <Button asChild variant="outline">
-                <a href={publicUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="size-4" />
-                  Open public link
-                </a>
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => void copyPublicUrl()}
-              >
-                {copied ? (
-                  <Check className="size-4 text-emerald-300" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                {copied ? "Copied" : "Copy link"}
-              </Button>
-            </>
-          ) : null}
-        </div>
-        {publicUrl ? (
-          <p className="mt-3 break-all rounded-2xl border border-border/40 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
-            {publicUrl}
-          </p>
-        ) : null}
-        <dl className="mt-4 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-          <div>
-            <dt>Sent</dt>
-            <dd className="font-medium text-foreground">
-              {quote.sent_at
-                ? new Date(quote.sent_at).toLocaleString()
-                : "—"}
-            </dd>
-          </div>
-          <div>
-            <dt>Viewed</dt>
-            <dd className="font-medium text-foreground">
-              {quote.viewed_at
-                ? new Date(quote.viewed_at).toLocaleString()
-                : "—"}
-            </dd>
-          </div>
-          <div>
-            <dt>Accepted</dt>
-            <dd className="font-medium text-foreground">
-              {quote.accepted_at
-                ? new Date(quote.accepted_at).toLocaleString()
-                : "—"}
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <h2 className="font-heading text-lg font-semibold">Customer requests</h2>
         <div className="mt-4 space-y-3">
           {(quote.requests || []).length === 0 ? (
@@ -1062,11 +986,114 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
           )}
         </div>
       </section>
+      </div>
 
-      <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
+      <aside className="space-y-6 xl:sticky xl:top-20">
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <h2 className="font-heading text-lg font-semibold">Quote summary</h2>
+        <div className="mt-4 rounded-2xl border border-border/40 bg-background/40 p-4">
+          <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" />
+        </div>
+        <dl className="mt-4 space-y-2 text-xs text-muted-foreground">
+          <div className="flex justify-between gap-2">
+            <dt>Status</dt>
+            <dd>
+              <QuoteStatusBadge status={quote.status} />
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>Sent</dt>
+            <dd className="font-medium text-foreground">
+              {quote.sent_at ? new Date(quote.sent_at).toLocaleString() : "—"}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>Viewed</dt>
+            <dd className="font-medium text-foreground">
+              {quote.viewed_at
+                ? new Date(quote.viewed_at).toLocaleString()
+                : "—"}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>Accepted</dt>
+            <dd className="font-medium text-foreground">
+              {quote.accepted_at
+                ? new Date(quote.accepted_at).toLocaleString()
+                : "—"}
+            </dd>
+          </div>
+        </dl>
+        {quote.estimate_request_id ? (
+          <Button asChild variant="outline" size="sm" className="mt-4 w-full">
+            <Link href={`/admin/estimates/${quote.estimate_request_id}`}>
+              Open linked estimate
+            </Link>
+          </Button>
+        ) : null}
+      </section>
+
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <h2 className="font-heading text-lg font-semibold">Send & share</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Customer sees{" "}
+          <code className="text-xs text-primary">/quote/[token]</code> after
+          send.
+        </p>
+        <div className="mt-4 flex flex-col gap-2">
+          <Button type="button" onClick={() => void sendQuote()} disabled={sending}>
+            {sending ? <Loader2 className="size-4 animate-spin" /> : null}
+            Send quote
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void createRevision()}
+            disabled={revising}
+          >
+            {revising ? <Loader2 className="size-4 animate-spin" /> : null}
+            Create revision
+          </Button>
+          <Button asChild variant="outline">
+            <a href={`/api/quotes/${quote.id}/pdf`} target="_blank" rel="noreferrer">
+              <Download className="size-4" />
+              Download PDF
+            </a>
+          </Button>
+          {publicUrl ? (
+            <>
+              <Button asChild variant="outline">
+                <a href={publicUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="size-4" />
+                  Open public link
+                </a>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => void copyPublicUrl()}
+              >
+                {copied ? (
+                  <Check className="size-4 text-emerald-600 dark:text-emerald-300" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
+                {copied ? "Copied" : "Copy link"}
+              </Button>
+            </>
+          ) : null}
+        </div>
+        {publicUrl ? (
+          <p className="mt-3 break-all rounded-2xl border border-border/40 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+            {publicUrl}
+          </p>
+        ) : null}
+      </section>
+
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <h2 className="font-heading text-lg font-semibold">Change log</h2>
         <p className="mt-1 text-xs text-muted-foreground">Admin only</p>
-        <ul className="mt-4 space-y-2">
+        <ul className="mt-4 max-h-80 space-y-2 overflow-y-auto">
           {(quote.events || []).length === 0 ? (
             <li className="text-sm text-muted-foreground">No events yet.</li>
           ) : (
@@ -1092,6 +1119,8 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
           )}
         </ul>
       </section>
+      </aside>
+      </div>
     </div>
   );
 }

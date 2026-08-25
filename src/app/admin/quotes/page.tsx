@@ -77,13 +77,16 @@ export default async function AdminQuotesPage({
   return (
     <AdminPageFrame email={owner.profile.email}>
       <div className="space-y-6">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+        <div className="border-b border-border/30 pb-6">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
             Quotes
           </p>
-          <h1 className="mt-1 font-heading text-3xl font-semibold text-foreground">
-            All proposals
+          <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            Quotes
           </h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Build, send, revise, and track customer proposals.
+          </p>
         </div>
 
         <form className="flex flex-col gap-3 rounded-2xl border border-border/40 bg-card/20 p-4 sm:flex-row sm:items-end">

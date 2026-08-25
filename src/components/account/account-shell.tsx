@@ -2,21 +2,66 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ClipboardList, CalendarDays, FileText, LogOut, UserRound } from "lucide-react";
+import {
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  Globe,
+  LayoutDashboard,
+  LogOut,
+  PenLine,
+  UserRound,
+} from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { BrandLogo } from "@/components/brand-logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Reveal } from "@/components/animation/reveal";
+import { PortalShell } from "@/components/portal/portal-shell";
+import {
+  PortalSidebarAction,
+  PortalSidebarBrand,
+  PortalSidebarFooter,
+  PortalSidebarNav,
+  type PortalNavItem,
+} from "@/components/portal/portal-sidebar";
 
-const links = [
-  { href: "/account", label: "Overview", exact: true },
+const links: PortalNavItem[] = [
+  { href: "/account", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/account/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/account/quotes", label: "Quotes", icon: FileText },
   { href: "/account/events", label: "Events", icon: CalendarDays },
   { href: "/account/profile", label: "Profile", icon: UserRound },
 ];
+
+function sectionFromPath(pathname: string): { title: string; subtitle: string } {
+  if (pathname.startsWith("/account/estimates")) {
+    return {
+      title: "Estimates",
+      subtitle: "Your estimate briefs and uploads",
+    };
+  }
+  if (pathname.startsWith("/account/quotes")) {
+    return {
+      title: "Quotes",
+      subtitle: "Review proposals and request changes",
+    };
+  }
+  if (pathname.startsWith("/account/events")) {
+    return {
+      title: "Events",
+      subtitle: "Confirmed event details and updates",
+    };
+  }
+  if (pathname.startsWith("/account/profile")) {
+    return {
+      title: "Profile",
+      subtitle: "Your contact details",
+    };
+  }
+  return {
+    title: "Overview",
+    subtitle: "Your Curtain Guy account",
+  };
+}
 
 export function AccountShell({
   children,
@@ -27,6 +72,7 @@ export function AccountShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const section = sectionFromPath(pathname);
 
   async function signOut() {
     const supabase = createBrowserSupabaseClient();
@@ -35,68 +81,56 @@ export function AccountShell({
     router.refresh();
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,oklch(0.76_0.15_88/0.1),transparent_50%)]" />
-      <header className="border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <BrandLogo href="/account" size="sm" />
-            <div className="min-w-0">
-              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-                Your account
-              </p>
-              <Link
-                href="/account"
-                className="font-heading text-lg font-semibold text-foreground"
-              >
-                The Curtain Guy
-              </Link>
-              {email && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {email}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button asChild size="sm">
-              <Link href="/get-estimate">Get Estimate</Link>
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => void signOut()}>
-              <LogOut className="size-4" />
-              Sign out
-            </Button>
-          </div>
+  const sidebar = (
+    <>
+      <PortalSidebarBrand
+        href="/account"
+        portalLabel="Account Portal"
+        email={email}
+      />
+      <PortalSidebarNav items={links} pathname={pathname} />
+      <PortalSidebarFooter>
+        <div className="mb-2 flex items-center justify-between px-3">
+          <span className="text-xs text-muted-foreground">Theme</span>
+          <ThemeToggle />
         </div>
-        <nav className="mx-auto flex max-w-5xl gap-1 px-4 pb-3 sm:px-6">
-          {links.map((link) => {
-            const active = link.exact
-              ? pathname === link.href
-              : pathname.startsWith(link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "rounded-xl px-3 py-2 text-sm font-medium transition-[color,background-color,transform] duration-200 motion-reduce:transition-none active:scale-[0.98]",
-                  active
-                    ? "bg-primary/10 text-primary ring-1 ring-primary/30 dark:bg-primary/15 dark:ring-0"
-                    : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                )}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </header>
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <Reveal variant="fade-up" immediate duration={0.32}>
-          {children}
-        </Reveal>
-      </div>
-    </div>
+        <PortalSidebarAction href="/get-estimate" icon={PenLine}>
+          Get Estimate
+        </PortalSidebarAction>
+        <PortalSidebarAction href="/" icon={Globe}>
+          Back to site
+        </PortalSidebarAction>
+        <PortalSidebarAction icon={LogOut} onClick={() => void signOut()}>
+          Sign out
+        </PortalSidebarAction>
+      </PortalSidebarFooter>
+    </>
+  );
+
+  return (
+    <PortalShell
+      sidebar={sidebar}
+      topbarTitle={section.title}
+      topbarSubtitle={section.subtitle}
+      topbarActions={
+        <>
+          <Button asChild size="sm" className="hidden sm:inline-flex">
+            <Link href="/get-estimate">Get Estimate</Link>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void signOut()}
+            className="hidden sm:inline-flex"
+          >
+            <LogOut className="size-4" />
+            Sign out
+          </Button>
+        </>
+      }
+    >
+      {children}
+    </PortalShell>
   );
 }

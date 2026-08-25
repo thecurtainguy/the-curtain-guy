@@ -12,7 +12,6 @@ import {
 import { CustomerEventDetail } from "@/components/account/customer-event-detail";
 import { fetchEstimateFiles } from "@/lib/estimate-access";
 import { getCustomerJob } from "@/lib/jobs";
-import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Event detail",
@@ -38,10 +37,13 @@ export default async function AccountEventDetailPage({ params }: PageProps) {
   return (
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
-      <div className="mb-6">
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/account/events">← Your events</Link>
-        </Button>
+      <div className="mb-6 border-b border-border/30 pb-4">
+        <Link
+          href="/account/events"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
+        >
+          ← Your events
+        </Link>
       </div>
       <CustomerEventDetail
         job={job}

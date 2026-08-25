@@ -43,14 +43,17 @@ export default async function AccountEstimatesPage() {
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-border/30 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
               Estimates
             </p>
-            <h1 className="mt-1 font-heading text-3xl font-semibold">
-              Your requests
+            <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
+              Estimates
             </h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Track your estimate briefs and uploaded files.
+            </p>
           </div>
           <Button asChild>
             <Link href="/get-estimate">Start a new estimate</Link>

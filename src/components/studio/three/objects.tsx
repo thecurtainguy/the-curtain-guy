@@ -8,6 +8,7 @@ import type {
   StudioObjectType,
 } from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
+import { Edges } from "@react-three/drei";
 import * as THREE from "three";
 import type { StudioSelection } from "../studio-types";
 
@@ -141,18 +142,85 @@ function SelectionOutline({
   depth: number;
   height: number;
 }) {
+  const markerWidth = width + 0.24;
+  const markerDepth = depth + 0.24;
+  const ringRadius = Math.max(width, depth) * 0.62 + 0.12;
   return (
-    <mesh position={[0, Math.max(0.1, height) / 2 + 0.04]}>
-      <boxGeometry args={[width + 0.12, Math.max(0.12, height + 0.12), depth + 0.12]} />
-      <meshBasicMaterial
-        color={GOLD}
-        wireframe
-        transparent
-        opacity={0.92}
-        depthWrite={false}
-        toneMapped={false}
-      />
-    </mesh>
+    <>
+      <mesh
+        position={[0, 0.025, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        renderOrder={20}
+      >
+        <planeGeometry args={[markerWidth, markerDepth]} />
+        <meshBasicMaterial
+          color={GOLD}
+          side={THREE.DoubleSide}
+          transparent
+          opacity={0.24}
+          depthTest={false}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh
+        position={[0, Math.max(0.1, height) / 2 + 0.04]}
+        renderOrder={21}
+      >
+        <boxGeometry
+          args={[
+            markerWidth,
+            Math.max(0.18, height + 0.2),
+            markerDepth,
+          ]}
+        />
+        <meshBasicMaterial
+          color={GOLD}
+          side={THREE.DoubleSide}
+          transparent
+          opacity={0.16}
+          depthTest={false}
+          depthWrite={false}
+          toneMapped={false}
+        />
+        <Edges
+          threshold={15}
+          color="#ffe09a"
+          lineWidth={2.2}
+          depthTest={false}
+          renderOrder={21}
+        />
+      </mesh>
+      <mesh
+        position={[0, 0.045, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        renderOrder={22}
+      >
+        <ringGeometry args={[ringRadius, ringRadius + 0.09, 48]} />
+        <meshBasicMaterial
+          color="#ffe09a"
+          side={THREE.DoubleSide}
+          transparent
+          opacity={0.96}
+          depthTest={false}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh
+        position={[0, Math.max(0.1, height) + 0.62, 0]}
+        rotation={[0, 0, Math.PI / 4]}
+        renderOrder={23}
+      >
+        <octahedronGeometry args={[0.34, 0]} />
+        <meshBasicMaterial
+          color="#ffe09a"
+          depthTest={false}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+    </>
   );
 }
 

@@ -13,6 +13,7 @@ import {
 import {
   STUDIO_TITLE_MAX_LENGTH,
   cloneStudioTemplate,
+  normalizeStudioDesign,
   validateStudioDesign,
   type StudioDesignJson,
   type StudioDesignRow,
@@ -59,7 +60,7 @@ function initialJson(props: StudioDesignerProps): StudioDesignJson {
     props.initialDesign ??
     props.initialDesignRecord?.design_json ??
     cloneStudioTemplate("rectangle");
-  return structuredClone(design);
+  return structuredClone(normalizeStudioDesign(design));
 }
 
 export function StudioDesigner(props: StudioDesignerProps) {
@@ -306,7 +307,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
       if (event.key === "Escape") setSelection(null);
       if (
         (event.key === "Delete" || event.key === "Backspace") &&
-        selection?.kind === "object"
+        (selection?.kind === "object" || selection?.kind === "treatment")
       ) {
         const target = event.target;
         const editing =
@@ -316,12 +317,21 @@ export function StudioDesigner(props: StudioDesignerProps) {
             Boolean(target.closest('[contenteditable="true"]')));
         if (!editing) {
           event.preventDefault();
-          changeDesign({
-            ...design,
-            objects: design.objects.filter(
-              (object) => object.id !== selection.id
-            ),
-          });
+          changeDesign(
+            selection.kind === "object"
+              ? {
+                  ...design,
+                  objects: design.objects.filter(
+                    (object) => object.id !== selection.id
+                  ),
+                }
+              : {
+                  ...design,
+                  treatments: design.treatments.filter(
+                    (treatment) => treatment.id !== selection.id
+                  ),
+                }
+          );
           setSelection(null);
         }
       }

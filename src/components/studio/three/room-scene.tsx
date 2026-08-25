@@ -13,6 +13,7 @@ import { StudioDrapes } from "./drapes";
 import { StudioFloor } from "./floor";
 import { StudioObjects } from "./objects";
 import { LIGHTING_MOODS } from "./scene-finishes";
+import { StudioTreatments } from "./treatments";
 import { StudioWalls } from "./walls";
 
 export function RoomScene({
@@ -99,6 +100,12 @@ export function RoomScene({
         finish={materials.walls}
       />
       <StudioDrapes
+        design={design}
+        bounds={bounds}
+        selection={selection}
+        onSelect={onSelect}
+      />
+      <StudioTreatments
         design={design}
         bounds={bounds}
         selection={selection}

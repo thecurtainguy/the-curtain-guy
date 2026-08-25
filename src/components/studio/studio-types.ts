@@ -10,6 +10,7 @@ export type StudioAccessMode = "guest" | "customer" | "admin";
 export type StudioSelection =
   | { kind: "wall"; index: number }
   | { kind: "drape"; id: string }
+  | { kind: "treatment"; id: string }
   | { kind: "object"; id: string }
   | { kind: "opening"; id: string }
   | null;

@@ -19,6 +19,7 @@ import {
   type StudioRoomResizeHandle,
 } from "@/lib/studio-interactions";
 import { useMemo, useRef, useState } from "react";
+import { TreatmentOverlay2D } from "./treatment-overlay-2d";
 import type { StudioEditorProps, StudioSelection } from "./studio-types";
 
 type DragSession =
@@ -316,8 +317,8 @@ export function Studio2DEditor({
           {`${design.room.name} floor plan editor`}
         </title>
         <desc id="studio-plan-description">
-          Interactive top-down plan. Tab to walls, drape runs, openings, and
-          room objects; press Enter or Space to select.
+          Interactive top-down plan. Tab to walls, drape runs, treatments,
+          openings, and room objects; press Enter or Space to select.
         </desc>
         <defs>
           <pattern
@@ -607,6 +608,21 @@ export function Studio2DEditor({
                 vectorEffect="non-scaling-stroke"
               />
             </g>
+          );
+        })}
+
+        {design.treatments.map((treatment) => {
+          const wall = walls[treatment.anchor.wallIndex];
+          if (!wall) return null;
+          return (
+            <TreatmentOverlay2D
+              key={treatment.id}
+              treatment={treatment}
+              wall={wall}
+              selection={selection}
+              onSelect={onSelect}
+              handleRadius={handleRadius}
+            />
           );
         })}
 

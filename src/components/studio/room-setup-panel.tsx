@@ -78,11 +78,13 @@ export function RoomSetupPanel({
   function setShape(shape: StudioRoomShape) {
     if (shape === design.room.shape) return;
     const hasWallItems =
-      design.drapeRuns.length > 0 || design.openings.length > 0;
+      design.drapeRuns.length > 0 ||
+      design.treatments.length > 0 ||
+      design.openings.length > 0;
     if (
       hasWallItems &&
       !window.confirm(
-        "Changing the room shape will remove all drape runs and opening markers. Continue?"
+        "Changing the room shape will remove all drape runs, treatments, and opening markers. Continue?"
       )
     ) {
       return;
@@ -97,6 +99,7 @@ export function RoomSetupPanel({
           templateDimensions: undefined,
         },
         drapeRuns: [],
+        treatments: [],
         openings: [],
       });
       return;
@@ -110,6 +113,7 @@ export function RoomSetupPanel({
         wallHeight: design.room.wallHeight,
       },
       drapeRuns: [],
+      treatments: [],
       openings: [],
     });
   }

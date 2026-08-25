@@ -188,6 +188,51 @@ export type StudioDrapeRun = {
   notes?: string;
 };
 
+export const STUDIO_TREATMENT_TYPES = [
+  "full_pleated_backdrop",
+  "side_tieback_panels",
+  "top_swag_valance",
+  "ceremony_arch",
+] as const;
+export type StudioTreatmentType = (typeof STUDIO_TREATMENT_TYPES)[number];
+
+export const STUDIO_FRAME_FINISHES = [
+  { value: "gold", label: "Gold" },
+  { value: "black", label: "Black" },
+  { value: "wood", label: "Wood look" },
+  { value: "white", label: "White" },
+] as const;
+export type StudioFrameFinish =
+  (typeof STUDIO_FRAME_FINISHES)[number]["value"];
+
+export type StudioTreatment = {
+  id: string;
+  type: StudioTreatmentType;
+  label: string;
+  anchor: {
+    kind: "wall";
+    wallIndex: number;
+    startOffset: number;
+    endOffset: number;
+  };
+  height: number;
+  fabric: DrapeFabric;
+  color: DrapeColor;
+  secondaryColor: DrapeColor;
+  fullness: number;
+  tiebackHeight: number;
+  swagDrop: number;
+  openingWidth: number;
+  hasBackdrop: boolean;
+  hasTopSwag: boolean;
+  hasTiebacks: boolean;
+  hasTopPipe: boolean;
+  hasFloralHeader: boolean;
+  uplightColor: DrapeColor | null;
+  frameFinish: StudioFrameFinish;
+  notes: string;
+};
+
 export type StudioRoom = {
   shape: StudioRoomShape;
   name: string;
@@ -210,6 +255,7 @@ export type StudioDesignJson = {
   openings: StudioOpening[];
   objects: StudioObject[];
   drapeRuns: StudioDrapeRun[];
+  treatments: StudioTreatment[];
   view: {
     cameraMode: "orbit";
     transparentWalls?: boolean;
@@ -256,6 +302,7 @@ export const STUDIO_TEMPLATES: Record<StudioTemplateKey, StudioDesignJson> = {
     openings: [],
     objects: [],
     drapeRuns: [],
+    treatments: [],
     view: { cameraMode: "orbit", transparentWalls: false },
     materials: { ...DEFAULT_STUDIO_MATERIALS },
     notes: "",
@@ -285,6 +332,7 @@ export const STUDIO_TEMPLATES: Record<StudioTemplateKey, StudioDesignJson> = {
     openings: [],
     objects: [],
     drapeRuns: [],
+    treatments: [],
     view: { cameraMode: "orbit", transparentWalls: false },
     materials: { ...DEFAULT_STUDIO_MATERIALS },
     notes: "",
@@ -306,6 +354,7 @@ export const STUDIO_TEMPLATES: Record<StudioTemplateKey, StudioDesignJson> = {
     openings: [],
     objects: [],
     drapeRuns: [],
+    treatments: [],
     view: { cameraMode: "orbit", transparentWalls: false },
     materials: { ...DEFAULT_STUDIO_MATERIALS },
     notes: "",
@@ -966,6 +1015,83 @@ export function validateStudioDesign(
     }
   }
 
+  const treatments =
+    value.treatments === undefined ? [] : value.treatments;
+  if (!Array.isArray(treatments) || treatments.length > 100) {
+    errors.push("Drape treatments must be a valid list.");
+  } else {
+    for (const treatment of treatments) {
+      const stableId = hasStableId(treatment);
+      if (stableId && seenIds.has(treatment.id)) {
+        errors.push("Studio item IDs must be unique.");
+        break;
+      }
+      if (stableId) seenIds.add(treatment.id);
+      const anchor =
+        isRecord(treatment) && isRecord(treatment.anchor)
+          ? treatment.anchor
+          : null;
+      const wallIndex =
+        anchor && isFiniteNumber(anchor.wallIndex) ? anchor.wallIndex : -1;
+      const wallLength = getFloorWallLength(floorPoints, wallIndex);
+      if (
+        !stableId ||
+        !isRecord(treatment) ||
+        !anchor ||
+        !STUDIO_TREATMENT_TYPES.includes(
+          treatment.type as StudioTreatmentType
+        ) ||
+        !isRequiredString(treatment.label, STUDIO_LABEL_MAX_LENGTH) ||
+        anchor.kind !== "wall" ||
+        !Number.isInteger(wallIndex) ||
+        wallLength === null ||
+        !isFiniteNumber(anchor.startOffset) ||
+        anchor.startOffset < 0 ||
+        anchor.startOffset > 120000 ||
+        !isFiniteNumber(anchor.endOffset) ||
+        anchor.endOffset <= anchor.startOffset ||
+        anchor.endOffset > 120000 ||
+        (wallLength !== null && anchor.endOffset > wallLength + 0.001) ||
+        !DRAPE_FABRICS.some((fabric) => fabric.value === treatment.fabric) ||
+        !DRAPE_COLORS.some((color) => color.value === treatment.color) ||
+        !DRAPE_COLORS.some(
+          (color) => color.value === treatment.secondaryColor
+        ) ||
+        !isFiniteNumber(treatment.height) ||
+        treatment.height <= 0 ||
+        treatment.height > 600 ||
+        !isFiniteNumber(treatment.fullness) ||
+        treatment.fullness < 1 ||
+        treatment.fullness > 4 ||
+        !isFiniteNumber(treatment.tiebackHeight) ||
+        treatment.tiebackHeight < 0 ||
+        treatment.tiebackHeight > 600 ||
+        !isFiniteNumber(treatment.swagDrop) ||
+        treatment.swagDrop < 0 ||
+        treatment.swagDrop > 600 ||
+        !isFiniteNumber(treatment.openingWidth) ||
+        treatment.openingWidth < 0 ||
+        treatment.openingWidth > 120000 ||
+        typeof treatment.hasBackdrop !== "boolean" ||
+        typeof treatment.hasTopSwag !== "boolean" ||
+        typeof treatment.hasTiebacks !== "boolean" ||
+        typeof treatment.hasTopPipe !== "boolean" ||
+        typeof treatment.hasFloralHeader !== "boolean" ||
+        (treatment.uplightColor !== null &&
+          !DRAPE_COLORS.some(
+            (color) => color.value === treatment.uplightColor
+          )) ||
+        !STUDIO_FRAME_FINISHES.some(
+          (finish) => finish.value === treatment.frameFinish
+        ) ||
+        !isOptionalString(treatment.notes, STUDIO_NOTES_MAX_LENGTH)
+      ) {
+        errors.push("One or more drape treatments are invalid.");
+        break;
+      }
+    }
+  }
+
   if (
     typeof value.notes !== "string" ||
     value.notes.length > STUDIO_NOTES_MAX_LENGTH
@@ -1007,13 +1133,26 @@ export function validateStudioDesign(
     valid: true,
     design: {
       ...(value as StudioDesignJson),
+      treatments: treatments as StudioTreatment[],
       materials: getStudioMaterials(value),
     },
     bytes,
   };
 }
 
-export function createStudioItemId(prefix: "drape" | "object" | "opening"): string {
+export function normalizeStudioDesign(
+  design: StudioDesignJson
+): StudioDesignJson {
+  return {
+    ...design,
+    treatments: Array.isArray(design.treatments) ? design.treatments : [],
+    materials: getStudioMaterials(design),
+  };
+}
+
+export function createStudioItemId(
+  prefix: "drape" | "object" | "opening" | "treatment"
+): string {
   const id =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()

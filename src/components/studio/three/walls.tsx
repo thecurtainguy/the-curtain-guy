@@ -11,6 +11,7 @@ import {
   type StudioBounds,
   type StudioWallSegment,
 } from "@/lib/studio-geometry";
+import { Edges } from "@react-three/drei";
 import { Fragment, useMemo } from "react";
 import * as THREE from "three";
 import type { StudioSelection } from "../studio-types";
@@ -71,7 +72,7 @@ export function StudioWalls({
   const seamColor = finish === "black_box" ? "#5f5548" : "#8d7d69";
 
   return (
-    <group>
+    <group key={transparent ? "glass-walls" : "solid-walls"}>
       {walls.map((wall) => {
         const selected =
           selection?.kind === "wall" && selection.index === wall.index;
@@ -101,17 +102,32 @@ export function StudioWalls({
                   >
                     <boxGeometry args={[length, height, WALL_THICKNESS]} />
                     {selected ? (
-                      <mesh scale={[1.008, 1.006, 1.08]}>
-                        <boxGeometry args={[length, height, WALL_THICKNESS]} />
-                        <meshBasicMaterial
-                          color="#d4af55"
-                          side={THREE.BackSide}
-                          transparent
-                          opacity={0.5}
-                          depthWrite={false}
-                          toneMapped={false}
-                        />
-                      </mesh>
+                      <>
+                        <mesh
+                          scale={[1.008, 1.006, 1.08]}
+                          renderOrder={20}
+                        >
+                          <boxGeometry
+                            args={[length, height, WALL_THICKNESS]}
+                          />
+                          <meshBasicMaterial
+                            color="#e8bd55"
+                            side={THREE.DoubleSide}
+                            transparent
+                            opacity={transparent ? 0.32 : 0.2}
+                            depthTest={false}
+                            depthWrite={false}
+                            toneMapped={false}
+                          />
+                          <Edges
+                            threshold={15}
+                            color="#ffe09a"
+                            lineWidth={2.2}
+                            depthTest={false}
+                            renderOrder={21}
+                          />
+                        </mesh>
+                      </>
                     ) : null}
                     <meshStandardMaterial
                       color={appearance.color}

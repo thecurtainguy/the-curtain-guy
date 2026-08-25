@@ -38,12 +38,14 @@ import {
   Plus,
   RotateCcw,
   ScissorsLineDashed,
+  Sparkles,
   Trash2,
   TriangleAlert,
 } from "lucide-react";
 import { DrapeRunEditor } from "./drape-run-editor";
 import { RoomFinishPanel } from "./room-finish-panel";
 import { StudioEmptyState } from "./studio-empty-state";
+import { TreatmentEditor } from "./treatment-editor";
 import {
   feetInput,
   feetValue,
@@ -92,6 +94,10 @@ export function StudioRightRail({
     selection?.kind === "drape"
       ? design.drapeRuns.find((run) => run.id === selection.id)
       : undefined;
+  const selectedTreatment =
+    selection?.kind === "treatment"
+      ? design.treatments.find((treatment) => treatment.id === selection.id)
+      : undefined;
   const selectedObject =
     selection?.kind === "object"
       ? design.objects.find((object) => object.id === selection.id)
@@ -103,7 +109,10 @@ export function StudioRightRail({
   const selectedWall =
     selection?.kind === "wall" ? walls[selection.index] : undefined;
 
-  function remove(kind: "drape" | "object" | "opening", id: string) {
+  function remove(
+    kind: "drape" | "treatment" | "object" | "opening",
+    id: string
+  ) {
     if (
       kind !== "object" &&
       !window.confirm("Remove this item from the studio design?")
@@ -116,6 +125,10 @@ export function StudioRightRail({
         kind === "drape"
           ? design.drapeRuns.filter((item) => item.id !== id)
           : design.drapeRuns,
+      treatments:
+        kind === "treatment"
+          ? design.treatments.filter((item) => item.id !== id)
+          : design.treatments,
       objects:
         kind === "object"
           ? design.objects.filter((item) => item.id !== id)
@@ -138,13 +151,15 @@ export function StudioRightRail({
           <h2 className="font-heading text-lg">
             {selectedDrape
               ? "Drape run"
-              : selectedObject
-                ? "Room object"
-                : selectedOpening
-                  ? "Opening"
-                  : selectedWall
-                    ? `Wall ${selectedWall.index + 1}`
-                    : "Design brief"}
+              : selectedTreatment
+                ? "Drape treatment"
+                : selectedObject
+                  ? "Room object"
+                  : selectedOpening
+                    ? "Opening"
+                    : selectedWall
+                      ? `Wall ${selectedWall.index + 1}`
+                      : "Design brief"}
           </h2>
         </div>
         <SavePill state={saveState} />
@@ -160,6 +175,21 @@ export function StudioRightRail({
             run={selectedDrape}
             onChange={onChange}
             idPrefix={`${idPrefix}-drape`}
+          />
+        </SelectedPanel>
+      )}
+
+      {selectedTreatment && (
+        <SelectedPanel
+          icon={Sparkles}
+          onDelete={() => remove("treatment", selectedTreatment.id)}
+        >
+          <TreatmentEditor
+            design={design}
+            treatment={selectedTreatment}
+            onChange={onChange}
+            onSelect={onSelect}
+            idPrefix={`${idPrefix}-treatment`}
           />
         </SelectedPanel>
       )}
@@ -212,13 +242,17 @@ export function StudioRightRail({
         </div>
       )}
 
-      {!selectedDrape && !selectedObject && !selectedOpening && !selectedWall && (
+      {!selectedDrape &&
+        !selectedTreatment &&
+        !selectedObject &&
+        !selectedOpening &&
+        !selectedWall && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
             <Stat label="Floor area" value={`${Math.round(calculateRoomAreaSquareFeet(design.room.floor)).toLocaleString()} ft²`} />
             <Stat label="Wall height" value={inchesToFeetLabel(design.room.wallHeight)} />
             <Stat label="Drape total" value={inchesToFeetLabel(calculateDrapeLength(design))} />
-            <Stat label="Drape runs" value={String(design.drapeRuns.length)} />
+            <Stat label="Treatments" value={String(design.treatments.length)} />
           </div>
           <StudioEmptyState />
           <div className="space-y-1.5">

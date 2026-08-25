@@ -14,20 +14,29 @@ import {
   getWallSegments,
 } from "@/lib/studio-geometry";
 import {
+  STUDIO_TREATMENT_TOOLS,
+  createStudioTreatment,
+} from "@/lib/studio-treatments";
+import {
   AppWindow,
+  Columns3,
   Circle,
   Disc3,
   DoorOpen,
+  Flower2,
   GalleryHorizontalEnd,
   Grid2X2,
+  Lightbulb,
   Martini,
   Music2,
   PanelsTopLeft,
   RectangleHorizontal,
   Sofa,
+  Sparkles,
   SplitSquareHorizontal,
   Table2,
   Warehouse,
+  Waves,
 } from "lucide-react";
 import { RoomSetupPanel } from "./room-setup-panel";
 import type { StudioSelection } from "./studio-types";
@@ -64,6 +73,18 @@ const objectDescriptions: Record<StudioObjectType, string> = {
   dj_booth: "Music station",
   bar: "Service counter",
   lounge_area: "Soft seating zone",
+};
+
+const treatmentIcons: Record<string, typeof AppWindow> = {
+  full_backdrop: PanelsTopLeft,
+  side_tiebacks: Columns3,
+  entrance_reveal: DoorOpen,
+  top_swag: Waves,
+  ceremony_arch: Sparkles,
+  door_window_surround: AppWindow,
+  layered_swag: GalleryHorizontalEnd,
+  floral_header: Flower2,
+  uplights: Lightbulb,
 };
 
 export function StudioLeftRail({
@@ -133,6 +154,16 @@ export function StudioLeftRail({
       ],
     });
     onSelect({ kind: "opening", id });
+  }
+
+  function addTreatment(preset: NonNullable<(typeof STUDIO_TREATMENT_TOOLS)[number]["preset"]>) {
+    const treatment = createStudioTreatment(design, selectedWall, preset);
+    if (!treatment) return;
+    onChange({
+      ...design,
+      treatments: [...design.treatments, treatment],
+    });
+    onSelect({ kind: "treatment", id: treatment.id });
   }
 
   function addObject(type: StudioObjectType) {
@@ -224,6 +255,43 @@ export function StudioLeftRail({
 
       <section
         className="space-y-3"
+        aria-labelledby={`${idPrefix}-treatments-heading`}
+      >
+        <div>
+          <p className="text-[0.65rem] font-semibold tracking-[0.22em] text-primary uppercase">
+            Drape Treatments
+          </p>
+          <h2
+            id={`${idPrefix}-treatments-heading`}
+            className="font-heading text-lg"
+          >
+            Classic arrangements
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Build a composed luxury look on the selected wall.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {STUDIO_TREATMENT_TOOLS.map((tool) => (
+            <ToolButton
+              key={tool.key}
+              icon={treatmentIcons[tool.key] ?? Sparkles}
+              label={tool.label}
+              description={tool.description}
+              layout="row"
+              disabled={!tool.preset}
+              onClick={() => {
+                if (tool.preset) addTreatment(tool.preset);
+              }}
+            />
+          ))}
+        </div>
+      </section>
+
+      <div className="my-5 h-px bg-border/60" />
+
+      <section
+        className="space-y-3"
         aria-labelledby={`${idPrefix}-objects-heading`}
       >
         <div>
@@ -263,12 +331,14 @@ function ToolButton({
   label,
   description,
   layout = "tile",
+  disabled = false,
   onClick,
 }: {
   icon: typeof AppWindow;
   label: string;
   description?: string;
   layout?: "tile" | "row";
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -276,9 +346,10 @@ function ToolButton({
       type="button"
       variant="outline"
       onClick={onClick}
+      disabled={disabled}
       className={
         layout === "row"
-          ? "group h-auto w-full min-w-0 items-center justify-start gap-3 rounded-2xl border-border/50 bg-background/35 px-3 py-2.5 text-left text-xs hover:border-primary/35 hover:bg-primary/5"
+          ? "group h-auto w-full min-w-0 items-center justify-start gap-3 rounded-2xl border-border/50 bg-background/35 px-3 py-2.5 text-left text-xs hover:border-primary/35 hover:bg-primary/5 disabled:border-border/30 disabled:bg-background/20 disabled:opacity-55"
           : "group h-auto min-w-0 items-start justify-start gap-2 rounded-2xl border-border/50 bg-background/35 px-3 py-3 text-left text-xs hover:border-primary/35 hover:bg-primary/5"
       }
     >

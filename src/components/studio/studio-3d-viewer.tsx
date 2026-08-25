@@ -60,7 +60,7 @@ export function Studio3DViewer({
         />
       </Canvas>
 
-      {design.drapeRuns.length === 0 ? (
+      {design.drapeRuns.length === 0 && design.treatments.length === 0 ? (
         <div className="pointer-events-none absolute top-3 left-3 max-w-[min(18rem,calc(100%-10rem))] rounded-2xl border border-primary/25 bg-background/82 p-3 shadow-lg backdrop-blur-md">
           <div className="flex gap-2.5">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">

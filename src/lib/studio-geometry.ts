@@ -3,6 +3,7 @@ import type {
   StudioDrapeRun,
   StudioOpening,
   StudioPoint,
+  StudioTreatment,
 } from "@/data/studio";
 
 export type StudioWallSegment = {
@@ -150,6 +151,28 @@ export function clampOpeningToWall(
     ...opening,
     offset,
     width: Math.min(width, Math.max(0, wall.length - offset)),
+  };
+}
+
+export function clampTreatmentToWall(
+  treatment: StudioTreatment,
+  floor: StudioPoint[]
+): StudioTreatment {
+  const wall = getWallSegments(floor)[treatment.anchor.wallIndex];
+  if (!wall) return treatment;
+  const startOffset = Math.min(
+    Math.max(0, treatment.anchor.startOffset),
+    Math.max(0, wall.length - 1)
+  );
+  const endOffset = Math.min(
+    wall.length,
+    Math.max(startOffset + 1, treatment.anchor.endOffset)
+  );
+  const span = Math.max(1, endOffset - startOffset);
+  return {
+    ...treatment,
+    anchor: { ...treatment.anchor, startOffset, endOffset },
+    openingWidth: Math.min(Math.max(0, treatment.openingWidth), span),
   };
 }
 
@@ -351,5 +374,13 @@ export function updateTemplateRoomDimensions(
           opening.wallIndex < next.room.floor.length
       )
       .map((opening) => clampOpeningToWall(opening, next.room.floor)),
+    treatments: (next.treatments ?? [])
+      .filter(
+        (treatment) =>
+          Number.isInteger(treatment.anchor.wallIndex) &&
+          treatment.anchor.wallIndex >= 0 &&
+          treatment.anchor.wallIndex < next.room.floor.length
+      )
+      .map((treatment) => clampTreatmentToWall(treatment, next.room.floor)),
   };
 }

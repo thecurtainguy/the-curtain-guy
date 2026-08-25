@@ -12,7 +12,7 @@ export function HeroSection() {
         aria-hidden
       />
 
-      <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:gap-12 sm:px-6 sm:py-16 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8 lg:py-24">
+      <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:gap-12 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-28 xl:gap-16 xl:py-32">
         <div className="order-2 lg:order-1">
           <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
             The Curtain Guy · Montreal
@@ -43,10 +43,10 @@ export function HeroSection() {
           </div>
         </div>
 
-        <div className="order-1 flex justify-center lg:order-2 lg:justify-end">
-          <div className="relative w-full max-w-md lg:max-w-none lg:w-auto">
+        <div className="order-1 flex w-full justify-center lg:order-2 lg:justify-end lg:-mr-4 xl:-mr-8">
+          <div className="relative w-full max-w-xl sm:max-w-2xl lg:max-w-none lg:w-full">
             <div
-              className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.22),transparent_65%)] blur-3xl"
+              className="absolute -inset-8 rounded-[2.5rem] bg-[radial-gradient(ellipse_at_center,rgba(212,175,55,0.22),transparent_65%)] blur-3xl"
               aria-hidden
             />
             <div

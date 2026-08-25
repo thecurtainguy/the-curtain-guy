@@ -32,7 +32,7 @@ export function ServiceCard({ service, className }: ServiceCardProps) {
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
             </>
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-[#1a1512] via-[#2a221c] to-[#0f0d0b]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-velvet via-secondary to-background" />
           )}
           <div className="absolute inset-0 flex items-end p-4">
             <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/20 backdrop-blur-sm transition-colors group-hover:bg-primary/25">

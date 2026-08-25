@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
+import { SectionShell } from "@/components/section-shell";
 import { cn } from "@/lib/utils";
 
 type PageHeroProps = {
@@ -19,14 +20,19 @@ export function PageHero({
   children,
 }: PageHeroProps) {
   return (
-    <section
-      className={cn(
-        "relative overflow-hidden border-b border-border/40 bg-card/20",
-        className
-      )}
+    <SectionShell
+      variant="glow"
+      divider="bottom"
+      className={cn("overflow-hidden", className)}
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(212,175,55,0.08),transparent_60%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(10,9,8,0.4)_100%)]" />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_75%_25%,rgba(212,175,55,0.12),transparent_55%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(212,175,55,0.08),transparent_60%)]"
+        aria-hidden
+      />
 
       <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         {eyebrow && (
@@ -44,7 +50,7 @@ export function PageHero({
         )}
         {children}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 

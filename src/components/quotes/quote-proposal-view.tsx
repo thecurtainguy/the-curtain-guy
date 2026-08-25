@@ -256,50 +256,61 @@ export function QuoteProposalView({
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_15%_0%,rgba(212,175,55,0.12),transparent_55%)]"
           aria-hidden
         />
-        {heroImageSrc ? (
-          <div className="absolute inset-y-0 right-0 hidden w-2/5 opacity-40 md:block">
-            <Image
-              src={heroImageSrc}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="40vw"
-              priority
-            />
-            <div className="absolute inset-0 bg-gradient-to-l from-transparent via-card/80 to-card" />
-          </div>
-        ) : null}
 
-        <div className="relative flex flex-col gap-6 p-6 sm:p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <BrandLogo
-                href={mode === "account" ? "/account" : "/"}
-                size="md"
+        <div
+          className={cn(
+            "relative",
+            heroImageSrc && "md:grid md:grid-cols-[minmax(0,1fr)_38%]"
+          )}
+        >
+          <div className="flex min-w-0 flex-col gap-6 p-6 sm:p-8">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-4">
+                <BrandLogo
+                  href={mode === "account" ? "/account" : "/"}
+                  size="md"
+                  priority
+                />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
+                    Proposal
+                  </p>
+                  <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    {quote.quote_display_ref}
+                  </h1>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {quote.opportunity_ref}
+                    {quote.revision_number > 1
+                      ? ` · Revision ${quote.revision_number}`
+                      : ""}
+                  </p>
+                </div>
+              </div>
+              <QuoteStatusBadge status={status} />
+            </div>
+
+            <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
+              A tailored draping plan from {siteConfig.name} for your event —
+              reviewed and refined with our team.
+            </p>
+          </div>
+
+          {heroImageSrc ? (
+            <div className="relative hidden min-h-[200px] md:block">
+              <Image
+                src={heroImageSrc}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="38vw"
                 priority
               />
-              <div>
-                <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-                  Proposal
-                </p>
-                <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  {quote.quote_display_ref}
-                </h1>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {quote.opportunity_ref}
-                  {quote.revision_number > 1
-                    ? ` · Revision ${quote.revision_number}`
-                    : ""}
-                </p>
-              </div>
+              <div
+                className="absolute inset-0 bg-gradient-to-l from-transparent via-card/50 to-card"
+                aria-hidden
+              />
             </div>
-            <QuoteStatusBadge status={status} />
-          </div>
-
-          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-            A tailored draping plan from {siteConfig.name} for your event —
-            reviewed and refined with our team.
-          </p>
+          ) : null}
         </div>
       </header>
 

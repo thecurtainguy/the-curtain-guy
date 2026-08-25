@@ -118,7 +118,7 @@ export function AdminEstimateActions({
         </Button>
       </div>
 
-      {message && <p className="text-sm text-emerald-300">{message}</p>}
+      {message && <p className="feedback-success">{message}</p>}
       {error && (
         <p className="text-sm text-destructive" role="alert">
           {error}

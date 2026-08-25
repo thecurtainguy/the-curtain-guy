@@ -92,18 +92,18 @@ export function EstimateIntroSection() {
               className="absolute inset-0"
               priority
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/20 lg:bg-gradient-to-r lg:from-card/95 lg:via-black/50 lg:to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/20 lg:bg-gradient-to-r lg:from-background/92 lg:via-background/35 lg:to-transparent dark:lg:from-card/95 dark:lg:via-black/50 dark:lg:to-transparent" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_30%,rgba(212,175,55,0.18),transparent_55%)]" />
-            <div className="absolute inset-0 ring-1 ring-inset ring-white/[0.06]" />
+            <div className="absolute inset-0 ring-1 ring-inset ring-foreground/10" />
           </div>
 
           <div className="relative flex h-full min-h-[240px] flex-col justify-end p-6 sm:p-8 lg:absolute lg:inset-0 lg:justify-end lg:p-10">
-            <div className="max-w-sm rounded-2xl border border-white/10 bg-black/45 p-4 backdrop-blur-md sm:p-5">
+            <div className="max-w-sm rounded-2xl border border-border/55 bg-card/95 p-4 shadow-[0_10px_28px_oklch(0_0_0/12%)] backdrop-blur-md sm:p-5 dark:border-white/10 dark:bg-black/45 dark:shadow-none">
               <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
                 Full-service rental
               </p>
               <p className="mt-2 font-heading text-lg font-medium text-foreground">
-                Delivery, installation, and strike included
+                Delivery, installation, and teardown included
               </p>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                 When you book with The Curtain Guy, your estimate covers the

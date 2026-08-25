@@ -38,7 +38,7 @@ export function ClaimEstimateButton({ estimateId }: { estimateId: string }) {
 
   if (done) {
     return (
-      <p className="text-sm text-emerald-300">Saved to your account.</p>
+      <p className="feedback-success">Saved to your account.</p>
     );
   }
 

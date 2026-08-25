@@ -36,7 +36,7 @@ export default function ContactPage() {
                 sizes="100vw"
                 className="absolute inset-0"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/55 via-transparent via-30% to-transparent dark:from-background dark:via-background/20 dark:to-transparent" />
             </div>
           </div>
 

@@ -41,7 +41,7 @@ export function GalleryTeaserSection() {
               <Link
                 key={category.id}
                 href={`/gallery#${category.id}`}
-                className="group relative aspect-square overflow-hidden rounded-2xl border border-white/[0.06] bg-card/30 shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
+                className="media-frame group relative aspect-square overflow-hidden rounded-2xl bg-card/30"
               >
                 {mediaKey && (
                   <SiteMediaImage

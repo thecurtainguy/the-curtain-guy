@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ClipboardList, FileText, LogOut, UserRound } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ export function AccountShell({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button asChild size="sm">
               <Link href="/get-estimate">Get Estimate</Link>
             </Button>
@@ -78,7 +80,7 @@ export function AccountShell({
                 className={cn(
                   "rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-primary/15 text-primary"
+                    ? "bg-primary/10 text-primary ring-1 ring-primary/30 dark:bg-primary/15 dark:ring-0"
                     : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                 )}
               >

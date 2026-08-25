@@ -6,26 +6,56 @@ import { cn } from "@/lib/utils";
 export function TrustStrip() {
   return (
     <SectionShell divider="both" variant="fabric" className="bg-card/25">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-        <div className="flex flex-col items-center gap-7">
-          <div className="flex w-full max-w-5xl flex-col items-center gap-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary/80">
-              Capability
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,oklch(0.76_0.15_88/6%),transparent_55%)]" aria-hidden />
+
+      <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
+        <div className="flex flex-col items-center gap-8">
+          <div className="flex w-full max-w-5xl flex-col items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <span className="h-px w-12 bg-gradient-to-r from-transparent to-primary/40 sm:w-16" aria-hidden />
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary sm:text-sm">
+                Capability
+              </p>
+              <span className="h-px w-12 bg-gradient-to-l from-transparent to-primary/40 sm:w-16" aria-hidden />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
               {trustCapabilityLabels.map((type) => {
                 const Icon = type.icon;
                 return (
                   <span
                     key={type.label}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-primary/25 hover:text-foreground sm:px-4 sm:text-xs"
+                    className={cn(
+                      "group relative inline-flex items-center gap-2.5 overflow-hidden rounded-full",
+                      "border border-border/50 bg-card/55 px-3.5 py-2 shadow-[0_2px_12px_oklch(0_0_0/6%)] backdrop-blur-sm",
+                      "transition-all duration-300 ease-out",
+                      "hover:-translate-y-0.5 hover:border-primary/35 hover:bg-primary/[0.07]",
+                      "hover:shadow-[0_12px_32px_oklch(0.76_0.15_88/16%),0_0_0_1px_oklch(0.76_0.15_88/12%)]",
+                      "sm:px-4 sm:py-2.5"
+                    )}
                   >
-                    <Icon
-                      className="size-3.5 shrink-0 text-primary/80"
-                      strokeWidth={1.75}
+                    <span
+                      className={cn(
+                        "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full",
+                        "bg-primary/10 text-primary ring-1 ring-primary/20",
+                        "transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/18 group-hover:ring-primary/35"
+                      )}
+                    >
+                      <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />
+                    </span>
+                    <span
+                      className={cn(
+                        "relative z-10 text-[11px] font-semibold uppercase tracking-[0.12em]",
+                        "text-muted-foreground transition-colors duration-300 group-hover:text-foreground",
+                        "sm:text-xs"
+                      )}
+                    >
+                      {type.label}
+                    </span>
+                    <span
+                      className="pointer-events-none absolute inset-0 translate-x-[-120%] bg-gradient-to-r from-transparent via-primary/10 to-transparent opacity-0 transition-all duration-500 group-hover:translate-x-[120%] group-hover:opacity-100"
                       aria-hidden
                     />
-                    {type.label}
                   </span>
                 );
               })}
@@ -39,23 +69,41 @@ export function TrustStrip() {
                 <div
                   key={item.label}
                   className={cn(
-                    "group relative flex flex-col items-center gap-2.5 rounded-xl border border-white/[0.06] bg-background/40 px-3 py-4 text-center sm:px-4",
-                    "shadow-[0_2px_16px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]",
-                    "transition-colors hover:border-primary/20 hover:bg-background/55"
+                    "surface-tile group relative flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl px-3 py-4 text-center sm:px-4",
+                    "transition-all duration-300 ease-out",
+                    "hover:-translate-y-1 hover:border-primary/25 hover:bg-background/70",
+                    "hover:shadow-[0_14px_36px_oklch(0_0_0/10%),0_0_24px_oklch(0.76_0.15_88/10%)]"
                   )}
                 >
                   {index < trustProcessItems.length - 1 && (
                     <span
-                      className="absolute -right-2 top-1/2 hidden h-px w-4 -translate-y-1/2 bg-gradient-to-r from-primary/30 to-transparent sm:block"
+                      className="absolute -right-2 top-1/2 hidden h-px w-4 -translate-y-1/2 bg-gradient-to-r from-primary/30 to-transparent transition-all duration-300 group-hover:w-5 group-hover:from-primary/50 sm:block"
                       aria-hidden
                     />
                   )}
-                  <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/15 transition-colors group-hover:bg-primary/15">
-                    <Icon className="size-4" strokeWidth={1.75} />
+
+                  <div
+                    className={cn(
+                      "relative flex size-11 items-center justify-center rounded-2xl",
+                      "bg-primary/10 text-primary ring-1 ring-primary/15",
+                      "transition-all duration-300 group-hover:scale-105 group-hover:bg-primary/16 group-hover:ring-primary/30",
+                      "group-hover:shadow-[0_0_20px_oklch(0.76_0.15_88/22%)]"
+                    )}
+                  >
+                    <Icon
+                      className="size-4 transition-transform duration-300 group-hover:-translate-y-px"
+                      strokeWidth={1.75}
+                    />
                   </div>
-                  <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-foreground sm:text-xs">
+
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground transition-colors duration-300 group-hover:text-primary sm:text-xs">
                     {item.label}
                   </p>
+
+                  <span
+                    className="pointer-events-none absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/0 to-transparent transition-all duration-300 group-hover:via-primary/35"
+                    aria-hidden
+                  />
                 </div>
               );
             })}

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ClipboardList, FileText, LayoutDashboard, LogOut } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +57,7 @@ export function AdminShell({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Button asChild variant="outline" size="sm">
               <Link href="/">Site</Link>
             </Button>

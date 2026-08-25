@@ -27,10 +27,9 @@ export function GalleryCategoriesSection() {
               <Card
                 key={category.label}
                 className={cn(
-                  "group overflow-hidden border-border/40 bg-background/50 p-0",
-                  "shadow-[0_4px_24px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]",
+                  "group overflow-hidden border-border/40 bg-background/50 p-0 surface-tile",
                   "transition-all duration-500 hover:border-primary/25 hover:bg-background/70",
-                  "hover:shadow-[0_12px_36px_rgba(0,0,0,0.35),0_0_24px_rgba(212,175,55,0.06)]"
+                  "hover:shadow-[0_12px_36px_oklch(0_0_0/14%),0_0_24px_oklch(0.76_0.15_88/6%)]"
                 )}
               >
                 <div className="relative aspect-[16/10] w-full overflow-hidden">

@@ -28,8 +28,12 @@ export function SiteMediaImage({
 }: SiteMediaImageProps) {
   const media = getSiteMedia(mediaKey);
 
+  const figureClassName = fill
+    ? cn("absolute inset-0 overflow-hidden", className)
+    : cn("relative overflow-hidden", className);
+
   return (
-    <figure className={cn("relative overflow-hidden", className)}>
+    <figure className={figureClassName}>
       {fill ? (
         <Image
           src={media.path}

@@ -89,7 +89,7 @@ export default function GalleryPage() {
                     {keys.map((mediaKey, index) => (
                       <div
                         key={mediaKey}
-                        className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-white/[0.06] bg-card/30 shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
+                        className="media-frame group relative aspect-[4/3] overflow-hidden rounded-2xl bg-card/30"
                       >
                         <SiteMediaImage
                           mediaKey={mediaKey}

@@ -29,9 +29,9 @@ export const SITE_MEDIA = {
     page: "/",
     section: "hero",
     title: "Homepage hero",
-    path: "/images/home/hero-primary.jpg",
-    alt: "Luxury ballroom ready for event draping in Montreal",
-    notes: "Primary homepage hero visual",
+    path: "/images/home/hero-floral.jpg",
+    alt: "Luxury floral ceiling draping and aisle styling for a Montreal celebration",
+    notes: "Primary homepage hero visual — floral drape installation",
   }),
   "home.estimate.promo": slot({
     key: "home.estimate.promo",

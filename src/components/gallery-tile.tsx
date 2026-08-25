@@ -2,14 +2,14 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const gradientVariants = [
-  "from-[#1a1512] via-[#2a221c] to-[#0f0d0b]",
-  "from-[#14110f] via-[#252018] to-[#0a0908]",
-  "from-[#1c1814] via-[#302820] to-[#12100e]",
-  "from-[#181410] via-[#28221c] to-[#0e0c0a]",
-  "from-[#1a1612] via-[#2c241e] to-[#100e0c]",
-  "from-[#161310] via-[#262018] to-[#0c0a08]",
-  "from-[#1e1a16] via-[#322a22] to-[#12100e]",
-  "from-[#141210] via-[#242018] to-[#0a0908]",
+  "from-velvet via-secondary to-background",
+  "from-velvet via-card to-muted",
+  "from-secondary via-card to-background",
+  "from-velvet via-muted to-card",
+  "from-card via-secondary to-velvet",
+  "from-muted via-card to-background",
+  "from-velvet via-card to-secondary",
+  "from-secondary via-muted to-background",
 ];
 
 type GalleryTileProps = {
@@ -53,7 +53,7 @@ function PlaceholderLayers({
                 transparent 100%)`,
             }}
           >
-            <div className="absolute inset-y-0 right-0 w-px bg-white/[0.04]" />
+            <div className="absolute inset-y-0 right-0 w-px bg-foreground/[0.04]" />
           </div>
         ))}
       </div>
@@ -80,10 +80,8 @@ export function GalleryTile({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl",
-        "border border-white/[0.06] bg-card/30",
-        "shadow-[0_4px_24px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.04)]",
-        "transition-all duration-500 hover:border-primary/20 hover:shadow-[0_8px_32px_rgba(0,0,0,0.45),0_0_24px_rgba(212,175,55,0.08)]",
+        "media-frame group relative overflow-hidden rounded-2xl bg-card/30",
+        "transition-all duration-500 hover:border-primary/20 hover:shadow-[0_8px_32px_oklch(0_0_0/14%),0_0_24px_oklch(0.76_0.15_88/8%)]",
         aspect === "square" && "aspect-square",
         aspect === "wide" && "aspect-[16/10]",
         aspect === "tall" && "aspect-[3/4]",

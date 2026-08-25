@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { SiteShell } from "@/components/layout/site-shell";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { siteConfig } from "@/data/site";
 import { organizationJsonLd } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/env";
@@ -64,8 +65,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={cn(
-        "dark h-full",
+        "h-full",
         "antialiased",
         geistSans.variable,
         geistMono.variable,
@@ -74,6 +76,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         "font-sans"
       )}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("tcg-theme");if(t==="light"){document.documentElement.classList.remove("dark")}else{document.documentElement.classList.add("dark")}}catch(e){document.documentElement.classList.add("dark")}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <script
           type="application/ld+json"
@@ -81,7 +90,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             __html: JSON.stringify(organizationJsonLd),
           }}
         />
-        <SiteShell>{children}</SiteShell>
+        <ThemeProvider>
+          <SiteShell>{children}</SiteShell>
+        </ThemeProvider>
       </body>
     </html>
   );

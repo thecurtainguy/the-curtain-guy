@@ -9,33 +9,53 @@ import {
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<QuoteStatus, string> = {
-  draft: "bg-muted/40 text-muted-foreground",
-  sent: "bg-sky-500/15 text-sky-300",
-  viewed: "bg-violet-500/15 text-violet-300",
-  accepted: "bg-emerald-500/15 text-emerald-300",
-  declined: "bg-rose-500/15 text-rose-300",
-  revision_requested: "bg-amber-500/15 text-amber-300",
-  expired: "bg-muted/40 text-muted-foreground",
-  cancelled: "bg-muted/40 text-muted-foreground",
+  draft:
+    "bg-stone-100 text-stone-700 ring-stone-400/40 dark:bg-muted/40 dark:text-muted-foreground dark:ring-transparent",
+  sent: "bg-sky-100 text-sky-900 ring-sky-700/25 dark:bg-sky-500/15 dark:text-sky-300 dark:ring-transparent",
+  viewed:
+    "bg-violet-100 text-violet-900 ring-violet-700/25 dark:bg-violet-500/15 dark:text-violet-300 dark:ring-transparent",
+  accepted:
+    "bg-emerald-100 text-emerald-900 ring-emerald-700/25 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-transparent",
+  declined:
+    "bg-rose-100 text-rose-900 ring-rose-700/25 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-transparent",
+  revision_requested:
+    "bg-amber-100 text-amber-950 ring-amber-700/25 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-transparent",
+  expired:
+    "bg-stone-100 text-stone-700 ring-stone-400/40 dark:bg-muted/40 dark:text-muted-foreground dark:ring-transparent",
+  cancelled:
+    "bg-stone-100 text-stone-700 ring-stone-400/40 dark:bg-muted/40 dark:text-muted-foreground dark:ring-transparent",
 };
 
 const LINE_STYLES: Record<QuoteLineStatus, string> = {
-  priced: "bg-emerald-500/15 text-emerald-300",
-  included: "bg-primary/15 text-primary",
-  pending_owner_review: "bg-amber-500/15 text-amber-300",
-  not_priced_yet: "bg-muted/40 text-muted-foreground",
-  requested_change: "bg-sky-500/15 text-sky-300",
-  approved: "bg-emerald-500/15 text-emerald-300",
-  declined: "bg-rose-500/15 text-rose-300",
-  needs_measurement: "bg-orange-500/15 text-orange-300",
-  needs_venue_confirmation: "bg-orange-500/15 text-orange-300",
+  priced:
+    "bg-emerald-100 text-emerald-900 ring-emerald-700/25 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-transparent",
+  included:
+    "bg-amber-100 text-amber-950 ring-amber-700/25 dark:bg-primary/15 dark:text-primary dark:ring-transparent",
+  pending_owner_review:
+    "bg-amber-100 text-amber-950 ring-amber-700/25 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-transparent",
+  not_priced_yet:
+    "bg-stone-100 text-stone-700 ring-stone-400/40 dark:bg-muted/40 dark:text-muted-foreground dark:ring-transparent",
+  requested_change:
+    "bg-sky-100 text-sky-900 ring-sky-700/25 dark:bg-sky-500/15 dark:text-sky-300 dark:ring-transparent",
+  approved:
+    "bg-emerald-100 text-emerald-900 ring-emerald-700/25 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-transparent",
+  declined:
+    "bg-rose-100 text-rose-900 ring-rose-700/25 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-transparent",
+  needs_measurement:
+    "bg-orange-100 text-orange-950 ring-orange-700/25 dark:bg-orange-500/15 dark:text-orange-300 dark:ring-transparent",
+  needs_venue_confirmation:
+    "bg-orange-100 text-orange-950 ring-orange-700/25 dark:bg-orange-500/15 dark:text-orange-300 dark:ring-transparent",
 };
+
+const pillBase =
+  "inline-flex rounded-full font-semibold uppercase tracking-[0.08em] ring-1";
 
 export function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em]",
+        pillBase,
+        "px-2.5 py-1 text-[11px]",
         STATUS_STYLES[status]
       )}
     >
@@ -48,7 +68,8 @@ export function QuoteLineStatusBadge({ status }: { status: QuoteLineStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em]",
+        pillBase,
+        "px-2 py-0.5 text-[10px]",
         LINE_STYLES[status]
       )}
     >
@@ -74,7 +95,8 @@ export function QuoteRequestStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em]",
+        pillBase,
+        "px-2 py-0.5 text-[10px]",
         style
       )}
     >

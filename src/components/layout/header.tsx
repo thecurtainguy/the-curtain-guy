@@ -7,6 +7,7 @@ import { Menu } from "lucide-react";
 import { navLinks, siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -101,6 +102,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Button
             asChild
             variant="outline"
@@ -168,6 +170,10 @@ export function Header() {
                     {accountLabel}
                   </Link>
                 </Button>
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
+                  <span className="text-sm text-muted-foreground">Theme</span>
+                  <ThemeToggle />
+                </div>
                 <Button asChild className="mt-2 w-full">
                   <Link
                     href="/get-estimate"

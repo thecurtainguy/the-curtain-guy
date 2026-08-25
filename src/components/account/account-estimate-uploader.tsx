@@ -78,7 +78,7 @@ export function AccountEstimateUploader({
         {busy ? <Loader2 className="size-4 animate-spin" /> : null}
         Upload files
       </Button>
-      {message && <p className="text-sm text-emerald-300">{message}</p>}
+      {message && <p className="feedback-success">{message}</p>}
       {error && (
         <p className="text-sm text-destructive" role="alert">
           {error}

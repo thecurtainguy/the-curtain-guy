@@ -393,5 +393,5 @@ export const trustCapabilityLabels = [
   { label: "Corporate & galas", icon: Building2 },
   { label: "Pipe & drape", icon: LayoutGrid },
   { label: "Backdrops & masking", icon: Theater },
-  { label: "Delivery / install / strike", icon: Truck },
+  { label: "Delivery / install / teardown", icon: Truck },
 ] as const;

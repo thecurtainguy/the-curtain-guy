@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   Moon,
   Package,
-  Sparkles,
   Star,
   Theater,
   Truck,
@@ -42,6 +41,14 @@ export const brandLogo = {
   alt: "The Curtain Guy — Event Draping & Rentals. Transform Spaces · Create Moments",
   width: 1024,
   height: 1024,
+} as const;
+
+/** Horizontal lockup for site header — transparent PNG (skip Next optimizer) */
+export const brandLogoHorizontal = {
+  src: "/images/brand/logo-horizontal-lockup.png",
+  alt: "The Curtain Guy — Event Draping & Rentals. Weddings · Socials · Corporate Events",
+  width: 2008,
+  height: 546,
 } as const;
 
 /** Base paths for photography assets under /public/images */
@@ -89,7 +96,7 @@ export const navLinks: NavLink[] = [
   { label: "Get Estimate", href: "/get-estimate" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
-  { label: "AI Studio", href: "/ai", icon: Sparkles, special: true },
+  { label: "Studio", href: "/studio", icon: Box, special: true },
 ];
 
 export type TrustProcessItem = {
@@ -245,7 +252,7 @@ export const aiPaths = [
   {
     title: "Draw Your Room",
     description:
-      "Future: sketch a room manually and add walls, rails, drape lines, and backdrops before requesting an event drape rental estimate.",
+      "Available now: sketch a room manually, add drape runs and a stage, and inspect the same design in 3D.",
     icon: PenLine,
   },
   {

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { brandLogo, siteConfig } from "@/data/site";
+import { brandLogo, brandLogoHorizontal, siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
 import { GuardedLink } from "@/components/ui/guarded-link";
 
@@ -11,6 +11,8 @@ type BrandLogoProps = {
   size?: "sm" | "md" | "lg" | "xl" | "header" | "footer";
   className?: string;
   priority?: boolean;
+  /** Compact header lockup while the page is scrolled */
+  compact?: boolean;
   /** Show text label beside a compact mark (account/admin) */
   showWordmark?: boolean;
   wordmarkSuffix?: string;
@@ -18,12 +20,45 @@ type BrandLogoProps = {
 };
 
 const sizeMap = {
-  sm: { box: "h-11 w-11", sizes: "44px" },
-  md: { box: "h-16 w-16", sizes: "64px" },
-  header: { box: "h-[4.25rem] w-[4.25rem] sm:h-20 sm:w-20", sizes: "80px" },
-  lg: { box: "h-28 w-28 sm:h-32 sm:w-32", sizes: "128px" },
-  footer: { box: "h-32 w-32 sm:h-40 sm:w-40", sizes: "160px" },
-  xl: { box: "h-40 w-40 sm:h-48 sm:w-48", sizes: "192px" },
+  sm: {
+    box: "h-11 w-11",
+    sizes: "44px",
+    asset: "mark" as const,
+    quality: 90,
+  },
+  md: {
+    box: "h-16 w-16",
+    sizes: "64px",
+    asset: "mark" as const,
+    quality: 90,
+  },
+  /** Top-left site header — horizontal lockup, retina-ready */
+  header: {
+    box: "h-12 w-[11rem] sm:h-14 sm:w-[13.75rem] lg:h-16 lg:w-[15.75rem]",
+    compactBox:
+      "h-9 w-[9.25rem] sm:h-10 sm:w-[11rem] lg:h-11 lg:w-[12.75rem]",
+    sizes: "(max-width: 640px) 176px, (max-width: 1024px) 220px, 252px",
+    asset: "horizontal" as const,
+    quality: 100,
+  },
+  lg: {
+    box: "h-28 w-28 sm:h-32 sm:w-32",
+    sizes: "128px",
+    asset: "mark" as const,
+    quality: 90,
+  },
+  footer: {
+    box: "h-32 w-32 sm:h-40 sm:w-40",
+    sizes: "160px",
+    asset: "mark" as const,
+    quality: 90,
+  },
+  xl: {
+    box: "h-40 w-40 sm:h-48 sm:w-48",
+    sizes: "192px",
+    asset: "mark" as const,
+    quality: 90,
+  },
 } as const;
 
 export function BrandLogo({
@@ -31,28 +66,39 @@ export function BrandLogo({
   size = "md",
   className,
   priority = false,
+  compact = false,
   showWordmark = false,
   wordmarkSuffix,
   onClick,
 }: BrandLogoProps) {
   const dims = sizeMap[size];
+  const logo = dims.asset === "horizontal" ? brandLogoHorizontal : brandLogo;
+  const boxClass =
+    size === "header" && compact && "compactBox" in dims
+      ? dims.compactBox
+      : dims.box;
 
   const mark = (
     <span
       className={cn(
-        "relative block shrink-0 overflow-hidden",
-        dims.box,
+        "relative block shrink-0 overflow-hidden bg-transparent",
+        "transition-[width,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "motion-reduce:transition-none",
+        boxClass,
         className
       )}
     >
       <Image
-        src={brandLogo.src}
-        alt={brandLogo.alt}
+        src={logo.src}
+        alt={logo.alt}
         fill
         sizes={dims.sizes}
         priority={priority}
-        quality={95}
-        className="object-contain object-center"
+        quality={dims.quality}
+        // Horizontal lockup must keep RGBA — Next optimizer can flatten to
+        // palette PNG and paint the transparent areas black on light theme.
+        unoptimized={dims.asset === "horizontal"}
+        className="bg-transparent object-contain object-left"
       />
     </span>
   );

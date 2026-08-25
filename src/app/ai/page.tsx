@@ -14,9 +14,9 @@ import { Stagger } from "@/components/animation/stagger";
 import { AnimatedCard } from "@/components/animation/animated-card";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "AI Drape Studio — Coming Soon",
+  title: "AI Design Assistance — Coming Next",
   description:
-    "Coming soon: AI-powered floor plan upload, manual room drawing, and interactive 3D drape preview for luxury event drape rentals in Montreal. Plan pipe and drape, wedding draping, and venue transformations before installation.",
+    "Draw Your Room Studio is available now. AI-assisted floor-plan upload and drape placement are planned for a future phase.",
   path: "/ai",
 });
 
@@ -26,13 +26,13 @@ export default function AiStudioPage() {
   return (
     <>
       <PageHero
-        eyebrow="AI Drape Studio"
-        title="Plan your Montreal event draping before installation day."
-        description="The Curtain Guy is building an advanced drape design experience for event rentals — upload a floor plan or draw your room, then configure pipe and drape, stage backdrops, room dividers, and blackout zones in an interactive 3D studio."
+        eyebrow="Studio roadmap"
+        title="Draw Your Room is here. AI assistance comes next."
+        description="The first version of The Curtain Guy Studio lets you draw a room, place event draping and a stage, and generate an interactive 3D preview. AI floor-plan upload and automatic design suggestions are not available yet."
       >
         <Badge className="mt-6 bg-primary/20 text-primary">
           <Sparkles className="size-3" />
-          Coming Soon
+          AI assistance coming soon
         </Badge>
       </PageHero>
 
@@ -41,13 +41,13 @@ export default function AiStudioPage() {
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <Reveal variant="blur-in">
               <h2 className="font-heading text-2xl font-semibold text-foreground">
-                Two paths to your event drape rental estimate
+                A precise foundation before AI
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                Whether you have a venue floor plan or need to sketch from
-                scratch, both paths lead to the same interactive 3D drape
-                preview — where you can configure every detail of your Montreal
-                event draping before requesting a final estimate.
+                The live Studio starts with manual room drawing so every wall,
+                drape run, opening, and stage is stored as clean room data. A
+                future AI phase will work with that same design instead of
+                creating a disconnected model.
               </p>
 
               <Stagger className="mt-8 space-y-4" stagger={0.08}>
@@ -86,13 +86,11 @@ export default function AiStudioPage() {
                       </div>
                       <div>
                         <h3 className="font-heading text-sm font-medium text-foreground">
-                          Interactive 3D Drape Preview
+                          Draw Your Room Studio — available now
                         </h3>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Configure color, fullness, rail placement, height,
-                          stage backdrops, room dividers, blackout zones, and
-                          add-ons — then submit for a final event drape rental
-                          estimate.
+                          Draw in 2D, configure drape runs and a stage, then
+                          inspect the same design in a generated 3D room.
                         </p>
                       </div>
                     </CardContent>
@@ -116,13 +114,12 @@ export default function AiStudioPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal variant="fade-up">
             <h2 className="font-heading text-xl font-semibold text-foreground">
-              Studio features in development
+              AI features planned for later phases
             </h2>
             <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-              The AI Drape Studio will let you design every aspect of your
-              temporary event draping — from pipe and drape rental layouts to
-              wedding draping and venue transformation plans — before our team
-              finalizes your estimate.
+              Floor-plan upload, room detection, and placement suggestions
+              remain on the roadmap. They are intentionally separate from this
+              first manual Studio release.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-2">
@@ -135,10 +132,10 @@ export default function AiStudioPage() {
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <Button asChild>
-                <Link href="/get-estimate">Start with Get Estimate</Link>
+                <Link href="/studio/new">Start drawing your room</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/contact">Contact Us</Link>
+                <Link href="/get-estimate">Get estimate</Link>
               </Button>
             </div>
           </Reveal>
@@ -146,8 +143,8 @@ export default function AiStudioPage() {
       </section>
 
       <QuoteCTA
-        headline="The future of Montreal event draping is on its way."
-        description="While we build the AI Drape Studio, our team is ready to help you plan your venue transformation drape rental today — with full-service delivery, installation, and teardown."
+        headline="Start with a room you can draw and inspect today."
+        description="Build a practical room design now, then work with our team on your venue transformation with full-service delivery, installation, and teardown."
       />
     </>
   );

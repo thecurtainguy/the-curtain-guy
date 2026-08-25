@@ -179,6 +179,43 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
+  // Catch ordinary Next/anchor navigation so portal and header links share the
+  // same guard without every navigation component needing Studio-specific code.
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const onDocumentClick = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+      if (
+        anchor.target === "_blank" ||
+        anchor.hasAttribute("download") ||
+        anchor.getAttribute("href")?.startsWith("#")
+      ) {
+        return;
+      }
+      const href = anchor.getAttribute("href");
+      if (!href) return;
+      event.preventDefault();
+      requestNavigation(href);
+    };
+
+    document.addEventListener("click", onDocumentClick, true);
+    return () => document.removeEventListener("click", onDocumentClick, true);
+  }, [isDirty, requestNavigation]);
+
   // Best-effort custom modal for browser Back while on a dirty estimate.
   useEffect(() => {
     if (!isDirty) {
@@ -232,11 +269,11 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
               <AlertTriangle className="size-5" aria-hidden />
             </div>
             <DialogTitle className="font-heading text-xl font-semibold">
-              Leave estimate?
+              Leave this page?
             </DialogTitle>
             <DialogDescription className="text-sm leading-relaxed text-muted-foreground">
-              Your estimate progress has not been submitted yet. If you leave
-              now, the details you entered will be lost.
+              You have unsaved changes. If you leave now, your latest edits
+              will be lost.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:justify-stretch">
@@ -245,7 +282,7 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
               className="w-full sm:flex-1"
               onClick={cancelLeave}
             >
-              Stay on estimate
+              Stay here
             </Button>
             <Button
               type="button"

@@ -9,6 +9,7 @@ import {
   Globe,
   LayoutDashboard,
   LogOut,
+  PanelsTopLeft,
   PenLine,
   UserRound,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const links: PortalNavItem[] = [
   { href: "/account/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/account/quotes", label: "Quotes", icon: FileText },
   { href: "/account/events", label: "Events", icon: CalendarDays },
+  { href: "/account/studio", label: "Studio", icon: PanelsTopLeft },
   { href: "/account/profile", label: "Profile", icon: UserRound },
 ];
 
@@ -49,6 +51,12 @@ function sectionFromPath(pathname: string): { title: string; subtitle: string } 
     return {
       title: "Events",
       subtitle: "Confirmed event details and updates",
+    };
+  }
+  if (pathname.startsWith("/account/studio")) {
+    return {
+      title: "Studio",
+      subtitle: "Your room drawings and 3D previews",
     };
   }
   if (pathname.startsWith("/account/profile")) {

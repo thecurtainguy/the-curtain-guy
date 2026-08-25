@@ -1,12 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   getPageMotionPreset,
   pagePresetConfig,
   premiumEase,
 } from "@/lib/animation";
+import { cn } from "@/lib/utils";
 
 type PageTransitionProps = {
   children: React.ReactNode;
@@ -17,6 +19,8 @@ export function PageTransition({ children }: PageTransitionProps) {
   const prefersReducedMotion = useReducedMotion();
   const preset = getPageMotionPreset(pathname ?? "/");
   const config = pagePresetConfig[preset];
+  const [settledPath, setSettledPath] = useState<string | null>(null);
+  const settled = settledPath === pathname;
 
   if (prefersReducedMotion) {
     return (
@@ -34,6 +38,7 @@ export function PageTransition({ children }: PageTransitionProps) {
   return (
     <motion.div
       key={pathname}
+      className={cn(settled && "page-transition-settled")}
       initial={{
         opacity: 0,
         y: config.y,
@@ -42,13 +47,13 @@ export function PageTransition({ children }: PageTransitionProps) {
       animate={{
         opacity: 1,
         y: 0,
-        ...(config.blur > 0 ? { filter: "blur(0px)" } : {}),
+        ...(config.blur > 0 ? { filter: "none" } : {}),
       }}
       transition={{
         duration: config.duration,
         ease: premiumEase,
       }}
-      style={{ willChange: "opacity, transform" }}
+      onAnimationComplete={() => setSettledPath(pathname)}
     >
       {children}
     </motion.div>

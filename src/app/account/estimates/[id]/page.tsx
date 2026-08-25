@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileUp } from "lucide-react";
+import { FileUp, PanelsTopLeft } from "lucide-react";
 import {
   isEmailVerified,
   requireAccountPage,
@@ -103,6 +103,40 @@ export default async function AccountEstimateDetailPage({ params }: PageProps) {
               <dd className="font-medium">{safe.city_area || "—"}</dd>
             </div>
           </dl>
+        </section>
+
+        <section className="rounded-3xl border border-primary/25 bg-primary/[0.06] p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
+              <PanelsTopLeft className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
+                Draw Your Room
+              </p>
+              <h2 className="mt-1 font-heading text-lg font-semibold">
+                Add a room design to this estimate
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Sketch the room in 2D, place drape runs and a stage, then review
+                the same plan in 3D.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  href={`/studio/new?estimateId=${estimate.id}&opportunityRef=${encodeURIComponent(estimate.opportunity_ref ?? "")}`}
+                  className="inline-flex min-h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Draw your room
+                </Link>
+                <Link
+                  href={`/account/studio?estimateId=${estimate.id}`}
+                  className="inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-background/40 px-4 text-sm font-medium transition-colors hover:bg-muted/40"
+                >
+                  View saved designs
+                </Link>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="rounded-3xl border border-border/40 bg-card/25 p-5">

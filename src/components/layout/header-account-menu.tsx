@@ -10,6 +10,7 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  PanelsTopLeft,
   Shield,
   UserRound,
 } from "lucide-react";
@@ -25,6 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { headerActionClassName } from "@/components/layout/header-actions";
 import { cn } from "@/lib/utils";
 
 export type HeaderSession = {
@@ -44,6 +46,7 @@ const customerLinks: MenuLink[] = [
   { href: "/account/estimates", label: "My estimates", icon: ClipboardList },
   { href: "/account/quotes", label: "Quotes", icon: FileText },
   { href: "/account/events", label: "Events", icon: CalendarDays },
+  { href: "/account/studio", label: "Studio", icon: PanelsTopLeft },
   { href: "/account/profile", label: "Profile", icon: UserRound },
 ];
 
@@ -52,6 +55,7 @@ const ownerLinks: MenuLink[] = [
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
+  { href: "/admin/studio", label: "Studio", icon: PanelsTopLeft },
 ];
 
 type HeaderAccountMenuProps = {
@@ -93,8 +97,12 @@ export function HeaderAccountMenu({
       <Button
         asChild
         variant="outline"
-        size="sm"
-        className={cn("hidden sm:inline-flex", className)}
+        size="lg"
+        className={cn(
+          headerActionClassName,
+          "bg-background dark:bg-background",
+          className
+        )}
       >
         <GuardedLink href="/account/login">Sign in</GuardedLink>
       </Button>
@@ -147,8 +155,12 @@ export function HeaderAccountMenu({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          size="sm"
-          className={cn("hidden sm:inline-flex gap-1.5", className)}
+          size="lg"
+          className={cn(
+            headerActionClassName,
+            "bg-background dark:bg-background",
+            className
+          )}
         >
           <TriggerIcon className="size-3.5 text-primary" strokeWidth={1.75} />
           {triggerLabel}

@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Loader2,
   Mail,
+  PanelsTopLeft,
   RotateCcw,
 } from "lucide-react";
 import {
@@ -104,7 +105,7 @@ export function AdminJobDetail({
   const nextStatuses = getNextJobStatuses(job.status);
 
   const groupedChecklist = useMemo(() => {
-    const groups = new Map<string, typeof initialJob.checklist_items>();
+    const groups = new Map<string, JobWithRelations["checklist_items"]>();
     for (const item of job.checklist_items) {
       const list = groups.get(item.category) ?? [];
       list.push(item);
@@ -320,6 +321,14 @@ export function AdminJobDetail({
                 </Link>
               </Button>
             ) : null}
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={`/studio/new?jobId=${job.id}&opportunityRef=${encodeURIComponent(job.opportunity_ref)}${job.estimate_request_id ? `&estimateId=${job.estimate_request_id}` : ""}${job.quote_id ? `&quoteId=${job.quote_id}` : ""}`}
+              >
+                <PanelsTopLeft className="size-4" />
+                Create room design
+              </Link>
+            </Button>
             {mailto ? (
               <Button asChild variant="outline" size="sm">
                 <a href={mailto}>
@@ -653,6 +662,12 @@ export function AdminJobDetail({
               </Link>
             </Button>
           ) : null}
+          <Button asChild variant="outline" size="sm" className="justify-start">
+            <Link href={`/admin/studio?jobId=${job.id}`}>
+              <PanelsTopLeft className="size-4" />
+              Open Studio designs
+            </Link>
+          </Button>
           <div className="rounded-xl border border-border/40 bg-background/40 px-3 py-2 text-sm">
             <p className="text-xs text-muted-foreground">Checklist</p>
             <p className="mt-1 font-heading text-xl font-semibold tabular-nums">

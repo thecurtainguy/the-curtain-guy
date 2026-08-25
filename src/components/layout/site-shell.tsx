@@ -7,7 +7,9 @@ import { Footer } from "@/components/layout/footer";
 export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAppShell =
-    pathname.startsWith("/admin") || pathname.startsWith("/account");
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/account") ||
+    (pathname.startsWith("/studio/") && pathname !== "/studio");
 
   if (isAppShell) {
     return <main className="flex-1">{children}</main>;

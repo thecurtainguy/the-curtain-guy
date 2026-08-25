@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PanelsTopLeft } from "lucide-react";
 import {
   isEmailVerified,
   requireAccountPage,
@@ -19,6 +20,7 @@ import {
   markQuoteViewed,
   toCustomerSafeQuote,
 } from "@/lib/quotes";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Quote proposal",
@@ -61,6 +63,38 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
           ← Your quotes
         </Link>
       </div>
+      <section className="mb-6 flex flex-col gap-4 rounded-3xl border border-primary/25 bg-primary/[0.06] p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <PanelsTopLeft className="size-5" />
+          </span>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">
+              Studio
+            </p>
+            <h2 className="mt-1 font-heading text-lg font-semibold">
+              Draw the room for this proposal
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Place drape runs in 2D and inspect the same design in 3D.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link
+              href={`/studio/new?quoteId=${quote.id}&estimateId=${quote.estimate_request_id}&opportunityRef=${encodeURIComponent(quote.opportunity_ref)}`}
+            >
+              Draw your room
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/account/studio?quoteId=${quote.id}`}>
+              Open designs
+            </Link>
+          </Button>
+        </div>
+      </section>
       <QuoteProposalView
         quote={safe}
         mode="account"

@@ -236,6 +236,33 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
               linkedJobRef={linkedJob?.opportunity_ref}
             />
 
+            <section className="rounded-2xl border border-primary/25 bg-primary/[0.06] p-5">
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
+                Studio
+              </p>
+              <h2 className="mt-1 font-heading text-lg font-semibold">
+                Room design
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Create a 2D room plan and generated 3D drape preview from this
+                estimate.
+              </p>
+              <div className="mt-4 flex flex-col gap-2">
+                <Link
+                  href={`/studio/new?estimateId=${estimate.id}&opportunityRef=${encodeURIComponent(estimate.opportunity_ref ?? "")}`}
+                  className="inline-flex min-h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Create room design
+                </Link>
+                <Link
+                  href={`/admin/studio?estimateId=${estimate.id}`}
+                  className="inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-background/40 px-4 text-sm font-medium transition-colors hover:bg-muted/40"
+                >
+                  Open linked designs
+                </Link>
+              </div>
+            </section>
+
             <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
               <h2 className="font-heading text-lg font-semibold">Files</h2>
               <div className="mt-4">

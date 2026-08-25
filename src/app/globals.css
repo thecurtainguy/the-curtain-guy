@@ -194,11 +194,24 @@
       var(--gold-metallic-shadow);
   }
 
-  .bg-gold-metallic:hover {
+  /* Same gold fill without outer drop shadow — keeps header CTAs the same visual height */
+  .bg-gold-metallic-flat {
+    background: linear-gradient(
+      165deg,
+      var(--gold-metallic-top) 0%,
+      var(--gold-metallic-mid) 48%,
+      var(--gold-metallic-bottom) 100%
+    );
+    box-shadow: inset 0 1px 0 var(--gold-metallic-highlight);
+  }
+
+  .bg-gold-metallic:hover,
+  .bg-gold-metallic-flat:hover {
     filter: brightness(var(--gold-metallic-hover-brightness));
   }
 
-  .bg-gold-metallic:active {
+  .bg-gold-metallic:active,
+  .bg-gold-metallic-flat:active {
     filter: brightness(0.96);
   }
 
@@ -314,6 +327,81 @@
       both;
   }
 
+  /* After entrance, clear transform/filter so fixed UI isn’t trapped */
+  .page-transition-settled {
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* Full-viewport 404 curtain — portaled to body; starts closed, opens 2.5s */
+  .viewport-curtain-stage {
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    overflow: hidden;
+  }
+
+  .viewport-curtain-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    /* Slightly overscan so edges never leave a 1px seam */
+    width: 56%;
+    background:
+      repeating-linear-gradient(
+        90deg,
+        color-mix(in oklch, var(--velvet) 88%, black) 0px,
+        color-mix(in oklch, var(--velvet) 78%, black) 11px,
+        color-mix(in oklch, var(--velvet) 92%, white) 22px
+      ),
+      linear-gradient(
+        180deg,
+        color-mix(in oklch, var(--primary) 22%, var(--velvet)) 0%,
+        color-mix(in oklch, var(--velvet) 92%, black) 42%,
+        color-mix(in oklch, var(--velvet) 82%, black) 100%
+      );
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+  }
+
+  .viewport-curtain-panel-left {
+    left: -1px;
+    transform-origin: left center;
+    border-right: 1px solid oklch(0.62 0.14 80 / 22%);
+    box-shadow:
+      inset -12px 0 28px oklch(0 0 0 / 32%),
+      inset 0 1px 0 oklch(1 0 0 / 8%);
+  }
+
+  .viewport-curtain-panel-right {
+    right: -1px;
+    transform-origin: right center;
+    border-left: 1px solid oklch(0.62 0.14 80 / 22%);
+    box-shadow:
+      inset 12px 0 28px oklch(0 0 0 / 32%),
+      inset 0 1px 0 oklch(1 0 0 / 8%);
+  }
+
+  .viewport-curtain-stage.is-opening .viewport-curtain-panel-left {
+    animation: viewport-curtain-open-left 2.5s cubic-bezier(0.22, 1, 0.36, 1)
+      forwards;
+  }
+
+  .viewport-curtain-stage.is-opening .viewport-curtain-panel-right {
+    animation: viewport-curtain-open-right 2.5s cubic-bezier(0.22, 1, 0.36, 1)
+      forwards;
+  }
+
+  .viewport-curtain-reveal {
+    opacity: 0;
+  }
+
+  .viewport-curtain-reveal.is-revealed {
+    animation: contact-reveal-content 1.15s cubic-bezier(0.32, 0.72, 0, 1) 0.55s
+      both;
+  }
+
   @keyframes contact-curtain-open-left {
     from {
       transform: translateX(0);
@@ -329,6 +417,35 @@
     }
     to {
       transform: translateX(108%);
+    }
+  }
+
+  @keyframes viewport-curtain-open-left {
+    0% {
+      transform: translate3d(0, 0, 0);
+      opacity: 1;
+    }
+    88% {
+      opacity: 1;
+    }
+    100% {
+      /* Use viewport units so panels fully clear the screen */
+      transform: translate3d(-100vw, 0, 0);
+      opacity: 0;
+    }
+  }
+
+  @keyframes viewport-curtain-open-right {
+    0% {
+      transform: translate3d(0, 0, 0);
+      opacity: 1;
+    }
+    88% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate3d(100vw, 0, 0);
+      opacity: 0;
     }
   }
 
@@ -351,6 +468,19 @@
     }
 
     .contact-curtain-reveal {
+      animation: none;
+    }
+
+    .viewport-curtain-stage,
+    .viewport-curtain-panel-left,
+    .viewport-curtain-panel-right {
+      animation: none !important;
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .viewport-curtain-reveal {
+      opacity: 1;
       animation: none;
     }
   }

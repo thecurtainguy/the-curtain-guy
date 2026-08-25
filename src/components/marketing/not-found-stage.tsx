@@ -108,48 +108,14 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
   return (
     <ViewportCurtainOpen>
       <section
-        className="relative isolate min-h-[calc(100dvh-8rem)] overflow-hidden"
+        className="relative isolate min-h-[calc(100dvh-8rem)]"
         aria-labelledby="not-found-heading"
       >
-      {/* Stage atmosphere */}
+      {/* Stage atmosphere — no side silhouettes (they read as leftover velvet) */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_28%,color-mix(in_oklch,var(--primary)_18%,transparent),transparent_58%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_100%,color-mix(in_oklch,var(--primary)_8%,transparent),transparent_45%)]" />
         <div className="absolute inset-0 fabric-section opacity-80" />
-
-        {/* Curtain-panel silhouettes */}
-        <div
-          className={cn(
-            "absolute inset-y-0 left-0 w-[18%] max-w-[11rem] sm:w-[22%] sm:max-w-[14rem]",
-            "bg-[linear-gradient(90deg,color-mix(in_oklch,var(--foreground)_14%,transparent)_0%,transparent_100%)]",
-            "opacity-70 dark:opacity-90"
-          )}
-        />
-        <div
-          className={cn(
-            "absolute inset-y-0 right-0 w-[18%] max-w-[11rem] sm:w-[22%] sm:max-w-[14rem]",
-            "bg-[linear-gradient(270deg,color-mix(in_oklch,var(--foreground)_14%,transparent)_0%,transparent_100%)]",
-            "opacity-70 dark:opacity-90"
-          )}
-        />
-        <div
-          className={cn(
-            "absolute inset-y-[8%] left-0 w-16 sm:w-24",
-            "bg-[repeating-linear-gradient(90deg,transparent_0_10px,color-mix(in_oklch,var(--primary)_7%,transparent)_10px_12px)]",
-            "opacity-40 blur-[0.5px]"
-          )}
-        />
-        <div
-          className={cn(
-            "absolute inset-y-[8%] right-0 w-16 sm:w-24",
-            "bg-[repeating-linear-gradient(90deg,transparent_0_10px,color-mix(in_oklch,var(--primary)_7%,transparent)_10px_12px)]",
-            "opacity-40 blur-[0.5px]"
-          )}
-        />
-
-        {/* Soft stage frame */}
-        <div className="absolute inset-4 rounded-[min(2.5rem,12vw)] border border-border/30 sm:inset-6 md:inset-8" />
-        <div className="absolute inset-6 rounded-[min(2rem,10vw)] border border-primary/10 sm:inset-8 md:inset-10" />
       </div>
 
       {/* Oversized 404 watermark */}
@@ -180,11 +146,11 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
       </motion.p>
 
       <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-4 py-14 text-center sm:px-6 sm:py-20 lg:py-24">
-        <Reveal variant="fade-down" immediate delay={0.9}>
+        <Reveal variant="fade-down" immediate delay={1.05}>
           <BrandLogo size="md" priority className="mx-auto" />
         </Reveal>
 
-        <Reveal variant="blur-in" immediate delay={0.98} className="mt-8 sm:mt-10">
+        <Reveal variant="blur-in" immediate delay={1.15} className="mt-8 sm:mt-10">
           <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-primary">
             Page not found
           </p>
@@ -199,7 +165,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
           </p>
         </Reveal>
 
-        <Reveal variant="fade-up" immediate delay={1.08} className="mt-5 max-w-2xl sm:mt-6">
+        <Reveal variant="fade-up" immediate delay={1.3} className="mt-5 max-w-2xl sm:mt-6">
           <h1
             id="not-found-heading"
             className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl lg:text-4xl"
@@ -213,7 +179,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
           </p>
         </Reveal>
 
-        <Reveal variant="scale-in" immediate delay={1.18} className="mt-6 sm:mt-7">
+        <Reveal variant="scale-in" immediate delay={1.45} className="mt-6 sm:mt-7">
           <div
             className="mx-auto h-px w-16 bg-gradient-to-r from-transparent via-primary/60 to-transparent"
             aria-hidden
@@ -227,7 +193,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
           immediate
           className="mt-8 flex w-full max-w-lg flex-col items-stretch gap-3 sm:mt-10 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center"
           stagger={staggerDelay.tight}
-          delayChildren={1.24}
+          delayChildren={1.55}
         >
           <StaggerItem className="w-full sm:w-auto">
             <Button asChild size="lg" className="min-h-11 w-full px-6 sm:w-auto">
@@ -257,7 +223,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
           })}
         </Stagger>
 
-        <Reveal variant="fade-up" immediate delay={1.4} className="mt-5">
+        <Reveal variant="fade-up" immediate delay={1.75} className="mt-5">
           <NotFoundGoBack />
         </Reveal>
 
@@ -265,7 +231,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
         <Reveal
           variant="reveal-soft"
           immediate
-          delay={1.45}
+          delay={1.85}
           className="mt-12 w-full max-w-2xl sm:mt-14"
         >
           <div
@@ -306,7 +272,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
 
         {/* Quick links */}
         <div className="mt-10 w-full max-w-3xl sm:mt-12">
-          <Reveal variant="fade-up" immediate delay={1.52}>
+          <Reveal variant="fade-up" immediate delay={1.95}>
             <h2 className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">
               Popular destinations
             </h2>
@@ -315,7 +281,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
             immediate
             className="mt-4 grid gap-2.5 sm:grid-cols-2"
             stagger={staggerDelay.tight}
-            delayChildren={1.56}
+            delayChildren={2.05}
           >
             {quickLinks.map((link) => {
               const Icon = link.icon;

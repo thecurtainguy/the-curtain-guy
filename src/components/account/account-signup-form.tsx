@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { postLoginPath } from "@/lib/auth-redirect";
+import { postLoginPath, safeNextPath } from "@/lib/auth-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,8 @@ function friendlyAuthError(message: string | undefined): string {
 export function AccountSignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const requestedNext = searchParams.get("next");
+  const safeRequestedNext = safeNextPath(requestedNext, "/account");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
@@ -46,7 +48,7 @@ export function AccountSignupForm() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${siteUrl}/auth/callback?next=/account`,
+          emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(safeRequestedNext)}`,
           data: {
             full_name: fullName.trim() || undefined,
             phone: phone.trim() || undefined,
@@ -66,7 +68,9 @@ export function AccountSignupForm() {
         const sessionPayload = (await sessionRes.json()) as {
           role?: "owner" | "customer" | null;
         };
-        router.push(postLoginPath(sessionPayload.role));
+        router.push(
+          safeNextPath(requestedNext, postLoginPath(sessionPayload.role))
+        );
         router.refresh();
         return;
       }
@@ -87,10 +91,23 @@ export function AccountSignupForm() {
         </h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
           Check your email to verify your account. After confirming, you can
-          sign in and view estimates tied to this address.
+          return to this original browser tab and continue your saved progress.
         </p>
+        {safeRequestedNext.startsWith("/studio") ? (
+          <Button asChild>
+            <Link href={safeRequestedNext}>Return to Studio</Link>
+          </Button>
+        ) : null}
         <Button asChild variant="outline">
-          <Link href="/account/login">Go to sign in</Link>
+          <Link
+            href={
+              requestedNext
+                ? `/account/login?next=${encodeURIComponent(requestedNext)}`
+                : "/account/login"
+            }
+          >
+            Go to sign in
+          </Link>
         </Button>
       </div>
     );
@@ -152,7 +169,14 @@ export function AccountSignupForm() {
       </Button>
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/account/login" className="text-primary hover:underline">
+        <Link
+          href={
+            requestedNext
+              ? `/account/login?next=${encodeURIComponent(requestedNext)}`
+              : "/account/login"
+          }
+          className="text-primary hover:underline"
+        >
           Sign in
         </Link>
       </p>

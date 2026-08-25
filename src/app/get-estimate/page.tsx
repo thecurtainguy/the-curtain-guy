@@ -33,14 +33,18 @@ export default function GetEstimatePage() {
             </div>
           </Reveal>
 
-          <p className="mt-10 text-center text-sm text-muted-foreground">
-            Prefer to explore the future experience?{" "}
-            <GuardedLink href="/ai" className="text-primary hover:underline">
-              See AI Drape Studio
-            </GuardedLink>{" "}
-            — floor plan upload, room drawing, and 3D preview coming in later
-            phases.
-          </p>
+          <div className="mt-10 rounded-3xl border border-primary/25 bg-primary/[0.06] px-5 py-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Want to sketch your space before submitting?{" "}
+              <GuardedLink
+                href="/studio/new"
+                className="font-medium text-primary hover:underline"
+              >
+                Open Draw Your Room Studio
+              </GuardedLink>{" "}
+              to build a 2D room and preview your draping in 3D.
+            </p>
+          </div>
         </div>
       </section>
     </>

@@ -24,6 +24,11 @@
 .DS_Store
 *.pem
 
+# local one-off Python tooling (e.g. rembg logo cutout)
+.venv/
+.venv-*/
+venv/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

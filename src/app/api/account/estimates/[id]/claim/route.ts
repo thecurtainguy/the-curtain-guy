@@ -7,6 +7,22 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+async function claimLinkedStudioDesigns(
+  estimateId: string,
+  userId: string
+): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin
+    .from("studio_designs")
+    .update({ owner_user_id: userId })
+    .eq("estimate_request_id", estimateId);
+  if (error) {
+    // Best effort keeps the existing estimate claim flow available while the
+    // additive Studio migration is pending or temporarily unavailable.
+    console.error("[account] Linked Studio design claim failed:", error.message);
+  }
+}
+
 export async function POST(_request: NextRequest, context: RouteContext) {
   const current = await requireCustomerOrOwner();
   if (!current) {
@@ -47,6 +63,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
   }
 
   if (estimate.user_id === current.user.id) {
+    await claimLinkedStudioDesigns(id, current.user.id);
     return NextResponse.json({ ok: true, alreadyOwned: true });
   }
 
@@ -64,5 +81,6 @@ export async function POST(_request: NextRequest, context: RouteContext) {
     );
   }
 
+  await claimLinkedStudioDesigns(id, current.user.id);
   return NextResponse.json({ ok: true });
 }

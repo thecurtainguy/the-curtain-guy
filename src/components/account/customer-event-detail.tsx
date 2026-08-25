@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Calendar,
   MapPin,
   MessageSquare,
+  PanelsTopLeft,
   Truck,
 } from "lucide-react";
 import {
@@ -19,6 +21,7 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
 import type { JobWithRelations } from "@/lib/jobs";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -154,6 +157,41 @@ export function CustomerEventDetail({
             );
           })}
         </ol>
+      </section>
+
+      <section className="rounded-3xl border border-primary/25 bg-primary/[0.06] p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <PanelsTopLeft className="size-5" />
+            </span>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-primary">
+                Studio
+              </p>
+              <h2 className="mt-1 font-heading text-lg font-semibold">
+                Room design for production planning
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Open your saved room designs or create one for this event.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link
+                href={`/studio/new?jobId=${job.id}&opportunityRef=${encodeURIComponent(job.opportunity_ref)}${job.estimate_request_id ? `&estimateId=${job.estimate_request_id}` : ""}${job.quote_id ? `&quoteId=${job.quote_id}` : ""}`}
+              >
+                Draw your room
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/account/studio?jobId=${job.id}`}>
+                Open room designs
+              </Link>
+            </Button>
+          </div>
+        </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">

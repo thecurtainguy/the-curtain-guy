@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 type CurtainRevealProps = {
@@ -57,48 +62,124 @@ export function CurtainReveal({
   );
 }
 
-const VIEWPORT_CURTAIN_MS = 2400;
+const VIEWPORT_CURTAIN_OPEN_MS = 2500;
+const VIEWPORT_CURTAIN_HOLD_MS = 200;
+const VIEWPORT_CURTAIN_TOTAL_MS =
+  VIEWPORT_CURTAIN_HOLD_MS + VIEWPORT_CURTAIN_OPEN_MS + 100;
 
 type ViewportCurtainOpenProps = {
   children: ReactNode;
   className?: string;
 };
 
+function CurtainStage({
+  opening,
+  onDone,
+}: {
+  opening: boolean;
+  onDone: () => void;
+}) {
+  return (
+    <div
+      className={cn("viewport-curtain-stage", opening && "is-opening")}
+      aria-hidden
+      onAnimationEnd={(event) => {
+        if (
+          event.target instanceof HTMLElement &&
+          event.target.classList.contains("viewport-curtain-panel")
+        ) {
+          onDone();
+        }
+      }}
+    >
+      <div className="viewport-curtain-panel viewport-curtain-panel-left" />
+      <div className="viewport-curtain-panel viewport-curtain-panel-right" />
+    </div>
+  );
+}
+
 /**
- * Full-viewport velvet curtain open — same motion language as contact/estimate success,
- * but covering the entire screen on first paint.
+ * Full-viewport velvet curtain open for 404.
+ * Always portaled to document.body so PageTransition cannot trap fixed layers.
  */
 export function ViewportCurtainOpen({
   children,
   className,
 }: ViewportCurtainOpenProps) {
-  const [showCurtains, setShowCurtains] = useState(true);
+  const [phase, setPhase] = useState<"closed" | "opening" | "done">("closed");
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setPortalEl(document.body));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const timeout = window.setTimeout(
-      () => {
-        setShowCurtains(false);
-      },
-      reduced ? 0 : VIEWPORT_CURTAIN_MS
-    );
+    if (reduced) {
+      const frame = window.requestAnimationFrame(() => setPhase("done"));
+      return () => window.cancelAnimationFrame(frame);
+    }
 
-    return () => window.clearTimeout(timeout);
+    let cancelled = false;
+    let openTimer = 0;
+    let doneTimer = 0;
+    let innerRaf = 0;
+
+    const outerRaf = window.requestAnimationFrame(() => {
+      innerRaf = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+
+        openTimer = window.setTimeout(() => {
+          if (!cancelled) setPhase("opening");
+        }, VIEWPORT_CURTAIN_HOLD_MS);
+
+        doneTimer = window.setTimeout(() => {
+          if (!cancelled) setPhase("done");
+        }, VIEWPORT_CURTAIN_TOTAL_MS);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(outerRaf);
+      window.cancelAnimationFrame(innerRaf);
+      window.clearTimeout(openTimer);
+      window.clearTimeout(doneTimer);
+    };
   }, []);
+
+  // Belt-and-suspenders: purge any leftover curtain nodes when finished.
+  useEffect(() => {
+    if (phase !== "done") return;
+    document.querySelectorAll(".viewport-curtain-stage").forEach((node) => {
+      node.remove();
+    });
+  }, [phase]);
+
+  const showCurtains = phase !== "done";
+  const finish = () => setPhase("done");
 
   return (
     <div className={cn("relative", className)}>
-      <div className="contact-curtain-reveal">{children}</div>
+      <div
+        className={cn(
+          "viewport-curtain-reveal",
+          phase !== "closed" && "is-revealed"
+        )}
+      >
+        {children}
+      </div>
 
-      {showCurtains ? (
-        <div
-          className="pointer-events-none fixed inset-0 z-[100] overflow-hidden"
-          aria-hidden
-        >
-          <div className="contact-curtain-panel contact-curtain-panel-left absolute inset-y-0 left-0 w-[52%]" />
-          <div className="contact-curtain-panel contact-curtain-panel-right absolute inset-y-0 right-0 w-[52%]" />
-        </div>
-      ) : null}
+      {showCurtains && portalEl
+        ? createPortal(
+            <CurtainStage
+              opening={phase === "opening"}
+              onDone={finish}
+            />,
+            portalEl
+          )
+        : null}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   HeaderAccountMenu,
   type HeaderSession,
 } from "@/components/layout/header-account-menu";
+import { headerActionClassName, headerActionGoldClassName } from "@/components/layout/header-actions";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { GuardedLink } from "@/components/ui/guarded-link";
@@ -24,6 +25,7 @@ import {
 export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
   const [session, setSession] = useState<HeaderSession>({
     authenticated: false,
     role: null,
@@ -58,12 +60,56 @@ export function Header() {
     };
   }, [pathname]);
 
-  return (
-    <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl supports-backdrop-filter:bg-background/60">
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:h-24 sm:px-6 lg:px-8">
-        <BrandLogo href="/" size="header" priority />
+  useEffect(() => {
+    const threshold = 28;
+    let frame = 0;
 
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
+    const update = () => {
+      frame = 0;
+      const next = window.scrollY > threshold;
+      setCompact((prev) => (prev === next ? prev : next));
+    };
+
+    const onScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return (
+    <header
+      className={cn(
+        "sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl supports-backdrop-filter:bg-background/60",
+        "transition-[background-color,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "motion-reduce:transition-none",
+        compact &&
+          "border-border/50 bg-background/88 shadow-[0_10px_28px_-18px_oklch(0_0_0/0.45)]"
+      )}
+    >
+      <div
+        className={cn(
+          "mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8",
+          "transition-[height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "motion-reduce:transition-none",
+          compact ? "h-14 sm:h-16" : "h-20 sm:h-24"
+        )}
+      >
+        <BrandLogo href="/" size="header" compact={compact} priority />
+
+        <nav
+          className={cn(
+            "hidden items-center lg:flex",
+            compact ? "gap-0.5" : "gap-1"
+          )}
+          aria-label="Main"
+        >
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive =
@@ -76,7 +122,8 @@ export function Header() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-[color,background-color,box-shadow,transform] duration-200 xl:px-3 motion-reduce:transition-none",
+                  "inline-flex items-center gap-1.5 rounded-xl text-sm font-medium transition-[color,background-color,box-shadow,transform,padding] duration-200 xl:px-3 motion-reduce:transition-none",
+                  compact ? "px-2 py-1.5" : "px-2.5 py-2",
                   link.special
                     ? "text-primary hover:bg-primary/10"
                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
@@ -92,9 +139,14 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <ThemeToggle />
+          <ThemeToggle className="size-9 shrink-0" />
           <HeaderAccountMenu session={session} />
-          <Button asChild size="sm" className="hidden sm:inline-flex">
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className={cn(headerActionClassName, headerActionGoldClassName)}
+          >
             <GuardedLink href="/get-estimate">Get Estimate</GuardedLink>
           </Button>
 

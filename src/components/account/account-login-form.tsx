@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
-import { postLoginPath } from "@/lib/auth-redirect";
+import { postLoginPath, safeNextPath } from "@/lib/auth-redirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 export function AccountLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const requestedNext = searchParams.get("next");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
@@ -46,7 +47,9 @@ export function AccountLoginForm() {
         role?: "owner" | "customer" | null;
       };
 
-      router.push(postLoginPath(sessionPayload.role));
+      router.push(
+        safeNextPath(requestedNext, postLoginPath(sessionPayload.role))
+      );
       router.refresh();
     } catch {
       setError("Could not sign in. Please try again.");
@@ -90,7 +93,14 @@ export function AccountLoginForm() {
       </Button>
       <p className="text-center text-sm text-muted-foreground">
         New here?{" "}
-        <Link href="/account/signup" className="text-primary hover:underline">
+        <Link
+          href={
+            requestedNext
+              ? `/account/signup?next=${encodeURIComponent(requestedNext)}`
+              : "/account/signup"
+          }
+          className="text-primary hover:underline"
+        >
           Create an account
         </Link>
       </p>

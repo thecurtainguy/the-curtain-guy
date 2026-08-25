@@ -9,7 +9,7 @@ import {
   Globe,
   LayoutDashboard,
   LogOut,
-  Sparkles,
+  PanelsTopLeft,
 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -28,14 +28,8 @@ const links: PortalNavItem[] = [
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
+  { href: "/admin/studio", label: "Studio", icon: PanelsTopLeft },
   { href: "/", label: "Site", icon: Globe, exact: true },
-  {
-    href: "/admin/ai-studio",
-    label: "AI Studio",
-    icon: Sparkles,
-    disabled: true,
-    badge: "Soon",
-  },
 ];
 
 function sectionFromPath(pathname: string): { title: string; subtitle: string } {
@@ -55,6 +49,12 @@ function sectionFromPath(pathname: string): { title: string; subtitle: string } 
     return {
       title: "Jobs",
       subtitle: "Booked events, install, and teardown",
+    };
+  }
+  if (pathname.startsWith("/admin/studio")) {
+    return {
+      title: "Studio",
+      subtitle: "Room drawings and generated 3D previews",
     };
   }
   return {

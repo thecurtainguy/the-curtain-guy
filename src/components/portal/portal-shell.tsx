@@ -8,6 +8,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { BackToTop } from "@/components/layout/back-to-top";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -82,6 +85,7 @@ export function PortalShell({
   contentClassName,
   fillViewport = false,
   sidebarStorageKey = "tcg-portal-sidebar-collapsed",
+  mobileBrandHref = "/",
 }: {
   sidebar: React.ReactNode;
   children: React.ReactNode;
@@ -90,8 +94,11 @@ export function PortalShell({
   fillViewport?: boolean;
   /** localStorage key for collapse preference (admin vs account). */
   sidebarStorageKey?: string;
+  /** Logo target in the mobile top bar (portal home). */
+  mobileBrandHref?: string;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mainScrollEl, setMainScrollEl] = useState<HTMLElement | null>(null);
 
   // Prevent document scroll so the menu never rides with the page.
   useEffect(() => {
@@ -126,8 +133,8 @@ export function PortalShell({
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetContent
-              side="left"
-              className="w-[280px] max-w-[85vw] gap-0 p-0"
+              side="right"
+              className="flex h-dvh max-h-dvh w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-sm"
               showCloseButton
             >
               <SheetHeader className="sr-only">
@@ -138,32 +145,42 @@ export function PortalShell({
                 forceExpanded
               >
                 <div
-                  className="flex h-full flex-col overflow-y-auto overscroll-contain"
+                  className="flex h-full min-h-0 flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)]"
                   onClick={(e) => {
                     const target = e.target as HTMLElement;
                     if (target.closest("a")) setMobileOpen(false);
                   }}
                 >
-                  {sidebar}
+                  <div className="luxury-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
+                    {sidebar}
+                  </div>
                 </div>
               </PortalSidebarProvider>
             </SheetContent>
           </Sheet>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="z-30 flex shrink-0 items-center border-b border-border bg-background/95 px-4 py-2 backdrop-blur-xl lg:hidden">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                onClick={() => setMobileOpen(true)}
-                aria-label="Open navigation"
-              >
-                <Menu className="size-4" />
-              </Button>
+            <div className="z-30 shrink-0 border-b border-border/40 bg-background pt-[env(safe-area-inset-top,0px)] lg:hidden">
+              <div className="flex h-16 items-center justify-between gap-3 px-4">
+                <BrandLogo href={mobileBrandHref} size="header" compact priority />
+                <div className="flex items-center gap-2">
+                  <ThemeToggle className="size-9 shrink-0" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => setMobileOpen(true)}
+                    aria-label="Open navigation"
+                  >
+                    <Menu className="size-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <main
+              ref={setMainScrollEl}
+              data-portal-scroll-root=""
               className={cn(
                 "min-h-0 min-w-0 flex-1 overscroll-contain",
                 fillViewport ? "overflow-hidden" : "overflow-x-hidden overflow-y-auto"
@@ -180,6 +197,7 @@ export function PortalShell({
                 {children}
               </div>
             </main>
+            {!fillViewport ? <BackToTop scrollElement={mainScrollEl} /> : null}
           </div>
         </div>
       </TooltipProvider>

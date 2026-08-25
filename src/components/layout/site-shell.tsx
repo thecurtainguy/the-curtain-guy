@@ -39,9 +39,16 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header />
-      <main className="flex-1">{children}</main>
-      <Footer />
       <BackToTop />
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
+        <div
+          className="shrink-0 lg:hidden"
+          style={{ height: "calc(4rem + env(safe-area-inset-top, 0px))" }}
+          aria-hidden
+        />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </div>
     </>
   );
 }

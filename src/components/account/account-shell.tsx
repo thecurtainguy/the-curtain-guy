@@ -77,6 +77,7 @@ export function AccountShell({
       sidebar={sidebar}
       fillViewport={isStudioEditor}
       sidebarStorageKey="tcg-account-sidebar-collapsed"
+      mobileBrandHref="/account"
     >
       {children}
     </PortalShell>

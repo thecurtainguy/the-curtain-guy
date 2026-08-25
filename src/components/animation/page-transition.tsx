@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   getPageMotionPreset,
@@ -25,50 +25,74 @@ function isAuthSurface(pathname: string | null) {
   );
 }
 
+/** Blur entrance animations often stick on Android Chrome after full reload. */
+function useSimplePageMotion() {
+  const [simple, setSimple] = useState(true);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px), (pointer: coarse)");
+    const update = () => setSimple(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  return simple;
+}
+
 export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
   const prefersReducedMotion = useReducedMotion();
+  const simpleMotion = useSimplePageMotion();
   const preset = getPageMotionPreset(pathname ?? "/");
   const config = pagePresetConfig[preset];
   const [settledPath, setSettledPath] = useState<string | null>(null);
   const settled = settledPath === pathname;
   const isPortal =
     (preset === "account" || preset === "admin") && !isAuthSurface(pathname);
+  const reduced = Boolean(prefersReducedMotion);
+  const isHome = pathname === "/";
+  const useBlur = !reduced && !simpleMotion && config.blur > 0 && !isHome;
+  const yOffset =
+    reduced || simpleMotion || isHome ? 0 : config.y;
+  const duration = reduced || simpleMotion || isHome ? 0.2 : config.duration;
 
-  if (prefersReducedMotion) {
-    return (
-      <motion.div
-        key={pathname}
-        className={cn(isPortal && "h-svh max-h-svh overflow-hidden")}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-      >
-        {children}
-      </motion.div>
+  useEffect(() => {
+    if (reduced || simpleMotion || isHome) {
+      setSettledPath(pathname);
+      return;
+    }
+
+    const timeout = window.setTimeout(
+      () => setSettledPath((current) => current ?? pathname),
+      Math.ceil(duration * 1000) + 120
     );
-  }
+
+    return () => window.clearTimeout(timeout);
+  }, [pathname, reduced, simpleMotion, isHome, duration]);
 
   return (
     <motion.div
       key={pathname}
+      data-page-transition=""
       className={cn(
-        settled && "page-transition-settled",
+        (settled || reduced || simpleMotion || isHome) &&
+          "page-transition-settled",
         isPortal && "h-svh max-h-svh overflow-hidden"
       )}
       initial={{
         opacity: 0,
-        y: config.y,
-        ...(config.blur > 0 ? { filter: `blur(${config.blur}px)` } : {}),
+        y: yOffset,
+        ...(useBlur ? { filter: `blur(${config.blur}px)` } : {}),
       }}
       animate={{
         opacity: 1,
         y: 0,
-        ...(config.blur > 0 ? { filter: "none" } : {}),
+        ...(useBlur ? { filter: "blur(0px)" } : {}),
       }}
       transition={{
-        duration: config.duration,
-        ease: isPortal ? [0.4, 0, 0.2, 1] : premiumEase,
+        duration,
+        ease: isPortal && !simpleMotion ? [0.4, 0, 0.2, 1] : premiumEase,
       }}
       onAnimationComplete={() => setSettledPath(pathname)}
     >

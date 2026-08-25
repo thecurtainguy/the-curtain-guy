@@ -166,10 +166,21 @@
   body {
     @apply bg-background text-foreground;
     background-image: var(--body-gradient);
-    background-attachment: fixed;
+    background-attachment: scroll;
   }
   html {
     @apply font-sans;
+    scroll-padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+  }
+
+  @media (min-width: 768px) {
+    body {
+      background-attachment: fixed;
+    }
+
+    html {
+      scroll-padding-top: calc(4.25rem + env(safe-area-inset-top, 0px));
+    }
   }
   h1,
   h2,
@@ -331,6 +342,13 @@
   .page-transition-settled {
     transform: none !important;
     filter: none !important;
+  }
+
+  /* Android Chrome can leave blur stuck after full reload — force-clear on mobile */
+  @media (max-width: 767px), (pointer: coarse) {
+    [data-page-transition] {
+      filter: none !important;
+    }
   }
 
   /* Full-viewport 404 curtain — portaled to body; starts closed, opens 2.5s */

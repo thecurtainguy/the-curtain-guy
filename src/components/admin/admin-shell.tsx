@@ -74,6 +74,7 @@ export function AdminShell({
       sidebar={sidebar}
       fillViewport={isStudioEditor}
       sidebarStorageKey="tcg-admin-sidebar-collapsed"
+      mobileBrandHref="/admin"
     >
       {children}
     </PortalShell>

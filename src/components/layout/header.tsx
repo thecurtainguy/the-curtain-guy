@@ -98,12 +98,15 @@ export function Header() {
   return (
     <header
       className={cn(
-        // overflow-anchor-none: sticky height/style changes must not re-anchor scroll
-        "sticky top-0 z-50 overflow-anchor-none border-b border-border/40 bg-background/70 backdrop-blur-xl supports-backdrop-filter:bg-background/60",
+        // Fixed on mobile avoids sticky + transform scroll bugs (homepage especially).
+        // Desktop keeps sticky so long pages don't need a spacer in the layout.
+        "fixed left-0 right-0 top-0 z-50 w-full overflow-anchor-none border-b border-border/40 lg:sticky lg:left-auto lg:right-auto",
+        "pt-[env(safe-area-inset-top,0px)]",
+        "bg-background lg:bg-background/70 lg:backdrop-blur-xl lg:supports-backdrop-filter:bg-background/60",
         "transition-[background-color,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         "motion-reduce:transition-none",
         compact &&
-          "border-border/50 bg-background/88 shadow-[0_10px_28px_-18px_oklch(0_0_0/0.45)]"
+          "border-border/50 shadow-[0_10px_28px_-18px_oklch(0_0_0/0.45)] lg:bg-background/88"
       )}
     >
       <div
@@ -168,62 +171,68 @@ export function Header() {
                 <Menu />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="border-border/50 bg-background">
-              <SheetHeader className="items-start">
+            <SheetContent
+              side="right"
+              className="flex h-dvh max-h-dvh w-full flex-col gap-0 overflow-hidden border-border/50 bg-background p-0 sm:max-w-sm"
+            >
+              <SheetHeader className="shrink-0 items-start px-4 pb-3 pt-[max(1.25rem,env(safe-area-inset-top,0px))]">
                 <SheetTitle className="sr-only">{siteConfig.name}</SheetTitle>
                 <BrandLogo
                   href="/"
-                  size="xl"
+                  size="header"
+                  compact
                   onClick={() => setMobileOpen(false)}
                 />
               </SheetHeader>
-              <nav className="flex flex-col gap-1 px-4" aria-label="Mobile">
-                {navLinks.map((link) => {
-                  const Icon = link.icon;
-                  const isActive =
-                    link.href === "/"
-                      ? pathname === "/"
-                      : pathname === link.href ||
-                        pathname.startsWith(`${link.href}/`);
+              <div className="luxury-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
+                <nav className="flex flex-col gap-0.5" aria-label="Mobile">
+                  {navLinks.map((link) => {
+                    const Icon = link.icon;
+                    const isActive =
+                      link.href === "/"
+                        ? pathname === "/"
+                        : pathname === link.href ||
+                          pathname.startsWith(`${link.href}/`);
 
-                  return (
+                    return (
+                      <GuardedLink
+                        key={link.href}
+                        href={link.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          "flex min-h-10 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                          link.special
+                            ? "text-primary"
+                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                          isActive && "bg-muted/60 text-foreground"
+                        )}
+                      >
+                        {Icon && <Icon className="size-4 shrink-0" />}
+                        {link.label}
+                      </GuardedLink>
+                    );
+                  })}
+
+                  <HeaderAccountMenu
+                    session={session}
+                    variant="mobile"
+                    onNavigate={() => setMobileOpen(false)}
+                  />
+
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
+                    <span className="text-sm text-muted-foreground">Theme</span>
+                    <ThemeToggle />
+                  </div>
+                  <Button asChild className="mt-3 w-full min-h-10">
                     <GuardedLink
-                      key={link.href}
-                      href={link.href}
+                      href="/get-estimate"
                       onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        "flex min-h-11 items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-colors",
-                        link.special
-                          ? "text-primary"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                        isActive && "bg-muted/60 text-foreground"
-                      )}
                     >
-                      {Icon && <Icon className="size-4" />}
-                      {link.label}
+                      Get Estimate
                     </GuardedLink>
-                  );
-                })}
-
-                <HeaderAccountMenu
-                  session={session}
-                  variant="mobile"
-                  onNavigate={() => setMobileOpen(false)}
-                />
-
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
-                  <span className="text-sm text-muted-foreground">Theme</span>
-                  <ThemeToggle />
-                </div>
-                <Button asChild className="mt-2 w-full">
-                  <GuardedLink
-                    href="/get-estimate"
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    Get Estimate
-                  </GuardedLink>
-                </Button>
-              </nav>
+                  </Button>
+                </nav>
+              </div>
             </SheetContent>
           </Sheet>
         </div>

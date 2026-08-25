@@ -87,11 +87,18 @@ export function HeaderAccountMenu({
   if (!session.authenticated) {
     if (variant === "mobile") {
       return (
-        <Button asChild variant="outline" className={cn("w-full", className)}>
-          <GuardedLink href="/account/login" onClick={onNavigate}>
-            Sign in
-          </GuardedLink>
-        </Button>
+        <div
+          className={cn(
+            "mt-3 border-t border-border/40 pt-3",
+            className
+          )}
+        >
+          <Button asChild variant="outline" className="w-full min-h-10">
+            <GuardedLink href="/account/login" onClick={onNavigate}>
+              Sign in
+            </GuardedLink>
+          </Button>
+        </div>
       );
     }
 
@@ -117,12 +124,17 @@ export function HeaderAccountMenu({
 
   if (variant === "mobile") {
     return (
-      <div className={cn("mt-4 flex flex-col gap-1", className)}>
+      <div
+        className={cn(
+          "mt-3 flex flex-col gap-0.5 border-t border-border/40 pt-3",
+          className
+        )}
+      >
         <p className="px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
           {session.role === "owner" ? "Owner portal" : "Your account"}
         </p>
         {session.email ? (
-          <p className="truncate px-3 pb-1 text-xs text-muted-foreground">
+          <p className="truncate px-3 pb-0.5 text-xs text-muted-foreground">
             {session.email}
           </p>
         ) : null}
@@ -133,9 +145,9 @@ export function HeaderAccountMenu({
               key={link.href}
               href={link.href}
               onClick={onNavigate}
-              className="flex min-h-11 items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
             >
-              <Icon className="size-4 text-primary" strokeWidth={1.75} />
+              <Icon className="size-4 shrink-0 text-primary" strokeWidth={1.75} />
               {link.label}
             </GuardedLink>
           );
@@ -143,9 +155,9 @@ export function HeaderAccountMenu({
         <button
           type="button"
           onClick={() => void signOut()}
-          className="flex min-h-11 items-center gap-2 rounded-xl px-3 py-3 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
+          className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
         >
-          <LogOut className="size-4" strokeWidth={1.75} />
+          <LogOut className="size-4 shrink-0" strokeWidth={1.75} />
           Sign out
         </button>
       </div>

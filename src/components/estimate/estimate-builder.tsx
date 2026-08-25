@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -91,6 +91,8 @@ export function EstimateBuilder() {
     adminEstimateHref?: string | null;
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const formTopRef = useRef<HTMLDivElement>(null);
+  const skipStepScrollRef = useRef(true);
 
   const step = estimateBuilderSteps[currentStep];
   const isFirstStep = currentStep === 0;
@@ -125,6 +127,37 @@ export function EstimateBuilder() {
       clearDirty();
     };
   }, [clearDirty]);
+
+  useEffect(() => {
+    if (skipStepScrollRef.current) {
+      skipStepScrollRef.current = false;
+      return;
+    }
+
+    // Success screen handles its own confetti + scroll — this effect only runs in the builder.
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    if (!mobile) {
+      return;
+    }
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    const node = formTopRef.current;
+    if (!node) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      node.scrollIntoView({
+        block: "start",
+        inline: "nearest",
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentStep]);
 
   function updateField<K extends keyof EstimateFormData>(
     field: K,
@@ -303,7 +336,7 @@ export function EstimateBuilder() {
   }
 
   return (
-    <div className="space-y-8">
+    <div ref={formTopRef} className="space-y-8 scroll-mt-[calc(4rem+env(safe-area-inset-top,0px))]">
       <input
         type="text"
         name="website"

@@ -7,7 +7,7 @@ import { Reveal } from "@/components/animation/reveal";
 
 export function HeroSection() {
   return (
-    <SectionShell variant="glow" className="overflow-hidden">
+    <SectionShell variant="glow" className="overflow-hidden max-lg:overflow-anchor-none">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_75%_25%,rgba(212,175,55,0.12),transparent_55%)]"
         aria-hidden

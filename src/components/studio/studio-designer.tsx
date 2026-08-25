@@ -304,10 +304,31 @@ export function StudioDesigner(props: StudioDesignerProps) {
         void save();
       }
       if (event.key === "Escape") setSelection(null);
+      if (
+        (event.key === "Delete" || event.key === "Backspace") &&
+        selection?.kind === "object"
+      ) {
+        const target = event.target;
+        const editing =
+          target instanceof HTMLElement &&
+          (target.matches("input, textarea, select") ||
+            target.isContentEditable ||
+            Boolean(target.closest('[contenteditable="true"]')));
+        if (!editing) {
+          event.preventDefault();
+          changeDesign({
+            ...design,
+            objects: design.objects.filter(
+              (object) => object.id !== selection.id
+            ),
+          });
+          setSelection(null);
+        }
+      }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [save]);
+  }, [changeDesign, design, save, selection]);
 
   const leftRail = (
     <StudioLeftRail

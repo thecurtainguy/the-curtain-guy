@@ -50,8 +50,8 @@ export default async function NewStudioDesignPage({
         : undefined;
 
   return (
-    <div className="min-h-screen bg-background p-2 sm:p-3">
-      <div className="mx-auto mb-2 flex max-w-[1900px] items-center justify-between gap-3 px-1 py-1">
+    <div className="flex h-svh max-h-svh flex-col overflow-hidden bg-background p-1.5 sm:p-2">
+      <div className="mx-auto mb-1.5 flex w-full max-w-[1920px] shrink-0 items-center justify-between gap-3 px-1">
         <Link
           href={
             accessMode === "admin"
@@ -60,7 +60,7 @@ export default async function NewStudioDesignPage({
                 ? "/account/studio"
                 : "/studio"
           }
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+          className="inline-flex min-h-9 items-center gap-2 rounded-xl px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
           Back to Studio
@@ -82,7 +82,7 @@ export default async function NewStudioDesignPage({
           jobId: params.jobId,
           opportunityRef: params.opportunityRef,
         }}
-        className="mx-auto max-w-[1900px] lg:h-[calc(100svh-3.75rem)]"
+        className="mx-auto min-h-0 w-full max-w-[1920px] flex-1"
       />
     </div>
   );

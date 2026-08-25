@@ -8,6 +8,8 @@ export const STUDIO_MAX_PAYLOAD_BYTES = 256 * 1024;
 export const STUDIO_TITLE_MAX_LENGTH = 160;
 export const STUDIO_LABEL_MAX_LENGTH = 160;
 export const STUDIO_NOTES_MAX_LENGTH = 5000;
+export const STUDIO_OBJECT_NOTES_MAX_LENGTH = 1000;
+export const STUDIO_MAX_SEATING_COUNT = 10000;
 
 export const STUDIO_STATUSES = ["draft", "saved", "archived"] as const;
 export type StudioDesignStatus = (typeof STUDIO_STATUSES)[number];
@@ -73,13 +75,50 @@ export const STUDIO_OBJECT_TYPES = [
   "stage",
   "dance_floor",
   "entrance_marker",
+  "round_table",
+  "rectangle_table",
+  "cocktail_table",
   "table_area",
+  "dj_booth",
+  "bar",
+  "lounge_area",
 ] as const;
 export type StudioObjectType = (typeof STUDIO_OBJECT_TYPES)[number];
 
-export type StudioObject = {
+export const DANCE_FLOOR_FINISHES = [
+  { value: "white_gloss", label: "White gloss" },
+  { value: "black_gloss", label: "Black gloss" },
+  { value: "checkerboard", label: "Checkerboard" },
+  { value: "warm_parquet", label: "Warm parquet" },
+  { value: "oak", label: "Oak" },
+  { value: "dark_wood", label: "Dark wood" },
+  { value: "neutral_event_carpet", label: "Neutral event carpet" },
+  { value: "led_starlit", label: "LED / starlit (placeholder)" },
+  {
+    value: "custom_wrap_monogram",
+    label: "Custom wrap / monogram (placeholder)",
+  },
+] as const;
+export type DanceFloorFinish =
+  (typeof DANCE_FLOOR_FINISHES)[number]["value"];
+export const DEFAULT_DANCE_FLOOR_FINISH: DanceFloorFinish = "white_gloss";
+
+export const GENERIC_OBJECT_FINISHES = [
+  { value: "natural_wood", label: "Natural wood" },
+  { value: "painted_white", label: "Painted white" },
+  { value: "painted_black", label: "Painted black" },
+  { value: "metal", label: "Metal" },
+  { value: "upholstered", label: "Upholstered" },
+  { value: "custom", label: "Custom" },
+] as const;
+export type GenericStudioObjectFinish =
+  (typeof GENERIC_OBJECT_FINISHES)[number]["value"];
+export type StudioObjectFinish =
+  | DanceFloorFinish
+  | GenericStudioObjectFinish;
+
+type StudioObjectBase = {
   id: string;
-  type: StudioObjectType;
   label: string;
   x: number;
   z: number;
@@ -87,7 +126,24 @@ export type StudioObject = {
   depth: number;
   height: number;
   rotation: number;
+  notes?: string;
+  seatingCount?: number;
 };
+
+export type StudioObjectFinishFor<T extends StudioObjectType> =
+  T extends "dance_floor" ? DanceFloorFinish : GenericStudioObjectFinish;
+
+export type StudioObject = {
+  [T in StudioObjectType]: StudioObjectBase & {
+    type: T;
+    finish?: StudioObjectFinishFor<T>;
+  };
+}[StudioObjectType];
+
+export type StudioObjectOfType<T extends StudioObjectType> = Extract<
+  StudioObject,
+  { type: T }
+>;
 
 export const DRAPE_RUN_TYPES = [
   "wall_drape",
@@ -140,6 +196,8 @@ export type StudioRoom = {
   templateDimensions?: {
     width: number;
     length: number;
+    originX?: number;
+    originZ?: number;
     cutoutWidth?: number;
     cutoutDepth?: number;
   };
@@ -268,6 +326,7 @@ export const STUDIO_OBJECT_OPTIONS = [
     width: 240,
     depth: 240,
     height: 2,
+    finish: DEFAULT_DANCE_FLOOR_FINISH,
   },
   {
     type: "entrance_marker",
@@ -277,11 +336,58 @@ export const STUDIO_OBJECT_OPTIONS = [
     height: 84,
   },
   {
+    type: "round_table",
+    label: "Round table",
+    width: 60,
+    depth: 60,
+    height: 30,
+    seatingCount: 8,
+  },
+  {
+    type: "rectangle_table",
+    label: "Rectangle table",
+    width: 96,
+    depth: 36,
+    height: 30,
+    seatingCount: 8,
+  },
+  {
+    type: "cocktail_table",
+    label: "Cocktail table",
+    width: 36,
+    depth: 36,
+    height: 42,
+    seatingCount: 4,
+  },
+  {
     type: "table_area",
     label: "Table area",
     width: 120,
     depth: 120,
     height: 30,
+    seatingCount: 10,
+  },
+  {
+    type: "dj_booth",
+    label: "DJ booth",
+    width: 72,
+    depth: 36,
+    height: 42,
+  },
+  {
+    type: "bar",
+    label: "Bar",
+    width: 96,
+    depth: 30,
+    height: 42,
+  },
+  {
+    type: "lounge_area",
+    label: "Lounge area",
+    width: 144,
+    depth: 120,
+    height: 36,
+    seatingCount: 8,
   },
 ] satisfies Array<{
   type: StudioObjectType;
@@ -289,6 +395,8 @@ export const STUDIO_OBJECT_OPTIONS = [
   width: number;
   depth: number;
   height: number;
+  finish?: DanceFloorFinish;
+  seatingCount?: number;
 }>;
 
 export const STUDIO_STATUS_LABELS: Record<StudioDesignStatus, string> = {
@@ -358,6 +466,23 @@ function isRequiredString(value: unknown, maxLength: number): value is string {
 
 function isOptionalString(value: unknown, maxLength: number): boolean {
   return value === undefined || (typeof value === "string" && value.length <= maxLength);
+}
+
+function isOptionalSeatingCount(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= 0 &&
+      value <= STUDIO_MAX_SEATING_COUNT)
+  );
+}
+
+function isValidStudioObjectFinish(type: unknown, finish: unknown): boolean {
+  if (finish === undefined) return true;
+  const options =
+    type === "dance_floor" ? DANCE_FLOOR_FINISHES : GENERIC_OBJECT_FINISHES;
+  return options.some((option) => option.value === finish);
 }
 
 function getFloorWallLength(
@@ -629,7 +754,13 @@ export function validateStudioDesign(
         templateDimensions.width > 120000 ||
         !isFiniteNumber(templateDimensions.length) ||
         templateDimensions.length < minimumSide ||
-        templateDimensions.length > 120000
+        templateDimensions.length > 120000 ||
+        (templateDimensions.originX !== undefined &&
+          (!isFiniteNumber(templateDimensions.originX) ||
+            Math.abs(templateDimensions.originX) > 120000)) ||
+        (templateDimensions.originZ !== undefined &&
+          (!isFiniteNumber(templateDimensions.originZ) ||
+            Math.abs(templateDimensions.originZ) > 120000))
       ) {
         errors.push(
           "Room template width and length must use valid, in-range dimensions."
@@ -649,12 +780,17 @@ export function validateStudioDesign(
             "L-shape cutout dimensions must fit inside the room with at least one foot remaining."
           );
         } else {
+          const originX = templateDimensions.originX ?? 0;
+          const originZ = templateDimensions.originZ ?? 0;
           expectedTemplateFloor = createLShapeRoom(
             templateDimensions.width,
             templateDimensions.length,
             templateDimensions.cutoutWidth,
             templateDimensions.cutoutDepth
-          );
+          ).map((point) => ({
+            x: point.x + originX,
+            z: point.z + originZ,
+          }));
         }
       } else if (
         templateDimensions.cutoutWidth !== undefined ||
@@ -664,10 +800,15 @@ export function validateStudioDesign(
           "Rectangle room templates cannot include L-shape cutout dimensions."
         );
       } else {
+        const originX = templateDimensions.originX ?? 0;
+        const originZ = templateDimensions.originZ ?? 0;
         expectedTemplateFloor = createRectangleRoom(
           templateDimensions.width,
           templateDimensions.length
-        );
+        ).map((point) => ({
+          x: point.x + originX,
+          z: point.z + originZ,
+        }));
       }
     }
     const floor = room.floor;
@@ -768,7 +909,10 @@ export function validateStudioDesign(
         object.height < 0 ||
         object.height > 600 ||
         !isFiniteNumber(object.rotation) ||
-        Math.abs(object.rotation) > 36000
+        Math.abs(object.rotation) > 36000 ||
+        !isOptionalString(object.notes, STUDIO_OBJECT_NOTES_MAX_LENGTH) ||
+        !isValidStudioObjectFinish(object.type, object.finish) ||
+        !isOptionalSeatingCount(object.seatingCount)
       ) {
         errors.push("One or more room objects are invalid.");
         break;

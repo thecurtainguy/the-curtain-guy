@@ -240,6 +240,8 @@ export function updateTemplateRoomDimensions(
   dimensions: {
     width: number;
     length: number;
+    originX?: number;
+    originZ?: number;
     cutoutWidth?: number;
     cutoutDepth?: number;
     wallHeight?: number;
@@ -276,6 +278,22 @@ export function updateTemplateRoomDimensions(
   const length = Number.isFinite(requestedLength)
     ? Math.min(120000, Math.max(minimumSide, requestedLength ?? minimumSide))
     : minimumSide;
+  const currentOriginX = design.room.templateDimensions?.originX ?? 0;
+  const currentOriginZ = design.room.templateDimensions?.originZ ?? 0;
+  const requestedOriginX = Number.isFinite(dimensions.originX)
+    ? (dimensions.originX ?? currentOriginX)
+    : currentOriginX;
+  const requestedOriginZ = Number.isFinite(dimensions.originZ)
+    ? (dimensions.originZ ?? currentOriginZ)
+    : currentOriginZ;
+  const originX = Math.min(
+    120000 - width,
+    Math.max(-120000, requestedOriginX)
+  );
+  const originZ = Math.min(
+    120000 - length,
+    Math.max(-120000, requestedOriginZ)
+  );
   const requestedCutoutWidth = Number.isFinite(dimensions.cutoutWidth)
     ? (dimensions.cutoutWidth ?? width / 3)
     : width / 3;
@@ -290,10 +308,14 @@ export function updateTemplateRoomDimensions(
     length - 12,
     Math.max(12, requestedCutoutDepth)
   );
-  const floor =
+  const originFloor =
     design.room.shape === "l_shape"
       ? createLShapeRoom(width, length, cutoutWidth, cutoutDepth)
       : createRectangleRoom(width, length);
+  const floor = originFloor.map((point) => ({
+    x: point.x + originX,
+    z: point.z + originZ,
+  }));
 
   const next = {
     ...design,
@@ -304,6 +326,8 @@ export function updateTemplateRoomDimensions(
       templateDimensions: {
         width,
         length,
+        ...(originX !== 0 ? { originX } : {}),
+        ...(originZ !== 0 ? { originZ } : {}),
         ...(design.room.shape === "l_shape"
           ? {
               cutoutWidth,

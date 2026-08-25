@@ -81,6 +81,7 @@ export function AccountShell({
   const pathname = usePathname();
   const router = useRouter();
   const section = sectionFromPath(pathname);
+  const isStudioEditor = /^\/account\/studio\/[^/]+\/?$/.test(pathname);
 
   async function signOut() {
     const supabase = createBrowserSupabaseClient();
@@ -120,6 +121,7 @@ export function AccountShell({
       sidebar={sidebar}
       topbarTitle={section.title}
       topbarSubtitle={section.subtitle}
+      fillViewport={isStudioEditor}
       topbarActions={
         <>
           <Button asChild size="sm" className="hidden sm:inline-flex">

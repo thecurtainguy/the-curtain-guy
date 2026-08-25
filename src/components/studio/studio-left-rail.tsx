@@ -6,6 +6,7 @@ import {
   createStudioItemId,
   type DrapeRunType,
   type StudioDesignJson,
+  type StudioObject,
   type StudioObjectType,
 } from "@/data/studio";
 import {
@@ -14,12 +15,19 @@ import {
 } from "@/lib/studio-geometry";
 import {
   AppWindow,
+  Circle,
+  Disc3,
   DoorOpen,
   GalleryHorizontalEnd,
+  Grid2X2,
+  Martini,
+  Music2,
   PanelsTopLeft,
   RectangleHorizontal,
+  Sofa,
   SplitSquareHorizontal,
   Table2,
+  Warehouse,
 } from "lucide-react";
 import { RoomSetupPanel } from "./room-setup-panel";
 import type { StudioSelection } from "./studio-types";
@@ -33,10 +41,29 @@ type StudioLeftRailProps = {
 };
 
 const objectIcons: Record<StudioObjectType, typeof AppWindow> = {
-  stage: AppWindow,
-  dance_floor: RectangleHorizontal,
+  stage: Warehouse,
+  dance_floor: Disc3,
   entrance_marker: DoorOpen,
-  table_area: Table2,
+  round_table: Circle,
+  rectangle_table: Table2,
+  cocktail_table: Martini,
+  table_area: Grid2X2,
+  dj_booth: Music2,
+  bar: AppWindow,
+  lounge_area: Sofa,
+};
+
+const objectDescriptions: Record<StudioObjectType, string> = {
+  stage: "Raised platform",
+  dance_floor: "Nine finish presets",
+  entrance_marker: "Upright wayfinding",
+  round_table: "Circular guest table",
+  rectangle_table: "Banquet table",
+  cocktail_table: "High-top table",
+  table_area: "Flexible seating zone",
+  dj_booth: "Music station",
+  bar: "Service counter",
+  lounge_area: "Soft seating zone",
 };
 
 export function StudioLeftRail({
@@ -113,18 +140,29 @@ export function StudioLeftRail({
     if (!option) return;
     const bounds = getStudioBounds(design.room.floor);
     const id = createStudioItemId("object");
+    const nextObject: StudioObject =
+      option.type === "dance_floor"
+        ? {
+            ...option,
+            id,
+            x: bounds.centerX,
+            z: bounds.centerZ,
+            rotation: 0,
+            notes: "",
+            finish: option.finish,
+          }
+        : {
+            ...option,
+            id,
+            x: bounds.centerX,
+            z: bounds.centerZ,
+            rotation: 0,
+            notes: "",
+            finish: "natural_wood",
+          };
     onChange({
       ...design,
-      objects: [
-        ...design.objects,
-        {
-          ...option,
-          id,
-          x: bounds.centerX,
-          z: bounds.centerZ,
-          rotation: 0,
-        },
-      ],
+      objects: [...design.objects, nextObject],
     });
     onSelect({ kind: "object", id });
   }
@@ -196,15 +234,21 @@ export function StudioLeftRail({
             id={`${idPrefix}-objects-heading`}
             className="font-heading text-lg"
           >
-            Placeholders
+            Event object library
           </h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Place furniture, production, and guest-flow zones, then refine them
+            in the inspector.
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-1.5">
           {STUDIO_OBJECT_OPTIONS.map((option) => (
             <ToolButton
               key={option.type}
               icon={objectIcons[option.type]}
               label={option.label}
+              description={objectDescriptions[option.type]}
+              layout="row"
               onClick={() => addObject(option.type)}
             />
           ))}
@@ -217,10 +261,14 @@ export function StudioLeftRail({
 function ToolButton({
   icon: Icon,
   label,
+  description,
+  layout = "tile",
   onClick,
 }: {
   icon: typeof AppWindow;
   label: string;
+  description?: string;
+  layout?: "tile" | "row";
   onClick: () => void;
 }) {
   return (
@@ -228,10 +276,25 @@ function ToolButton({
       type="button"
       variant="outline"
       onClick={onClick}
-      className="h-auto min-w-0 flex-col gap-1.5 rounded-2xl py-3 text-xs"
+      className={
+        layout === "row"
+          ? "group h-auto w-full min-w-0 items-center justify-start gap-3 rounded-2xl border-border/50 bg-background/35 px-3 py-2.5 text-left text-xs hover:border-primary/35 hover:bg-primary/5"
+          : "group h-auto min-w-0 items-start justify-start gap-2 rounded-2xl border-border/50 bg-background/35 px-3 py-3 text-left text-xs hover:border-primary/35 hover:bg-primary/5"
+      }
     >
-      <Icon className="size-4 text-primary" aria-hidden="true" />
-      <span className="truncate">{label}</span>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+        <Icon className="size-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold whitespace-normal text-foreground">
+          {label}
+        </span>
+        {description ? (
+          <span className="mt-0.5 block text-[0.62rem] leading-tight font-normal text-muted-foreground">
+            {description}
+          </span>
+        ) : null}
+      </span>
     </Button>
   );
 }

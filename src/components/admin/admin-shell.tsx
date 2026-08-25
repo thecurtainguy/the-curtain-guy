@@ -73,6 +73,7 @@ export function AdminShell({
   const pathname = usePathname();
   const router = useRouter();
   const section = sectionFromPath(pathname);
+  const isStudioEditor = /^\/admin\/studio\/[^/]+\/?$/.test(pathname);
 
   async function signOut() {
     const supabase = createBrowserSupabaseClient();
@@ -109,6 +110,7 @@ export function AdminShell({
       sidebar={sidebar}
       topbarTitle={section.title}
       topbarSubtitle={section.subtitle}
+      fillViewport={isStudioEditor}
       topbarBadge={
         <span className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
           Owner

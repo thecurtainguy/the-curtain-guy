@@ -5,9 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type {
+  StudioObjectType,
   StudioDesignJson,
   StudioObject,
   StudioOpening,
+} from "@/data/studio";
+import {
+  DANCE_FLOOR_FINISHES,
+  GENERIC_OBJECT_FINISHES,
+  STUDIO_MAX_SEATING_COUNT,
+  STUDIO_OBJECT_OPTIONS,
+  createStudioItemId,
 } from "@/data/studio";
 import {
   calculateDrapeLength,
@@ -16,11 +24,19 @@ import {
   inchesToFeetLabel,
 } from "@/lib/studio-geometry";
 import {
+  STUDIO_OBJECT_MIN_DIMENSIONS,
+  getStudioObjectBoundsResult,
+} from "@/lib/studio-interactions";
+import {
   Box,
   CheckCircle2,
   Clock3,
+  Copy,
   DoorOpen,
+  Minus,
   PanelsTopLeft,
+  Plus,
+  RotateCcw,
   ScissorsLineDashed,
   Trash2,
   TriangleAlert,
@@ -55,6 +71,14 @@ const saveCopy: Record<StudioSaveState, string> = {
   error: "Save needs attention",
 };
 
+const seatingObjectTypes: StudioObjectType[] = [
+  "round_table",
+  "rectangle_table",
+  "cocktail_table",
+  "table_area",
+  "lounge_area",
+];
+
 export function StudioRightRail({
   design,
   onChange,
@@ -80,7 +104,12 @@ export function StudioRightRail({
     selection?.kind === "wall" ? walls[selection.index] : undefined;
 
   function remove(kind: "drape" | "object" | "opening", id: string) {
-    if (!window.confirm("Remove this item from the studio design?")) return;
+    if (
+      kind !== "object" &&
+      !window.confirm("Remove this item from the studio design?")
+    ) {
+      return;
+    }
     onChange({
       ...design,
       drapeRuns:
@@ -144,6 +173,7 @@ export function StudioRightRail({
             design={design}
             object={selectedObject}
             onChange={onChange}
+            onSelect={onSelect}
             idPrefix={`${idPrefix}-object`}
           />
         </SelectedPanel>
@@ -253,25 +283,70 @@ function ObjectEditor({
   design,
   object,
   onChange,
+  onSelect,
   idPrefix,
 }: {
   design: StudioDesignJson;
   object: StudioObject;
   onChange: (design: StudioDesignJson) => void;
+  onSelect: (selection: StudioSelection) => void;
   idPrefix: string;
 }) {
   const fieldId = (name: string) => `${idPrefix}-${name}-${object.id}`;
+  const minimums = STUDIO_OBJECT_MIN_DIMENSIONS[object.type];
+  const boundsResult = getStudioObjectBoundsResult(object, design.room.floor);
+  const typeLabel =
+    STUDIO_OBJECT_OPTIONS.find((option) => option.type === object.type)?.label ??
+    object.type.replaceAll("_", " ");
+  const finishOptions =
+    object.type === "dance_floor"
+      ? DANCE_FLOOR_FINISHES
+      : GENERIC_OBJECT_FINISHES;
+  const showsSeating = seatingObjectTypes.includes(object.type);
   function update(patch: Partial<StudioObject>) {
+    const nextObject = { ...object, ...patch } as StudioObject;
     onChange({
       ...design,
       objects: design.objects.map((item) =>
-        item.id === object.id ? { ...item, ...patch } : item
+        item.id === object.id ? nextObject : item
       ),
     });
   }
 
+  function duplicate() {
+    const duplicateObject: StudioObject = {
+      ...object,
+      id: createStudioItemId("object"),
+      label: `${object.label} copy`,
+      x: object.x + 12,
+      z: object.z + 12,
+    };
+    onChange({
+      ...design,
+      objects: [...design.objects, duplicateObject],
+    });
+    onSelect({ kind: "object", id: duplicateObject.id });
+  }
+
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-border/60 bg-background/45 p-3">
+        <p className="text-[0.62rem] font-semibold tracking-[0.18em] text-primary uppercase">
+          {typeLabel}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Position {inchesToFeetLabel(object.x)}, {inchesToFeetLabel(object.z)}
+        </p>
+      </div>
+      {!boundsResult.contained ? (
+        <div
+          className="flex gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"
+          role="status"
+        >
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>{boundsResult.warning}</span>
+        </div>
+      ) : null}
       <Field label="Label" id={fieldId("label")}>
         <Input
           id={fieldId("label")}
@@ -292,14 +367,35 @@ function ObjectEditor({
               id={fieldId(key)}
               type="number"
               step="0.5"
-              min={key === "x" || key === "z" ? undefined : 0}
+              min={
+                key === "x" || key === "z"
+                  ? undefined
+                  : key === "width"
+                    ? feetValue(minimums.width)
+                    : key === "depth"
+                      ? feetValue(minimums.depth)
+                      : 0
+              }
               value={feetValue(object[key])}
               onChange={(event) =>
                 update({
                   [key]:
                     key === "x" || key === "z"
                       ? signedFeetInput(event.target.value, object[key])
-                      : feetInput(event.target.value, object[key]),
+                      : key === "width"
+                        ? Math.max(
+                            minimums.width,
+                            feetInput(event.target.value, object[key])
+                          )
+                        : key === "depth"
+                          ? Math.max(
+                              minimums.depth,
+                              feetInput(event.target.value, object[key])
+                            )
+                          : Math.max(
+                              0,
+                              feetInput(event.target.value, object[key])
+                            ),
                 })
               }
               className="input-no-spin"
@@ -321,6 +417,97 @@ function ObjectEditor({
           />
         </Field>
       </div>
+      <div className="grid grid-cols-3 gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => update({ rotation: object.rotation - 15 })}
+          aria-label="Rotate object minus 15 degrees"
+        >
+          <Minus aria-hidden="true" />
+          15°
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => update({ rotation: 0 })}
+          aria-label="Reset object rotation"
+        >
+          <RotateCcw aria-hidden="true" />
+          Reset
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => update({ rotation: object.rotation + 15 })}
+          aria-label="Rotate object plus 15 degrees"
+        >
+          <Plus aria-hidden="true" />
+          15°
+        </Button>
+      </div>
+      <Field label="Finish" id={fieldId("finish")}>
+        <select
+          id={fieldId("finish")}
+          value={
+            object.finish ??
+            (object.type === "dance_floor" ? "white_gloss" : "natural_wood")
+          }
+          onChange={(event) =>
+            update({ finish: event.target.value as StudioObject["finish"] })
+          }
+          className="h-8 w-full rounded-2xl bg-input/50 px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {finishOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      {showsSeating ? (
+        <Field label="Seating count" id={fieldId("seating")}>
+          <Input
+            id={fieldId("seating")}
+            type="number"
+            min={0}
+            max={STUDIO_MAX_SEATING_COUNT}
+            step={1}
+            value={object.seatingCount ?? 0}
+            onChange={(event) =>
+              update({
+                seatingCount: Math.min(
+                  STUDIO_MAX_SEATING_COUNT,
+                  Math.max(0, Math.round(parseNumber(event.target.value, 0)))
+                ),
+              })
+            }
+            className="input-no-spin"
+          />
+        </Field>
+      ) : null}
+      <Field label="Object notes" id={fieldId("notes")}>
+        <Textarea
+          id={fieldId("notes")}
+          rows={3}
+          maxLength={1000}
+          value={object.notes ?? ""}
+          placeholder="Placement, finish, or setup notes…"
+          onChange={(event) => update({ notes: event.target.value })}
+        />
+      </Field>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={duplicate}
+      >
+        <Copy aria-hidden="true" />
+        Duplicate object
+      </Button>
     </div>
   );
 }

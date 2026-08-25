@@ -35,9 +35,9 @@ export default async function AccountStudioDesignPage({ params }: PageProps) {
 
   return (
     <AccountPageFrame email={current.profile.email}>
-      <EmailVerificationBanner verified={isEmailVerified(current.user)} />
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card/20 px-4 py-3">
+      <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden">
+        <EmailVerificationBanner verified={isEmailVerified(current.user)} />
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/40 bg-card/20 px-3 py-2">
           <Link
             href="/account/studio"
             className="text-sm text-muted-foreground transition-colors hover:text-primary"
@@ -72,7 +72,7 @@ export default async function AccountStudioDesignPage({ params }: PageProps) {
           initialDesignRecord={design}
           accessMode="customer"
           apiBase="/api/account/studio"
-          className="lg:h-[calc(100svh-9.25rem)] lg:min-h-[640px]"
+          className="min-h-0 flex-1"
         />
       </div>
     </AccountPageFrame>

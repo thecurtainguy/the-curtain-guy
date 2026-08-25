@@ -29,8 +29,8 @@ export default async function AdminStudioDesignPage({ params }: PageProps) {
 
   return (
     <AdminPageFrame email={owner.profile.email}>
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card/20 px-4 py-3">
+      <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/40 bg-card/20 px-3 py-2">
           <Link
             href="/admin/studio"
             className="text-sm text-muted-foreground transition-colors hover:text-primary"
@@ -61,7 +61,7 @@ export default async function AdminStudioDesignPage({ params }: PageProps) {
           initialDesignRecord={design}
           accessMode="admin"
           apiBase="/api/admin/studio"
-          className="lg:h-[calc(100svh-9.25rem)] lg:min-h-[640px]"
+          className="min-h-0 flex-1"
         />
       </div>
     </AdminPageFrame>

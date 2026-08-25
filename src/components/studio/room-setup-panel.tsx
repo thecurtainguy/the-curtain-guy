@@ -215,7 +215,7 @@ export function RoomSetupPanel({
           <p className="text-xs font-medium">Basic polygon retained</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             Custom mode preserves the current {design.room.floor.length}-point
-            outline. Advanced point drawing arrives in a later phase.
+            outline. Direct point and edge editing is unavailable in Beta.
           </p>
         </div>
       ) : (
@@ -248,6 +248,12 @@ export function RoomSetupPanel({
               />
             </>
           )}
+          {design.room.shape === "l_shape" ? (
+            <p className="col-span-2 rounded-2xl border border-primary/15 bg-primary/5 p-2.5 text-[0.68rem] leading-relaxed text-muted-foreground">
+              Guarded Beta: use these dimensions for reliable L-shape changes.
+              Direct edge editing is unavailable.
+            </p>
+          ) : null}
         </div>
       )}
 

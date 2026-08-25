@@ -12,7 +12,7 @@ export function PortalCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border/40 bg-card/25",
+        "rounded-2xl border border-border bg-card shadow-sm",
         padding && "p-5",
         className
       )}

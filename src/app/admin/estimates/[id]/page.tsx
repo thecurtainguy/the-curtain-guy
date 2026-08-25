@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ClipboardList } from "lucide-react";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
+import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import {
   fetchEstimateById,
   fetchEstimateFiles,
@@ -65,25 +67,14 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
   return (
     <AdminPageFrame email={owner.profile.email}>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 border-b border-border/30 pb-6 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <Link
-              href="/admin/estimates"
-              className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
-            >
-              ← All estimates
-            </Link>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-              Estimate detail
-            </p>
-            <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              {reference}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Submitted {new Date(estimate.created_at).toLocaleString()}
-            </p>
-          </div>
-        </div>
+        <PortalPageHeader
+          eyebrow="Estimate detail"
+          title={reference}
+          description={`Submitted ${new Date(estimate.created_at).toLocaleString()}`}
+          icon={ClipboardList}
+          backHref="/admin/estimates"
+          backLabel="All estimates"
+        />
 
         <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="min-w-0 space-y-6">
@@ -204,7 +195,7 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
               </div>
               <div className="text-sm">
                 <p className="text-muted-foreground">Full estimate brief</p>
-                <pre className="mt-1 whitespace-pre-wrap rounded-xl border border-border/40 bg-background/50 p-4 text-xs leading-relaxed">
+                <pre className="mt-1 max-w-full overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-border/40 bg-background/50 p-4 font-mono text-xs leading-relaxed">
                   {estimate.estimate_brief}
                 </pre>
               </div>

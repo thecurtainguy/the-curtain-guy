@@ -33,7 +33,9 @@ export type RevealVariant =
   | "slide-right"
   | "scale-in"
   | "blur-in"
-  | "reveal-soft";
+  | "reveal-soft"
+  /** Calm app-shell page change — opacity only, no motion/blur flash */
+  | "portal-fade";
 
 type VariantState = {
   opacity: number;
@@ -74,6 +76,10 @@ export const revealVariants: Record<
   "reveal-soft": {
     hidden: { opacity: 0, y: 12, scale: 0.985 },
     visible: { opacity: 1, y: 0, scale: 1 },
+  },
+  "portal-fade": {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
   },
 };
 
@@ -123,8 +129,9 @@ export const pagePresetConfig: Record<
   estimate: { duration: 0.38, y: 12, blur: 4 },
   ai: { duration: 0.5, y: 18, blur: 8 },
   quote: { duration: 0.45, y: 14, blur: 5 },
-  account: { duration: 0.3, y: 8, blur: 0 },
-  admin: { duration: 0.25, y: 6, blur: 0 },
+  /** Soft opacity-only — portals feel app-like, not marketing-blinky */
+  account: { duration: 0.9, y: 0, blur: 0 },
+  admin: { duration: 0.9, y: 0, blur: 0 },
 };
 
 export const hoverLift = {

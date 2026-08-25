@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireOwner } from "@/lib/auth";
+import { getCurrentProfile, requireOwner } from "@/lib/auth";
 import { AdminLoginForm } from "@/components/admin/admin-login-form";
 import { BrandLogo } from "@/components/brand-logo";
 
@@ -14,6 +14,11 @@ export default async function AdminLoginPage() {
   const owner = await requireOwner();
   if (owner) {
     redirect("/admin");
+  }
+
+  const current = await getCurrentProfile();
+  if (current?.profile.role === "customer") {
+    redirect("/account");
   }
 
   return (

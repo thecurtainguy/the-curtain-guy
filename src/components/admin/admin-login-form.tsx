@@ -44,11 +44,10 @@ export function AdminLoginForm() {
       };
 
       if (!response.ok || !payload.authorized) {
-        await supabase.auth.signOut();
-        setError(
-          payload.message ??
-            "This account is not authorized for owner access."
-        );
+        // Customer (or other non-owner) session — send to customer portal,
+        // keep the session, no error flash.
+        router.replace("/account");
+        router.refresh();
         return;
       }
 

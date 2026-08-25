@@ -10,6 +10,8 @@ type BrandLogoProps = {
   /** Visual size preset */
   size?: "sm" | "md" | "lg" | "xl" | "header" | "footer";
   className?: string;
+  /** Classes for the Next/Image (e.g. object-center). */
+  imageClassName?: string;
   priority?: boolean;
   /** Compact header lockup while the page is scrolled */
   compact?: boolean;
@@ -65,6 +67,7 @@ export function BrandLogo({
   href = "/",
   size = "md",
   className,
+  imageClassName,
   priority = false,
   compact = false,
   showWordmark = false,
@@ -98,7 +101,10 @@ export function BrandLogo({
         // Horizontal lockup must keep RGBA — Next optimizer can flatten to
         // palette PNG and paint the transparent areas black on light theme.
         unoptimized={dims.asset === "horizontal"}
-        className="bg-transparent object-contain object-left"
+        className={cn(
+          "bg-transparent object-contain object-left",
+          imageClassName
+        )}
       />
     </span>
   );

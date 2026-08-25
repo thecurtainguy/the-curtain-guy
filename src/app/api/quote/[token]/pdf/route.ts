@@ -37,7 +37,7 @@ export async function GET(_request: Request, context: RouteContext) {
     actorType: "public_link",
     actorEmail: quote.customer_email,
     eventType: "pdf_downloaded",
-    summary: "PDF downloaded via public link",
+    summary: "PDF opened via public link",
   });
 
   const filename = `${formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number)}.pdf`;
@@ -45,7 +45,7 @@ export async function GET(_request: Request, context: RouteContext) {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `inline; filename="${filename}"`,
       "Cache-Control": "no-store",
     },
   });

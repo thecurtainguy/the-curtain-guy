@@ -23,6 +23,7 @@ import { isEmailVerified } from "@/lib/auth";
 import type { EstimateRequestRow } from "@/lib/estimate-access";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import {
+  buildPublicQuoteUrl,
   buildQuoteDisplayRef,
   createQuoteToken,
   hashQuoteToken,
@@ -546,6 +547,82 @@ export async function issuePublicQuoteToken(quoteId: string): Promise<{
     return null;
   }
   return { token: issued.token, expiresAt: issued.expiresAt };
+}
+
+/**
+ * Recover the live guest `/quote/[token]` URL from event metadata when the
+ * stored token still matches the quote’s current hash.
+ */
+export async function findActivePublicQuoteUrl(
+  quoteId: string,
+  siteUrl: string
+): Promise<string | null> {
+  const quote = await fetchQuoteById(quoteId);
+  if (!quote?.public_token_hash) return null;
+
+  if (quote.public_token_expires_at) {
+    const expires = new Date(quote.public_token_expires_at).getTime();
+    if (Number.isFinite(expires) && expires < Date.now()) return null;
+  }
+
+  const admin = createAdminSupabaseClient();
+  const { data: events, error } = await admin
+    .from("quote_events")
+    .select("metadata, created_at")
+    .eq("quote_id", quoteId)
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  if (error) {
+    console.error("[quotes] findActivePublicQuoteUrl", error);
+    return null;
+  }
+
+  for (const row of events || []) {
+    const meta = (row.metadata || {}) as Record<string, unknown>;
+    const token =
+      typeof meta.public_token === "string" ? meta.public_token : null;
+    if (!token) continue;
+    if (hashQuoteToken(token) !== quote.public_token_hash) continue;
+    return buildPublicQuoteUrl(siteUrl, token);
+  }
+
+  return null;
+}
+
+/**
+ * Return the active guest proposal URL, issuing a new token when needed.
+ * Does not change quote status or send email.
+ */
+export async function ensurePublicQuoteUrl(input: {
+  quoteId: string;
+  siteUrl: string;
+  actorType: QuoteEventRow["actor_type"];
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+}): Promise<string | null> {
+  const existing = await findActivePublicQuoteUrl(input.quoteId, input.siteUrl);
+  if (existing) return existing;
+
+  const issued = await issuePublicQuoteToken(input.quoteId);
+  if (!issued) return null;
+
+  const publicUrl = buildPublicQuoteUrl(input.siteUrl, issued.token);
+  await logQuoteEvent({
+    quoteId: input.quoteId,
+    actorType: input.actorType,
+    actorUserId: input.actorUserId,
+    actorEmail: input.actorEmail,
+    eventType: "quote_edited",
+    summary: "Guest proposal link ready",
+    metadata: {
+      public_token: issued.token,
+      public_url: publicUrl,
+      public_token_expires_at: issued.expiresAt,
+    },
+  });
+
+  return publicUrl;
 }
 
 export async function markQuoteViewed(quoteId: string): Promise<void> {

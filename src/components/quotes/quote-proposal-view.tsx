@@ -802,16 +802,16 @@ export function QuoteProposalView({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
-              Share & download
+              Share & PDF
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Send this proposal or keep a PDF copy.
+              Send this proposal or open the PDF in your browser.
             </p>
           </div>
           <Button asChild variant="outline" size="sm">
             <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
               <Download className="size-3.5" />
-              Download PDF
+              View PDF
             </a>
           </Button>
         </div>

@@ -8,6 +8,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  FileText,
   Loader2,
   Plus,
   Trash2,
@@ -34,6 +35,8 @@ import {
   QuoteStatusBadge,
 } from "@/components/quotes/quote-status-badge";
 import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
+import { PortalPageHeader } from "@/components/portal/portal-page-header";
+import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
 import type { QuoteWithRelations } from "@/lib/quotes";
 import {
   centsToDollarInput,
@@ -89,7 +92,13 @@ function emptyLine(): DraftLine {
   };
 }
 
-export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
+export function AdminQuoteBuilder({
+  quote,
+  initialGuestUrl = null,
+}: {
+  quote: QuoteWithRelations;
+  initialGuestUrl?: string | null;
+}) {
   const router = useRouter();
   const [customerName, setCustomerName] = useState(quote.customer_name ?? "");
   const [customerEmail, setCustomerEmail] = useState(quote.customer_email ?? "");
@@ -118,7 +127,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
   const [revising, setRevising] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [publicUrl, setPublicUrl] = useState<string | null>(initialGuestUrl);
   const [copied, setCopied] = useState(false);
 
   const [convertFor, setConvertFor] = useState<string | null>(null);
@@ -382,21 +391,14 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 rounded-2xl border border-border/40 bg-card/25 p-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-2">
-          <Link
-            href="/admin/quotes"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
-          >
-            ← All quotes
-          </Link>
-          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-            Quote builder
-          </p>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {resolveQuoteDisplayRef(quote)}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <PortalPageHeader
+        eyebrow="Quote builder"
+        title={resolveQuoteDisplayRef(quote)}
+        icon={FileText}
+        backHref="/admin/quotes"
+        backLabel="All quotes"
+        meta={
+          <>
             <span>{quote.opportunity_ref}</span>
             {(() => {
               const revLabel = formatQuoteRevisionLabel(quote.revision_number, {
@@ -410,35 +412,37 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
               ) : null;
             })()}
             <QuoteStatusBadge status={quote.status} />
+            {quote.estimate_request_id ? (
+              <span>
+                From{" "}
+                <Link
+                  href={`/admin/estimates/${quote.estimate_request_id}`}
+                  className="text-primary hover:underline"
+                >
+                  estimate
+                </Link>
+              </span>
+            ) : null}
+          </>
+        }
+        actions={
+          <div className="text-left sm:text-right">
+            <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              Total CAD
+            </p>
+            <p className="mt-1 font-heading text-3xl font-semibold text-primary">
+              {formatCadFromCents(draftTotals.total_cents)}
+            </p>
+            {draftTotals.total_cents !== quote.total_cents ? (
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                Saved: {formatCadFromCents(quote.total_cents)} · unsaved changes
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">Saved</p>
+            )}
           </div>
-          {quote.estimate_request_id ? (
-            <p className="text-xs text-muted-foreground">
-              From{" "}
-              <Link
-                href={`/admin/estimates/${quote.estimate_request_id}`}
-                className="text-primary hover:underline"
-              >
-                estimate
-              </Link>
-            </p>
-          ) : null}
-        </div>
-        <div className="shrink-0 sm:text-right">
-          <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-            Total CAD
-          </p>
-          <p className="mt-1 font-heading text-3xl font-semibold text-primary">
-            {formatCadFromCents(draftTotals.total_cents)}
-          </p>
-          {draftTotals.total_cents !== quote.total_cents ? (
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-              Saved: {formatCadFromCents(quote.total_cents)} · unsaved changes
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground">Saved</p>
-          )}
-        </div>
-      </header>
+        }
+      />
 
       {(message || error) && (
         <div
@@ -988,8 +992,12 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
       </section>
       </div>
 
-      <aside className="space-y-6 xl:sticky xl:top-20">
-      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+      <aside className="space-y-6 xl:sticky xl:top-4">
+      <QuoteGuestProposalCard
+        ensureEndpoint={`/api/admin/quotes/${quote.id}/guest-link`}
+        initialUrl={publicUrl}
+      />
+      <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="font-heading text-lg font-semibold">Quote summary</h2>
         <div className="mt-4 rounded-2xl border border-border/40 bg-background/40 p-4">
           <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" />
@@ -1057,7 +1065,7 @@ export function AdminQuoteBuilder({ quote }: { quote: QuoteWithRelations }) {
           <Button asChild variant="outline">
             <a href={`/api/quotes/${quote.id}/pdf`} target="_blank" rel="noreferrer">
               <Download className="size-4" />
-              Download PDF
+              View PDF
             </a>
           </Button>
           {publicUrl ? (

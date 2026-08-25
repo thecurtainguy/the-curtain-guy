@@ -48,7 +48,7 @@ export function StudioDesignCard({
   const viewBox = `${bounds.minX - padding} ${bounds.minZ - padding} ${bounds.width + padding * 2} ${bounds.depth + padding * 2}`;
 
   return (
-    <article className="group overflow-hidden rounded-4xl border border-border/60 bg-card/55 shadow-sm transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-xl motion-reduce:transition-none motion-reduce:hover:translate-y-0">
+    <article className="group overflow-hidden rounded-4xl border border-border bg-card shadow-sm transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl motion-reduce:transition-none motion-reduce:hover:translate-y-0">
       <div className="relative h-40 overflow-hidden bg-[radial-gradient(circle_at_50%_20%,color-mix(in_oklch,var(--primary)_18%,transparent),transparent_60%)] p-5">
         <svg
           viewBox={viewBox}
@@ -87,15 +87,15 @@ export function StudioDesignCard({
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1">
             <Ruler className="size-3 text-primary" aria-hidden="true" />
             {formatWholeNumber(calculateRoomAreaSquareFeet(json.room.floor))} ft²
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1">
             <ScissorsLineDashed className="size-3 text-primary" aria-hidden="true" />
             {inchesToFeetLabel(calculateDrapeLength(json))}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2.5 py-1">
             <Clock3 className="size-3 text-primary" aria-hidden="true" />
             Updated {formatIsoDate(design.updated_at)}
           </span>

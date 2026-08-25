@@ -74,6 +74,11 @@ export async function POST(_request: Request, context: RouteContext) {
     actorEmail: owner.profile.email,
     eventType: "quote_sent",
     summary: `Quote sent to ${quote.customer_email}`,
+    metadata: {
+      public_token: issued.token,
+      public_url: publicUrl,
+      public_token_expires_at: issued.expiresAt,
+    },
   });
 
   const apiKey = getResendApiKey();

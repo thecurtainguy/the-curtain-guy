@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Calendar,
+  CalendarDays,
   MapPin,
   MessageSquare,
   PanelsTopLeft,
@@ -19,6 +20,7 @@ import type { EventJobMessageRow } from "@/data/jobs";
 import { QUOTE_CATEGORY_LABELS, formatCadFromCents } from "@/data/quotes";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
+import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import type { JobWithRelations } from "@/lib/jobs";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
@@ -82,19 +84,16 @@ export function CustomerEventDetail({
 
   return (
     <div className="space-y-6">
-      <header className="overflow-hidden rounded-2xl border border-border/40 bg-card/25">
-        <div className="border-b border-border/40 px-5 py-4 sm:px-6">
-          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-            Your event
-          </p>
-          <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {formatJobRef(job.opportunity_ref)}
-          </h1>
-          <div className="mt-3">
-            <JobStatusBadge status={job.status} />
-          </div>
-        </div>
-        <div className="grid gap-4 p-5 sm:grid-cols-3 sm:px-6">
+      <PortalPageHeader
+        eyebrow="Your event"
+        title={formatJobRef(job.opportunity_ref)}
+        icon={CalendarDays}
+        backHref="/account/events"
+        backLabel="Your events"
+        meta={<JobStatusBadge status={job.status} />}
+      />
+
+      <div className="grid gap-4 rounded-2xl border border-border/40 bg-card/20 p-5 sm:grid-cols-3">
           <div className="flex gap-3 rounded-2xl border border-border/40 bg-background/40 p-4">
             <Calendar className="size-5 shrink-0 text-primary" />
             <div>
@@ -124,7 +123,6 @@ export function CustomerEventDetail({
             </div>
           </div>
         </div>
-      </header>
 
       <section className="rounded-2xl border border-border/40 bg-card/20 p-5">
         <h2 className="font-heading text-lg font-semibold">Event progress</h2>

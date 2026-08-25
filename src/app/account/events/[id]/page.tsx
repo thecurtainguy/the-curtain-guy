@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   isEmailVerified,
@@ -37,14 +36,6 @@ export default async function AccountEventDetailPage({ params }: PageProps) {
   return (
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
-      <div className="mb-6 border-b border-border/30 pb-4">
-        <Link
-          href="/account/events"
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          ← Your events
-        </Link>
-      </div>
       <CustomerEventDetail
         job={job}
         quoteLineItems={job.quote_line_items}

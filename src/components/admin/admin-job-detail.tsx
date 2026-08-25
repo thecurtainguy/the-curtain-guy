@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  CalendarDays,
   Check,
   Copy,
   ExternalLink,
@@ -25,6 +26,7 @@ import {
 import { QUOTE_CATEGORY_LABELS, formatCadFromCents, resolveQuoteDisplayRef } from "@/data/quotes";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
+import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import type { JobWithRelations } from "@/lib/jobs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -280,31 +282,22 @@ export function AdminJobDetail({
 
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl border border-border/40 bg-card/25 p-5">
-        <Link
-          href="/admin/jobs"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          ← All jobs
-        </Link>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-              Job detail
-            </p>
-            <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              {formatJobRef(job.opportunity_ref)}
-            </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <JobStatusBadge status={job.status} />
-              {job.event_date ? <span>{job.event_date}</span> : null}
-              {job.venue_name ? <span>· {job.venue_name}</span> : null}
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {job.customer_name || "—"} · {job.customer_email || "—"}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <PortalPageHeader
+        eyebrow="Job detail"
+        title={formatJobRef(job.opportunity_ref)}
+        description={`${job.customer_name || "—"} · ${job.customer_email || "—"}`}
+        icon={CalendarDays}
+        backHref="/admin/jobs"
+        backLabel="All jobs"
+        meta={
+          <>
+            <JobStatusBadge status={job.status} />
+            {job.event_date ? <span>{job.event_date}</span> : null}
+            {job.venue_name ? <span>· {job.venue_name}</span> : null}
+          </>
+        }
+        actions={
+          <>
             <Button type="button" onClick={() => void saveJob()} disabled={saving}>
               {saving ? <Loader2 className="size-4 animate-spin" /> : null}
               Save
@@ -341,9 +334,9 @@ export function AdminJobDetail({
               {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
               Copy summary
             </Button>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {(message || error) && (
         <div

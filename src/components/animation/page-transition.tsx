@@ -14,6 +14,17 @@ type PageTransitionProps = {
   children: React.ReactNode;
 };
 
+function isAuthSurface(pathname: string | null) {
+  if (!pathname) return false;
+  return (
+    pathname === "/admin/login" ||
+    pathname === "/account/login" ||
+    pathname === "/account/signup" ||
+    pathname.startsWith("/account/login/") ||
+    pathname.startsWith("/account/signup/")
+  );
+}
+
 export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
   const prefersReducedMotion = useReducedMotion();
@@ -21,11 +32,14 @@ export function PageTransition({ children }: PageTransitionProps) {
   const config = pagePresetConfig[preset];
   const [settledPath, setSettledPath] = useState<string | null>(null);
   const settled = settledPath === pathname;
+  const isPortal =
+    (preset === "account" || preset === "admin") && !isAuthSurface(pathname);
 
   if (prefersReducedMotion) {
     return (
       <motion.div
         key={pathname}
+        className={cn(isPortal && "h-svh max-h-svh overflow-hidden")}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
@@ -38,7 +52,10 @@ export function PageTransition({ children }: PageTransitionProps) {
   return (
     <motion.div
       key={pathname}
-      className={cn(settled && "page-transition-settled")}
+      className={cn(
+        settled && "page-transition-settled",
+        isPortal && "h-svh max-h-svh overflow-hidden"
+      )}
       initial={{
         opacity: 0,
         y: config.y,
@@ -51,7 +68,7 @@ export function PageTransition({ children }: PageTransitionProps) {
       }}
       transition={{
         duration: config.duration,
-        ease: premiumEase,
+        ease: isPortal ? [0.4, 0, 0.2, 1] : premiumEase,
       }}
       onAnimationComplete={() => setSettledPath(pathname)}
     >

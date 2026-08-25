@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarDays, ClipboardList } from "lucide-react";
+import { CalendarDays, ClipboardList, LayoutDashboard } from "lucide-react";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
+import {
+  AdminDashboardRecentList,
+  type DashboardEstimateRow,
+} from "@/components/admin/lists/admin-dashboard-recent-list";
+import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { EstimateStatusBadge } from "@/components/estimates/status-badge";
-import { formatEstimateReference } from "@/data/estimate";
 import { listAdminJobs } from "@/lib/jobs";
 import { Button } from "@/components/ui/button";
 
@@ -35,13 +38,21 @@ export default async function AdminDashboardPage() {
   const today = new Date().toISOString().slice(0, 10);
   const allJobs = await listAdminJobs({ limit: 500 });
   const upcomingEvents = allJobs.filter(
-    (j) => j.event_date && j.event_date >= today && j.status !== "cancelled" && j.status !== "closed"
+    (j) =>
+      j.event_date &&
+      j.event_date >= today &&
+      j.status !== "cancelled" &&
+      j.status !== "closed"
   ).length;
   const needsDetails = allJobs.filter((j) =>
     ["draft", "details_needed"].includes(j.status)
   ).length;
-  const installScheduled = allJobs.filter((j) => j.status === "install_scheduled").length;
-  const teardownScheduled = allJobs.filter((j) => j.status === "teardown_scheduled").length;
+  const installScheduled = allJobs.filter(
+    (j) => j.status === "install_scheduled"
+  ).length;
+  const teardownScheduled = allJobs.filter(
+    (j) => j.status === "teardown_scheduled"
+  ).length;
 
   const { data: recent } = await admin
     .from("estimate_requests")
@@ -49,37 +60,43 @@ export default async function AdminDashboardPage() {
       "id, status, customer_name, customer_email, event_type, event_date, city_area, created_at, opportunity_ref"
     )
     .order("created_at", { ascending: false })
-    .limit(8);
+    .limit(100);
+
+  const recentRows: DashboardEstimateRow[] = (recent ?? []).map((row) => ({
+    id: row.id,
+    status: row.status,
+    customer_name: row.customer_name,
+    customer_email: row.customer_email,
+    event_type: row.event_type,
+    city_area: row.city_area,
+    created_at: row.created_at,
+    opportunity_ref: row.opportunity_ref,
+  }));
 
   return (
     <AdminPageFrame email={owner.profile.email}>
       <div className="space-y-8">
-        <div className="flex flex-col gap-4 border-b border-border/30 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-              Dashboard
-            </p>
-            <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              Operations overview
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Scan estimate pipeline health and upcoming booked events.
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="/admin/estimates">
-              <ClipboardList className="size-4" />
-              All estimates
-            </Link>
-          </Button>
-        </div>
+        <PortalPageHeader
+          eyebrow="Dashboard"
+          title="Operations overview"
+          description="Scan estimate pipeline health and upcoming booked events."
+          icon={LayoutDashboard}
+          actions={
+            <Button asChild>
+              <Link href="/admin/estimates">
+                <ClipboardList className="size-4" />
+                All estimates
+              </Link>
+            </Button>
+          }
+        />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {STATUSES.map((status) => (
             <Link
               key={status}
               href={`/admin/estimates?status=${status}`}
-              className="rounded-2xl border border-border/40 bg-card/25 p-4 transition-colors hover:border-primary/30 hover:bg-card/40"
+              className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
             >
               <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
                 {status}
@@ -105,15 +122,31 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { label: "Upcoming events", value: upcomingEvents, href: "/admin/jobs?upcoming=1" },
-              { label: "Needs details", value: needsDetails, href: "/admin/jobs?status=details_needed" },
-              { label: "Install scheduled", value: installScheduled, href: "/admin/jobs?status=install_scheduled" },
-              { label: "Teardown scheduled", value: teardownScheduled, href: "/admin/jobs?status=teardown_scheduled" },
+              {
+                label: "Upcoming events",
+                value: upcomingEvents,
+                href: "/admin/jobs?upcoming=1",
+              },
+              {
+                label: "Needs details",
+                value: needsDetails,
+                href: "/admin/jobs?status=details_needed",
+              },
+              {
+                label: "Install scheduled",
+                value: installScheduled,
+                href: "/admin/jobs?status=install_scheduled",
+              },
+              {
+                label: "Teardown scheduled",
+                value: teardownScheduled,
+                href: "/admin/jobs?status=teardown_scheduled",
+              },
             ].map((card) => (
               <Link
                 key={card.label}
                 href={card.href}
-                className="rounded-2xl border border-border/40 bg-card/25 p-4 transition-colors hover:border-primary/30 hover:bg-card/40"
+                className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
               >
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
                   {card.label}
@@ -126,71 +159,16 @@ export default async function AdminDashboardPage() {
           </div>
         </div>
 
-        <section className="rounded-3xl border border-border/40 bg-card/20 overflow-hidden">
-          <div className="border-b border-border/40 px-5 py-4">
+        <section className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
             <h2 className="font-heading text-lg font-semibold text-foreground">
               Recent requests
             </h2>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/estimates">View all</Link>
+            </Button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Reference</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Customer</th>
-                  <th className="px-4 py-3 font-medium">Event</th>
-                  <th className="px-4 py-3 font-medium">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(recent ?? []).length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-8 text-center text-muted-foreground"
-                    >
-                      No estimates yet.
-                    </td>
-                  </tr>
-                ) : (
-                  (recent ?? []).map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-t border-border/30 hover:bg-muted/10"
-                    >
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/admin/estimates/${row.id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {formatEstimateReference(row.id, row.opportunity_ref)}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">
-                        <EstimateStatusBadge status={row.status} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-foreground">
-                          {row.customer_name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {row.customer_email}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.event_type ?? "—"}
-                        {row.city_area ? ` · ${row.city_area}` : ""}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {new Date(row.created_at).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <AdminDashboardRecentList rows={recentRows} />
         </section>
       </div>
     </AdminPageFrame>

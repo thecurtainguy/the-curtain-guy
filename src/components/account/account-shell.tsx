@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -15,13 +14,13 @@ import {
 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
-import { Button } from "@/components/ui/button";
 import { PortalShell } from "@/components/portal/portal-shell";
 import {
   PortalSidebarAction,
   PortalSidebarBrand,
   PortalSidebarFooter,
   PortalSidebarNav,
+  PortalSidebarThemeRow,
   type PortalNavItem,
 } from "@/components/portal/portal-sidebar";
 
@@ -34,53 +33,15 @@ const links: PortalNavItem[] = [
   { href: "/account/profile", label: "Profile", icon: UserRound },
 ];
 
-function sectionFromPath(pathname: string): { title: string; subtitle: string } {
-  if (pathname.startsWith("/account/estimates")) {
-    return {
-      title: "Estimates",
-      subtitle: "Your estimate briefs and uploads",
-    };
-  }
-  if (pathname.startsWith("/account/quotes")) {
-    return {
-      title: "Quotes",
-      subtitle: "Review proposals and request changes",
-    };
-  }
-  if (pathname.startsWith("/account/events")) {
-    return {
-      title: "Events",
-      subtitle: "Confirmed event details and updates",
-    };
-  }
-  if (pathname.startsWith("/account/studio")) {
-    return {
-      title: "Studio",
-      subtitle: "Your room drawings and 3D previews",
-    };
-  }
-  if (pathname.startsWith("/account/profile")) {
-    return {
-      title: "Profile",
-      subtitle: "Your contact details",
-    };
-  }
-  return {
-    title: "Overview",
-    subtitle: "Your Curtain Guy account",
-  };
-}
-
 export function AccountShell({
   children,
-  email,
+  email: _email,
 }: {
   children: React.ReactNode;
   email?: string | null;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const section = sectionFromPath(pathname);
   const isStudioEditor = /^\/account\/studio\/[^/]+\/?$/.test(pathname);
 
   async function signOut() {
@@ -92,17 +53,12 @@ export function AccountShell({
 
   const sidebar = (
     <>
-      <PortalSidebarBrand
-        href="/account"
-        portalLabel="Account Portal"
-        email={email}
-      />
+      <PortalSidebarBrand href="/account" portalLabel="Customer Portal" />
       <PortalSidebarNav items={links} pathname={pathname} />
       <PortalSidebarFooter>
-        <div className="mb-2 flex items-center justify-between px-3">
-          <span className="text-xs text-muted-foreground">Theme</span>
+        <PortalSidebarThemeRow>
           <ThemeToggle />
-        </div>
+        </PortalSidebarThemeRow>
         <PortalSidebarAction href="/get-estimate" icon={PenLine}>
           Get Estimate
         </PortalSidebarAction>
@@ -119,26 +75,8 @@ export function AccountShell({
   return (
     <PortalShell
       sidebar={sidebar}
-      topbarTitle={section.title}
-      topbarSubtitle={section.subtitle}
       fillViewport={isStudioEditor}
-      topbarActions={
-        <>
-          <Button asChild size="sm" className="hidden sm:inline-flex">
-            <Link href="/get-estimate">Get Estimate</Link>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => void signOut()}
-            className="hidden sm:inline-flex"
-          >
-            <LogOut className="size-4" />
-            Sign out
-          </Button>
-        </>
-      }
+      sidebarStorageKey="tcg-account-sidebar-collapsed"
     >
       {children}
     </PortalShell>

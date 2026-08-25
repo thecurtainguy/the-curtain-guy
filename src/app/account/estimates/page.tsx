@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ClipboardList } from "lucide-react";
 import {
   isEmailVerified,
   requireAccountPage,
@@ -8,10 +9,13 @@ import {
   AccountPageFrame,
   EmailVerificationBanner,
 } from "@/components/account/account-page-frame";
+import {
+  AccountEstimatesList,
+  type AccountEstimateListRow,
+} from "@/components/account/lists/account-estimates-list";
+import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { listEstimatesForCustomer } from "@/lib/estimate-access";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { EstimateStatusBadge } from "@/components/estimates/status-badge";
-import { formatEstimateReference } from "@/data/estimate";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -39,103 +43,35 @@ export default async function AccountEstimatesPage() {
     }
   }
 
+  const listRows: AccountEstimateListRow[] = estimates.map((row) => ({
+    id: row.id,
+    status: row.status,
+    user_id: row.user_id,
+    event_type: row.event_type,
+    event_date: row.event_date,
+    venue_name: row.venue_name,
+    city_area: row.city_area,
+    created_at: row.created_at,
+    opportunity_ref: row.opportunity_ref ?? null,
+    file_count: fileCounts.get(row.id) ?? 0,
+  }));
+
   return (
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 border-b border-border/30 pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-              Estimates
-            </p>
-            <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-              Estimates
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Track your estimate briefs and uploaded files.
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="/get-estimate">Start a new estimate</Link>
-          </Button>
-        </div>
-
-        <div className="overflow-hidden rounded-3xl border border-border/40 bg-card/20">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Reference</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Event</th>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Venue / city</th>
-                  <th className="px-4 py-3 font-medium">Files</th>
-                  <th className="px-4 py-3 font-medium">Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {estimates.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-muted-foreground"
-                    >
-                      No estimates yet.{" "}
-                      <Link
-                        href="/get-estimate"
-                        className="text-primary hover:underline"
-                      >
-                        Start a new estimate
-                      </Link>
-                    </td>
-                  </tr>
-                ) : (
-                  estimates.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-t border-border/30 hover:bg-muted/10"
-                    >
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/account/estimates/${row.id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {formatEstimateReference(row.id, row.opportunity_ref)}
-                        </Link>
-                        {!row.user_id && (
-                          <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-                            Guest match
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <EstimateStatusBadge status={row.status} />
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.event_type || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {row.event_date || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {[row.venue_name, row.city_area]
-                          .filter(Boolean)
-                          .join(" · ") || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {fileCounts.get(row.id) ?? 0}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {new Date(row.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <PortalPageHeader
+          eyebrow="Estimates"
+          title="Estimates"
+          description="Track your estimate briefs and uploaded files."
+          icon={ClipboardList}
+          actions={
+            <Button asChild>
+              <Link href="/get-estimate">Start a new estimate</Link>
+            </Button>
+          }
+        />
+        <AccountEstimatesList rows={listRows} />
       </div>
     </AccountPageFrame>
   );

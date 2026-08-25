@@ -6,8 +6,9 @@ import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import { AdminQuoteBuilder } from "@/components/admin/admin-quote-builder";
 import { AdminQuoteJobActions } from "@/components/admin/admin-quote-job-actions";
+import { getSiteUrl } from "@/lib/env";
 import { fetchJobByQuoteId } from "@/lib/jobs";
-import { fetchQuoteById } from "@/lib/quotes";
+import { fetchQuoteById, findActivePublicQuoteUrl } from "@/lib/quotes";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
   if (!quote) notFound();
 
   const linkedJob = await fetchJobByQuoteId(id);
+  const initialGuestUrl = await findActivePublicQuoteUrl(id, getSiteUrl());
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -64,7 +66,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
             </Button>
           </div>
         </section>
-        <AdminQuoteBuilder quote={quote} />
+        <AdminQuoteBuilder quote={quote} initialGuestUrl={initialGuestUrl} />
       </div>
     </AdminPageFrame>
   );

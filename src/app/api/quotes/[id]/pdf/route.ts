@@ -59,7 +59,7 @@ export async function GET(_request: Request, context: RouteContext) {
     actorUserId: owner?.user.id ?? null,
     actorEmail: owner?.profile.email ?? null,
     eventType: "pdf_downloaded",
-    summary: "PDF downloaded",
+    summary: "PDF opened",
   });
 
   const filename = `${formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number)}.pdf`;
@@ -67,7 +67,7 @@ export async function GET(_request: Request, context: RouteContext) {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `inline; filename="${filename}"`,
       "Cache-Control": "no-store",
     },
   });

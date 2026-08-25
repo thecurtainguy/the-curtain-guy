@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileUp, PanelsTopLeft } from "lucide-react";
+import { ClipboardList, FileUp, PanelsTopLeft } from "lucide-react";
 import {
   isEmailVerified,
   requireAccountPage,
@@ -10,6 +10,7 @@ import {
   AccountPageFrame,
   EmailVerificationBanner,
 } from "@/components/account/account-page-frame";
+import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import {
   customerCanAccessEstimate,
   fetchEstimateById,
@@ -55,23 +56,15 @@ export default async function AccountEstimateDetailPage({ params }: PageProps) {
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-6">
-        <div className="border-b border-border/30 pb-6">
-          <Link
-            href="/account/estimates"
-            className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-primary"
-          >
-            ← Your estimates
-          </Link>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-              {reference}
-            </h1>
-            <EstimateStatusBadge status={safe.status} />
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Submitted {new Date(safe.created_at).toLocaleString()}
-          </p>
-        </div>
+        <PortalPageHeader
+          eyebrow="Estimate"
+          title={reference}
+          description={`Submitted ${new Date(safe.created_at).toLocaleString()}`}
+          icon={ClipboardList}
+          backHref="/account/estimates"
+          backLabel="Your estimates"
+          meta={<EstimateStatusBadge status={safe.status} />}
+        />
 
         {canClaim && (
           <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4">
@@ -141,7 +134,7 @@ export default async function AccountEstimateDetailPage({ params }: PageProps) {
 
         <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
           <h2 className="font-heading text-lg font-semibold">Your brief</h2>
-          <pre className="mt-4 whitespace-pre-wrap rounded-xl border border-border/40 bg-background/40 p-4 text-xs leading-relaxed">
+          <pre className="mt-4 max-w-full overflow-x-auto whitespace-pre-wrap break-words rounded-xl border border-border/40 bg-background/40 p-4 font-mono text-xs leading-relaxed">
             {safe.estimate_brief}
           </pre>
           {safe.notes && (

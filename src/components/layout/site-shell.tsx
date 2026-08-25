@@ -22,15 +22,16 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   const studioWorkspace = isStudioWorkspace(pathname);
 
   if (isAppShell) {
+    // PortalShell owns its own h-svh lock — don't nest competing viewport shells.
     return (
-      <main
+      <div
         className={cn(
           "flex-1",
           studioWorkspace && "h-svh min-h-0 overflow-hidden"
         )}
       >
         {children}
-      </main>
+      </div>
     );
   }
 

@@ -5,6 +5,7 @@ import { GuardedLink } from "@/components/ui/guarded-link";
 import { Reveal } from "@/components/animation/reveal";
 
 const footerExtras = [
+  { label: "FAQ", href: "/faq" },
   { label: "Reviews", href: "/reviews" },
   { label: "Privacy", href: "/privacy" },
 ];

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { FaqItem } from "@/data/faq";
 import { navLinks, siteConfig } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
 
@@ -8,6 +9,7 @@ function baseUrl() {
 
 const seoNavExtras = [
   { label: "Get Estimate", href: "/get-estimate" },
+  { label: "FAQ", href: "/faq" },
   { label: "Reviews", href: "/reviews" },
 ] as const;
 
@@ -96,6 +98,21 @@ export function createBreadcrumbJsonLd(
       position: index + 1,
       name: item.name,
       item: `${base}${item.path === "/" ? "" : item.path}`,
+    })),
+  };
+}
+
+export function createFaqPageJsonLd(items: FaqItem[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
     })),
   };
 }

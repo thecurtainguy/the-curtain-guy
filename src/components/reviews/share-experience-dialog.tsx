@@ -569,7 +569,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
               <LoadingButton
                 type="submit"
                 className="w-full min-h-11 gap-2"
-                loading={isSubmitting}
+                isLoading={isSubmitting}
                 loadingText="Sending review…"
               >
                 <Star className="size-4" />

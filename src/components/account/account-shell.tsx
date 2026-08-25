@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ClipboardList, LogOut, UserRound } from "lucide-react";
+import { ClipboardList, FileText, LogOut, UserRound } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/account", label: "Overview", exact: true },
   { href: "/account/estimates", label: "Estimates", icon: ClipboardList },
+  { href: "/account/quotes", label: "Quotes", icon: FileText },
   { href: "/account/profile", label: "Profile", icon: UserRound },
 ];
 

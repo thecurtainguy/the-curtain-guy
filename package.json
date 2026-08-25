@@ -6,9 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:list": "scripts/supabase-tcg migration list",
+    "db:dry": "scripts/supabase-tcg db push --dry-run",
+    "db:push": "TCG_ALLOW_DB_PUSH=YES scripts/supabase-tcg db push"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.8.1",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "class-variance-authority": "^0.7.1",

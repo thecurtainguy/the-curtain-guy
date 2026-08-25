@@ -33,6 +33,8 @@ export type EstimateRequestRow = {
   last_viewed_by_owner_at: string | null;
   upload_token_hash: string | null;
   upload_token_expires_at: string | null;
+  opportunity_number?: number | null;
+  opportunity_ref?: string | null;
 };
 
 export type EstimateFileRow = {

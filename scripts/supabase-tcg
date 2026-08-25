@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# The Curtain Guy — Supabase CLI helper (session pooler only).
+# Never uses db.<ref>.supabase.co (IPv6 fails in this WSL/network).
+# Never prints the database password.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+TCG_PROJECT_REF="xszhnecwhjcywhqjzfit"
+TCG_POOLER_HOST="aws-0-us-west-2.pooler.supabase.com"
+TCG_DB_USER="postgres.${TCG_PROJECT_REF}"
+TCG_DB_PORT="5432"
+TCG_DB_NAME="postgres"
+
+usage_hint() {
+  echo "Usage:" >&2
+  echo "  pnpm db:list          # migration list via session pooler" >&2
+  echo "  pnpm db:dry           # db push --dry-run" >&2
+  echo "  pnpm db:push          # live push (requires intentional package script)" >&2
+  echo "  scripts/supabase-tcg <supabase args...>" >&2
+}
+
+is_db_push() {
+  [[ $# -ge 2 && "$1" == "db" && "$2" == "push" ]]
+}
+
+has_dry_run_flag() {
+  local arg
+  for arg in "$@"; do
+    if [[ "$arg" == "--dry-run" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Hard-block destructive Supabase commands against remote production.
+# No env override — these must never run through this helper.
+is_hard_blocked_command() {
+  local -a args=("$@")
+  local i sub
+
+  for ((i = 0; i < ${#args[@]}; i++)); do
+    sub="${args[i]}"
+
+    # db reset (and variants like reset --linked)
+    if [[ "$sub" == "reset" && ( "${args[0]:-}" == "db" || "${args[i - 1]:-}" == "db" ) ]]; then
+      return 0
+    fi
+
+  done
+
+  # Top-level command pairs
+  if [[ $# -ge 2 ]]; then
+    case "$1 $2" in
+      "db reset" | "db execute" | "projects delete" | "projects remove" | "branches delete")
+        return 0
+        ;;
+    esac
+  fi
+
+  # Catch reset anywhere in the invocation (e.g. mistyped args).
+  for sub in "${args[@]}"; do
+    if [[ "$sub" == "reset" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+block_dangerous_commands() {
+  if is_hard_blocked_command "$@"; then
+    echo "Blocked: destructive Supabase command is not allowed through scripts/supabase-tcg." >&2
+    echo "  Never allowed: db reset, db execute, projects delete/remove, branches delete." >&2
+    echo "  Use pnpm db:list / pnpm db:dry for migration checks. Live push requires pnpm db:push." >&2
+    exit 1
+  fi
+}
+
+# Block live schema push unless explicitly unlocked.
+if is_db_push "$@" && ! has_dry_run_flag "$@"; then
+  if [[ "${TCG_ALLOW_DB_PUSH:-}" != "YES" ]]; then
+    echo "Live db push blocked. Run dry-run first or set TCG_ALLOW_DB_PUSH=YES intentionally." >&2
+    exit 1
+  fi
+fi
+
+if [[ $# -eq 0 ]]; then
+  usage_hint
+  exit 1
+fi
+
+block_dangerous_commands "$@"
+
+# Optional: load SUPABASE_DB_PASSWORD from .env.local if present (never echo).
+if [[ -z "${SUPABASE_DB_PASSWORD:-}" && -f .env.local ]]; then
+  SUPABASE_DB_PASSWORD="$(
+    python3 - <<'PY'
+from pathlib import Path
+
+for line in Path(".env.local").read_text().splitlines():
+    if line.startswith("SUPABASE_DB_PASSWORD="):
+        val = line.split("=", 1)[1].strip()
+        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+            val = val[1:-1]
+        print(val, end="")
+        break
+PY
+  )"
+  export SUPABASE_DB_PASSWORD
+fi
+
+if [[ -z "${SUPABASE_DB_PASSWORD:-}" ]]; then
+  echo "Enter The Curtain Guy database password (input hidden):" >&2
+  # Read without echo; do not print the value afterward.
+  IFS= read -r -s SUPABASE_DB_PASSWORD
+  echo >&2
+  export SUPABASE_DB_PASSWORD
+fi
+
+if [[ -z "${SUPABASE_DB_PASSWORD:-}" ]]; then
+  echo "Error: SUPABASE_DB_PASSWORD is required." >&2
+  exit 1
+fi
+
+# Build session-pooler URL (never print). Password is URL-encoded.
+TCG_DB_URL="$(
+  SUPABASE_DB_PASSWORD="$SUPABASE_DB_PASSWORD" \
+  TCG_DB_USER="$TCG_DB_USER" \
+  TCG_POOLER_HOST="$TCG_POOLER_HOST" \
+  TCG_DB_PORT="$TCG_DB_PORT" \
+  TCG_DB_NAME="$TCG_DB_NAME" \
+  python3 - <<'PY'
+import os
+import urllib.parse
+
+password = urllib.parse.quote(os.environ["SUPABASE_DB_PASSWORD"], safe="")
+user = os.environ["TCG_DB_USER"]
+host = os.environ["TCG_POOLER_HOST"]
+port = os.environ["TCG_DB_PORT"]
+name = os.environ["TCG_DB_NAME"]
+print(f"postgresql://{user}:{password}@{host}:{port}/{name}", end="")
+PY
+)"
+
+# Drop password from this process env before exec.
+unset SUPABASE_DB_PASSWORD
+
+# Run Supabase CLI with explicit session-pooler URL. Do not echo TCG_DB_URL.
+exec npx --yes supabase "$@" --db-url "$TCG_DB_URL"

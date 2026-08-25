@@ -53,6 +53,14 @@ export function getEstimateFrom(): string {
   );
 }
 
+export function getQuoteFrom(): string {
+  return (
+    process.env.TCG_QUOTE_FROM?.trim() ||
+    process.env.TCG_ESTIMATE_FROM?.trim() ||
+    "The Curtain Guy <onboarding@resend.dev>"
+  );
+}
+
 export function getSiteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://thecurtainguy.com";
 }

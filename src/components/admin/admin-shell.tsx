@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ClipboardList, LayoutDashboard, LogOut } from "lucide-react";
+import { ClipboardList, FileText, LayoutDashboard, LogOut } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
+  { href: "/admin/quotes", label: "Quotes", icon: FileText },
 ];
 
 export function AdminShell({

@@ -126,13 +126,14 @@ export const QUOTE_REQUEST_STATUS_LABELS: Record<QuoteRequestStatus, string> = {
 };
 
 export const DEFAULT_QUOTE_TERMS = [
-  "This proposal is a planning quote based on the details shared so far.",
-  "Final pricing may adjust after venue confirmation, measurements, access, and install window are verified.",
-  "Availability is not guaranteed until The Curtain Guy confirms the booking.",
-  "Setup, installation, and teardown are scheduled around your event timeline.",
-  "Applicable sales tax is shown in the proposal total when included.",
-  "Currency is CAD.",
-].join("\n\n");
+  "This document is a planning proposal based on details shared to date; it is not a final invoice or confirmed booking.",
+  "Final pricing may change after venue confirmation, on-site measurements, access constraints, and install/teardown windows are verified.",
+  "Inventory and scheduling are reserved only after The Curtain Guy confirms the booking in writing.",
+  "Delivery, installation, and teardown are scheduled around the event timeline and may require agreed venue access windows.",
+  "Applicable sales taxes (including GST/QST when shown) are included in the proposal total unless noted otherwise.",
+  "A deposit or written booking confirmation may be required before production begins.",
+  "The client is responsible for accurate venue details, load-in access, and any venue rules affecting installation.",
+].join("\n");
 
 export const QUOTE_TAX_MODES = ["quebec_gst_qst", "none", "manual"] as const;
 export type QuoteTaxMode = (typeof QUOTE_TAX_MODES)[number];
@@ -185,7 +186,9 @@ export type QuoteRow = {
   sent_at: string | null;
   viewed_at: string | null;
   accepted_at: string | null;
+  accepted_by_name: string | null;
   declined_at: string | null;
+  declined_by_name: string | null;
   created_by_user_id: string | null;
   created_at: string;
   updated_at: string;
@@ -272,7 +275,9 @@ export type CustomerSafeQuote = {
   sent_at: string | null;
   viewed_at: string | null;
   accepted_at: string | null;
+  accepted_by_name: string | null;
   declined_at: string | null;
+  declined_by_name: string | null;
   created_at: string;
   updated_at: string;
   line_items: QuoteLineItemRow[];

@@ -1128,10 +1128,28 @@ export function AdminQuoteBuilder({
           </div>
           <div className="flex justify-between gap-2">
             <dt>Accepted</dt>
-            <dd className="font-medium text-foreground">
+            <dd className="text-right font-medium text-foreground">
               {quote.accepted_at
                 ? new Date(quote.accepted_at).toLocaleString()
                 : "—"}
+              {quote.accepted_by_name ? (
+                <p className="mt-0.5 text-xs font-normal text-muted-foreground">
+                  by {quote.accepted_by_name}
+                </p>
+              ) : null}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>Declined</dt>
+            <dd className="text-right font-medium text-foreground">
+              {quote.declined_at
+                ? new Date(quote.declined_at).toLocaleString()
+                : "—"}
+              {quote.declined_by_name ? (
+                <p className="mt-0.5 text-xs font-normal text-muted-foreground">
+                  by {quote.declined_by_name}
+                </p>
+              ) : null}
             </dd>
           </div>
         </dl>

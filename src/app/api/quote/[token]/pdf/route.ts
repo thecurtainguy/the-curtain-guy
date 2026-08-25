@@ -30,6 +30,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const buffer = await renderQuotePdfBuffer({
     quote: safe,
     publicUrl,
+    siteUrl: getSiteUrl(),
   });
 
   await logQuoteEvent({

@@ -24,6 +24,8 @@ type ActionBody = {
   sourceKey?: string;
   title?: string;
   requestType?: QuoteRequestType;
+  acceptedByName?: string;
+  declinedByName?: string;
 };
 
 async function notifyOwner(
@@ -73,11 +75,19 @@ export async function POST(request: Request, context: RouteContext) {
   const email = quote.customer_email;
 
   if (action === "accept") {
+    const acceptedByName = body.acceptedByName?.trim();
+    if (!acceptedByName || acceptedByName.length < 2) {
+      return NextResponse.json(
+        { ok: false, message: "Please enter your full name to accept." },
+        { status: 400 }
+      );
+    }
     await admin
       .from("quotes")
       .update({
         status: "accepted",
         accepted_at: new Date().toISOString(),
+        accepted_by_name: acceptedByName,
       })
       .eq("id", quote.id);
     await logQuoteEvent({
@@ -85,18 +95,31 @@ export async function POST(request: Request, context: RouteContext) {
       actorType: "public_link",
       actorEmail: email,
       eventType: "customer_accepted",
-      summary: "Customer accepted quote via public link",
+      summary: `Customer accepted quote via public link (${acceptedByName})`,
+      metadata: { accepted_by_name: acceptedByName },
     });
-    await notifyOwner(quote.id, "Customer accepted quote");
+    await notifyOwner(
+      quote.id,
+      "Customer accepted quote",
+      `Accepted by ${acceptedByName}`
+    );
     return NextResponse.json({ ok: true, status: "accepted" });
   }
 
   if (action === "decline") {
+    const declinedByName = body.declinedByName?.trim();
+    if (!declinedByName || declinedByName.length < 2) {
+      return NextResponse.json(
+        { ok: false, message: "Please enter your full name to decline." },
+        { status: 400 }
+      );
+    }
     await admin
       .from("quotes")
       .update({
         status: "declined",
         declined_at: new Date().toISOString(),
+        declined_by_name: declinedByName,
       })
       .eq("id", quote.id);
     await logQuoteEvent({
@@ -104,8 +127,11 @@ export async function POST(request: Request, context: RouteContext) {
       actorType: "public_link",
       actorEmail: email,
       eventType: "customer_declined",
-      summary: "Customer declined quote via public link",
-      metadata: { reason: body.reason || null },
+      summary: `Customer declined quote via public link (${declinedByName})`,
+      metadata: {
+        reason: body.reason || null,
+        declined_by_name: declinedByName,
+      },
     });
     if (body.reason?.trim()) {
       await createCustomerRequest({
@@ -117,7 +143,16 @@ export async function POST(request: Request, context: RouteContext) {
         actorType: "public_link",
       });
     }
-    await notifyOwner(quote.id, "Customer declined quote", body.reason || null);
+    await notifyOwner(
+      quote.id,
+      "Customer declined quote",
+      [
+        `Declined by ${declinedByName}`,
+        body.reason?.trim() || null,
+      ]
+        .filter(Boolean)
+        .join(" — ")
+    );
     return NextResponse.json({ ok: true, status: "declined" });
   }
 

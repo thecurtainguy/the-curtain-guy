@@ -30,6 +30,7 @@ import { QuoteShareBar } from "@/components/quotes/quote-share-bar";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Reveal } from "@/components/animation/reveal";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -71,6 +72,8 @@ type ActionPayload = {
   reason?: string;
   sourceKey?: string;
   title?: string;
+  acceptedByName?: string;
+  declinedByName?: string;
 };
 
 const FEATURED_UPSELL_COUNT = 3;
@@ -239,6 +242,7 @@ export function QuoteProposalView({
   const [extraPendingKeys, setExtraPendingKeys] = useState<string[]>([]);
   const [panel, setPanel] = useState<ActionPanel>(null);
   const [message, setMessage] = useState("");
+  const [acceptName, setAcceptName] = useState(quote.customer_name || "");
   const [customMessage, setCustomMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmNote, setConfirmNote] = useState<string | null>(null);
@@ -328,6 +332,7 @@ export function QuoteProposalView({
 
       setPanel(null);
       setMessage("");
+      setAcceptName(quote.customer_name || "");
       router.refresh();
       return true;
     } catch {
@@ -357,6 +362,8 @@ export function QuoteProposalView({
       setPanel={setPanel}
       message={message}
       setMessage={setMessage}
+      acceptName={acceptName}
+      setAcceptName={setAcceptName}
       busy={busy}
       onAction={(payload) => void postAction(payload)}
     />
@@ -472,8 +479,18 @@ export function QuoteProposalView({
                 Proposal accepted
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Thank you. Our team will confirm next steps for delivery,
-                installation, and teardown.
+                Thank you
+                {quote.accepted_by_name ? (
+                  <>
+                    {" "}
+                    — accepted by{" "}
+                    <span className="font-medium text-foreground">
+                      {quote.accepted_by_name}
+                    </span>
+                  </>
+                ) : null}
+                . Our team will confirm next steps for delivery, installation,
+                and teardown.
               </p>
             </div>
           </div>
@@ -489,8 +506,17 @@ export function QuoteProposalView({
                 Proposal declined
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                We’ve recorded your response. Reach out anytime if you’d like
-                to revisit the plan.
+                We’ve recorded your response
+                {quote.declined_by_name ? (
+                  <>
+                    {" "}
+                    — declined by{" "}
+                    <span className="font-medium text-foreground">
+                      {quote.declined_by_name}
+                    </span>
+                  </>
+                ) : null}
+                . Reach out anytime if you’d like to revisit the plan.
               </p>
             </div>
           </div>
@@ -857,6 +883,8 @@ function RespondCard({
   setPanel,
   message,
   setMessage,
+  acceptName,
+  setAcceptName,
   busy,
   onAction,
 }: {
@@ -864,6 +892,8 @@ function RespondCard({
   setPanel: (panel: ActionPanel) => void;
   message: string;
   setMessage: (value: string) => void;
+  acceptName: string;
+  setAcceptName: (value: string) => void;
   busy: boolean;
   onAction: (payload: ActionPayload) => void;
 }) {
@@ -947,13 +977,33 @@ function RespondCard({
             <p className="text-xs text-muted-foreground">
               Confirm you’d like to move forward as outlined.
             </p>
+            <div className="space-y-2">
+              <Label htmlFor="quote-accept-name">Full name</Label>
+              <Input
+                id="quote-accept-name"
+                value={acceptName}
+                onChange={(e) => setAcceptName(e.target.value)}
+                autoComplete="name"
+                placeholder="Your full name"
+                disabled={busy}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                We’ll record who accepted this proposal.
+              </p>
+            </div>
             <LoadingButton
               type="button"
               className={cn(railBtnPrimary, "w-full")}
+              disabled={acceptName.trim().length < 2}
               isLoading={busy}
               loadingText="Sending…"
               icon={<CheckCircle2 className="size-4" />}
-              onClick={() => onAction({ action: "accept" })}
+              onClick={() =>
+                onAction({
+                  action: "accept",
+                  acceptedByName: acceptName.trim(),
+                })
+              }
             >
               Confirm acceptance
             </LoadingButton>
@@ -991,24 +1041,43 @@ function RespondCard({
 
         {panel === "decline" ? (
           <div className="mt-3 space-y-3 rounded-2xl border border-rose-500/25 bg-rose-500/5 p-3.5">
-            <Label htmlFor="quote-decline">Optional note</Label>
-            <Textarea
-              id="quote-decline"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              rows={2}
-              placeholder="Timing no longer works…"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="quote-decline-name">Full name</Label>
+              <Input
+                id="quote-decline-name"
+                value={acceptName}
+                onChange={(e) => setAcceptName(e.target.value)}
+                autoComplete="name"
+                placeholder="Your full name"
+                disabled={busy}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                We’ll record who declined this proposal.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quote-decline">Optional note</Label>
+              <Textarea
+                id="quote-decline"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={2}
+                placeholder="Timing no longer works…"
+                disabled={busy}
+              />
+            </div>
             <LoadingButton
               type="button"
               variant="destructive"
               className="h-10 w-full gap-2 rounded-2xl px-4 text-sm font-medium shadow-[0_4px_14px_-4px_rgba(225,29,72,0.35)]"
+              disabled={acceptName.trim().length < 2}
               isLoading={busy}
               loadingText="Sending…"
               icon={<XCircle className="size-4" />}
               onClick={() =>
                 onAction({
                   action: "decline",
+                  declinedByName: acceptName.trim(),
                   reason: message.trim() || undefined,
                 })
               }

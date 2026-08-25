@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { formatQuoteFilenameStem } from "@/data/quotes";
 import { getCurrentUser, requireOwner } from "@/lib/auth";
+import { getSiteUrl } from "@/lib/env";
 import { fetchEstimateById } from "@/lib/estimate-access";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import {
   customerCanAccessQuote,
   fetchQuoteById,
+  findActivePublicQuoteUrl,
   logQuoteEvent,
   toCustomerSafeQuote,
 } from "@/lib/quotes";
@@ -50,8 +52,14 @@ export async function GET(_request: Request, context: RouteContext) {
     }
   }
 
-  const safe = toCustomerSafeQuote(quote);
-  const buffer = await renderQuotePdfBuffer({ quote: safe });
+  const siteUrl = getSiteUrl();
+  const publicUrl = await findActivePublicQuoteUrl(id, siteUrl);
+  const safe = toCustomerSafeQuote(quote, { shareUrl: publicUrl });
+  const buffer = await renderQuotePdfBuffer({
+    quote: safe,
+    publicUrl,
+    siteUrl,
+  });
 
   await logQuoteEvent({
     quoteId: id,

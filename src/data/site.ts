@@ -23,9 +23,12 @@ import {
 
 export const siteConfig = {
   name: "The Curtain Guy",
-  tagline: "Luxury Event Drape Rentals",
+  tagline: "Event Draping & Rentals",
+  motto: "Transform Spaces · Create Moments",
   domain: "thecurtainguy.com",
-  email: "admin@thecurtainguy.com",
+  email: "info@thecurtainguy.com",
+  phone: "514-963-3193",
+  phoneHref: "tel:+15149633193",
   location: "Montreal and surrounding areas",
   description:
     "Luxury event drape and curtain rentals in Montreal for weddings, corporate events, galas, Bar Mitzvah and Bat Mitzvah celebrations, stage backdrops, and venue transformations. Full-service rental with delivery, installation, and teardown — not window treatments or e-commerce curtain sales.",
@@ -33,8 +36,17 @@ export const siteConfig = {
     "The Curtain Guy is a luxury event drape rental company serving Montreal and surrounding areas. We provide temporary draping for live events — with full-service delivery, installation, and teardown — not residential window treatments or online curtain shopping.",
 } as const;
 
+/** Brand mark — full lockup (transparent PNG) */
+export const brandLogo = {
+  src: "/images/brand/logo-full.png",
+  alt: "The Curtain Guy — Event Draping & Rentals. Transform Spaces · Create Moments",
+  width: 1024,
+  height: 1024,
+} as const;
+
 /** Base paths for photography assets under /public/images */
 export const imagePaths = {
+  brand: "/images/brand",
   hero: "/images/hero",
   gallery: "/images/gallery",
   services: "/images/services",
@@ -72,11 +84,11 @@ export type NavLink = {
 
 export const navLinks: NavLink[] = [
   { label: "Home", href: "/" },
-  { label: "About Us", href: "/about" },
-  { label: "Get Estimate", href: "/get-estimate" },
+  { label: "Services", href: "/services" },
   { label: "Gallery", href: "/gallery" },
-  { label: "Reviews", href: "/reviews" },
-  { label: "Contact Us", href: "/contact" },
+  { label: "Get Estimate", href: "/get-estimate" },
+  { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
   { label: "AI Studio", href: "/ai", icon: Sparkles, special: true },
 ];
 

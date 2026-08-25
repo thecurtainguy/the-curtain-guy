@@ -1,25 +1,35 @@
 import Link from "next/link";
 import { navLinks, siteConfig } from "@/data/site";
+import { services } from "@/data/services";
+import { BrandLogo } from "@/components/brand-logo";
+
+const footerExtras = [
+  { label: "Reviews", href: "/reviews" },
+  { label: "Privacy", href: "/privacy" },
+];
 
 export function Footer() {
-  const footerNav = navLinks.filter((link) => link.href !== "/");
+  const footerNav = [
+    ...navLinks.filter((link) => link.href !== "/"),
+    ...footerExtras,
+  ];
 
   return (
     <footer className="border-t border-border/40 bg-card/30">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-10 md:grid-cols-3">
-          <div>
-            <p className="font-heading text-lg font-semibold text-foreground">
-              {siteConfig.name}
-            </p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              {siteConfig.tagline}
-            </p>
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="sm:col-span-2 lg:col-span-1">
+            <BrandLogo href="/" size="footer" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Luxury event drape and curtain rentals for Montreal weddings,
-              corporate events, galas, mitzvahs, and venue transformations.
-              Full-service rental with delivery, installation, and teardown — not
-              window treatments or e-commerce curtain sales.
+              Luxury event drape rentals for Montreal weddings, corporate events,
+              galas, mitzvahs, and venue transformations. Full-service rental
+              with delivery, installation, and strike.
+            </p>
+            <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-primary/80">
+              {siteConfig.motto}
+            </p>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Montreal, Quebec, Canada
             </p>
           </div>
 
@@ -40,6 +50,22 @@ export function Footer() {
           </div>
 
           <div>
+            <p className="text-sm font-medium text-foreground">Services</p>
+            <ul className="mt-4 space-y-2">
+              {services.map((service) => (
+                <li key={service.slug}>
+                  <Link
+                    href={`/services/${service.slug}`}
+                    className="text-sm text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    {service.shortTitle}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
             <p className="text-sm font-medium text-foreground">Contact</p>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               <li>
@@ -50,7 +76,31 @@ export function Footer() {
                   {siteConfig.email}
                 </a>
               </li>
+              <li>
+                <a
+                  href={siteConfig.phoneHref}
+                  className="transition-colors hover:text-primary"
+                >
+                  {siteConfig.phone}
+                </a>
+              </li>
               <li>{siteConfig.location}</li>
+              <li>
+                <Link
+                  href="/get-estimate"
+                  className="transition-colors hover:text-primary"
+                >
+                  Get Estimate
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/privacy"
+                  className="transition-colors hover:text-primary"
+                >
+                  Privacy
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

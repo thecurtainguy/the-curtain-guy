@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ClipboardList, LogOut, UserRound } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -35,19 +36,24 @@ export function AccountShell({
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,oklch(0.76_0.15_88/0.1),transparent_50%)]" />
       <header className="border-b border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-              Your account
-            </p>
-            <Link
-              href="/account"
-              className="font-heading text-lg font-semibold text-foreground"
-            >
-              The Curtain Guy
-            </Link>
-            {email && (
-              <p className="mt-0.5 text-xs text-muted-foreground">{email}</p>
-            )}
+          <div className="flex min-w-0 items-center gap-3">
+            <BrandLogo href="/account" size="sm" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
+                Your account
+              </p>
+              <Link
+                href="/account"
+                className="font-heading text-lg font-semibold text-foreground"
+              >
+                The Curtain Guy
+              </Link>
+              {email && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {email}
+                </p>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button asChild size="sm">

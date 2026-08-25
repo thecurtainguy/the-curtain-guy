@@ -1,16 +1,37 @@
-import {
-  trustProcessItems,
-  trustEventTypes,
-} from "@/data/site";
+import { trustCapabilityLabels } from "@/data/services";
+import { trustProcessItems } from "@/data/site";
 import { SectionShell } from "@/components/section-shell";
 import { cn } from "@/lib/utils";
 
 export function TrustStrip() {
   return (
     <SectionShell divider="both" variant="fabric" className="bg-card/25">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-        <div className="flex flex-col items-center gap-8">
-          {/* Full-service process row */}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <div className="flex flex-col items-center gap-7">
+          <div className="flex w-full max-w-5xl flex-col items-center gap-3">
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary/80">
+              Capability
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {trustCapabilityLabels.map((type) => {
+                const Icon = type.icon;
+                return (
+                  <span
+                    key={type.label}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-primary/25 hover:text-foreground sm:px-4 sm:text-xs"
+                  >
+                    <Icon
+                      className="size-3.5 shrink-0 text-primary/80"
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                    {type.label}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid w-full max-w-4xl grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {trustProcessItems.map((item, index) => {
               const Icon = item.icon;
@@ -18,7 +39,7 @@ export function TrustStrip() {
                 <div
                   key={item.label}
                   className={cn(
-                    "group relative flex flex-col items-center gap-2.5 rounded-xl border border-white/[0.06] bg-background/40 px-4 py-4 text-center",
+                    "group relative flex flex-col items-center gap-2.5 rounded-xl border border-white/[0.06] bg-background/40 px-3 py-4 text-center sm:px-4",
                     "shadow-[0_2px_16px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.04)]",
                     "transition-colors hover:border-primary/20 hover:bg-background/55"
                   )}
@@ -38,31 +59,6 @@ export function TrustStrip() {
                 </div>
               );
             })}
-          </div>
-
-          {/* Event type chips */}
-          <div className="flex w-full max-w-4xl flex-col items-center gap-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary/80">
-              Event draping for
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {trustEventTypes.map((type) => {
-                const Icon = type.icon;
-                return (
-                  <span
-                    key={type.label}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-primary/25 hover:text-foreground sm:px-4 sm:text-xs"
-                  >
-                    <Icon
-                      className="size-3.5 shrink-0 text-primary/80"
-                      strokeWidth={1.75}
-                      aria-hidden
-                    />
-                    {type.label}
-                  </span>
-                );
-              })}
-            </div>
           </div>
         </div>
       </div>

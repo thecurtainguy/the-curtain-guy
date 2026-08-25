@@ -20,6 +20,8 @@ type GalleryTileProps = {
   index?: number;
   className?: string;
   aspect?: "square" | "wide" | "tall";
+  /** Shown on CSS placeholders to stay honest about missing photography */
+  slotLabel?: string;
 };
 
 function PlaceholderLayers({
@@ -69,6 +71,7 @@ export function GalleryTile({
   index = 0,
   className,
   aspect = "square",
+  slotLabel = "Photo slot",
 }: GalleryTileProps) {
   const gradient = gradientVariants[index % gradientVariants.length];
   const imageAlt = alt ?? `${label} event drape rental`;
@@ -109,22 +112,30 @@ export function GalleryTile({
           description && !hasImage && "group-hover:opacity-0"
         )}
       >
+        {!hasImage && (
+          <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-primary/80">
+            {slotLabel}
+          </p>
+        )}
         <p className="text-sm font-medium text-foreground">{label}</p>
         {!hasImage && !description && (
           <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground/80">
-            Photography coming soon
+            Example category — photography coming soon
           </p>
         )}
       </div>
 
       {description && !hasImage && (
         <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/60 to-transparent p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <p className="mb-1 text-[10px] font-medium uppercase tracking-[0.18em] text-primary/80">
+            {slotLabel}
+          </p>
           <p className="text-sm font-medium text-foreground">{label}</p>
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
             {description}
           </p>
           <p className="mt-2 text-[10px] uppercase tracking-wider text-primary/70">
-            Photography coming soon
+            Example category — not a completed project photo
           </p>
         </div>
       )}

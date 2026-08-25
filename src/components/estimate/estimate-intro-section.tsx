@@ -1,4 +1,3 @@
-import Image from "next/image";
 import {
   Building2,
   Layers,
@@ -9,7 +8,8 @@ import {
   Truck,
   Wrench,
 } from "lucide-react";
-import { imagePaths, trustProcessItems } from "@/data/site";
+import { trustProcessItems } from "@/data/site";
+import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -20,11 +20,6 @@ const estimateFocusAreas = [
   { label: "Room dividers", icon: Layers },
   { label: "Blackout drape", icon: Moon },
 ] as const;
-
-const estimateImage = {
-  src: `${imagePaths.gallery}/event-room-transformation-draping-01.jpg`,
-  alt: "Grand ballroom transformed with luxury event draping for a Montreal rental estimate",
-};
 
 export function EstimateIntroSection() {
   return (
@@ -91,12 +86,10 @@ export function EstimateIntroSection() {
 
         <div className="relative min-h-[240px] lg:min-h-full">
           <div className="absolute inset-0 lg:inset-y-0 lg:left-6 lg:right-0">
-            <Image
-              src={estimateImage.src}
-              alt={estimateImage.alt}
-              fill
+            <SiteMediaImage
+              mediaKey="estimate.intro"
               sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
+              className="absolute inset-0"
               priority
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/20 lg:bg-gradient-to-r lg:from-card/95 lg:via-black/50 lg:to-transparent" />

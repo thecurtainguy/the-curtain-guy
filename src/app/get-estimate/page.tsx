@@ -26,7 +26,7 @@ export default function GetEstimatePage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <EstimateIntroSection />
 
-          <div className="rounded-[min(var(--radius-4xl),24px)] border border-border/40 bg-card/30 p-6 shadow-sm ring-1 ring-foreground/5 sm:p-8 lg:p-10">
+          <div className="rounded-[min(var(--radius-4xl),24px)] border border-border/40 bg-card/30 p-4 shadow-sm ring-1 ring-foreground/5 sm:p-8 lg:p-10">
             <EstimateBuilder />
           </div>
 

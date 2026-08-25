@@ -3,7 +3,8 @@ import { PageHero } from "@/components/page-hero";
 import { QuoteCTA } from "@/components/page-hero";
 import { Card, CardContent } from "@/components/ui/card";
 import { MediaVisual } from "@/components/media-visual";
-import { siteConfig, aboutImage } from "@/data/site";
+import { siteConfig } from "@/data/site";
+import { getSiteMedia } from "@/lib/site-media";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -12,6 +13,8 @@ export const metadata: Metadata = createPageMetadata({
     "Learn about The Curtain Guy — a Montreal luxury event drape rental company providing full-service temporary draping for weddings, corporate events, galas, mitzvahs, and venue transformations. Not window treatments.",
   path: "/about",
 });
+
+const aboutMedia = getSiteMedia("about.primary");
 
 const values = [
   {
@@ -71,8 +74,8 @@ export default function AboutPage() {
               </p>
             </div>
             <MediaVisual
-              image={aboutImage.image}
-              alt={aboutImage.alt ?? "Luxury event drape rental"}
+              image={aboutMedia.path}
+              alt={aboutMedia.alt}
               className="mx-auto w-full max-w-md shadow-2xl shadow-black/40"
             />
           </div>

@@ -1,0 +1,34 @@
+---
+description: Use only The Curtain Guy Supabase project via supabase-thecurtainguy MCP — never other Supabase projects or the generic plugin
+alwaysApply: true
+---
+
+# Supabase — Curtain Guy only
+
+This repo is bound to **one** Supabase project. Do not touch any other.
+
+## Allowed MCP
+
+- **Only** the MCP server named `supabase-thecurtainguy`
+  - Runtime namespace may appear as `project-0-the-curtain-guy-supabase-thecurtainguy`
+- Config: `.cursor/mcp.json` → `supabase-thecurtainguy`
+
+## Project identity
+
+- **Project ref:** `xszhnecwhjcywhqjzfit`
+- **API URL:** `https://xszhnecwhjcywhqjzfit.supabase.co`
+
+If a tool response points at a different ref or host, **stop** and ask before continuing.
+
+## Forbidden
+
+- Generic Supabase plugin MCP (`plugin-supabase-supabase`, org-level, multi-project pickers)
+- Any other Supabase project (including ZATOV / other workspaces)
+- Guessing project refs, sharing keys, or printing secrets from `.env.local`
+
+## When working with Supabase
+
+1. Call tools only on `supabase-thecurtainguy` / `project-0-the-curtain-guy-supabase-thecurtainguy`.
+2. Confirm project URL/ref matches `xszhnecwhjcywhqjzfit` when available.
+3. Prefer read/list tools before migrations or destructive SQL.
+4. Do not create migrations or change Auth unless the user explicitly requests it.

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { SiteShell } from "@/components/layout/site-shell";
 import { siteConfig } from "@/data/site";
 import { organizationJsonLd } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/env";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -23,6 +24,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = getSiteUrl().replace(/\/$/, "");
+
 export const metadata: Metadata = {
   title: {
     default:
@@ -30,15 +33,29 @@ export const metadata: Metadata = {
     template: "%s | The Curtain Guy",
   },
   description: siteConfig.description,
-  metadataBase: new URL(`https://${siteConfig.domain}`),
+  metadataBase: new URL(siteUrl),
   alternates: { canonical: "/" },
   openGraph: {
     title: "Luxury Event Drape Rentals Montreal | The Curtain Guy",
     description: siteConfig.description,
-    url: `https://${siteConfig.domain}`,
+    url: siteUrl,
     siteName: siteConfig.name,
     locale: "en_CA",
     type: "website",
+    images: [
+      {
+        url: "/images/brand/logo-full.png",
+        width: 1024,
+        height: 1024,
+        alt: "The Curtain Guy logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Luxury Event Drape Rentals Montreal | The Curtain Guy",
+    description: siteConfig.description,
+    images: ["/images/brand/logo-full.png"],
   },
   robots: { index: true, follow: true },
 };

@@ -12,30 +12,33 @@ export function HeroSection() {
         aria-hidden
       />
 
-      <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8 lg:py-28">
+      <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:gap-12 sm:px-6 sm:py-16 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8 lg:py-24">
         <div className="order-2 lg:order-1">
           <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
-            Luxury Event Drape Rentals — Montreal
+            The Curtain Guy · Montreal
           </p>
           <h1 className="mt-4 font-heading text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-            Luxury event drape rentals that transform Montreal venues.
+            Luxury Event Drape Rentals in Montreal
           </h1>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            The Curtain Guy provides full-service pipe and drape rental in
-            Montreal — wedding draping, corporate event draping, stage backdrop
-            rentals, blackout drape, room divider draping, and complete venue
-            transformation for galas and celebrations. Delivery, installation,
-            and teardown included. Event draping, not window treatments.
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            Premium draping, pipe and drape, backdrops, blackout masking, and
+            venue transformations for weddings, galas, corporate events, and
+            milestone celebrations.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg">
+            <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
               <Link href="/get-estimate">
-                Get Estimate
+                Request an Estimate
                 <ArrowRight className="ml-1" />
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/gallery">Explore Gallery</Link>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="min-h-11 w-full sm:w-auto"
+            >
+              <Link href="/services">View Services</Link>
             </Button>
           </div>
         </div>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireOwner } from "@/lib/auth";
 import { AdminLoginForm } from "@/components/admin/admin-login-form";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const metadata: Metadata = {
   title: "Owner sign in",
@@ -19,6 +20,9 @@ export default async function AdminLoginPage() {
     <div className="relative flex min-h-screen items-center justify-center px-4 py-16">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,oklch(0.76_0.15_88/0.12),transparent_55%)]" />
       <div className="w-full max-w-md rounded-3xl border border-border/40 bg-card/30 p-6 shadow-[0_0_80px_-40px_oklch(0.76_0.15_88/0.5)] sm:p-8">
+        <div className="mb-6 flex justify-center">
+          <BrandLogo href="/" size="footer" />
+        </div>
         <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
           Owner access
         </p>

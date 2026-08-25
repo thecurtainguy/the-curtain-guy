@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { MapPin, Mail } from "lucide-react";
+import { SiteMediaImage } from "@/components/media/site-media-image";
+import { MapPin, Mail, Phone } from "lucide-react";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -28,6 +29,17 @@ export default function ContactPage() {
 
       <section className="py-16 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10 overflow-hidden rounded-2xl border border-border/40">
+            <div className="relative aspect-[21/9] min-h-[140px] sm:min-h-[200px]">
+              <SiteMediaImage
+                mediaKey="contact.atmosphere"
+                sizes="100vw"
+                className="absolute inset-0"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+            </div>
+          </div>
+
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="space-y-8">
               <div>
@@ -45,6 +57,25 @@ export default function ContactPage() {
               </div>
 
               <div className="space-y-4">
+                <Card className="border-border/40 bg-card/40">
+                  <CardContent className="flex items-start gap-4 pt-6">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Phone className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        Phone
+                      </p>
+                      <a
+                        href={siteConfig.phoneHref}
+                        className="mt-1 block text-sm text-primary hover:underline"
+                      >
+                        {siteConfig.phone}
+                      </a>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <Card className="border-border/40 bg-card/40">
                   <CardContent className="flex items-start gap-4 pt-6">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -81,7 +112,7 @@ export default function ContactPage() {
                 </Card>
               </div>
 
-              <Button asChild>
+              <Button asChild className="min-h-11">
                 <Link href="/get-estimate">Get Estimate</Link>
               </Button>
             </div>
@@ -95,7 +126,11 @@ export default function ContactPage() {
                   Form submission coming soon. For now, email us directly with
                   your event type, venue, and draping requirements.
                 </p>
-                <div className="mt-6 space-y-4" role="form" aria-label="Contact form">
+                <div
+                  className="mt-6 space-y-4"
+                  role="form"
+                  aria-label="Contact form"
+                >
                   <div className="space-y-2">
                     <Label htmlFor="contact-name">Name</Label>
                     <Input id="contact-name" placeholder="Your name" disabled />

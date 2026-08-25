@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { PageHero, QuoteCTA } from "@/components/page-hero";
-import { aiPaths, aiFeatures, aiStudioImage } from "@/data/site";
+import { aiPaths, aiFeatures } from "@/data/site";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MediaVisual } from "@/components/media-visual";
+import { getSiteMedia } from "@/lib/site-media";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
@@ -15,6 +16,8 @@ export const metadata: Metadata = createPageMetadata({
     "Coming soon: AI-powered floor plan upload, manual room drawing, and interactive 3D drape preview for luxury event drape rentals in Montreal. Plan pipe and drape, wedding draping, and venue transformations before installation.",
   path: "/ai",
 });
+
+const aiMedia = getSiteMedia("ai.studio.primary");
 
 export default function AiStudioPage() {
   return (
@@ -92,8 +95,8 @@ export default function AiStudioPage() {
             </div>
 
             <MediaVisual
-              image={aiStudioImage.image}
-              alt={aiStudioImage.alt ?? "AI drape studio visualization"}
+              image={aiMedia.path}
+              alt={aiMedia.alt}
               className="mx-auto shadow-2xl shadow-black/40 ring-1 ring-white/5"
             />
           </div>

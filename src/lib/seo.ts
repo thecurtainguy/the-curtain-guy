@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { siteConfig } from "@/data/site";
+import { getSiteUrl } from "@/lib/env";
 
-const baseUrl = `https://${siteConfig.domain}`;
+function baseUrl() {
+  return getSiteUrl().replace(/\/$/, "");
+}
 
 export function createPageMetadata({
   title,
@@ -12,16 +15,16 @@ export function createPageMetadata({
   description: string;
   path?: string;
 }): Metadata {
-  const url = `${baseUrl}${path}`;
+  const url = `${baseUrl()}${path === "/" ? "" : path}`;
 
   return {
     title,
     description,
-    alternates: { canonical: url },
+    alternates: { canonical: url || baseUrl() },
     openGraph: {
       title: `${title} | ${siteConfig.name}`,
       description,
-      url,
+      url: url || baseUrl(),
       siteName: siteConfig.name,
       locale: "en_CA",
       type: "website",
@@ -34,8 +37,11 @@ export const organizationJsonLd = {
   "@type": "LocalBusiness",
   name: siteConfig.name,
   description: siteConfig.description,
-  url: baseUrl,
+  url: `https://${siteConfig.domain}`,
   email: siteConfig.email,
+  telephone: siteConfig.phone,
+  logo: `https://${siteConfig.domain}/images/brand/logo-full.png`,
+  image: `https://${siteConfig.domain}/images/brand/logo-full.png`,
   areaServed: {
     "@type": "GeoCircle",
     geoMidpoint: {

@@ -16,6 +16,7 @@ TCG_SEND_CUSTOMER_CONFIRMATION=true
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 NEXT_PUBLIC_SITE_URL=https://www.thecurtainguy.com
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-SDTZJD87LT
 ```
 
 - `SUPABASE_*` and `RESEND_API_KEY` are server-only. Never prefix them with `NEXT_PUBLIC_`.
@@ -87,6 +88,7 @@ Do **not** put SMTP passwords or Resend API keys in this repository.
 1. Env vars on **The Curtain Guy** project only.
 2. Redeploy after env changes.
 3. Confirm `NEXT_PUBLIC_SITE_URL` is `https://www.thecurtainguy.com` (matches the live www redirect).
+4. Set `NEXT_PUBLIC_GA_MEASUREMENT_ID=G-SDTZJD87LT` for Google Analytics 4.
 
 ## 5. Security reminders
 

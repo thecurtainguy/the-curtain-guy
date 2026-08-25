@@ -90,6 +90,11 @@ export function getSiteUrl(): string {
   return url;
 }
 
+export function getGaMeasurementId(): string | null {
+  const id = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim();
+  return id || null;
+}
+
 export function shouldSendCustomerConfirmation(): boolean {
   const value = process.env.TCG_SEND_CUSTOMER_CONFIRMATION?.trim().toLowerCase();
 

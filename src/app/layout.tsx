@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { SiteShell } from "@/components/layout/site-shell";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UnsavedChangesProvider } from "@/components/providers/unsaved-changes-provider";
@@ -96,6 +97,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <SiteShell>{children}</SiteShell>
           </UnsavedChangesProvider>
         </ThemeProvider>
+        <GoogleAnalytics />
       </body>
     </html>
   );

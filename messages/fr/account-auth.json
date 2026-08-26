@@ -1,0 +1,116 @@
+{
+  "showcase": {
+    "studio": {
+      "eyebrow": "Studio The Curtain Guy",
+      "title": "Dessinez votre salle. Prévisualisez le drapage en 3D.",
+      "viewsLabel": "Un design, deux vues",
+      "view2d": "Plan 2D",
+      "view3d": "3D généré"
+    },
+    "features": [
+      "Dessin à l'échelle",
+      "Placer le drapage",
+      "Prévisualisation 3D",
+      "Sauvegarder au compte"
+    ],
+    "account": {
+      "eyebrow": "Votre compte",
+      "title": "Tout pour votre événement, au même endroit.",
+      "items": [
+        "Designs Studio sauvegardés",
+        "Estimations et soumissions",
+        "Fichiers et téléversements",
+        "Profil événement"
+      ]
+    },
+    "company": {
+      "eyebrow": "Drapage événementiel à Montréal",
+      "tagline": "Location de luxe · Installation clé en main",
+      "process": ["Location", "Livraison", "Installation", "Démontage"]
+    },
+    "eventTypes": {
+      "eyebrow": "Drapage événementiel",
+      "title": "Conçu pour les événements live",
+      "items": [
+        "Drapage de mariage",
+        "Événements corporatifs",
+        "Galas et mitzvahs",
+        "Toiles de fond scéniques"
+      ]
+    },
+    "templates": {
+      "label": "Modèles de salle",
+      "items": ["Rectangulaire", "Forme en L", "Personnalisé"]
+    },
+    "studioPreview": {
+      "eyebrow": "Espace Studio",
+      "title": "Le véritable concepteur de salle",
+      "toolbar": "Concepteur de salle",
+      "tools": "Outils",
+      "properties": "Propriétés",
+      "view2d": "2D",
+      "view3d": "3D"
+    },
+    "portal": {
+      "eyebrow": "Portail client",
+      "title": "Votre hub événementiel après connexion",
+      "stats": {
+        "estimates": "Estimations",
+        "quotes": "Soumissions",
+        "designs": "Designs"
+      },
+      "nav": ["Aperçu", "Estimations", "Soumissions", "Studio"]
+    },
+    "estimateFlow": {
+      "eyebrow": "Demander une estimation",
+      "title": "Du brief à l'événement réservé",
+      "steps": [
+        "Partager les détails",
+        "Consulter la soumission",
+        "Réserver l'installation"
+      ]
+    }
+  },
+  "login": {
+    "metaTitle": "Connexion au compte",
+    "eyebrow": "Compte client",
+    "title": "Connexion",
+    "description": "Consultez vos estimations, fichiers et profil.",
+    "email": "Courriel",
+    "password": "Mot de passe",
+    "submit": "Connexion",
+    "loading": "Chargement…",
+    "newHere": "Nouveau ici?",
+    "createAccount": "Créer un compte",
+    "returnHome": "Retour à l'accueil",
+    "errors": {
+      "verify": "Le lien de vérification du courriel est invalide ou expiré. Veuillez vous connecter ou demander une nouvelle confirmation.",
+      "invalidCredentials": "Courriel ou mot de passe invalide.",
+      "generic": "Impossible de se connecter. Veuillez réessayer."
+    }
+  },
+  "signup": {
+    "metaTitle": "Créer un compte",
+    "eyebrow": "Compte client",
+    "title": "Créer un compte",
+    "description": "Suivez vos estimations, téléversez des fichiers et gardez les détails de votre événement au même endroit.",
+    "fullName": "Nom complet",
+    "phone": "Téléphone",
+    "email": "Courriel",
+    "password": "Mot de passe",
+    "submit": "Créer un compte",
+    "loading": "Chargement…",
+    "returnHome": "Retour à l'accueil",
+    "alreadyHave": "Vous avez déjà un compte?",
+    "signIn": "Connexion",
+    "checkEmailTitle": "Vérifiez votre courriel",
+    "checkEmailBody": "Vérifiez votre courriel pour confirmer votre compte. Après la confirmation, vous pouvez revenir à cet onglet et poursuivre votre progression sauvegardée.",
+    "returnToStudio": "Retour au Studio",
+    "goToSignIn": "Aller à la connexion",
+    "errors": {
+      "rateLimit": "Trop de courriels d'inscription ont été demandés. Veuillez attendre quelques minutes et réessayer.",
+      "generic": "Impossible de créer le compte.",
+      "retry": "Impossible de créer le compte. Veuillez réessayer dans un moment."
+    }
+  }
+}

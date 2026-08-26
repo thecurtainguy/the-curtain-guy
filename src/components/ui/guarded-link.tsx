@@ -1,10 +1,16 @@
 "use client";
 
 import NextLink from "next/link";
+import { usePathname } from "next/navigation";
 import type { ComponentProps, MouseEvent } from "react";
 import { Link } from "@/i18n/navigation";
 import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
-import { isRootOnlyPath } from "@/lib/i18n/path-locale";
+import {
+  getLocaleFromPathname,
+  isAccountAuthPath,
+  isRootOnlyPath,
+  localizeAuthHref,
+} from "@/lib/i18n/path-locale";
 
 type GuardedLinkProps = ComponentProps<typeof Link> & {
   /** Skip the unsaved-progress guard for this link. */
@@ -33,9 +39,15 @@ export function GuardedLink({
   bypassGuard = false,
   ...props
 }: GuardedLinkProps) {
+  const pathname = usePathname();
+  const locale = getLocaleFromPathname(pathname);
   const { isDirty, requestNavigation } = useOptionalUnsavedChanges();
   const resolved = resolveHref(href);
+  const authHref = isAccountAuthPath(resolved)
+    ? localizeAuthHref(resolved, locale)
+    : null;
   const useRoot = isRootOnlyPath(resolved);
+  const navigationTarget = authHref ?? resolved;
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     onClick?.(event);
@@ -54,7 +66,13 @@ export function GuardedLink({
     if (!isDirty) return;
 
     event.preventDefault();
-    requestNavigation(resolved);
+    requestNavigation(navigationTarget);
+  }
+
+  if (authHref) {
+    return (
+      <NextLink href={authHref} onClick={handleClick} {...props} />
+    );
   }
 
   if (useRoot) {

@@ -1,25 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import NextLink from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { postLoginPath, safeNextPath } from "@/lib/auth-redirect";
+import {
+  getLocaleFromPathname,
+  localizeAuthHref,
+} from "@/lib/i18n/path-locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function AccountLoginForm() {
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = getLocaleFromPathname(pathname);
   const searchParams = useSearchParams();
+  const t = useTranslations("account-auth.login");
   const requestedNext = searchParams.get("next");
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(
-    searchParams.get("error") === "verify"
-      ? "Email verification link was invalid or expired. Please sign in or request a new confirmation."
-      : null
+    searchParams.get("error") === "verify" ? t("errors.verify") : null
   );
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +42,7 @@ export function AccountLoginForm() {
       });
 
       if (signError) {
-        setError(signError.message || "Invalid email or password.");
+        setError(signError.message || t("errors.invalidCredentials"));
         return;
       }
 
@@ -52,16 +58,23 @@ export function AccountLoginForm() {
       );
       router.refresh();
     } catch {
-      setError("Could not sign in. Please try again.");
+      setError(t("errors.generic"));
     } finally {
       setLoading(false);
     }
   }
 
+  const signupHref = localizeAuthHref(
+    requestedNext
+      ? `/account/signup?next=${encodeURIComponent(requestedNext)}`
+      : "/account/signup",
+    locale
+  );
+
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="account-email">Email</Label>
+        <Label htmlFor="account-email">{t("email")}</Label>
         <Input
           id="account-email"
           type="email"
@@ -72,7 +85,7 @@ export function AccountLoginForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="account-password">Password</Label>
+        <Label htmlFor="account-password">{t("password")}</Label>
         <Input
           id="account-password"
           type="password"
@@ -89,20 +102,13 @@ export function AccountLoginForm() {
       )}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? <Loader2 className="size-4 animate-spin" /> : null}
-        Sign in
+        {t("submit")}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        New here?{" "}
-        <Link
-          href={
-            requestedNext
-              ? `/account/signup?next=${encodeURIComponent(requestedNext)}`
-              : "/account/signup"
-          }
-          className="text-primary hover:underline"
-        >
-          Create an account
-        </Link>
+        {t("newHere")}{" "}
+        <NextLink href={signupHref} className="text-primary hover:underline">
+          {t("createAccount")}
+        </NextLink>
       </p>
     </form>
   );

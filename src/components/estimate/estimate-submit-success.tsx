@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { siteConfig } from "@/data/site";
 import { Link } from "@/i18n/navigation";
+import { GuardedLink } from "@/components/ui/guarded-link";
 import { Button } from "@/components/ui/button";
 import { CurtainReveal } from "@/components/ui/curtain-reveal";
 import { CelebrationConfetti } from "@/components/ui/celebration-confetti";
@@ -152,15 +153,15 @@ export function EstimateSubmitSuccess({
             <p className="text-sm font-medium text-foreground">{t("guestCta")}</p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="min-h-10">
-                <Link
+                <GuardedLink
                   href={`/account/signup?email=${encodeURIComponent(email.trim())}`}
                 >
                   <UserPlus className="size-4" />
                   Create an account
-                </Link>
+                </GuardedLink>
               </Button>
               <Button asChild variant="outline" className="min-h-10">
-                <Link href="/account/login">Sign in</Link>
+                <GuardedLink href="/account/login">Sign in</GuardedLink>
               </Button>
             </div>
           </div>

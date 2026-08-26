@@ -1,0 +1,112 @@
+{
+  "showcase": {
+    "studio": {
+      "eyebrow": "The Curtain Guy Studio",
+      "title": "Draw your room. Preview draping in 3D.",
+      "viewsLabel": "One design, two views",
+      "view2d": "2D room plan",
+      "view3d": "Generated 3D"
+    },
+    "features": [
+      "Draw to scale",
+      "Place draping",
+      "Preview in 3D",
+      "Save to account"
+    ],
+    "account": {
+      "eyebrow": "Your account",
+      "title": "Everything for your event, in one place.",
+      "items": [
+        "Saved studio designs",
+        "Estimates & quotes",
+        "Files & uploads",
+        "Event profile"
+      ]
+    },
+    "company": {
+      "eyebrow": "Montreal event draping",
+      "tagline": "Luxury rentals · Full-service install",
+      "process": ["Rental", "Delivery", "Install", "Teardown"]
+    },
+    "eventTypes": {
+      "eyebrow": "Event draping",
+      "title": "Built for live occasions",
+      "items": [
+        "Wedding draping",
+        "Corporate events",
+        "Galas & mitzvahs",
+        "Stage backdrops"
+      ]
+    },
+    "templates": {
+      "label": "Room templates",
+      "items": ["Rectangle", "L-shape", "Custom"]
+    },
+    "studioPreview": {
+      "eyebrow": "Studio workspace",
+      "title": "The actual room designer",
+      "toolbar": "Room designer",
+      "tools": "Tools",
+      "properties": "Properties",
+      "view2d": "2D",
+      "view3d": "3D"
+    },
+    "portal": {
+      "eyebrow": "Customer portal",
+      "title": "Your event hub after sign-in",
+      "stats": {
+        "estimates": "Estimates",
+        "quotes": "Quotes",
+        "designs": "Designs"
+      },
+      "nav": ["Overview", "Estimates", "Quotes", "Studio"]
+    },
+    "estimateFlow": {
+      "eyebrow": "Get estimate",
+      "title": "From brief to booked event",
+      "steps": ["Share event details", "Review your quote", "Book installation"]
+    }
+  },
+  "login": {
+    "metaTitle": "Account sign in",
+    "eyebrow": "Customer account",
+    "title": "Sign in",
+    "description": "View your estimates, files, and profile.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "loading": "Loading…",
+    "newHere": "New here?",
+    "createAccount": "Create an account",
+    "returnHome": "Return home",
+    "errors": {
+      "verify": "Email verification link was invalid or expired. Please sign in or request a new confirmation.",
+      "invalidCredentials": "Invalid email or password.",
+      "generic": "Could not sign in. Please try again."
+    }
+  },
+  "signup": {
+    "metaTitle": "Create account",
+    "eyebrow": "Customer account",
+    "title": "Create an account",
+    "description": "Track estimates, upload files, and keep your event details in one place.",
+    "fullName": "Full name",
+    "phone": "Phone",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Create account",
+    "loading": "Loading…",
+    "returnHome": "Return home",
+    "alreadyHave": "Already have an account?",
+    "signIn": "Sign in",
+    "checkEmailTitle": "Check your email",
+    "checkEmailBody": "Check your email to verify your account. After confirming, you can return to this original browser tab and continue your saved progress.",
+    "returnToStudio": "Return to Studio",
+    "goToSignIn": "Go to sign in",
+    "errors": {
+      "rateLimit": "Too many signup emails were requested. Please wait a few minutes and try again.",
+      "generic": "Could not create account.",
+      "retry": "Could not create account. Please try again in a moment."
+    }
+  }
+}

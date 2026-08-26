@@ -1,30 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import NextLink from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { postLoginPath, safeNextPath } from "@/lib/auth-redirect";
+import {
+  getLocaleFromPathname,
+  localizeAuthHref,
+} from "@/lib/i18n/path-locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function friendlyAuthError(message: string | undefined): string {
-  const text = (message || "").toLowerCase();
-  if (
-    text.includes("rate limit") ||
-    text.includes("email rate limit") ||
-    text.includes("over_email_send_rate_limit")
-  ) {
-    return "Too many signup emails were requested. Please wait a few minutes and try again.";
-  }
-  return message || "Could not create account.";
+function useFriendlyAuthError() {
+  const t = useTranslations("account-auth.signup.errors");
+
+  return (message: string | undefined) => {
+    const text = (message || "").toLowerCase();
+    if (
+      text.includes("rate limit") ||
+      text.includes("email rate limit") ||
+      text.includes("over_email_send_rate_limit")
+    ) {
+      return t("rateLimit");
+    }
+    return message || t("generic");
+  };
 }
 
 export function AccountSignupForm() {
   const router = useRouter();
+  const pathname = usePathname();
+  const locale = getLocaleFromPathname(pathname);
   const searchParams = useSearchParams();
+  const t = useTranslations("account-auth.signup");
+  const friendlyAuthError = useFriendlyAuthError();
   const requestedNext = searchParams.get("next");
   const safeRequestedNext = safeNextPath(requestedNext, "/account");
   const [fullName, setFullName] = useState("");
@@ -77,37 +91,35 @@ export function AccountSignupForm() {
 
       setCheckEmail(true);
     } catch {
-      setError("Could not create account. Please try again in a moment.");
+      setError(t("errors.retry"));
     } finally {
       setLoading(false);
     }
   }
 
+  const loginHref = localizeAuthHref(
+    requestedNext
+      ? `/account/login?next=${encodeURIComponent(requestedNext)}`
+      : "/account/login",
+    locale
+  );
+
   if (checkEmail) {
     return (
-      <div className="space-y-4 text-center">
+      <div className="space-y-4 text-center lg:text-left">
         <h2 className="font-heading text-xl font-semibold text-foreground">
-          Check your email
+          {t("checkEmailTitle")}
         </h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Check your email to verify your account. After confirming, you can
-          return to this original browser tab and continue your saved progress.
+          {t("checkEmailBody")}
         </p>
         {safeRequestedNext.startsWith("/studio") ? (
           <Button asChild>
-            <Link href={safeRequestedNext}>Return to Studio</Link>
+            <Link href={safeRequestedNext}>{t("returnToStudio")}</Link>
           </Button>
         ) : null}
         <Button asChild variant="outline">
-          <Link
-            href={
-              requestedNext
-                ? `/account/login?next=${encodeURIComponent(requestedNext)}`
-                : "/account/login"
-            }
-          >
-            Go to sign in
-          </Link>
+          <NextLink href={loginHref}>{t("goToSignIn")}</NextLink>
         </Button>
       </div>
     );
@@ -116,7 +128,7 @@ export function AccountSignupForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="signup-name">Full name</Label>
+        <Label htmlFor="signup-name">{t("fullName")}</Label>
         <Input
           id="signup-name"
           autoComplete="name"
@@ -125,7 +137,7 @@ export function AccountSignupForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="signup-phone">Phone</Label>
+        <Label htmlFor="signup-phone">{t("phone")}</Label>
         <Input
           id="signup-phone"
           type="tel"
@@ -135,7 +147,7 @@ export function AccountSignupForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="signup-email">Email</Label>
+        <Label htmlFor="signup-email">{t("email")}</Label>
         <Input
           id="signup-email"
           type="email"
@@ -146,7 +158,7 @@ export function AccountSignupForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="signup-password">Password</Label>
+        <Label htmlFor="signup-password">{t("password")}</Label>
         <Input
           id="signup-password"
           type="password"
@@ -156,7 +168,6 @@ export function AccountSignupForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <p className="text-xs text-muted-foreground">At least 8 characters.</p>
       </div>
       {error && (
         <p className="text-sm text-destructive" role="alert">
@@ -165,20 +176,13 @@ export function AccountSignupForm() {
       )}
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? <Loader2 className="size-4 animate-spin" /> : null}
-        Create account
+        {t("submit")}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
-        <Link
-          href={
-            requestedNext
-              ? `/account/login?next=${encodeURIComponent(requestedNext)}`
-              : "/account/login"
-          }
-          className="text-primary hover:underline"
-        >
-          Sign in
-        </Link>
+        {t("alreadyHave")}{" "}
+        <NextLink href={loginHref} className="text-primary hover:underline">
+          {t("signIn")}
+        </NextLink>
       </p>
     </form>
   );

@@ -15,6 +15,7 @@ const namespaces = [
   "about",
   "metadata",
   "studio",
+  "account-auth",
 ] as const;
 
 export async function loadMessages(locale: AppLocale) {

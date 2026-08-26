@@ -9,6 +9,7 @@ import {
   premiumEase,
 } from "@/lib/animation";
 import { cn } from "@/lib/utils";
+import { isAccountAuthPath } from "@/lib/i18n/path-locale";
 
 type PageTransitionProps = {
   children: React.ReactNode;
@@ -18,10 +19,7 @@ function isAuthSurface(pathname: string | null) {
   if (!pathname) return false;
   return (
     pathname === "/admin/login" ||
-    pathname === "/account/login" ||
-    pathname === "/account/signup" ||
-    pathname.startsWith("/account/login/") ||
-    pathname.startsWith("/account/signup/")
+    isAccountAuthPath(pathname)
   );
 }
 

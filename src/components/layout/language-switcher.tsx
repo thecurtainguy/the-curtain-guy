@@ -1,17 +1,20 @@
 "use client";
 
-import { usePathname as useNextPathname } from "next/navigation";
+import { usePathname as useNextPathname, useRouter as useNextRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { routing, type AppLocale } from "@/i18n/routing";
 import {
   getLocaleFromPathname,
   getPathnameWithoutLocale,
+  isAccountAuthPath,
+  localizeAuthHref,
 } from "@/lib/i18n/path-locale";
 import { cn } from "@/lib/utils";
 
 export function LanguageSwitcher({ className }: { className?: string }) {
   const nextPathname = useNextPathname();
+  const nextRouter = useNextRouter();
   const locale = getLocaleFromPathname(nextPathname);
   const pathname = getPathnameWithoutLocale(nextPathname);
   const router = useRouter();
@@ -19,6 +22,12 @@ export function LanguageSwitcher({ className }: { className?: string }) {
 
   function switchLocale(nextLocale: AppLocale) {
     if (nextLocale === locale) return;
+
+    if (isAccountAuthPath(pathname)) {
+      nextRouter.push(localizeAuthHref(pathname, nextLocale));
+      return;
+    }
+
     router.replace(pathname, { locale: nextLocale });
   }
 

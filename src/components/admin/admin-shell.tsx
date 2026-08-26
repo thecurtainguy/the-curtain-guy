@@ -9,11 +9,18 @@ import {
   LayoutDashboard,
   LogOut,
   PanelsTopLeft,
+  PenLine,
   Sparkles,
   Star,
 } from "lucide-react";
+import type { UserProfile } from "@/lib/auth";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import {
+  PortalEstimateEmbedProvider,
+  PortalEstimateEmbedSlot,
+  usePortalStartEstimate,
+} from "@/components/estimates/portal-estimate-embed";
 import { PortalShell } from "@/components/portal/portal-shell";
 import {
   PortalSidebarAction,
@@ -38,12 +45,23 @@ const links: PortalNavItem[] = [
 export function AdminShell({
   children,
   email: _email,
+  profile,
 }: {
   children: React.ReactNode;
   email?: string | null;
+  profile?: Pick<UserProfile, "full_name" | "email" | "phone"> | null;
 }) {
+  return (
+    <PortalEstimateEmbedProvider audience="admin" profile={profile}>
+      <AdminShellFrame>{children}</AdminShellFrame>
+    </PortalEstimateEmbedProvider>
+  );
+}
+
+function AdminShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const startEstimate = usePortalStartEstimate();
   const isStudioEditor = /^\/admin\/studio\/[^/]+\/?$/.test(pathname);
 
   async function signOut() {
@@ -61,6 +79,9 @@ export function AdminShell({
         <PortalSidebarThemeRow>
           <ThemeToggle />
         </PortalSidebarThemeRow>
+        <PortalSidebarAction icon={PenLine} onClick={startEstimate}>
+          New estimate
+        </PortalSidebarAction>
         <PortalSidebarAction href="/" icon={Globe}>
           Back to site
         </PortalSidebarAction>
@@ -78,7 +99,7 @@ export function AdminShell({
       sidebarStorageKey="tcg-admin-sidebar-collapsed"
       mobileBrandHref="/admin"
     >
-      {children}
+      <PortalEstimateEmbedSlot>{children}</PortalEstimateEmbedSlot>
     </PortalShell>
   );
 }

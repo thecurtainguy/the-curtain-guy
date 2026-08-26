@@ -40,7 +40,7 @@ export default async function AdminEventPlansPage() {
   }));
 
   return (
-    <AdminPageFrame email={owner.profile.email}>
+    <AdminPageFrame email={owner.profile.email} profile={owner.profile}>
       <EventPlanPortalListShell
         audience="admin"
         description="Review event builder submissions and create new plans from the portal."

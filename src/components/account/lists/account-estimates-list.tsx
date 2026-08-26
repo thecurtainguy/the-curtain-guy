@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { EstimateStatusBadge } from "@/components/estimates/status-badge";
+import { PortalStartEstimateTextLink } from "@/components/estimates/portal-start-estimate-button";
 import {
   PortalListSuspense,
   PortalListView,
@@ -139,9 +140,7 @@ function List({ rows }: { rows: AccountEstimateListRow[] }) {
       empty={
         <>
           No estimates yet.{" "}
-          <Link href="/get-estimate" className="text-primary hover:underline">
-            Start a new estimate
-          </Link>
+          <PortalStartEstimateTextLink />
         </>
       }
     />

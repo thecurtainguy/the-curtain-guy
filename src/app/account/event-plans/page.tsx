@@ -37,7 +37,7 @@ export default async function AccountEventPlansPage() {
   }));
 
   return (
-    <AccountPageFrame email={current.profile.email}>
+    <AccountPageFrame email={current.profile.email} profile={current.profile}>
       <EmailVerificationBanner verified={verified} />
       <EventPlanPortalListShell
         audience="customer"

@@ -38,7 +38,7 @@ export default async function AccountEventsPage() {
   }));
 
   return (
-    <AccountPageFrame email={current.profile.email}>
+    <AccountPageFrame email={current.profile.email} profile={current.profile}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-6">
         <PortalPageHeader

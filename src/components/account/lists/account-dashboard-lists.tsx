@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { EstimateStatusBadge } from "@/components/estimates/status-badge";
+import { PortalStartEstimateButton } from "@/components/estimates/portal-start-estimate-button";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import {
   PortalListSuspense,
@@ -16,7 +17,6 @@ import {
   resolveQuoteDisplayRef,
   type QuoteStatus,
 } from "@/data/quotes";
-import { Button } from "@/components/ui/button";
 
 export type AccountDashboardEstimateRow = {
   id: string;
@@ -177,9 +177,7 @@ function EstimatesList({ rows }: { rows: AccountDashboardEstimateRow[] }) {
       empty={
         <div className="space-y-3">
           <p>No estimates yet.</p>
-          <Button asChild>
-            <Link href="/get-estimate">Start a new estimate</Link>
-          </Button>
+          <PortalStartEstimateButton />
         </div>
       }
     />

@@ -36,7 +36,7 @@ export default async function AdminReviewsPage() {
   }));
 
   return (
-    <AdminPageFrame email={owner.profile.email}>
+    <AdminPageFrame email={owner.profile.email} profile={owner.profile}>
       <div className="space-y-6">
         <PortalPageHeader
           eyebrow="Reviews"

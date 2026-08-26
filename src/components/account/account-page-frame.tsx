@@ -1,13 +1,20 @@
+import type { UserProfile } from "@/lib/auth";
 import { AccountShell } from "@/components/account/account-shell";
 
 export function AccountPageFrame({
   email,
+  profile,
   children,
 }: {
   email: string;
+  profile?: Pick<UserProfile, "full_name" | "email" | "phone">;
   children: React.ReactNode;
 }) {
-  return <AccountShell email={email}>{children}</AccountShell>;
+  return (
+    <AccountShell email={email} profile={profile}>
+      {children}
+    </AccountShell>
+  );
 }
 
 export function EmailVerificationBanner({

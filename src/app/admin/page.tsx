@@ -7,6 +7,7 @@ import {
   AdminDashboardRecentList,
   type DashboardEstimateRow,
 } from "@/components/admin/lists/admin-dashboard-recent-list";
+import { PortalStartEstimateButton } from "@/components/estimates/portal-start-estimate-button";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { listAdminJobs } from "@/lib/jobs";
@@ -74,7 +75,7 @@ export default async function AdminDashboardPage() {
   }));
 
   return (
-    <AdminPageFrame email={owner.profile.email}>
+    <AdminPageFrame email={owner.profile.email} profile={owner.profile}>
       <div className="space-y-8">
         <PortalPageHeader
           eyebrow="Dashboard"
@@ -82,12 +83,15 @@ export default async function AdminDashboardPage() {
           description="Scan estimate pipeline health and upcoming booked events."
           icon={LayoutDashboard}
           actions={
-            <Button asChild>
-              <Link href="/admin/estimates">
-                <ClipboardList className="size-4" />
-                All estimates
-              </Link>
-            </Button>
+            <>
+              <PortalStartEstimateButton />
+              <Button asChild variant="outline">
+                <Link href="/admin/estimates">
+                  <ClipboardList className="size-4" />
+                  All estimates
+                </Link>
+              </Button>
+            </>
           }
         />
 

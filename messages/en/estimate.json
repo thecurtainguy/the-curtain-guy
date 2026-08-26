@@ -331,6 +331,7 @@
     "stepOf": "Step {current} of {total}",
     "percentComplete": "{percent}% complete",
     "back": "Back",
+    "cancelBuild": "Back to portal",
     "next": "Next",
     "submit": "Submit estimate request",
     "submitting": "Submitting...",
@@ -406,5 +407,11 @@
       "invalidType": "Only PDF, JPG, and PNG files are allowed.",
       "maxFiles": "Maximum 5 files allowed."
     }
+  },
+  "portalEmbed": {
+    "eyebrow": "New estimate",
+    "title": "Start a new estimate",
+    "description": "Walk through the brief step by step — your portal stays open while you build your request.",
+    "cancelBuild": "Back to portal"
   }
 }

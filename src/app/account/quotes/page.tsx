@@ -13,9 +13,9 @@ import {
   AccountQuotesList,
   type AccountQuoteListRow,
 } from "@/components/account/lists/account-quotes-list";
+import { PortalStartEstimateButton } from "@/components/estimates/portal-start-estimate-button";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { listQuotesForCustomer } from "@/lib/quotes";
-import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Your proposals",
@@ -38,7 +38,7 @@ export default async function AccountQuotesPage() {
   }));
 
   return (
-    <AccountPageFrame email={current.profile.email}>
+    <AccountPageFrame email={current.profile.email} profile={current.profile}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-6">
         <PortalPageHeader
@@ -47,9 +47,7 @@ export default async function AccountQuotesPage() {
           description="Review proposals, request changes, and accept when ready."
           icon={FileText}
           actions={
-            <Button asChild variant="outline">
-              <Link href="/get-estimate">Start a new estimate</Link>
-            </Button>
+            <PortalStartEstimateButton variant="outline" />
           }
         />
         <AccountQuotesList rows={listRows} />

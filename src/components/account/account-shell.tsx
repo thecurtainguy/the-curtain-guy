@@ -13,8 +13,14 @@ import {
   Sparkles,
   UserRound,
 } from "lucide-react";
+import type { UserProfile } from "@/lib/auth";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import {
+  PortalEstimateEmbedProvider,
+  PortalEstimateEmbedSlot,
+  usePortalStartEstimate,
+} from "@/components/estimates/portal-estimate-embed";
 import { PortalShell } from "@/components/portal/portal-shell";
 import {
   PortalSidebarAction,
@@ -38,12 +44,23 @@ const links: PortalNavItem[] = [
 export function AccountShell({
   children,
   email: _email,
+  profile,
 }: {
   children: React.ReactNode;
   email?: string | null;
+  profile?: Pick<UserProfile, "full_name" | "email" | "phone"> | null;
 }) {
+  return (
+    <PortalEstimateEmbedProvider audience="customer" profile={profile}>
+      <AccountShellFrame>{children}</AccountShellFrame>
+    </PortalEstimateEmbedProvider>
+  );
+}
+
+function AccountShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const startEstimate = usePortalStartEstimate();
   const isStudioEditor = /^\/account\/studio\/[^/]+\/?$/.test(pathname);
 
   async function signOut() {
@@ -61,7 +78,7 @@ export function AccountShell({
         <PortalSidebarThemeRow>
           <ThemeToggle />
         </PortalSidebarThemeRow>
-        <PortalSidebarAction href="/get-estimate" icon={PenLine}>
+        <PortalSidebarAction icon={PenLine} onClick={startEstimate}>
           Get Estimate
         </PortalSidebarAction>
         <PortalSidebarAction href="/" icon={Globe}>
@@ -81,7 +98,7 @@ export function AccountShell({
       sidebarStorageKey="tcg-account-sidebar-collapsed"
       mobileBrandHref="/account"
     >
-      {children}
+      <PortalEstimateEmbedSlot>{children}</PortalEstimateEmbedSlot>
     </PortalShell>
   );
 }

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ClipboardList } from "lucide-react";
 import {
   isEmailVerified,
@@ -13,10 +12,10 @@ import {
   AccountEstimatesList,
   type AccountEstimateListRow,
 } from "@/components/account/lists/account-estimates-list";
+import { PortalStartEstimateButton } from "@/components/estimates/portal-start-estimate-button";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { listEstimatesForCustomer } from "@/lib/estimate-access";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Your estimates",
@@ -57,7 +56,7 @@ export default async function AccountEstimatesPage() {
   }));
 
   return (
-    <AccountPageFrame email={current.profile.email}>
+    <AccountPageFrame email={current.profile.email} profile={current.profile}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-6">
         <PortalPageHeader
@@ -65,11 +64,7 @@ export default async function AccountEstimatesPage() {
           title="Estimates"
           description="Track your estimate briefs and uploaded files."
           icon={ClipboardList}
-          actions={
-            <Button asChild>
-              <Link href="/get-estimate">Start a new estimate</Link>
-            </Button>
-          }
+          actions={<PortalStartEstimateButton />}
         />
         <AccountEstimatesList rows={listRows} />
       </div>

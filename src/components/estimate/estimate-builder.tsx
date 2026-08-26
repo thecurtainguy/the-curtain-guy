@@ -66,7 +66,25 @@ function toggleFabricDirection(current: string[], id: string): string[] {
   return toggleSelection(withoutRecommend, id);
 }
 
-export function EstimateBuilder() {
+type EstimateBuilderProps = {
+  embedded?: boolean;
+  portal?: "admin" | "customer";
+  defaultContact?: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  onSubmitSaved?: (requestId: string) => void;
+  onCancel?: () => void;
+};
+
+export function EstimateBuilder({
+  embedded = false,
+  portal: _portal = "customer",
+  defaultContact,
+  onSubmitSaved,
+  onCancel,
+}: EstimateBuilderProps = {}) {
   const { setDirty, clearDirty } = useOptionalUnsavedChanges();
   const tBuilder = useTranslations("estimate.builder");
   const tValidation = useTranslations("estimate.validation");
@@ -110,6 +128,16 @@ export function EstimateBuilder() {
       mergeEstimatePrefill(prev, raw as Partial<EstimateFormData>)
     );
   }, []);
+
+  useEffect(() => {
+    if (!embedded || !defaultContact) return;
+    setFormData((prev) => ({
+      ...prev,
+      name: defaultContact.name || prev.name,
+      email: defaultContact.email || prev.email,
+      phone: defaultContact.phone || prev.phone,
+    }));
+  }, [embedded, defaultContact]);
 
   const step = steps[currentStep];
   const isFirstStep = currentStep === 0;
@@ -314,6 +342,12 @@ export function EstimateBuilder() {
             : payload.isAuthenticated
               ? "customer"
               : "guest";
+
+        if (embedded && onSubmitSaved && payload.requestId) {
+          clearDirty();
+          onSubmitSaved(payload.requestId);
+          return;
+        }
 
         setSubmitSuccess({
           requestId: payload.requestId,
@@ -801,16 +835,22 @@ export function EstimateBuilder() {
 
       {/* Navigation */}
       <div className="flex flex-col-reverse gap-3 border-t border-border/40 pt-6 sm:flex-row sm:items-center sm:justify-between">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={goBack}
-          disabled={isFirstStep}
-          className="sm:min-w-28"
-        >
-          <ArrowLeft className="size-4" />
-          {tBuilder("back")}
-        </Button>
+        {embedded && onCancel && isFirstStep ? (
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            {tBuilder("cancelBuild")}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={goBack}
+            disabled={isFirstStep}
+            className="sm:min-w-28"
+          >
+            <ArrowLeft className="size-4" />
+            {tBuilder("back")}
+          </Button>
+        )}
 
         <div className="flex flex-col gap-3 sm:flex-row">
           {!isLastStep ? (

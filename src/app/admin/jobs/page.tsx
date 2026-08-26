@@ -37,7 +37,7 @@ export default async function AdminJobsPage() {
   }));
 
   return (
-    <AdminPageFrame email={owner.profile.email}>
+    <AdminPageFrame email={owner.profile.email} profile={owner.profile}>
       <div className="space-y-6">
         <PortalPageHeader
           eyebrow="Jobs"

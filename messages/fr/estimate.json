@@ -331,6 +331,7 @@
     "stepOf": "Étape {current} sur {total}",
     "percentComplete": "{percent} % complété",
     "back": "Retour",
+    "cancelBuild": "Retour au portail",
     "next": "Suivant",
     "submit": "Soumettre la demande d'estimation",
     "submitting": "Soumission en cours...",
@@ -406,5 +407,11 @@
       "invalidType": "Seuls les fichiers PDF, JPG et PNG sont permis.",
       "maxFiles": "Maximum 5 fichiers permis."
     }
+  },
+  "portalEmbed": {
+    "eyebrow": "Nouvelle estimation",
+    "title": "Créer une estimation",
+    "description": "Complétez le brief étape par étape — votre portail reste ouvert pendant la demande.",
+    "cancelBuild": "Retour au portail"
   }
 }

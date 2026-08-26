@@ -6,6 +6,7 @@ import {
   AdminEstimatesList,
   type AdminEstimateListRow,
 } from "@/components/admin/lists/admin-estimates-list";
+import { PortalStartEstimateButton } from "@/components/estimates/portal-start-estimate-button";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -58,13 +59,14 @@ export default async function AdminEstimatesPage() {
   }));
 
   return (
-    <AdminPageFrame email={owner.profile.email}>
+    <AdminPageFrame email={owner.profile.email} profile={owner.profile}>
       <div className="space-y-6">
         <PortalPageHeader
           eyebrow="Estimates"
           title="Estimates"
           description="Review new estimate briefs and create proposals."
           icon={ClipboardList}
+          actions={<PortalStartEstimateButton />}
         />
         <AdminEstimatesList rows={listRows} />
       </div>

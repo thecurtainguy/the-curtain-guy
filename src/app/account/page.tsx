@@ -15,6 +15,7 @@ import {
   type AccountDashboardEstimateRow,
   type AccountDashboardQuoteRow,
 } from "@/components/account/lists/account-dashboard-lists";
+import { PortalStartEstimateButton } from "@/components/estimates/portal-start-estimate-button";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { listEstimatesForCustomer } from "@/lib/estimate-access";
 import { listQuotesForCustomer } from "@/lib/quotes";
@@ -51,7 +52,7 @@ export default async function AccountHomePage() {
   }));
 
   return (
-    <AccountPageFrame email={current.profile.email}>
+    <AccountPageFrame email={current.profile.email} profile={current.profile}>
       <EmailVerificationBanner verified={verified} />
       <div className="space-y-8">
         <PortalPageHeader
@@ -61,9 +62,7 @@ export default async function AccountHomePage() {
           icon={LayoutDashboard}
           actions={
             <>
-              <Button asChild>
-                <Link href="/get-estimate">Start a new estimate</Link>
-              </Button>
+              <PortalStartEstimateButton />
               <Button asChild variant="outline">
                 <Link href="/account/quotes">View quotes</Link>
               </Button>

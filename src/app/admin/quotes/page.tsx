@@ -50,7 +50,7 @@ export default async function AdminQuotesPage() {
   }));
 
   return (
-    <AdminPageFrame email={owner.profile.email}>
+    <AdminPageFrame email={owner.profile.email} profile={owner.profile}>
       <div className="space-y-6">
         <PortalPageHeader
           eyebrow="Quotes"

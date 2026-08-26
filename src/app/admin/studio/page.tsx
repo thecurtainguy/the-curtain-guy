@@ -29,7 +29,7 @@ export default async function AdminStudioPage() {
   const designs = result.ok ? result.designs : [];
 
   return (
-    <AdminPageFrame email={owner.profile.email}>
+    <AdminPageFrame email={owner.profile.email} profile={owner.profile}>
       <div className="space-y-6">
         <PortalPageHeader
           eyebrow="Studio"

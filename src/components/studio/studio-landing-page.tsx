@@ -18,6 +18,7 @@ import { Link } from "@/i18n/navigation";
 import { RootLink } from "@/components/ui/root-link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StudioHubFeaturedCard } from "@/components/event-builder/studio-hub-featured-card";
 
 const featureIcons = {
   draw: Ruler,
@@ -82,7 +83,13 @@ export function StudioLandingPage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg">
-                <RootLink href="/studio/new">
+                <RootLink href="/studio/build">
+                  {t("hero.ctaBuild")}
+                  <ArrowRight className="size-4" />
+                </RootLink>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <RootLink href="/studio/new?mode=designer">
                   {t("hero.ctaStart")}
                   <ArrowRight className="size-4" />
                 </RootLink>
@@ -94,6 +101,9 @@ export function StudioLandingPage() {
                 <Link href="/get-estimate">{t("hero.ctaEstimate")}</Link>
               </Button>
             </div>
+            <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+              {t("hero.buildHint")}
+            </p>
           </div>
 
           <div className="relative min-h-[420px] overflow-hidden rounded-4xl border border-primary/20 bg-card/35 shadow-2xl shadow-black/25">
@@ -126,13 +136,20 @@ export function StudioLandingPage() {
 
       <section className="py-14 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-10">
+            <StudioHubFeaturedCard />
+          </div>
+
           <div className="mb-12">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              {t("templates.eyebrow")}
+              {t("templates.advancedEyebrow")}
             </p>
             <h2 className="mt-2 font-heading text-2xl font-semibold sm:text-3xl">
-              {t("templates.title")}
+              {t("templates.advancedTitle")}
             </h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              {t("templates.advancedDescription")}
+            </p>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {templates.map(({ key, icon: Icon, title, body, href, badge }) => (
                 <RootLink

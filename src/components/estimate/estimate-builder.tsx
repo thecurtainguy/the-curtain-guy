@@ -44,6 +44,13 @@ import {
   useLocalizedEstimateOptions,
   useLocalizedEstimateSteps,
 } from "@/lib/i18n/estimate";
+import {
+  clearEstimatePrefillFromEventBuilder,
+  readEstimatePrefillFromEventBuilder,
+} from "@/data/event-builder/brief";
+import {
+  mergeEstimatePrefill,
+} from "@/lib/event-builder/map-brief-to-estimate";
 
 function toggleSelection(values: string[], id: string): string[] {
   return values.includes(id)
@@ -94,6 +101,15 @@ export function EstimateBuilder() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
   const skipStepScrollRef = useRef(true);
+
+  useEffect(() => {
+    const raw = readEstimatePrefillFromEventBuilder();
+    if (!raw) return;
+    clearEstimatePrefillFromEventBuilder();
+    setFormData((prev) =>
+      mergeEstimatePrefill(prev, raw as Partial<EstimateFormData>)
+    );
+  }, []);
 
   const step = steps[currentStep];
   const isFirstStep = currentStep === 0;

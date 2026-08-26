@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -93,11 +92,6 @@ export function AdminLoginForm() {
         {loading ? <Loader2 className="size-4 animate-spin" /> : null}
         Sign in
       </Button>
-      <p className="text-center text-sm text-muted-foreground">
-        <Link href="/" className="text-primary hover:underline">
-          Back to site
-        </Link>
-      </p>
     </form>
   );
 }

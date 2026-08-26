@@ -54,6 +54,15 @@ export function isAccountAuthPath(pathname: string): boolean {
   return normalized === "/account/login" || normalized === "/account/signup";
 }
 
+export function isAdminAuthPath(pathname: string): boolean {
+  return getPathnameWithoutLocale(pathname) === "/admin/login";
+}
+
+/** Marketing auth entry pages: split layout with header, no footer. */
+export function isAuthEntryPath(pathname: string): boolean {
+  return isAccountAuthPath(pathname) || isAdminAuthPath(pathname);
+}
+
 /** Auth entry pages live at `/account/*` (EN) and `/fr/account/*` (FR). */
 export function localizeAuthHref(href: string, locale: AppLocale): string {
   const [pathname, ...rest] = href.split("?");

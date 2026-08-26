@@ -30,6 +30,9 @@ type StudioToolbarProps = {
   onSave: () => void;
   onOpenTools: () => void;
   onOpenProperties: () => void;
+  titleEditable?: boolean;
+  eventTypeLabel?: string;
+  saveHidden?: boolean;
 };
 
 export function StudioToolbar({
@@ -43,6 +46,9 @@ export function StudioToolbar({
   onSave,
   onOpenTools,
   onOpenProperties,
+  titleEditable = true,
+  eventTypeLabel,
+  saveHidden = false,
 }: StudioToolbarProps) {
   const saving = saveState === "saving";
 
@@ -61,17 +67,30 @@ export function StudioToolbar({
       </div>
 
       <div className="min-w-0 flex-1 sm:max-w-sm">
-        <label htmlFor="studio-design-title" className="sr-only">
-          Design title
-        </label>
-        <Input
-          id="studio-design-title"
-          value={title}
-          maxLength={160}
-          onChange={(event) => onTitleChange(event.target.value)}
-          placeholder="Untitled room design"
-          className="h-9 bg-background/55 font-heading text-base"
-        />
+        {titleEditable ? (
+          <>
+            <label htmlFor="studio-design-title" className="sr-only">
+              Design title
+            </label>
+            <Input
+              id="studio-design-title"
+              value={title}
+              maxLength={160}
+              onChange={(event) => onTitleChange(event.target.value)}
+              placeholder="Untitled room design"
+              className="h-9 bg-background/55 font-heading text-base"
+            />
+          </>
+        ) : (
+          <div className="flex min-h-9 items-center gap-2 px-1">
+            <p className="font-heading text-base font-semibold">{title}</p>
+            {eventTypeLabel ? (
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                {eventTypeLabel}
+              </span>
+            ) : null}
+          </div>
+        )}
       </div>
 
       <div className="order-3 flex w-full items-center justify-between gap-2 sm:order-none sm:w-auto sm:justify-start">
@@ -148,7 +167,7 @@ export function StudioToolbar({
                   ? "Guest design"
                   : "Ready")}
         </span>
-        <Button type="button" onClick={onSave} disabled={saving}>
+        <Button type="button" onClick={onSave} disabled={saving} className={saveHidden ? "hidden" : undefined}>
           {saving ? (
             <LoaderCircle className="animate-spin motion-reduce:animate-none" />
           ) : (

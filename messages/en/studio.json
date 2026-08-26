@@ -8,8 +8,10 @@
     "title": "Draw your room and preview your event draping in 3D.",
     "description": "Build a practical top-down room plan, place drape runs and a stage, then move into a fast interactive 3D view—without losing the precision of your original drawing.",
     "ctaStart": "Start drawing",
+    "ctaBuild": "Build your event",
     "ctaSaved": "View saved designs",
     "ctaEstimate": "Get estimate",
+    "buildHint": "Pick your room, choose setups like chuppah & entrance drapes, then preview in 3D.",
     "imageAlt": "Luxury draped event space representing the room design Studio",
     "viewsLabel": "One design, two views",
     "view2d": "2D room plan",
@@ -18,6 +20,9 @@
   "templates": {
     "eyebrow": "Choose a starting point",
     "title": "Start with the room shape you know.",
+    "advancedEyebrow": "Or open the advanced designer",
+    "advancedTitle": "Advanced designer",
+    "advancedDescription": "For planners who want a blank canvas — pick a room shape and draw manually.",
     "startRoom": "Start this room",
     "rectangle": {
       "title": "Rectangle room",

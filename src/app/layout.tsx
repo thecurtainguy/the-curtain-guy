@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono, Inter, Playfair_Display } from "next/font/google";
 import { getLocale } from "next-intl/server";
 import "./globals.css";
@@ -98,14 +99,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         "font-sans"
       )}
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem("tcg-theme");if(t==="dark"){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}}catch(e){document.documentElement.classList.remove("dark")}})();`,
-          }}
-        />
-      </head>
       <body className="flex min-h-full flex-col bg-background text-foreground">
+        <Script id="tcg-theme-init" strategy="beforeInteractive">
+          {`(function(){try{var t=localStorage.getItem("tcg-theme");if(t==="dark"){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}}catch(e){document.documentElement.classList.remove("dark")}})();`}
+        </Script>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

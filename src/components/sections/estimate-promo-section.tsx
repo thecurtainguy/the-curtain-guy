@@ -18,7 +18,7 @@ export function EstimatePromoSection() {
     <SectionShell variant="glow" className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal variant="reveal-soft">
-          <Card className="overflow-hidden border-border/40 bg-card/40">
+          <Card className="overflow-hidden border-border/40 bg-card/40 py-0">
             <CardContent className="grid gap-0 p-0 lg:grid-cols-[1.15fr_0.85fr] lg:items-stretch">
               <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
                 <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">

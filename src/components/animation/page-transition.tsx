@@ -9,7 +9,7 @@ import {
   premiumEase,
 } from "@/lib/animation";
 import { cn } from "@/lib/utils";
-import { isAccountAuthPath } from "@/lib/i18n/path-locale";
+import { isAuthEntryPath } from "@/lib/i18n/path-locale";
 
 type PageTransitionProps = {
   children: React.ReactNode;
@@ -17,10 +17,7 @@ type PageTransitionProps = {
 
 function isAuthSurface(pathname: string | null) {
   if (!pathname) return false;
-  return (
-    pathname === "/admin/login" ||
-    isAccountAuthPath(pathname)
-  );
+  return isAuthEntryPath(pathname);
 }
 
 /** Blur entrance animations often stick on Android Chrome after full reload. */

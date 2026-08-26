@@ -1,0 +1,326 @@
+{
+  "meta": {
+    "title": "Build Your Event",
+    "description": "Pick your room size, choose draping setups, preview in 3D Studio, and submit a planning brief — no pricing until we review your venue."
+  },
+  "hub": {
+    "eyebrow": "Recommended",
+    "title": "Build your event",
+    "description": "Room size → visual catalog → colors → Studio 3D preview → submit your planning brief.",
+    "cta": "Build your event"
+  },
+  "flow": {
+    "eyebrow": "Studio Event Builder",
+    "title": "Build your event draping plan",
+    "description": "Answer a few questions, pick setups from our visual catalog, then open Studio to preview in 3D before you submit.",
+    "editTitle": "Edit your event plan",
+    "editDescription": "Update room details, setups, and fabric choices, then save your revised brief.",
+    "editingSavedPlan": "Editing a saved submission",
+    "back": "Back",
+    "cancel": "Cancel",
+    "cancelEdit": "Cancel editing",
+    "cancelBuild": "Back to list",
+    "next": "Continue",
+    "submitPlan": "Submit event plan",
+    "saveChanges": "Save changes",
+    "progressAria": "Progress"
+  },
+  "draftBanner": {
+    "aria": "Saved draft prompt",
+    "eyebrow": "Saved draft",
+    "title": "Resume your in-progress plan?",
+    "description": "We found an event plan draft saved in this browser. Continue where you left off, or start a new event from scratch.",
+    "continue": "Continue draft",
+    "startNew": "Start new event"
+  },
+  "steps": {
+    "event": "Event & room",
+    "catalog": "Setups",
+    "look": "Look",
+    "review": "Review",
+    "eventDesc": "Type, shape, and footprint",
+    "catalogDesc": "Choose draping setups",
+    "lookDesc": "Fabric, color, fullness",
+    "reviewDesc": "Confirm and submit"
+  },
+  "step1": {
+    "eyebrow": "Step 1",
+    "title": "Event & room",
+    "eventType": "Event type",
+    "roomShape": "Room shape",
+    "rectangle": "Rectangle",
+    "lShape": "L-shape",
+    "width": "Width (ft)",
+    "length": "Length (ft)",
+    "ceiling": "Ceiling height (ft)",
+    "cutoutWidth": "Cutout width (ft)",
+    "cutoutDepth": "Cutout depth (ft)",
+    "eventDate": "Event date (optional)",
+    "venue": "Venue (optional)",
+    "city": "City / area (optional)",
+    "previewLabel": "Room preview",
+    "roomDimensions": "{width}′ × {length}′ room",
+    "inputModeFields": "Enter dimensions",
+    "inputModeDraw": "Draw on canvas",
+    "drawHint": "Drag the gold handles to expand or shrink the room footprint. Switch back to fields anytime.",
+    "drawCanvasTitle": "Draw your room footprint",
+    "inputModeFieldsHint": "Type width, length, and ceiling height",
+    "inputModeDrawHint": "Drag handles on the room preview canvas",
+    "bundleHint": "Adds recommended setups to your brief in one tap",
+    "upsellWedding": "Weddings in this size often add a ceremony backdrop + entrance drape.",
+    "upsellCorporate": "Corporate events often soften two walls and add a stage backdrop.",
+    "upsellDefault": "Planning brief — our team will follow up with a rental estimate."
+  },
+  "step2": {
+    "eyebrow": "Step 2",
+    "title": "Visual setup catalog",
+    "description": "Tap photo cards to add setups. This is not a cart — just your planning brief.",
+    "categoryLabel": "Browse by category",
+    "categorySelectedCount": "{count} selected in this category"
+  },
+  "step3": {
+    "eyebrow": "Step 3",
+    "title": "Look & add-ons",
+    "description": "Choose fabric direction, color, and fullness. No prices shown here.",
+    "fabricDirection": "Fabric direction",
+    "primaryColor": "Primary drape color",
+    "fullness": "Fullness",
+    "addOns": "Additional add-ons",
+    "noPricing": "Planning brief only — not final pricing."
+  },
+  "step4": {
+    "eyebrow": "Step 4",
+    "title": "Review your brief",
+    "description": "Open Studio to refine in 2D/3D, or submit now with the details below.",
+    "event": "Event",
+    "room": "Room",
+    "area": "Floor area",
+    "linearDrape": "Linear drape (preview)",
+    "setups": "Selected setups",
+    "noSetups": "No setups selected yet — you can add them in Studio.",
+    "fabric": "Fabric & color",
+    "venue": "Venue & date",
+    "disclaimer": "Planning brief only — not final pricing. We confirm measurements and availability after venue review.",
+    "edit": "Edit",
+    "editEventRoom": "Edit event and room",
+    "editSetups": "Edit selected setups",
+    "editLook": "Edit look and add-ons",
+    "editVenue": "Edit venue and date",
+    "sectionEventRoom": "Event & room",
+    "ctaStudio": "Open in Studio & preview in 3D",
+    "ctaSubmit": "Submit event plan",
+    "ctaAdvanced": "Advanced blank studio",
+    "ctaEstimate": "Prefer a quick form? Get estimate",
+    "keepTabHint": "Studio and Get Estimate open in new tabs so this plan stays here. Your answers are saved in this browser."
+  },
+  "validation": {
+    "eventType": "Select an event type to continue.",
+    "roomSize": "Enter valid room dimensions (at least 10 ft)."
+  },
+  "submit": {
+    "eyebrow": "Submit brief",
+    "title": "Submit your event plan",
+    "description": "We will email a confirmation and follow up within 24–48 hours.",
+    "name": "Full name",
+    "email": "Email",
+    "phone": "Phone (recommended)",
+    "notes": "Notes (optional)",
+    "noPricing": "No pricing on this form — our team prepares your rental estimate after review.",
+    "cancel": "Cancel",
+    "submit": "Submit event plan",
+    "updateTitle": "Update your event plan",
+    "updateDescription": "Save your latest room, setups, and fabric choices. Our team will review the updated brief.",
+    "updateSubmit": "Save changes",
+    "nameRequired": "Name is required.",
+    "emailRequired": "Email is required.",
+    "errorGeneric": "We could not submit your plan. Please try again."
+  },
+  "success": {
+    "eyebrow": "Plan received",
+    "title": "Your event plan is on its way to our team",
+    "description": "Thank you — we received your event draping brief and will review room details, setups, and fabric choices.",
+    "reference": "Reference",
+    "timeline": "Usually within 24–48 hours",
+    "step1": "Our team reviews your room layout and selected setups.",
+    "step2": "We follow up by email with questions or a rental estimate conversation.",
+    "step3": "When you're ready, we coordinate delivery, installation, and teardown.",
+    "disclaimer": "Planning brief only — not final pricing until we confirm venue details.",
+    "home": "Return home",
+    "another": "Build another event",
+    "estimate": "Get estimate",
+    "guestCta": "Create an account to track your event plan",
+    "customerCta": "View your plan in your account",
+    "ownerCta": "View in admin",
+    "signIn": "Sign in",
+    "createAccount": "Create an account",
+    "viewInAccount": "View event plan",
+    "accountDashboard": "Account dashboard",
+    "adminDashboard": "Admin dashboard"
+  },
+  "catalog": {
+    "categories": {
+      "backdrops": "Backdrops & walls",
+      "ceremony": "Ceremony & entrances",
+      "perimeter": "Perimeter & dividers",
+      "addons": "Add-ons & upgrades"
+    },
+    "bundles": {
+      "wedding_popular": "Popular for weddings"
+    },
+    "badges": {
+      "comingSoon": "Coming soon",
+      "consultRequired": "Consult required"
+    },
+    "items": {
+      "backdrop_full": {
+        "label": "Full pleated backdrop",
+        "description": "Full-width pleated fabric on your main wall.",
+        "imageAlt": "Full-width pleated white wedding backdrop behind ceremony space"
+      },
+      "backdrop_head_table": {
+        "label": "Head / sweetheart table backdrop",
+        "description": "Shorter backdrop behind the head table.",
+        "imageAlt": "Sweetheart table backdrop with drapery and floral header"
+      },
+      "backdrop_stage": {
+        "label": "Stage / DJ backdrop",
+        "description": "Backdrop behind stage or DJ setup.",
+        "imageAlt": "Red velvet stage curtain backdrop for DJ or presentation"
+      },
+      "entrance_door_drape": {
+        "label": "Door entrance drape",
+        "description": "Paired panels with tiebacks at the main entrance.",
+        "imageAlt": "Decorated celebration entrance with draped fabric panels"
+      },
+      "entrance_tunnel": {
+        "label": "Draped doorway tunnel",
+        "description": "Entrance reveal with open center passage.",
+        "imageAlt": "Pipe and drape entrance tunnel with center opening"
+      },
+      "ceremony_chuppah": {
+        "label": "Ceremony arch / chuppah",
+        "description": "Ceremony frame with panels and swag.",
+        "imageAlt": "Outdoor ceremony arch with white drapes and greenery"
+      },
+      "perimeter_full": {
+        "label": "Full room perimeter drape",
+        "description": "Soft draping along every wall.",
+        "imageAlt": "Full ballroom perimeter pipe and drape transformation"
+      },
+      "perimeter_partial": {
+        "label": "Partial wall softening",
+        "description": "Draping on two key walls for atmosphere.",
+        "imageAlt": "Corporate event space with soft draped wall panels"
+      },
+      "room_divider": {
+        "label": "Room divider",
+        "description": "Fabric partition to separate zones.",
+        "imageAlt": "Pipe and drape partition separating event zones"
+      },
+      "top_swag": {
+        "label": "Top swag / valance",
+        "description": "Curved valance band along a wall.",
+        "imageAlt": "Wedding draping with curved swag valance along wall"
+      },
+      "addon_star_drape": {
+        "label": "Star drape look",
+        "description": "Sparkle fabric note for your brief.",
+        "imageAlt": "Celebration stage with sparkle drape and dramatic lighting"
+      },
+      "addon_blackout": {
+        "label": "Blackout masking",
+        "description": "Light-blocking fabric on backdrops.",
+        "imageAlt": "Blackout drape masking light behind backdrop"
+      },
+      "addon_uplighting": {
+        "label": "Uplighting",
+        "description": "Ambient lighting — consult required.",
+        "imageAlt": "Event uplighting washing draped walls with color"
+      },
+      "coming_ceiling_drape": {
+        "label": "Ceiling draping",
+        "description": "Coming soon in Studio.",
+        "imageAlt": "Ceiling draping preview — coming soon in Studio"
+      },
+      "coming_tent_wrap": {
+        "label": "Tent / pavilion wrap",
+        "description": "Coming soon in Studio.",
+        "imageAlt": "Tent pavilion wrap preview — coming soon in Studio"
+      },
+      "coming_infinity_entrance": {
+        "label": "Infinity entrance (3-section)",
+        "description": "Coming soon in Studio.",
+        "imageAlt": "Infinity entrance preview — coming soon in Studio"
+      },
+      "coming_floral_header": {
+        "label": "Floral header",
+        "description": "Coming soon in Studio.",
+        "imageAlt": "Floral header backdrop preview — coming soon in Studio"
+      },
+      "coming_layered_swag": {
+        "label": "Layered swag",
+        "description": "Coming soon in Studio.",
+        "imageAlt": "Layered swag backdrop preview — coming soon in Studio"
+      }
+    }
+  },
+  "livePlan": {
+    "summaryAria": "Your event plan summary",
+    "title": "Your event plan",
+    "setups": "{count, plural, one {# setup} other {# setups}}",
+    "clearAll": "Clear all",
+    "empty": "Tap photo cards to add backdrops, entrances, and perimeter draping.",
+    "eventPrefix": "Event",
+    "yourPlan": "Your plan",
+    "selected": "{count, plural, one {# setup selected} other {# setups selected}}",
+    "review": "Review"
+  },
+  "colors": {
+    "ivory": "Ivory",
+    "white": "White",
+    "black": "Black",
+    "champagne": "Champagne",
+    "gold": "Gold",
+    "navy": "Navy",
+    "burgundy": "Burgundy",
+    "blush": "Blush",
+    "charcoal": "Charcoal"
+  },
+  "review": {
+    "dateNotSet": "Date not set",
+    "ceilingLabel": "{height}′ ceiling",
+    "fullnessLabel": "Fullness {value}"
+  },
+  "fullnessOptions": {
+    "standard": {
+      "label": "Standard",
+      "description": "Balanced pleats — works for most events"
+    },
+    "full": {
+      "label": "Full",
+      "description": "Richer gather and softer wall presence"
+    },
+    "extra": {
+      "label": "Extra",
+      "description": "Maximum volume and dramatic drape depth"
+    }
+  },
+  "portalDetail": {
+    "eyebrow": "Event plan",
+    "submitted": "Submitted {date}",
+    "editPlan": "Edit plan",
+    "editingEyebrow": "Editing event plan",
+    "editingTitle": "Editing {reference}",
+    "editingDescription": "Update room details, setups, and fabric choices. Save to return to your plan summary.",
+    "cancelEdit": "Back to plan"
+  },
+  "portalList": {
+    "eyebrow": "Studio",
+    "title": "Event plans",
+    "buildNew": "Build a new event plan",
+    "buildingEyebrow": "New event plan",
+    "buildingTitle": "Build your event plan",
+    "buildingDescription": "Pick your room, choose setups, and submit your planning brief — all within your portal.",
+    "cancelBuild": "Back to event plans"
+  }
+}

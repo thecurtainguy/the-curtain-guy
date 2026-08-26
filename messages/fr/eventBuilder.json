@@ -1,0 +1,326 @@
+{
+  "meta": {
+    "title": "Planifier votre événement",
+    "description": "Choisissez la salle, les installations de drapage, prévisualisez en 3D et soumettez un brief — sans prix avant notre révision."
+  },
+  "hub": {
+    "eyebrow": "Recommandé",
+    "title": "Planifier votre événement",
+    "description": "Taille de salle → catalogue visuel → couleurs → aperçu 3D Studio → soumettre le brief.",
+    "cta": "Planifier votre événement"
+  },
+  "flow": {
+    "eyebrow": "Studio — plan d'événement",
+    "title": "Créez votre plan de drapage",
+    "description": "Répondez à quelques questions, choisissez des installations, puis ouvrez Studio pour prévisualiser en 3D.",
+    "editTitle": "Modifier votre plan",
+    "editDescription": "Mettez à jour la salle, les installations et les tissus, puis enregistrez.",
+    "editingSavedPlan": "Modification d'une soumission enregistrée",
+    "back": "Retour",
+    "cancel": "Annuler",
+    "cancelEdit": "Annuler la modification",
+    "cancelBuild": "Retour à la liste",
+    "next": "Continuer",
+    "submitPlan": "Soumettre le plan",
+    "saveChanges": "Enregistrer",
+    "progressAria": "Progression"
+  },
+  "draftBanner": {
+    "aria": "Invite de reprise de brouillon",
+    "eyebrow": "Brouillon sauvegardé",
+    "title": "Reprendre votre plan en cours ?",
+    "description": "Nous avons trouvé un brouillon dans ce navigateur. Continuez ou commencez un nouvel événement.",
+    "continue": "Continuer le brouillon",
+    "startNew": "Nouvel événement"
+  },
+  "steps": {
+    "event": "Événement & salle",
+    "catalog": "Installations",
+    "look": "Style",
+    "review": "Révision",
+    "eventDesc": "Type, forme et empreinte",
+    "catalogDesc": "Choisir les installations",
+    "lookDesc": "Tissu, couleur, plénitude",
+    "reviewDesc": "Confirmer et soumettre"
+  },
+  "step1": {
+    "eyebrow": "Étape 1",
+    "title": "Événement et salle",
+    "eventType": "Type d'événement",
+    "roomShape": "Forme de la salle",
+    "rectangle": "Rectangle",
+    "lShape": "Forme en L",
+    "width": "Largeur (pi)",
+    "length": "Longueur (pi)",
+    "ceiling": "Hauteur sous plafond (pi)",
+    "cutoutWidth": "Largeur du retrait (pi)",
+    "cutoutDepth": "Profondeur du retrait (pi)",
+    "eventDate": "Date (optionnel)",
+    "venue": "Lieu (optionnel)",
+    "city": "Ville / région (optionnel)",
+    "previewLabel": "Aperçu de la salle",
+    "roomDimensions": "Salle {width}′ × {length}′",
+    "inputModeFields": "Entrer les dimensions",
+    "inputModeDraw": "Dessiner sur le plan",
+    "drawHint": "Glissez les poignées dorées pour ajuster l'empreinte. Revenez aux champs à tout moment.",
+    "drawCanvasTitle": "Dessinez l'empreinte de la salle",
+    "inputModeFieldsHint": "Entrez largeur, longueur et hauteur sous plafond",
+    "inputModeDrawHint": "Glissez les poignées sur l'aperçu de la salle",
+    "bundleHint": "Ajoute les installations recommandées en un clic",
+    "upsellWedding": "Les mariages de cette taille ajoutent souvent un arrière-plan et une entrée drapée.",
+    "upsellCorporate": "Les événements corporatifs adoucissent souvent deux murs et ajoutent un fond de scène.",
+    "upsellDefault": "Brief de planification — notre équipe vous contactera pour une estimation."
+  },
+  "step2": {
+    "eyebrow": "Étape 2",
+    "title": "Catalogue visuel",
+    "description": "Touchez les cartes pour ajouter des installations. Ce n'est pas un panier — juste votre brief.",
+    "categoryLabel": "Parcourir par catégorie",
+    "categorySelectedCount": "{count} sélectionné(s) dans cette catégorie"
+  },
+  "step3": {
+    "eyebrow": "Étape 3",
+    "title": "Style et options",
+    "description": "Direction du tissu, couleur et plénitude. Aucun prix affiché.",
+    "fabricDirection": "Direction du tissu",
+    "primaryColor": "Couleur principale",
+    "fullness": "Plénitude",
+    "addOns": "Options supplémentaires",
+    "noPricing": "Brief de planification seulement — pas un prix final."
+  },
+  "step4": {
+    "eyebrow": "Étape 4",
+    "title": "Révisez votre brief",
+    "description": "Ouvrez Studio pour affiner en 2D/3D, ou soumettez maintenant.",
+    "event": "Événement",
+    "room": "Salle",
+    "area": "Surface",
+    "linearDrape": "Drapage linéaire (aperçu)",
+    "setups": "Installations choisies",
+    "noSetups": "Aucune installation — vous pouvez les ajouter dans Studio.",
+    "fabric": "Tissu et couleur",
+    "venue": "Lieu et date",
+    "disclaimer": "Brief seulement — pas un prix final. Nous confirmons après révision du lieu.",
+    "edit": "Modifier",
+    "editEventRoom": "Modifier l'événement et la salle",
+    "editSetups": "Modifier les installations",
+    "editLook": "Modifier le style et les options",
+    "editVenue": "Modifier le lieu et la date",
+    "sectionEventRoom": "Événement et salle",
+    "ctaStudio": "Ouvrir Studio et prévisualiser en 3D",
+    "ctaSubmit": "Soumettre le plan",
+    "ctaAdvanced": "Studio avancé vierge",
+    "ctaEstimate": "Formulaire rapide ? Demander une estimation",
+    "keepTabHint": "Studio et l'estimation s'ouvrent dans un nouvel onglet — ce plan reste ici. Vos réponses sont sauvegardées."
+  },
+  "validation": {
+    "eventType": "Sélectionnez un type d'événement.",
+    "roomSize": "Entrez des dimensions valides (au moins 10 pi)."
+  },
+  "submit": {
+    "eyebrow": "Soumettre",
+    "title": "Soumettre votre plan",
+    "description": "Nous envoyons une confirmation et vous contactons sous 24–48 h.",
+    "name": "Nom complet",
+    "email": "Courriel",
+    "phone": "Téléphone (recommandé)",
+    "notes": "Notes (optionnel)",
+    "noPricing": "Aucun prix sur ce formulaire.",
+    "cancel": "Annuler",
+    "submit": "Soumettre le plan",
+    "updateTitle": "Mettre à jour votre plan",
+    "updateDescription": "Enregistrez vos changements de salle, installations et tissus.",
+    "updateSubmit": "Enregistrer",
+    "nameRequired": "Le nom est requis.",
+    "emailRequired": "Le courriel est requis.",
+    "errorGeneric": "Échec de la soumission. Réessayez."
+  },
+  "success": {
+    "eyebrow": "Plan reçu",
+    "title": "Votre plan est avec notre équipe",
+    "description": "Merci — nous avons reçu votre brief de drapage.",
+    "reference": "Référence",
+    "timeline": "Généralement sous 24–48 h",
+    "step1": "Notre équipe révise la salle et les installations.",
+    "step2": "Nous vous contactons par courriel pour la suite.",
+    "step3": "Ensuite : livraison, installation et démontage.",
+    "disclaimer": "Brief seulement — pas un prix final.",
+    "home": "Accueil",
+    "another": "Planifier un autre événement",
+    "estimate": "Demander une estimation",
+    "guestCta": "Créez un compte pour suivre votre plan",
+    "customerCta": "Voir votre plan dans votre compte",
+    "ownerCta": "Voir dans l'admin",
+    "signIn": "Connexion",
+    "createAccount": "Créer un compte",
+    "viewInAccount": "Voir le plan",
+    "accountDashboard": "Tableau de bord",
+    "adminDashboard": "Tableau admin"
+  },
+  "catalog": {
+    "categories": {
+      "backdrops": "Arrière-plans et murs",
+      "ceremony": "Cérémonie et entrées",
+      "perimeter": "Périmètre et séparateurs",
+      "addons": "Options et améliorations"
+    },
+    "bundles": {
+      "wedding_popular": "Populaire pour les mariages"
+    },
+    "badges": {
+      "comingSoon": "Bientôt disponible",
+      "consultRequired": "Consultation requise"
+    },
+    "items": {
+      "backdrop_full": {
+        "label": "Arrière-plan plissé complet",
+        "description": "Tissu plissé sur toute la largeur de votre mur principal.",
+        "imageAlt": "Arrière-plan blanc plissé sur toute la largeur pour cérémonie"
+      },
+      "backdrop_head_table": {
+        "label": "Arrière-plan table d'honneur",
+        "description": "Arrière-plan plus court derrière la table d'honneur.",
+        "imageAlt": "Arrière-plan de table d'honneur avec draperie et fleurs"
+      },
+      "backdrop_stage": {
+        "label": "Arrière-plan scène / DJ",
+        "description": "Arrière-plan derrière la scène ou le setup DJ.",
+        "imageAlt": "Rideau de scène en velours rouge pour DJ ou présentation"
+      },
+      "entrance_door_drape": {
+        "label": "Entrée drapée",
+        "description": "Panneaux jumelés avec embrasses à l'entrée principale.",
+        "imageAlt": "Entrée de célébration décorée avec panneaux de tissu drapé"
+      },
+      "entrance_tunnel": {
+        "label": "Tunnel d'entrée drapé",
+        "description": "Révélation d'entrée avec passage central ouvert.",
+        "imageAlt": "Tunnel d'entrée pipe and drape avec ouverture centrale"
+      },
+      "ceremony_chuppah": {
+        "label": "Arche de cérémonie / houppa",
+        "description": "Structure de cérémonie avec panneaux et drapé.",
+        "imageAlt": "Arche de cérémonie extérieure avec draperies blanches et verdure"
+      },
+      "perimeter_full": {
+        "label": "Drapage périmétrique complet",
+        "description": "Drapage doux sur chaque mur.",
+        "imageAlt": "Transformation complète d'une salle de bal avec pipe and drape"
+      },
+      "perimeter_partial": {
+        "label": "Adoucissement partiel des murs",
+        "description": "Drapage sur deux murs clés pour l'ambiance.",
+        "imageAlt": "Espace corporatif avec panneaux de mur drapés"
+      },
+      "room_divider": {
+        "label": "Séparateur de salle",
+        "description": "Partition en tissu pour séparer les zones.",
+        "imageAlt": "Partition pipe and drape séparant les zones d'événement"
+      },
+      "top_swag": {
+        "label": "Drapé supérieur / lambrequin",
+        "description": "Bande de lambrequin courbée le long d'un mur.",
+        "imageAlt": "Drapage de mariage avec lambrequin courbé le long du mur"
+      },
+      "addon_star_drape": {
+        "label": "Effet star drape",
+        "description": "Note de tissu scintillant pour votre brief.",
+        "imageAlt": "Scène de célébration avec drapé scintillant et éclairage dramatique"
+      },
+      "addon_blackout": {
+        "label": "Masquage blackout",
+        "description": "Tissu occultant sur les arrière-plans.",
+        "imageAlt": "Drapage blackout masquant la lumière derrière l'arrière-plan"
+      },
+      "addon_uplighting": {
+        "label": "Éclairage d'ambiance",
+        "description": "Éclairage d'ambiance — consultation requise.",
+        "imageAlt": "Éclairage d'ambiance coloré sur murs drapés"
+      },
+      "coming_ceiling_drape": {
+        "label": "Drapage de plafond",
+        "description": "Bientôt disponible dans Studio.",
+        "imageAlt": "Aperçu drapage de plafond — bientôt dans Studio"
+      },
+      "coming_tent_wrap": {
+        "label": "Habillage tente / pavillon",
+        "description": "Bientôt disponible dans Studio.",
+        "imageAlt": "Aperçu habillage de tente — bientôt dans Studio"
+      },
+      "coming_infinity_entrance": {
+        "label": "Entrée infinity (3 sections)",
+        "description": "Bientôt disponible dans Studio.",
+        "imageAlt": "Aperçu entrée infinity — bientôt dans Studio"
+      },
+      "coming_floral_header": {
+        "label": "En-tête floral",
+        "description": "Bientôt disponible dans Studio.",
+        "imageAlt": "Aperçu arrière-plan avec en-tête floral — bientôt dans Studio"
+      },
+      "coming_layered_swag": {
+        "label": "Drapé superposé",
+        "description": "Bientôt disponible dans Studio.",
+        "imageAlt": "Aperçu drapé superposé — bientôt dans Studio"
+      }
+    }
+  },
+  "livePlan": {
+    "summaryAria": "Résumé de votre plan d'événement",
+    "title": "Votre plan d'événement",
+    "setups": "{count, plural, one {# installation} other {# installations}}",
+    "clearAll": "Tout effacer",
+    "empty": "Touchez les cartes photo pour ajouter arrière-plans, entrées et drapage périmétrique.",
+    "eventPrefix": "Événement",
+    "yourPlan": "Votre plan",
+    "selected": "{count, plural, one {# installation choisie} other {# installations choisies}}",
+    "review": "Révision"
+  },
+  "colors": {
+    "ivory": "Ivoire",
+    "white": "Blanc",
+    "black": "Noir",
+    "champagne": "Champagne",
+    "gold": "Or",
+    "navy": "Marine",
+    "burgundy": "Bordeaux",
+    "blush": "Rose poudré",
+    "charcoal": "Charbon"
+  },
+  "review": {
+    "dateNotSet": "Date non définie",
+    "ceilingLabel": "{height}′ plafond",
+    "fullnessLabel": "Plénitude {value}"
+  },
+  "fullnessOptions": {
+    "standard": {
+      "label": "Standard",
+      "description": "Plis équilibrés — pour la plupart des événements"
+    },
+    "full": {
+      "label": "Plein",
+      "description": "Plis plus riches et présence douce sur les murs"
+    },
+    "extra": {
+      "label": "Extra",
+      "description": "Volume maximal et drapage dramatique"
+    }
+  },
+  "portalDetail": {
+    "eyebrow": "Plan d'événement",
+    "submitted": "Soumis le {date}",
+    "editPlan": "Modifier le plan",
+    "editingEyebrow": "Modification du plan",
+    "editingTitle": "Modification de {reference}",
+    "editingDescription": "Mettez à jour la salle, les installations et les tissus. Enregistrez pour retourner au résumé.",
+    "cancelEdit": "Retour au plan"
+  },
+  "portalList": {
+    "eyebrow": "Studio",
+    "title": "Plans d'événement",
+    "buildNew": "Créer un nouveau plan",
+    "buildingEyebrow": "Nouveau plan",
+    "buildingTitle": "Créer votre plan d'événement",
+    "buildingDescription": "Choisissez la salle, les installations et soumettez votre brief — dans votre portail.",
+    "cancelBuild": "Retour aux plans"
+  }
+}

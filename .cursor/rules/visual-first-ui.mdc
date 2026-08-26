@@ -22,7 +22,8 @@ When adding or editing pages, sections, forms, or summaries:
 
 - Split sections into **card layouts** with gradient headers, icons, and borders (`border-border/40`, `bg-card/25`).
 - Use **gold icon badges** in rounded squares for section labels.
-- Break lists into **chips/pills** (service types, goals, add-ons) with Lucide icons.
+- For **selectable options** (forms, wizards, builders), prefer **OptionCard-style tiles** — rounded-2xl cards with icon, title, optional description, and a **selection circle** (empty ring → gold check). See `src/components/estimate/option-card.tsx`, `room-shape-card.tsx`, `drape-color-card.tsx`, `catalog-card.tsx`.
+- Use **chips/pills only** for compact summaries, tags, or filters — not as the primary way to pick from a list of choices.
 - Pair long explanations with a **visual column** (image + glass overlay callout).
 - Show process/trust as **icon grids** (rental, delivery, installation, teardown).
 - Keep body copy **short**; move detail into structured UI.
@@ -33,12 +34,17 @@ When adding or editing pages, sections, forms, or summaries:
 - Plain label:value lists when a summary can use tiles, chips, or grouped cards.
 - Walls of text between hero and interactive content.
 - Generic form pages without a branded header card.
+- **Pill-only option pickers** (`rounded-full border px-3 py-2` rows) when `OptionCard` or a visual card grid fits — pills feel cheap on this site.
 
 ## Reference patterns in this repo
 
 - `src/components/estimate/estimate-intro-section.tsx` — intro panel with photo, chips, trust row
 - `src/components/estimate/estimate-contact-card.tsx` — form in a branded header card
 - `src/components/estimate/estimate-summary.tsx` — brief with stat tiles and option chips
+- `src/components/estimate/option-card.tsx` — **default pattern for selectable options**
+- `src/components/event-builder/event-step-look.tsx` — OptionCard grids + color swatch cards
+- `src/components/event-builder/room-shape-card.tsx` — visual shape picker with selection circle
+- `src/components/event-builder/catalog-card.tsx` — photo cards with top-right select ring
 - `src/components/sections/hero-section.tsx` — copy + visual split
 - `src/components/sections/trust-strip.tsx` — icon process row
 
@@ -46,5 +52,6 @@ When adding or editing pages, sections, forms, or summaries:
 
 - [ ] Is there a visual anchor (image, icon header, or card shell)?
 - [ ] Are services/features shown as chips or tiles, not comma-separated text?
+- [ ] For multi-option forms, are choices **OptionCard-style tiles** (not pill rows)?
 - [ ] Does spacing use the luxury card system (not floating text on black)?
 - [ ] Are gold accents used for eyebrows, icons, and CTAs — not random colors?

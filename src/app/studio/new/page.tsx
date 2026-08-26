@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { StudioDesigner } from "@/components/studio/studio-designer";
+import { EventBuilderPage } from "@/components/event-builder/event-builder-page";
 import {
   cloneStudioTemplate,
   type StudioTemplateKey,
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 type SearchParams = Promise<{
+  mode?: string;
   template?: string;
   estimateId?: string;
   quoteId?: string;
@@ -49,41 +51,60 @@ export default async function NewStudioDesignPage({
         ? "/api/account/studio"
         : undefined;
 
+  const isEventMode = params.mode === "event";
+
   return (
     <div className="flex h-svh max-h-svh flex-col overflow-hidden bg-background p-1.5 sm:p-2">
       <div className="mx-auto mb-1.5 flex w-full max-w-[1920px] shrink-0 items-center justify-between gap-3 px-1">
         <Link
           href={
-            accessMode === "admin"
-              ? "/admin/studio"
-              : accessMode === "customer"
-                ? "/account/studio"
-                : "/studio"
+            isEventMode
+              ? "/studio/build"
+              : accessMode === "admin"
+                ? "/admin/studio"
+                : accessMode === "customer"
+                  ? "/account/studio"
+                  : "/studio"
           }
           className="inline-flex min-h-9 items-center gap-2 rounded-xl px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Back to Studio
+          {isEventMode ? "Back to event builder" : "Back to Studio"}
         </Link>
         <p className="hidden text-xs text-muted-foreground sm:block">
-          2D plan and 3D preview share one room design
+          {isEventMode
+            ? "Refine your event plan in 2D and 3D"
+            : "2D plan and 3D preview share one room design"}
         </p>
       </div>
-      <StudioDesigner
-        initialDesign={cloneStudioTemplate(resolveTemplate(params.template))}
-        accessMode={accessMode}
-        apiBase={apiBase}
-        signInHref="/account/login"
-        createAccountHref="/account/signup"
-        resumeSessionDraft={params.resume === "1"}
-        linkContext={{
-          estimateRequestId: params.estimateId,
-          quoteId: params.quoteId,
-          jobId: params.jobId,
-          opportunityRef: params.opportunityRef,
-        }}
-        className="mx-auto min-h-0 w-full max-w-[1920px] flex-1"
-      />
+      {isEventMode ? (
+        <EventBuilderPage
+          accessMode={accessMode}
+          apiBase={apiBase}
+          signInHref="/account/login"
+          createAccountHref="/account/signup"
+          defaultName={current?.profile.full_name ?? ""}
+          defaultEmail={current?.profile.email ?? ""}
+          defaultPhone={current?.profile.phone ?? ""}
+          className="mx-auto min-h-0 w-full max-w-[1920px] flex-1"
+        />
+      ) : (
+        <StudioDesigner
+          initialDesign={cloneStudioTemplate(resolveTemplate(params.template))}
+          accessMode={accessMode}
+          apiBase={apiBase}
+          signInHref="/account/login"
+          createAccountHref="/account/signup"
+          resumeSessionDraft={params.resume === "1"}
+          linkContext={{
+            estimateRequestId: params.estimateId,
+            quoteId: params.quoteId,
+            jobId: params.jobId,
+            opportunityRef: params.opportunityRef,
+          }}
+          className="mx-auto min-h-0 w-full max-w-[1920px] flex-1"
+        />
+      )}
     </div>
   );
 }

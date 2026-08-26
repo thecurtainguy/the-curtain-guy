@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PortalBackLink } from "@/components/portal/portal-back-link";
 
@@ -10,6 +11,7 @@ export function PortalPageHeader({
   actions,
   backHref,
   backLabel,
+  onBack,
   meta,
   className,
 }: {
@@ -20,12 +22,24 @@ export function PortalPageHeader({
   actions?: React.ReactNode;
   backHref?: string;
   backLabel?: string;
+  onBack?: () => void;
   meta?: React.ReactNode;
   className?: string;
 }) {
   return (
     <div className={cn("space-y-3", className)}>
-      {backHref ? (
+      {onBack ? (
+        <button
+          type="button"
+          onClick={onBack}
+          className="group inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background px-2.5 py-1.5 text-sm text-muted-foreground shadow-sm transition-[color,background-color,border-color] duration-150 hover:border-primary/40 hover:bg-primary/[0.06] hover:text-foreground"
+        >
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary ring-1 ring-primary/25 transition-colors group-hover:bg-primary/18">
+            <ChevronLeft className="size-3.5" aria-hidden />
+          </span>
+          <span className="truncate font-medium">{backLabel ?? "Back"}</span>
+        </button>
+      ) : backHref ? (
         <PortalBackLink href={backHref}>
           {backLabel ?? "Back"}
         </PortalBackLink>

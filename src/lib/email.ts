@@ -14,8 +14,16 @@ import {
 import {
   getEstimateFrom,
   getEstimateNotifyTo,
+  getEventPlanNotifyTo,
   shouldSendCustomerConfirmation,
 } from "@/lib/env";
+import type { EventBuilderBrief } from "@/data/event-builder/brief";
+import {
+  formatEventPlanSummary,
+  formatEventPlanSummaryText,
+} from "@/lib/event-builder/format-event-plan-summary";
+import type { StudioDesignJson } from "@/data/studio";
+import type { EventPlanContact } from "@/lib/event-builder/event-plan-server";
 
 export type SendEstimateNotificationInput = {
   requestId: string;
@@ -429,5 +437,134 @@ export async function sendEstimateCustomerConfirmationEmail(
     subject: buildCustomerConfirmationSubject(ctx.reference),
     text: buildCustomerConfirmationText(ctx),
     html: buildCustomerConfirmationHtml(ctx),
+  });
+}
+
+export type SendEventPlanNotificationInput = {
+  reference: string;
+  brief: EventBuilderBrief;
+  design: StudioDesignJson;
+  contact: EventPlanContact;
+  apiKey: string;
+};
+
+export type SendEventPlanCustomerConfirmationInput = {
+  reference: string;
+  brief: EventBuilderBrief;
+  design: StudioDesignJson;
+  contact: EventPlanContact;
+  apiKey: string;
+};
+
+function buildEventPlanSections(
+  brief: EventBuilderBrief,
+  design: StudioDesignJson,
+  contact: EventPlanContact
+) {
+  return formatEventPlanSummary(brief, design, contact);
+}
+
+function buildEventPlanHtml(
+  reference: string,
+  sections: ReturnType<typeof formatEventPlanSummary>,
+  intro: string
+): string {
+  const sectionHtml = sections
+    .map((section) => {
+      const rows = section.rows
+        .map(
+          (row) =>
+            `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#6b7280;vertical-align:top;">${escapeHtml(row.label)}</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(row.value)}</td></tr>`
+        )
+        .join("");
+      return `<div style="margin-bottom:20px;"><p style="margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">${escapeHtml(section.title)}</p><table style="border-collapse:collapse;width:100%;">${rows}</table></div>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f4f4f5;font-family:Georgia,'Times New Roman',serif;color:#111827;">
+    <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
+      <div style="background:#111827;border-radius:16px 16px 0 0;padding:28px 24px;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#d4af37;">The Curtain Guy</p>
+        <h1 style="margin:0;font-size:24px;line-height:1.3;color:#ffffff;">Event drape plan received</h1>
+      </div>
+      <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">${escapeHtml(intro)}</p>
+        <div style="margin:0 0 20px;padding:16px 18px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
+          <p style="margin:0 0 4px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">Reference number</p>
+          <p style="margin:0;font-size:20px;font-weight:600;color:#111827;">${escapeHtml(reference)}</p>
+        </div>
+        ${sectionHtml}
+        <div style="margin:0;padding:14px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;">
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;"><strong>Planning brief only.</strong> This is not final pricing. Our team will review your room and setups before sending a rental estimate.</p>
+        </div>
+      </div>
+      <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">The Curtain Guy · Montreal event drape rental</p>
+    </div>
+  </body>
+</html>`;
+}
+
+export async function sendEventPlanNotificationEmail(
+  input: SendEventPlanNotificationInput
+): Promise<void> {
+  const { reference, brief, design, contact, apiKey } = input;
+  const sections = buildEventPlanSections(brief, design, contact);
+  const text = formatEventPlanSummaryText(reference, sections);
+  const customerEmail = contact.email.trim();
+
+  await sendResendEmail({
+    apiKey,
+    from: getEstimateFrom(),
+    to: [getEventPlanNotifyTo()],
+    replyTo: customerEmail || undefined,
+    subject: `New event drape plan — ${reference}`,
+    text: text,
+    html: buildEventPlanHtml(
+      reference,
+      sections,
+      "A new event plan was submitted from the Studio Event Builder."
+    ),
+  });
+}
+
+export async function sendEventPlanCustomerConfirmationEmail(
+  input: SendEventPlanCustomerConfirmationInput
+): Promise<void> {
+  if (!shouldSendCustomerConfirmation()) return;
+
+  const customerEmail = input.contact.email.trim();
+  if (!customerEmail) return;
+
+  const sections = buildEventPlanSections(
+    input.brief,
+    input.design,
+    input.contact
+  );
+  const text = [
+    `Thank you — we received your event drape plan (${input.reference}).`,
+    "",
+    formatEventPlanSummaryText(input.reference, sections),
+    "",
+    "Our team will review your room layout and selected setups within 24–48 hours and follow up by email with next steps.",
+    "",
+    "This is a planning brief, not final pricing.",
+    "",
+    "— The Curtain Guy",
+  ].join("\n");
+
+  await sendResendEmail({
+    apiKey: input.apiKey,
+    from: getEstimateFrom(),
+    to: [customerEmail],
+    replyTo: getEventPlanNotifyTo(),
+    subject: `We received your event drape plan — ${input.reference}`,
+    text,
+    html: buildEventPlanHtml(
+      input.reference,
+      sections,
+      "Thank you for submitting your event drape plan. Our team has it on file and will review the details below."
+    ),
   });
 }

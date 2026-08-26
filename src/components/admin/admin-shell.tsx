@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   PanelsTopLeft,
+  Sparkles,
   Star,
 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -29,6 +30,7 @@ const links: PortalNavItem[] = [
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
+  { href: "/admin/event-plans", label: "Event plans", icon: Sparkles },
   { href: "/admin/studio", label: "Studio", icon: PanelsTopLeft },
   { href: "/", label: "Site", icon: Globe, exact: true },
 ];

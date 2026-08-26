@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import type { AppLocale } from "@/i18n/routing";
-import { getLocaleFromPathname } from "@/lib/i18n/path-locale";
+import { resolveAppLocale } from "@/lib/i18n/locale-preference";
 
 type LocaleProviderProps = {
   children: React.ReactNode;
@@ -16,10 +16,7 @@ export function LocaleProvider({
   messagesByLocale,
 }: LocaleProviderProps) {
   const pathname = usePathname();
-  const locale = useMemo(
-    () => getLocaleFromPathname(pathname),
-    [pathname]
-  );
+  const locale = useMemo(() => resolveAppLocale(pathname), [pathname]);
 
   return (
     <NextIntlClientProvider

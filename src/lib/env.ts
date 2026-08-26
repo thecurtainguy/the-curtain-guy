@@ -53,6 +53,13 @@ export function getEstimateFrom(): string {
   );
 }
 
+export function getEventPlanNotifyTo(): string {
+  return (
+    process.env.TCG_EVENT_PLAN_NOTIFY_TO?.trim() ||
+    getEstimateNotifyTo()
+  );
+}
+
 export function getContactNotifyTo(): string {
   return (
     process.env.TCG_CONTACT_NOTIFY_TO?.trim() ||

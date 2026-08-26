@@ -27,6 +27,7 @@ See also: [`docs/site-media.md`](../../docs/site-media.md) for slot keys and how
 | `gallery/stage/04.jpg` | Unsplash `photo-1503095396549-807759245b35` | Unsplash License | 2026-08-24 | Stage / theater atmosphere | Supporting stage variety |
 | `gallery/blackout/03.jpg` | Unsplash `photo-1558618666-fcd25c85cd64` | Unsplash License | 2026-08-24 | Dark textile folds | Slot `gallery.blackout.3` |
 | `home/how-it-works.jpg` | Unsplash `photo-1464366400600-7168b8af9bc3` | Unsplash License | 2026-08-24 | Event tables atmosphere | Slot `home.how_it_works.visual` |
+| `event-builder/*.jpg` | See `event-builder/README.md` | Mixed gallery/services copies | 2026-08-26 | Event Builder catalog cards | Swap files in folder; alts in `catalog-images.ts` |
 | `areas/montreal-hero-alt.jpg` | Unsplash `photo-1519167758481-83f550bb49b3` | Unsplash License | 2026-08-24 | Ballroom atmosphere | Optional alt |
 
 ## Phase 1 assets (reorganized into slot paths)

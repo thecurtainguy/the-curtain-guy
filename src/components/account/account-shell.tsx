@@ -10,6 +10,7 @@ import {
   LogOut,
   PanelsTopLeft,
   PenLine,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -29,6 +30,7 @@ const links: PortalNavItem[] = [
   { href: "/account/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/account/quotes", label: "Quotes", icon: FileText },
   { href: "/account/events", label: "Events", icon: CalendarDays },
+  { href: "/account/event-plans", label: "Event plans", icon: Sparkles },
   { href: "/account/studio", label: "Studio", icon: PanelsTopLeft },
   { href: "/account/profile", label: "Profile", icon: UserRound },
 ];

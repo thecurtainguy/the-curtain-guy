@@ -15,6 +15,7 @@ const namespaces = [
   "about",
   "metadata",
   "studio",
+  "eventBuilder",
   "account-auth",
 ] as const;
 

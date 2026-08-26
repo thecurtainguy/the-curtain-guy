@@ -34,12 +34,25 @@ import type {
   StudioSelection,
   StudioViewMode,
 } from "./studio-types";
+import type { EventBuilderBrief } from "@/data/event-builder/brief";
+import { EventPresetLibrary } from "@/components/event-builder/event-preset-library";
+import { EventBriefPanel } from "@/components/event-builder/event-brief-panel";
+import { getEnglishOptionLabel } from "@/data/estimate";
+
+export type StudioDesignerMode = "designer" | "event";
 
 export type StudioDesignerProps = {
   initialDesign?: StudioDesignJson;
   initialDesignRecord?: Partial<StudioDesignRow>;
   initialDesignId?: string;
   initialTitle?: string;
+  mode?: StudioDesignerMode;
+  eventBrief?: EventBuilderBrief;
+  eventContactDefaults?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
   accessMode?: StudioAccessMode;
   apiBase?: string;
   saveEndpoint?: string;
@@ -68,6 +81,9 @@ export function StudioDesigner(props: StudioDesignerProps) {
   const { setDirty: setGlobalDirty, clearDirty } =
     useOptionalUnsavedChanges();
   const {
+    mode = "designer",
+    eventBrief,
+    eventContactDefaults,
     accessMode = "guest",
     apiBase = "/api/studio/designs",
     saveEndpoint,
@@ -340,7 +356,21 @@ export function StudioDesigner(props: StudioDesignerProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [changeDesign, design, save, selection]);
 
-  const leftRail = (
+  const isEventMode = mode === "event" && eventBrief;
+  const eventTypeLabel = eventBrief
+    ? getEnglishOptionLabel("eventTypes", eventBrief.eventType) ??
+      eventBrief.eventType
+    : undefined;
+
+  const leftRail = isEventMode ? (
+    <EventPresetLibrary
+      design={design}
+      onChange={changeDesign}
+      selection={selection}
+      onSelect={setSelection}
+      brief={eventBrief}
+    />
+  ) : (
     <StudioLeftRail
       design={design}
       onChange={changeDesign}
@@ -349,7 +379,20 @@ export function StudioDesigner(props: StudioDesignerProps) {
       idPrefix="studio-desktop-tools"
     />
   );
-  const rightRail = (
+  const rightRail = isEventMode ? (
+    <EventBriefPanel
+      brief={eventBrief}
+      design={design}
+      onChange={changeDesign}
+      selection={selection}
+      onSelect={setSelection}
+      saveState={saveState}
+      defaultName={eventContactDefaults?.name}
+      defaultEmail={eventContactDefaults?.email}
+      defaultPhone={eventContactDefaults?.phone}
+      idPrefix="studio-desktop-properties"
+    />
+  ) : (
     <StudioRightRail
       design={design}
       onChange={changeDesign}
@@ -359,7 +402,15 @@ export function StudioDesigner(props: StudioDesignerProps) {
       idPrefix="studio-desktop-properties"
     />
   );
-  const mobileLeftRail = (
+  const mobileLeftRail = isEventMode ? (
+    <EventPresetLibrary
+      design={design}
+      onChange={changeDesign}
+      selection={selection}
+      onSelect={setSelection}
+      brief={eventBrief}
+    />
+  ) : (
     <StudioLeftRail
       design={design}
       onChange={changeDesign}
@@ -368,7 +419,20 @@ export function StudioDesigner(props: StudioDesignerProps) {
       idPrefix="studio-mobile-tools"
     />
   );
-  const mobileRightRail = (
+  const mobileRightRail = isEventMode ? (
+    <EventBriefPanel
+      brief={eventBrief}
+      design={design}
+      onChange={changeDesign}
+      selection={selection}
+      onSelect={setSelection}
+      saveState={saveState}
+      defaultName={eventContactDefaults?.name}
+      defaultEmail={eventContactDefaults?.email}
+      defaultPhone={eventContactDefaults?.phone}
+      idPrefix="studio-mobile-properties"
+    />
+  ) : (
     <StudioRightRail
       design={design}
       onChange={changeDesign}
@@ -403,6 +467,9 @@ export function StudioDesigner(props: StudioDesignerProps) {
             onSave={() => void save()}
             onOpenTools={() => setToolsOpen(true)}
             onOpenProperties={() => setPropertiesOpen(true)}
+            titleEditable={!isEventMode}
+            eventTypeLabel={isEventMode ? eventTypeLabel : undefined}
+            saveHidden={isEventMode && accessMode === "guest"}
           />
         }
       >

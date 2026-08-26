@@ -15,7 +15,7 @@ import {
   Theater,
   Timer,
 } from "lucide-react";
-import { addOnOptions } from "@/data/estimate";
+import { addOnOptions, getEnglishOptionLabel } from "@/data/estimate";
 import { services } from "@/data/services";
 
 export type QuoteUpsellType = "service" | "add_on";
@@ -90,7 +90,7 @@ const FALLBACK_ADDON_ICONS: Record<string, LucideIcon> = {
 function buildAddOnUpsells(): QuoteUpsellItem[] {
   return addOnOptions.map((option) => ({
     key: option.id,
-    title: option.label,
+    title: getEnglishOptionLabel("addOns", option.id) ?? option.id,
     description:
       ADDON_DESCRIPTIONS[option.id] ??
       "Optional enhancement for your draping proposal.",

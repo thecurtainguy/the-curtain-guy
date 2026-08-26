@@ -1,0 +1,118 @@
+{
+  "page": {
+    "serving": "Desservant {name}",
+    "servicesAvailable": "Services disponibles dans {name}",
+    "eventTypes": "Types d'événements",
+    "planning": "Considérations de planification",
+    "planningIntro": "Chaque salle dans {name} est différente. Ces notes nous aident à planifier la livraison, l'installation et le démontage selon votre événement.",
+    "exploreServices": "Explorer les services clés",
+    "ctaHeadline": "Planifiez le drapage événementiel dans {name}.",
+    "ctaDescription": "Partagez votre salle, la date et vos objectifs de drapage. Nous examinons votre dossier et vous recontactons pour discuter d'une estimation de location."
+  },
+  "montreal": {
+    "name": "Montreal",
+    "title": "Location de draperie événementielle de luxe à Montréal",
+    "intro": "Location de draperie événementielle de luxe à Montréal pour mariages, galas, événements corporatifs, scènes, séparateurs de salle et transformations de salles — avec livraison, installation et démontage complets.",
+    "servicesAvailable": [
+      "Drapage de mariage et toiles de fond de cérémonie",
+      "Location de pipe and drape pour murs et zonage",
+      "Drapage corporatif et de gala",
+      "Location de toiles de fond de scène",
+      "Draperie d'occultation et séparateurs de salle",
+      "Drapage de célébration Bar et Bat Mitzvah"
+    ],
+    "eventTypes": [
+      "Mariages et réceptions",
+      "Conférences corporatives et lancements",
+      "Galas et soirées de collecte de fonds",
+      "Célébrations Bar et Bat Mitzvah",
+      "Présentations scéniques et divertissement"
+    ],
+    "planningNotes": [
+      "Les salles du centre-ville et de l'île ont souvent des fenêtres de chargement courtes — partagez les détails d'accès tôt.",
+      "Grands salons, hôtels, lofts et espaces historiques nécessitent chacun des emprises de matériel différentes.",
+      "Les plans de salle et photos de la salle nous aident à dimensionner le pipe and drape avec précision.",
+      "Nous planifions l'installation et le démontage selon votre cérémonie, programme ou timing du repas."
+    ],
+    "metaTitle": "Location de draperie événementielle Montréal",
+    "metaDescription": "Location de draperie événementielle de luxe à Montréal pour mariages, galas, événements corporatifs, scènes et transformations de salles. Livraison, installation et démontage complets."
+  },
+  "laval": {
+    "name": "Laval",
+    "title": "Location de draperie événementielle à Laval",
+    "intro": "Location de draperie événementielle pour salles et célébrations à Laval, avec planification de la livraison, l'installation et le démontage dans les salles de banquet, hôtels et espaces événementiels privés.",
+    "servicesAvailable": [
+      "Drapage de mariage et de célébration",
+      "Murs et partitions pipe and drape",
+      "Finition corporative et de gala",
+      "Toiles de fond de scène et DJ",
+      "Occultation et séparateurs de salle"
+    ],
+    "eventTypes": [
+      "Mariages et célébrations familiales",
+      "Réunions corporatives et soirées",
+      "Événements communautaires et salles de banquet",
+      "Célébrations marquantes"
+    ],
+    "planningNotes": [
+      "Indiquez le nom de la salle, l'adresse et l'accès pour le chargement pour une planification précise de la livraison.",
+      "Les salles de banquet nécessitent souvent un masquage de périmètre et un focus scénique — indiquez vos priorités.",
+      "Le nombre d'invités et la disposition de la salle aident à dimensionner les séparateurs et toiles de fond.",
+      "Nous planifions l'installation et le démontage selon les calendriers de restauration et de décoration."
+    ],
+    "metaTitle": "Location de draperie événementielle Laval",
+    "metaDescription": "Location de draperie événementielle pour salles à Laval — mariages, événements corporatifs, toiles de fond et masquage de salle avec livraison, installation et démontage."
+  },
+  "longueuil": {
+    "name": "Longueuil",
+    "title": "Location de draperie événementielle à Longueuil et sur la Rive-Sud",
+    "intro": "Service de location de draperie pour événements à Longueuil et sur la Rive-Sud, incluant mariages, installations corporatives, toiles de fond et masquage de salle — planifié avec la logistique de livraison et d'installation.",
+    "servicesAvailable": [
+      "Drapage de mariage et transformation de réception",
+      "Drapage corporatif et de conférence",
+      "Location de toiles de fond de scène",
+      "Partitions pipe and drape",
+      "Draperie d'occultation et de masquage"
+    ],
+    "eventTypes": [
+      "Mariages et réceptions",
+      "Événements corporatifs et associatifs",
+      "Galas et célébrations communautaires",
+      "Programmes scéniques et divertissement"
+    ],
+    "planningNotes": [
+      "Les salles de la Rive-Sud varient grandement — grands salons d'hôtel, salles communautaires et espaces privés.",
+      "Prévoyez du temps pour la logistique du traversier ou des ponts en partageant le calendrier du jour de l'événement.",
+      "Téléversez plans de salle ou photos avec votre demande d'estimation lorsque disponibles.",
+      "Nous coordonnons le démontage pour que la salle soit libérée après votre événement."
+    ],
+    "metaTitle": "Location de draperie événementielle Longueuil",
+    "metaDescription": "Location de draperie événementielle pour Longueuil et la Rive-Sud — mariages, installations corporatives, toiles de fond et masquage de salle avec livraison et installation complètes."
+  },
+  "west-island": {
+    "name": "West Island",
+    "title": "Location de draperie événementielle sur le West Island",
+    "intro": "Drapage de mariage et corporatif pour salles sur le West Island, événements privés, salles de banquet et espaces communautaires — avec planification complète de location de la livraison au démontage.",
+    "servicesAvailable": [
+      "Drapage de cérémonie et réception de mariage",
+      "Finition corporative et événements privés",
+      "Toiles de fond de scène et photo",
+      "Zonage pipe and drape",
+      "Draperie d'occultation et séparateurs de salle"
+    ],
+    "eventTypes": [
+      "Mariages et réceptions",
+      "Dîners corporatifs et privés",
+      "Célébrations communautaires et salles de banquet",
+      "Événements Bar et Bat Mitzvah"
+    ],
+    "planningNotes": [
+      "Les salles du West Island varient des salles de banquet aux clubs et propriétés privées.",
+      "Les espaces adjacents à l'extérieur peuvent nécessiter un masquage intérieur pour la météo ou le contrôle de la lumière.",
+      "Partagez les notes de stationnement et de chargement pour une livraison et installation fluides.",
+      "Les photos d'inspiration et les mesures nous aident à préparer un suivi d'estimation de location clair."
+    ],
+    "metaTitle": "Location de draperie événementielle West Island",
+    "metaDescription": "Drapage de mariage et corporatif pour salles, salles de banquet et événements privés sur le West Island. Location de draperie événementielle complète avec livraison, installation et démontage."
+  }
+}

@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { CheckCircle2, Clock3, MapPin, Sparkles } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { CurtainReveal } from "@/components/ui/curtain-reveal";
 import { siteConfig } from "@/data/site";
@@ -11,6 +12,8 @@ type ContactFormSuccessProps = {
 };
 
 export function ContactFormSuccess({ onSendAnother }: ContactFormSuccessProps) {
+  const t = useTranslations("contact.form");
+
   return (
     <CurtainReveal className="mt-6">
       <span
@@ -21,20 +24,19 @@ export function ContactFormSuccess({ onSendAnother }: ContactFormSuccessProps) {
       </span>
 
       <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-        Message received
+        {t("successEyebrow")}
       </p>
       <h3 className="mt-2 font-heading text-2xl font-semibold text-foreground sm:text-[1.65rem]">
-        The curtains are opening on your request
+        {t("successTitle")}
       </h3>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
-        Thanks — your message was sent. Our Montreal team will review your
-        event details and get back to you shortly.
+        {t("successDescription")}
       </p>
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
         <span className="surface-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
           <Clock3 className="size-3.5 text-primary" aria-hidden />
-          Usually within one business day
+          {t("responseTime")}
         </span>
         <span className="surface-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
           <MapPin className="size-3.5 text-primary" aria-hidden />
@@ -44,7 +46,7 @@ export function ContactFormSuccess({ onSendAnother }: ContactFormSuccessProps) {
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <Button asChild className="min-h-10">
-          <Link href="/get-estimate">Plan your draping</Link>
+          <Link href="/get-estimate">{t("planDraping")}</Link>
         </Button>
         {onSendAnother ? (
           <Button
@@ -54,7 +56,7 @@ export function ContactFormSuccess({ onSendAnother }: ContactFormSuccessProps) {
             onClick={onSendAnother}
           >
             <Sparkles className="size-4" />
-            Send another message
+            {t("sendAnother")}
           </Button>
         ) : null}
       </div>

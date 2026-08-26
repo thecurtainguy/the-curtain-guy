@@ -1,6 +1,7 @@
 "use client";
 
 import { Mail, UserRound } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { EstimateFormData } from "@/data/estimate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,10 @@ export function EstimateContactCard({
   canSubmit = false,
   className,
 }: EstimateContactCardProps) {
+  const t = useTranslations("estimate");
+  const tSummary = useTranslations("estimate.summary");
+  const tBuilder = useTranslations("estimate.builder");
+
   return (
     <Card
       className={cn(
@@ -44,14 +49,13 @@ export function EstimateContactCard({
           </span>
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-              Contact Details
+              {tSummary("sections.contact")}
             </p>
             <h3 className="mt-1 font-heading text-xl font-semibold text-foreground sm:text-2xl">
-              Your information
+              {t("steps.contact-summary.title")}
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              We&apos;ll include these details in your estimate brief when you
-              request a follow-up from our team.
+              {t("steps.contact-summary.description")}
             </p>
           </div>
         </div>
@@ -62,11 +66,10 @@ export function EstimateContactCard({
           <div className="space-y-2">
             <Label htmlFor="contact-name" className="flex items-center gap-1.5">
               <UserRound className="size-3.5 text-primary/80" />
-              Name <span className="text-primary">*</span>
+              {tSummary("labels.name")} <span className="text-primary">*</span>
             </Label>
             <Input
               id="contact-name"
-              placeholder="Your name"
               value={data.name}
               onChange={(e) => onFieldChange("name", e.target.value)}
               aria-invalid={showValidationHint && !data.name.trim() ? true : undefined}
@@ -75,12 +78,11 @@ export function EstimateContactCard({
           <div className="space-y-2">
             <Label htmlFor="contact-email" className="flex items-center gap-1.5">
               <Mail className="size-3.5 text-primary/80" />
-              Email <span className="text-primary">*</span>
+              {tSummary("labels.email")} <span className="text-primary">*</span>
             </Label>
             <Input
               id="contact-email"
               type="email"
-              placeholder="you@example.com"
               value={data.email}
               onChange={(e) => onFieldChange("email", e.target.value)}
               aria-invalid={
@@ -93,21 +95,19 @@ export function EstimateContactCard({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="contact-phone">Phone (optional)</Label>
+          <Label htmlFor="contact-phone">{tSummary("labels.phone")}</Label>
           <Input
             id="contact-phone"
             type="tel"
-            placeholder="(514) 555-0100"
             value={data.phone}
             onChange={(e) => onFieldChange("phone", e.target.value)}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="contact-message">Message / notes</Label>
+          <Label htmlFor="contact-message">{tSummary("labels.notes")}</Label>
           <Textarea
             id="contact-message"
-            placeholder="Share timeline, load-in constraints, inspiration, or anything else we should know..."
             rows={5}
             value={data.message}
             onChange={(e) => onFieldChange("message", e.target.value)}
@@ -116,8 +116,8 @@ export function EstimateContactCard({
         </div>
 
         <p className="rounded-xl border border-border/30 bg-background/30 px-3 py-2.5 text-xs text-muted-foreground">
-          <span className="text-primary">*</span> Required to enable{" "}
-          <span className="font-medium text-foreground">Request Final Estimate</span>
+          <span className="text-primary">*</span> {tBuilder("contactRequired")}{" "}
+          <span className="font-medium text-foreground">{tBuilder("submit")}</span>
         </p>
       </CardContent>
     </Card>

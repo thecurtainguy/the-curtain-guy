@@ -1,0 +1,36 @@
+{
+  "page": {
+    "eyebrow": "Privacy",
+    "title": "Privacy policy",
+    "description": "How The Curtain Guy collects, uses, and protects your information.",
+    "lastUpdated": "Last updated",
+    "metaTitle": "Privacy Policy | The Curtain Guy",
+    "metaDescription": "Privacy policy for The Curtain Guy — how we handle contact forms, estimate requests, and account information."
+  },
+  "sections": [
+    {
+      "title": "Information we collect",
+      "body": "We collect information you provide through contact forms, estimate requests, account registration, and review submissions — including name, email, phone, event details, and messages."
+    },
+    {
+      "title": "How we use your information",
+      "body": "We use your information to respond to inquiries, prepare rental estimates, coordinate event draping services, manage accounts, and improve our services. We do not sell your personal information."
+    },
+    {
+      "title": "Estimate and event data",
+      "body": "Estimate briefs may include venue details, measurements, floor plans, and inspiration files you upload. This data is used to prepare quotes and plan installations."
+    },
+    {
+      "title": "Cookies and analytics",
+      "body": "We use essential cookies for authentication and session management. Analytics may be used to understand site usage. You can control theme preferences via local storage."
+    },
+    {
+      "title": "Data retention",
+      "body": "We retain contact and estimate data as needed to provide services and meet legal obligations. You may request deletion of your account data by contacting us."
+    },
+    {
+      "title": "Contact",
+      "body": "For privacy questions, contact info@thecurtainguy.com or call 514-963-3193."
+    }
+  ]
+}

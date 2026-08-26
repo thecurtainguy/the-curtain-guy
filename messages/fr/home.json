@@ -1,0 +1,212 @@
+{
+  "hero": {
+    "eyebrow": "The Curtain Guy · Montréal",
+    "title": "Location de draperie événementielle de luxe à Montréal",
+    "description": "Drapage premium, pipe and drape, toiles de fond, occultation et transformations de salles pour mariages, galas, événements corporatifs et célébrations marquantes."
+  },
+  "trust": {
+    "capability": "Capacités",
+    "process": [
+      "Location clé en main",
+      "Livraison",
+      "Installation",
+      "Démontage"
+    ],
+    "eventTypes": [
+      "Drapage de mariage",
+      "Événements corporatifs",
+      "Galas",
+      "Bar et Bat Mitzvah",
+      "Toiles de fond de scène"
+    ]
+  },
+  "services": {
+    "eyebrow": "Services",
+    "title": "Services de location de draperie événementielle",
+    "description": "Drapage temporaire de luxe pour mariages, événements corporatifs, galas, mitzvahs et transformations de salles à Montréal."
+  },
+  "howItWorks": {
+    "eyebrow": "Comment ça fonctionne",
+    "title": "Du dossier au drapage installé",
+    "description": "Un processus de location clé en main — pas du tissu livré à la porte. Nous planifions, livrons, installons et démontons selon le calendrier de votre événement.",
+    "steps": [
+      {
+        "title": "Détails de l'événement",
+        "description": "Date, salle, nombre d'invités et type d'événement — mariage, corporatif, gala ou mitzvah."
+      },
+      {
+        "title": "Objectif de drapage",
+        "description": "Ce que vous souhaitez accomplir — toile de fond, périmètre, séparateurs de salle, occultation de scène ou transformation complète."
+      },
+      {
+        "title": "Mesures / plan de salle",
+        "description": "Dimensions de la salle ou plan de la salle pour dimensionner le pipe and drape, la hauteur et la couverture."
+      },
+      {
+        "title": "Tissu et couleur",
+        "description": "Style de draperie, couleur, ampleur et texture pour l'ambiance de votre événement."
+      },
+      {
+        "title": "Options",
+        "description": "Draperie étoilée, zones d'occultation, step-and-repeat, éclairage d'ambiance et éléments spéciaux."
+      },
+      {
+        "title": "Révision et soumission",
+        "description": "Confirmez votre installation et demandez une estimation finale de location de draperie événementielle à notre équipe."
+      }
+    ],
+    "cta": "Commencer votre estimation"
+  },
+  "why": {
+    "eyebrow": "Pourquoi The Curtain Guy",
+    "title": "Drapage événementiel de luxe, géré de bout en bout",
+    "description": "Tissus premium, équipes expérimentées et planification adaptée aux salles de Montréal — des célébrations intimes aux transformations complètes de grands salons.",
+    "cards": [
+      {
+        "title": "Finition événementielle de luxe",
+        "description": "Location de draperie événementielle avec tissus raffinés et finitions d'installation — chaque salle est sublimée, jamais comme un catalogue de location basique."
+      },
+      {
+        "title": "Location de draperie clé en main",
+        "description": "Location, livraison, installation professionnelle et démontage gérés de bout en bout. Du drapage événementiel temporaire comme service complet."
+      },
+      {
+        "title": "Installation et démontage soignés",
+        "description": "Des équipes expérimentées respectent votre calendrier, montent en sécurité et laissent la salle prête — installation et démontage complets inclus."
+      },
+      {
+        "title": "Conçu pour votre salle",
+        "description": "Chaque installation est façonnée selon votre salle, le type d'événement et vos objectifs d'ambiance — de la location de draperie pour galas aux transformations complètes du périmètre."
+      },
+      {
+        "title": "Matériel, sécurité et détails gérés",
+        "description": "Montants, traverses, bases, sacs de sable et montage sécurisé font partie de la location — pas une réflexion de dernière minute."
+      },
+      {
+        "title": "Service ancré à Montréal",
+        "description": "Location de draperie événementielle pour Montréal et les environs, avec connaissance des salles locales et soutien réactif le jour de l'événement."
+      }
+    ]
+  },
+  "transformation": {
+    "eyebrow": "Transformation de salle",
+    "title": "Ce que le drapage événementiel peut faire",
+    "description": "Architecture textile temporaire qui redéfinit les espaces, masque les murs inachevés et crée des moments focaux.",
+    "cards": [
+      {
+        "title": "Masquer les murs inachevés",
+        "description": "Le pipe and drape et le drapage de périmètre dissimulent les grands salons datés, le béton et les murs vides — transformant une salle ordinaire en espace événementiel élégant.",
+        "icon": {}
+      },
+      {
+        "title": "Créer des toiles de fond pour cérémonie et réception",
+        "description": "Le drapage de mariage et les toiles de fond en tissu de luxe encadrent vos moments les plus importants, ajoutant profondeur, texture et un point focal soigné.",
+        "icon": {}
+      },
+      {
+        "title": "Diviser les salles avec des partitions en draperie",
+        "description": "Le drapage séparateur de salle divise les zones cocktail, les espaces de repas et les zones VIP sans murs permanents — en gardant une circulation élégante et intentionnelle.",
+        "icon": {}
+      },
+      {
+        "title": "Construire des moments scène et photo",
+        "description": "La location de toiles de fond de scène et les installations step-and-repeat créent des espaces de présentation soignés et des opportunités photo red carpet.",
+        "icon": {}
+      },
+      {
+        "title": "Contrôler la lumière avec l'occultation",
+        "description": "La location de draperie d'occultation masque les fenêtres, les zones backstage et les fuites de lumière indésirables — essentiel pour galas, productions et présentations.",
+        "icon": {}
+      },
+      {
+        "title": "Offrir des moments de révélation spectaculaires",
+        "description": "La draperie étoilée et le drapage de révélation kabuki créent des entrées et des dévoilements inoubliables qui captivent votre audience.",
+        "icon": {}
+      }
+    ]
+  },
+  "estimatePromo": {
+    "eyebrow": "Demander une estimation",
+    "title": "Partagez votre salle et vos objectifs de drapage",
+    "description": "Notre outil d'estimation en plusieurs étapes capture les détails de l'événement, les mesures, la direction des tissus et les options — pour une soumission précise.",
+    "cta": "Commencer l'estimation",
+    "features": [
+      "Date et salle de l'événement",
+      "Objectifs et mesures de drapage",
+      "Tissus et options",
+      "Suivi rapide par notre équipe"
+    ]
+  },
+  "galleryTeaser": {
+    "eyebrow": "Galerie",
+    "title": "Inspiration en drapage événementiel",
+    "description": "Mariages, galas, événements corporatifs et transformations de salles — explorez l'ambiance que nous créons avec le drapage événementiel de luxe.",
+    "explore": "Explorer la galerie"
+  },
+  "areasTeaser": {
+    "eyebrow": "Zones desservies",
+    "title": "Montréal et les environs",
+    "description": "Location de draperie événementielle de luxe à Montréal, Laval, Longueuil et sur le West Island — livraison, installation et démontage complets.",
+    "viewArea": "Voir la zone"
+  },
+  "aiTeaser": {
+    "eyebrow": "Studio",
+    "title": "Planifiez votre disposition de drapage",
+    "description": "Dessinez votre salle, ajoutez des lignes de drapage et prévisualisez en 3D — un outil de planification conçu pour la location événementielle, pas les rideaux résidentiels.",
+    "badge": "Destination",
+    "cta": "Ouvrir le Studio",
+    "secondary": "En savoir plus",
+    "paths": [
+      {
+        "title": "Téléverser un plan de salle",
+        "description": "À venir : téléversez un PDF, une image ou un croquis et identifiez les zones de drapage, les longueurs de mur et les besoins d'installation pour votre salle à Montréal."
+      },
+      {
+        "title": "Dessiner votre salle",
+        "description": "Disponible maintenant : dessinez une salle manuellement, ajoutez des lignes de drapage et une scène, et inspectez le même design en 3D."
+      },
+      {
+        "title": "Prévisualisation 3D du drapage",
+        "description": "Bientôt disponible : configurez couleur, ampleur, placement des rails, hauteur et options dans un studio de drapage interactif conçu pour la planification de location événementielle."
+      }
+    ]
+  },
+  "serviceCards": [
+    {
+      "title": "Location de pipe and drape",
+      "description": "Systèmes pipe and drape temporaires pour murs événementiels, kiosques de salon professionnel et périmètres de salles. La base de la plupart des drapages événementiels à Montréal — masquer les murs et définir les espaces sans construction."
+    },
+    {
+      "title": "Drapage de mariage",
+      "description": "Toiles de fond de cérémonie, tables d'honneur et drapage complet de mariage à Montréal. Nous façonnons l'ambiance selon votre salle — pas des rideaux prêts-à-porter."
+    },
+    {
+      "title": "Drapage événementiel corporatif",
+      "description": "Drapage soigné pour conférences, lancements de produits et réunions exécutives. Drapage corporatif qui sublime les environnements de marque et les espaces de présentation."
+    },
+    {
+      "title": "Toiles de fond de scène",
+      "description": "Location de toiles de fond de scène incluant surrounds, occultation et draperie théâtrale pour présentations, performances et programmes de gala."
+    },
+    {
+      "title": "Séparateurs de salle",
+      "description": "Le drapage séparateur de salle crée des zones intimes dans les grands salons et salles événementielles — séparant cocktail, repas et espaces lounge avec des partitions élégantes en tissu."
+    },
+    {
+      "title": "Occultation et masquage",
+      "description": "Location de draperie d'occultation pour contrôle de la lumière sur scènes, fenêtres et zones de production. Essentiel quand votre événement exige obscurité, focus ou espaces backstage dissimulés."
+    },
+    {
+      "title": "Toiles de fond photo et step-and-repeat",
+      "description": "Location de toiles de fond step-and-repeat et murs photo brandés pour galas, lancements et célébrations. Conçus pour photographier magnifiquement sous l'éclairage événementiel."
+    },
+    {
+      "title": "Draperie étoilée et moments de révélation",
+      "description": "Draperie étoilée scintillante et installations de révélation kabuki pour entrées spectaculaires et dévoilements — une location spécialisée pour les moments à fort impact."
+    }
+  ],
+  "meta": {
+    "title": "Location de draperie événementielle de luxe Montréal",
+    "description": "Location de draperie événementielle de luxe à Montréal — drapage premium, pipe and drape, toiles de fond, occultation et transformations de salles pour mariages, galas, événements corporatifs et célébrations."
+  }
+}

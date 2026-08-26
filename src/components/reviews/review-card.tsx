@@ -1,12 +1,15 @@
+"use client";
+
 import { Quote } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ClientReview } from "@/data/reviews";
-import { getInitials, getReviewCategoryLabel } from "@/data/reviews";
+import { getInitials } from "@/data/reviews";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StarRating } from "@/components/reviews/star-rating";
 
 type ReviewCardProps = {
-  review: ClientReview;
+  review: Pick<ClientReview, "id" | "category" | "rating">;
   variant?: "default" | "featured";
   className?: string;
 };
@@ -16,7 +19,20 @@ export function ReviewCard({
   variant = "default",
   className,
 }: ReviewCardProps) {
+  const t = useTranslations("reviews");
   const featured = variant === "featured";
+
+  const name = t(`items.${review.id}.name`);
+  const role = t(`items.${review.id}.role`);
+  const location = t(`items.${review.id}.location`);
+  const eventLabel = t(`items.${review.id}.eventLabel`);
+  const quote = t(`items.${review.id}.quote`);
+  const venue = t.has(`items.${review.id}.venue`)
+    ? t(`items.${review.id}.venue`)
+    : undefined;
+  const organization = t.has(`items.${review.id}.organization`)
+    ? t(`items.${review.id}.organization`)
+    : undefined;
 
   return (
     <article
@@ -46,7 +62,7 @@ export function ReviewCard({
             variant="outline"
             className="rounded-full border-border/50 bg-background/50 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
           >
-            {getReviewCategoryLabel(review.category)}
+            {t(`categories.${review.category}`)}
           </Badge>
         </div>
 
@@ -62,24 +78,24 @@ export function ReviewCard({
             featured && "text-base leading-relaxed sm:text-[1.05rem]"
           )}
         >
-          “{review.quote}”
+          “{quote}”
         </p>
 
         <div className="mt-6 flex items-center gap-3 border-t border-border/40 pt-5">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gold-metallic text-sm font-semibold text-primary-foreground shadow-sm">
-            {getInitials(review.name)}
+            {getInitials(name)}
           </div>
           <div className="min-w-0">
             <p className="truncate font-heading text-sm font-semibold text-foreground">
-              {review.name}
+              {name}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {review.role}
-              {review.organization ? ` · ${review.organization}` : ""}
+              {role}
+              {organization ? ` · ${organization}` : ""}
             </p>
             <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.12em] text-primary/80">
-              {review.eventLabel}
-              {review.venue ? ` · ${review.venue}` : ""} · {review.location}
+              {eventLabel}
+              {venue ? ` · ${venue}` : ""} · {location}
             </p>
           </div>
         </div>

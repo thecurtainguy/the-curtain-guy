@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   AlertCircle,
   ArrowLeft,
@@ -8,24 +9,13 @@ import {
   Mail,
 } from "lucide-react";
 import {
-  addOnOptions,
   buildEstimateMailto,
   canSubmitEstimate,
-  drapeGoals,
   estimateBuilderSteps,
-  eventTypes,
-  fabricDirections,
-  floorPlanOptions,
   formatEstimateReference,
-  fullnessOptions,
-  heightOptions,
   initialEstimateFormData,
-  measurementsKnownOptions,
-  measurementsReassurance,
-  runLayouts,
   type EstimateFormData,
   validateEstimateStep,
-  venueSettings,
 } from "@/data/estimate";
 import { DateInput } from "@/components/ui/date-input";
 import { OptionCard } from "@/components/estimate/option-card";
@@ -49,6 +39,11 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { StepTransition } from "@/components/animation/step-transition";
 import { Reveal } from "@/components/animation/reveal";
+import {
+  useEstimateLabelSource,
+  useLocalizedEstimateOptions,
+  useLocalizedEstimateSteps,
+} from "@/lib/i18n/estimate";
 
 function toggleSelection(values: string[], id: string): string[] {
   return values.includes(id)
@@ -66,6 +61,12 @@ function toggleFabricDirection(current: string[], id: string): string[] {
 
 export function EstimateBuilder() {
   const { setDirty, clearDirty } = useOptionalUnsavedChanges();
+  const tBuilder = useTranslations("estimate.builder");
+  const tValidation = useTranslations("estimate.validation");
+  const tEstimate = useTranslations("estimate");
+  const steps = useLocalizedEstimateSteps();
+  const options = useLocalizedEstimateOptions();
+  const labelSource = useEstimateLabelSource();
   const [currentStep, setCurrentStep] = useState(0);
   const [stepDirection, setStepDirection] = useState<1 | -1>(1);
   const [formData, setFormData] = useState<EstimateFormData>(
@@ -94,13 +95,16 @@ export function EstimateBuilder() {
   const formTopRef = useRef<HTMLDivElement>(null);
   const skipStepScrollRef = useRef(true);
 
-  const step = estimateBuilderSteps[currentStep];
+  const step = steps[currentStep];
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === estimateBuilderSteps.length - 1;
   const progress = ((currentStep + 1) / estimateBuilderSteps.length) * 100;
   const canSubmit = canSubmitEstimate(formData);
 
-  const mailtoHref = useMemo(() => buildEstimateMailto(formData), [formData]);
+  const mailtoHref = useMemo(
+    () => buildEstimateMailto(formData, labelSource),
+    [formData, labelSource]
+  );
 
   useEffect(() => {
     if (submitSuccess) {
@@ -173,7 +177,11 @@ export function EstimateBuilder() {
   function goNext() {
     const result = validateEstimateStep(step.id, formData);
     if (!result.valid) {
-      setStepError(result.message ?? "Please complete the required fields.");
+      setStepError(
+        result.messageKey
+          ? tValidation(result.messageKey)
+          : tBuilder("requiredFields")
+      );
       return;
     }
 
@@ -205,7 +213,11 @@ export function EstimateBuilder() {
       if (!result.valid) {
         setStepDirection(i < currentStep ? -1 : 1);
         setCurrentStep(i);
-        setStepError(result.message ?? "Please complete the required fields.");
+        setStepError(
+          result.messageKey
+            ? tValidation(result.messageKey)
+            : tBuilder("requiredFields")
+        );
         return;
       }
     }
@@ -221,7 +233,11 @@ export function EstimateBuilder() {
     const result = validateEstimateStep("contact-summary", formData);
     if (!result.valid) {
       setShowContactHint(true);
-      setStepError(result.message ?? "Please add your name and email.");
+      setStepError(
+        result.messageKey
+          ? tValidation(result.messageKey)
+          : tBuilder("contactRequired")
+      );
       return;
     }
 
@@ -257,10 +273,7 @@ export function EstimateBuilder() {
         };
 
         if (!response.ok || !payload.ok) {
-          setSubmitError(
-            payload.message ??
-              "We could not submit your estimate online. Please use email instead."
-          );
+          setSubmitError(payload.message ?? tBuilder("submitError"));
           return;
         }
 
@@ -302,9 +315,7 @@ export function EstimateBuilder() {
         });
         clearDirty();
       } catch {
-        setSubmitError(
-          "We could not submit your estimate online. Please use email instead."
-        );
+        setSubmitError(tBuilder("submitErrorNetwork"));
       } finally {
         setIsSubmitting(false);
       }
@@ -353,7 +364,10 @@ export function EstimateBuilder() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
-              Step {currentStep + 1} of {estimateBuilderSteps.length}
+              {tBuilder("stepOf", {
+                current: currentStep + 1,
+                total: estimateBuilderSteps.length,
+              })}
             </p>
             <h2 className="mt-1 font-heading text-xl font-semibold text-foreground sm:text-2xl">
               {step.title}
@@ -363,7 +377,7 @@ export function EstimateBuilder() {
             </p>
           </div>
           <p className="hidden text-sm text-muted-foreground sm:block">
-            {Math.round(progress)}% complete
+            {tBuilder("percentComplete", { percent: Math.round(progress) })}
           </p>
         </div>
 
@@ -373,7 +387,10 @@ export function EstimateBuilder() {
           aria-valuenow={Math.round(progress)}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Estimate builder progress"
+          aria-label={tBuilder("stepOf", {
+            current: currentStep + 1,
+            total: estimateBuilderSteps.length,
+          })}
         >
           <div
             className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
@@ -383,6 +400,7 @@ export function EstimateBuilder() {
 
         <div className="hidden gap-2 sm:grid sm:grid-cols-6">
           {estimateBuilderSteps.map((builderStep, index) => {
+            const localizedStep = steps[index];
             const isActive = index === currentStep;
             const isComplete = index < currentStep;
 
@@ -400,7 +418,9 @@ export function EstimateBuilder() {
                       : "text-muted-foreground hover:bg-card/40"
                 )}
               >
-                <span className="block font-medium">{builderStep.shortTitle}</span>
+                <span className="block font-medium">
+                  {localizedStep.shortTitle}
+                </span>
               </button>
             );
           })}
@@ -413,10 +433,11 @@ export function EstimateBuilder() {
           <div className="space-y-8">
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-foreground">
-                Event type <span className="text-primary">*</span>
+                {tBuilder("eventBasics.eventType")}{" "}
+                <span className="text-primary">*</span>
               </legend>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {eventTypes.map((option) => (
+                {options.eventTypes.map((option) => (
                   <OptionCard
                     key={option.id}
                     option={option}
@@ -429,7 +450,7 @@ export function EstimateBuilder() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="event-date">Event date</Label>
+                <Label htmlFor="event-date">{tBuilder("eventBasics.eventDate")}</Label>
                 <DateInput
                   id="event-date"
                   value={formData.eventDate}
@@ -437,29 +458,28 @@ export function EstimateBuilder() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="guest-count">Guest count</Label>
+                <Label htmlFor="guest-count">{tBuilder("eventBasics.guestCount")}</Label>
                 <Input
                   id="guest-count"
                   type="number"
                   min={1}
-                  placeholder="e.g. 150"
                   className="input-no-spin"
                   value={formData.guestCount}
                   onChange={(e) => updateField("guestCount", e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="venue-name">Venue name</Label>
+                <Label htmlFor="venue-name">{tBuilder("eventBasics.venueName")}</Label>
                 <Input
                   id="venue-name"
-                  placeholder="Venue or event space"
                   value={formData.venueName}
                   onChange={(e) => updateField("venueName", e.target.value)}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="city-area">
-                  City / area <span className="text-primary">*</span>
+                  {tBuilder("eventBasics.cityArea")}{" "}
+                  <span className="text-primary">*</span>
                 </Label>
                 <Input
                   id="city-area"
@@ -473,10 +493,10 @@ export function EstimateBuilder() {
 
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-foreground">
-                Indoor or outdoor
+                {tBuilder("eventBasics.venueSetting")}
               </legend>
               <div className="grid gap-3 sm:grid-cols-2">
-                {venueSettings.map((option) => (
+                {options.venueSettings.map((option) => (
                   <OptionCard
                     key={option.id}
                     option={option}
@@ -492,15 +512,14 @@ export function EstimateBuilder() {
         {step.id === "drape-goal" && (
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium text-foreground">
-              Select one or more drape goals{" "}
+              {tBuilder("drapeGoal.title")}{" "}
               <span className="text-primary">*</span>
             </legend>
             <p className="text-sm text-muted-foreground">
-              From wedding draping and corporate event draping to stage backdrop
-              rentals, room divider draping, and full venue transformations.
+              {tBuilder("drapeGoal.subtitle")}
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
-              {drapeGoals.map((option) => (
+              {options.drapeGoals.map((option) => (
                 <OptionCard
                   key={option.id}
                   option={option}
@@ -522,11 +541,11 @@ export function EstimateBuilder() {
           <div className="space-y-6">
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-foreground">
-                How well do you know your measurements?{" "}
+                {tBuilder("measurements.measurementsKnown")}{" "}
                 <span className="text-primary">*</span>
               </legend>
               <div className="grid gap-3 sm:grid-cols-3">
-                {measurementsKnownOptions.map((option) => (
+                {options.measurementsKnownOptions.map((option) => (
                   <OptionCard
                     key={option.id}
                     option={option}
@@ -539,28 +558,26 @@ export function EstimateBuilder() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="linear-feet">Linear feet needed (if known)</Label>
+                <Label htmlFor="linear-feet">{tBuilder("measurements.wallLength")}</Label>
                 <Input
                   id="linear-feet"
-                  placeholder="e.g. 120 ft"
+                  placeholder={tBuilder("measurements.wallLengthPlaceholder")}
                   value={formData.linearFeet}
                   onChange={(e) => updateField("linearFeet", e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="wall-sections">Number of walls / sections</Label>
+                <Label htmlFor="wall-sections">{tBuilder("measurements.runLayout")}</Label>
                 <Input
                   id="wall-sections"
-                  placeholder="e.g. 3 walls"
                   value={formData.wallSections}
                   onChange={(e) => updateField("wallSections", e.target.value)}
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="doors-openings">Doors / openings needed</Label>
+                <Label htmlFor="doors-openings">{tBuilder("measurements.floorPlan")}</Label>
                 <Input
                   id="doors-openings"
-                  placeholder="e.g. 2 doorways, 1 loading dock"
                   value={formData.doorsOpenings}
                   onChange={(e) =>
                     updateField("doorsOpenings", e.target.value)
@@ -571,10 +588,10 @@ export function EstimateBuilder() {
 
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-foreground">
-                Height needed
+                {tBuilder("measurements.ceilingHeight")}
               </legend>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {heightOptions.map((option) => (
+                {options.heightOptions.map((option) => (
                   <OptionCard
                     key={option.id}
                     option={option}
@@ -584,12 +601,11 @@ export function EstimateBuilder() {
                 ))}
               </div>
               <div className="space-y-2 pt-1">
-                <Label htmlFor="height-custom">Or specify exact height</Label>
+                <Label htmlFor="height-custom">{tBuilder("measurements.ceilingHeight")}</Label>
                 <Input
                   id="height-custom"
-                  placeholder="e.g. 11 ft at peak"
                   value={
-                    heightOptions.some((o) => o.id === formData.heightNeeded)
+                    options.heightOptions.some((o) => o.id === formData.heightNeeded)
                       ? ""
                       : formData.heightNeeded
                   }
@@ -600,10 +616,10 @@ export function EstimateBuilder() {
 
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-foreground">
-                Straight run or multiple turns / corners
+                {tBuilder("measurements.runLayout")}
               </legend>
               <div className="grid gap-3 sm:grid-cols-3">
-                {runLayouts.map((option) => (
+                {options.runLayouts.map((option) => (
                   <OptionCard
                     key={option.id}
                     option={option}
@@ -616,10 +632,11 @@ export function EstimateBuilder() {
 
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-foreground">
-                Floor plan available? <span className="text-primary">*</span>
+                {tBuilder("measurements.floorPlan")}{" "}
+                <span className="text-primary">*</span>
               </legend>
               <div className="grid gap-3 sm:grid-cols-3">
-                {floorPlanOptions.map((option) => (
+                {options.floorPlanOptions.map((option) => (
                   <OptionCard
                     key={option.id}
                     option={option}
@@ -634,7 +651,7 @@ export function EstimateBuilder() {
 
             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
-                {measurementsReassurance}
+                {tEstimate("measurementsReassurance")}
               </p>
             </div>
           </div>
@@ -644,15 +661,14 @@ export function EstimateBuilder() {
           <div className="space-y-8">
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-foreground">
-                Fabric and look direction{" "}
+                {tBuilder("lookFabric.fabric")}{" "}
                 <span className="text-primary">*</span>
               </legend>
               <p className="text-sm text-muted-foreground">
-                Choose one or more directions — from blackout drape and star
-                drape to classic white wedding draping and custom palettes.
+                {tBuilder("drapeGoal.subtitle")}
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                {fabricDirections.map((option) => (
+                {options.fabricDirections.map((option) => (
                   <OptionCard
                     key={option.id}
                     option={option}
@@ -671,10 +687,10 @@ export function EstimateBuilder() {
 
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium text-foreground">
-                Fullness preference
+                {tBuilder("lookFabric.fullness")}
               </legend>
               <div className="grid gap-3 sm:grid-cols-2">
-                {fullnessOptions.map((option) => (
+                {options.fullnessOptions.map((option) => (
                   <OptionCard
                     key={option.id}
                     option={option}
@@ -692,15 +708,13 @@ export function EstimateBuilder() {
         {step.id === "add-ons" && (
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium text-foreground">
-              Optional add-ons
+              {tBuilder("addOns.title")}
             </legend>
             <p className="text-sm text-muted-foreground">
-              Enhance your pipe and drape rental estimate with lighting,
-              specialty draping, and event production elements. Skip this step if
-              none apply.
+              {tBuilder("addOns.subtitle")}
             </p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {addOnOptions.map((option) => (
+              {options.addOns.map((option) => (
                 <OptionCard
                   key={option.id}
                   option={option}
@@ -751,7 +765,7 @@ export function EstimateBuilder() {
               <Button asChild variant="outline" size="sm">
                 <a href={mailtoHref}>
                   <Mail className="size-4" />
-                  Send via email instead
+                  {tBuilder("emailFallback")}
                 </a>
               </Button>
             </div>
@@ -779,13 +793,13 @@ export function EstimateBuilder() {
           className="sm:min-w-28"
         >
           <ArrowLeft className="size-4" />
-          Back
+          {tBuilder("back")}
         </Button>
 
         <div className="flex flex-col gap-3 sm:flex-row">
           {!isLastStep ? (
             <Button type="button" onClick={goNext} className="sm:min-w-32">
-              Next
+              {tBuilder("next")}
               <ArrowRight className="size-4" />
             </Button>
           ) : (
@@ -794,11 +808,11 @@ export function EstimateBuilder() {
               onClick={handleRequestClick}
               disabled={!canSubmit}
               isLoading={isSubmitting}
-              loadingText="Submitting..."
+              loadingText={tBuilder("submitting")}
               icon={<Mail className="size-4" />}
               className={cn(!canSubmit && "opacity-60")}
             >
-              Request Final Estimate
+              {tBuilder("submit")}
             </LoadingButton>
           )}
         </div>
@@ -806,9 +820,7 @@ export function EstimateBuilder() {
 
       {isLastStep && (
         <p className="text-center text-xs text-muted-foreground">
-          {canSubmit
-            ? "Submit online or use email if submission fails."
-            : "Add your name and email to enable the request button."}
+          {canSubmit ? tBuilder("emailFallback") : tBuilder("contactRequired")}
         </p>
       )}
     </div>

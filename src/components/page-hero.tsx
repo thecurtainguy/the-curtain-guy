@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { SectionShell } from "@/components/section-shell";

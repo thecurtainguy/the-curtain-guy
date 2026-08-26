@@ -2,38 +2,76 @@ import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/env";
 import { services } from "@/data/services";
 import { areas } from "@/data/areas";
+import { routing } from "@/i18n/routing";
+
+const phase1StaticPaths = [
+  "/",
+  "/about",
+  "/services",
+  "/gallery",
+  "/reviews",
+  "/contact",
+  "/faq",
+  "/get-estimate",
+  "/privacy",
+  "/studio",
+] as const;
+
+function localizedUrl(base: string, path: string, locale: string) {
+  const normalized = path === "/" ? "" : path;
+  const suffix = locale === "fr" ? `/fr${normalized}` : normalized || "";
+  return `${base}${suffix || "/"}`;
+}
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = getSiteUrl().replace(/\/$/, "");
   const lastModified = new Date();
 
-  const staticPages: MetadataRoute.Sitemap = [
-    { url: `${base}/`, changeFrequency: "weekly", priority: 1, lastModified },
-    { url: `${base}/about`, changeFrequency: "monthly", priority: 0.7, lastModified },
-    { url: `${base}/services`, changeFrequency: "weekly", priority: 0.9, lastModified },
-    { url: `${base}/gallery`, changeFrequency: "weekly", priority: 0.8, lastModified },
-    { url: `${base}/reviews`, changeFrequency: "monthly", priority: 0.5, lastModified },
-    { url: `${base}/contact`, changeFrequency: "monthly", priority: 0.8, lastModified },
-    { url: `${base}/faq`, changeFrequency: "monthly", priority: 0.75, lastModified },
-    { url: `${base}/get-estimate`, changeFrequency: "weekly", priority: 0.95, lastModified },
-    { url: `${base}/studio`, changeFrequency: "weekly", priority: 0.9, lastModified },
-    { url: `${base}/ai`, changeFrequency: "monthly", priority: 0.5, lastModified },
-    { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.3, lastModified },
-  ];
+  const entries: MetadataRoute.Sitemap = [];
 
-  const servicePages: MetadataRoute.Sitemap = services.map((service) => ({
-    url: `${base}/services/${service.slug}`,
-    changeFrequency: "monthly" as const,
-    priority: 0.85,
+  for (const locale of routing.locales) {
+    for (const path of phase1StaticPaths) {
+      entries.push({
+        url: localizedUrl(base, path, locale),
+        changeFrequency: path === "/" || path === "/get-estimate" ? "weekly" : "monthly",
+        priority:
+          path === "/"
+            ? 1
+            : path === "/get-estimate"
+              ? 0.95
+              : path === "/services"
+                ? 0.9
+                : 0.75,
+        lastModified,
+      });
+    }
+
+    for (const service of services) {
+      entries.push({
+        url: localizedUrl(base, `/services/${service.slug}`, locale),
+        changeFrequency: "monthly",
+        priority: 0.85,
+        lastModified,
+      });
+    }
+
+    for (const area of areas) {
+      entries.push({
+        url: localizedUrl(base, `/areas/${area.slug}`, locale),
+        changeFrequency: "monthly",
+        priority: 0.75,
+        lastModified,
+      });
+    }
+  }
+
+  // Phase 2 — English-only routes (no /fr prefix)
+  entries.push({
+    url: `${base}/ai`,
+    changeFrequency: "monthly",
+    priority: 0.5,
     lastModified,
-  }));
+  });
 
-  const areaPages: MetadataRoute.Sitemap = areas.map((area) => ({
-    url: `${base}/areas/${area.slug}`,
-    changeFrequency: "monthly" as const,
-    priority: 0.75,
-    lastModified,
-  }));
-
-  return [...staticPages, ...servicePages, ...areaPages];
+  return entries;
 }

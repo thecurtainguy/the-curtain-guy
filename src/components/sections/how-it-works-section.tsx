@@ -1,10 +1,15 @@
-import Link from "next/link";
+"use client";
+
 import {
   ClipboardList,
-  MessageSquare,
-  Ruler,
   FileCheck,
+  MessageSquare,
+  Palette,
+  Plus,
+  Ruler,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { SectionHeading } from "@/components/section-heading";
 import { SectionShell } from "@/components/section-shell";
 import { SiteMediaImage } from "@/components/media/site-media-image";
@@ -14,34 +19,24 @@ import { Reveal } from "@/components/animation/reveal";
 import { Stagger } from "@/components/animation/stagger";
 import { AnimatedCard } from "@/components/animation/animated-card";
 
-const steps = [
-  {
-    title: "Share your event details",
-    description:
-      "Date, venue, event type, and what you want draping to achieve.",
-    icon: ClipboardList,
-  },
-  {
-    title: "We review venue and drape needs",
-    description:
-      "Our team looks at layout, access, and the right rental approach.",
-    icon: MessageSquare,
-  },
-  {
-    title: "We plan fabric, hardware, and install",
-    description:
-      "Pipe and drape, backdrops, masking, and timing are scoped carefully.",
-    icon: Ruler,
-  },
-  {
-    title: "You receive an estimate follow-up",
-    description:
-      "A rental estimate conversation — not automatic final online pricing.",
-    icon: FileCheck,
-  },
-];
+const stepIcons = [
+  ClipboardList,
+  MessageSquare,
+  Ruler,
+  Palette,
+  Plus,
+  FileCheck,
+] as const;
+
+type StepTranslation = {
+  title: string;
+  description: string;
+};
 
 export function HowItWorksSection() {
+  const t = useTranslations("home.howItWorks");
+  const steps = t.raw("steps") as StepTranslation[];
+
   return (
     <SectionShell variant="elevated" divider="top" className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -57,14 +52,14 @@ export function HowItWorksSection() {
 
           <Reveal variant="slide-right">
             <SectionHeading
-              eyebrow="How it works"
-              title="From brief to rental estimate."
-              description="Honest planning for Montreal event drape rentals — we review your details and follow up. No instant checkout prices."
+              eyebrow={t("eyebrow")}
+              title={t("title")}
+              description={t("description")}
             />
 
             <Stagger className="mt-8 grid gap-3 sm:grid-cols-2">
               {steps.map((step, index) => {
-                const Icon = step.icon;
+                const Icon = stepIcons[index] ?? ClipboardList;
                 return (
                   <AnimatedCard key={step.title} hover={false}>
                     <Card className="border-border/40 bg-background/50">
@@ -74,7 +69,7 @@ export function HowItWorksSection() {
                             <Icon className="size-4" />
                           </div>
                           <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary/70">
-                            Step {index + 1}
+                            {index + 1}
                           </span>
                         </div>
                         <h3 className="font-heading text-sm font-medium text-foreground">
@@ -92,7 +87,7 @@ export function HowItWorksSection() {
 
             <div className="mt-8">
               <Button asChild className="min-h-11">
-                <Link href="/get-estimate">Start your event drape brief</Link>
+                <Link href="/get-estimate">{t("cta")}</Link>
               </Button>
             </div>
           </Reveal>

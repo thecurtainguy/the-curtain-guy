@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   clientReviews,
   getFeaturedReviews,
   getReviewsByCategory,
   reviewCategories,
-  reviewStats,
   type ReviewCategory,
 } from "@/data/reviews";
 import { ReviewCard } from "@/components/reviews/review-card";
@@ -19,7 +19,11 @@ import { cn } from "@/lib/utils";
 
 type FilterId = ReviewCategory | "all";
 
+const STAT_KEYS = ["stat1", "stat2", "stat3", "stat4"] as const;
+
 export function ReviewsShowcase() {
+  const t = useTranslations("reviews");
+  const tShowcase = useTranslations("reviews.showcase");
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
   const featured = getFeaturedReviews();
 
@@ -37,16 +41,16 @@ export function ReviewsShowcase() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal variant="fade-up">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {reviewStats.map((stat) => (
+              {STAT_KEYS.map((key) => (
                 <div
-                  key={stat.label}
+                  key={key}
                   className="rounded-3xl border border-border/40 bg-card/25 px-5 py-4 text-center shadow-[inset_0_1px_0_oklch(1_0_0/6%)]"
                 >
                   <p className="font-heading text-2xl font-semibold text-foreground">
-                    {stat.value}
+                    {t(`stats.${key}.value`)}
                   </p>
                   <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    {stat.label}
+                    {t(`stats.${key}.label`)}
                   </p>
                 </div>
               ))}
@@ -59,16 +63,15 @@ export function ReviewsShowcase() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal variant="fade-up" className="max-w-2xl">
             <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-              Featured voices
+              {tShowcase("featuredEyebrow")}
             </p>
             <h2 className="mt-2 font-heading text-2xl font-semibold text-foreground sm:text-3xl">
-              Planners, venues, and hosts on working with us
+              {tShowcase("featuredTitle")}
             </h2>
             <div className="mt-4 flex items-center gap-3">
               <StarRating rating={5} size="md" />
               <p className="text-sm text-muted-foreground">
-                Mostly five-star feedback from planners, venues, and hosts we
-                work with around Montreal.
+                {tShowcase("featuredRatingNote")}
               </p>
             </div>
           </Reveal>
@@ -88,15 +91,15 @@ export function ReviewsShowcase() {
           <Reveal variant="fade-up" className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary">
-                Browse by event type
+                {tShowcase("browseEyebrow")}
               </p>
               <h2 className="mt-2 font-heading text-2xl font-semibold text-foreground">
-                Thirty client perspectives across Montreal events
+                {tShowcase("browseTitle")}
               </h2>
             </div>
             <ShareExperienceDialog>
               <Button variant="outline" className="shrink-0 rounded-2xl">
-                Share your experience
+                {t("page.shareCta")}
               </Button>
             </ShareExperienceDialog>
           </Reveal>
@@ -123,7 +126,7 @@ export function ReviewsShowcase() {
                   )}
                 >
                   {Icon ? <Icon className="size-3.5 text-primary/80" /> : null}
-                  {category.label}
+                  {t(`categories.${category.id}`)}
                   <span className="rounded-full bg-background/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     {count}
                   </span>
@@ -143,7 +146,7 @@ export function ReviewsShowcase() {
 
           {filteredReviews.length === 0 ? (
             <p className="mt-8 text-center text-sm text-muted-foreground">
-              No reviews in this category yet.
+              {tShowcase("emptyCategory")}
             </p>
           ) : null}
         </div>

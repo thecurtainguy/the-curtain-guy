@@ -1,0 +1,36 @@
+{
+  "page": {
+    "eyebrow": "Confidentialité",
+    "title": "Politique de confidentialité",
+    "description": "Comment The Curtain Guy collecte, utilise et protège vos informations.",
+    "lastUpdated": "Dernière mise à jour",
+    "metaTitle": "Politique de confidentialité | The Curtain Guy",
+    "metaDescription": "Politique de confidentialité de The Curtain Guy — comment nous traitons les formulaires de contact, les demandes d'estimation et les informations de compte."
+  },
+  "sections": [
+    {
+      "title": "Informations que nous collectons",
+      "body": "Nous collectons les informations que vous fournissez via les formulaires de contact, les demandes d'estimation, l'inscription de compte et les soumissions d'avis — incluant nom, courriel, téléphone, détails d'événement et messages."
+    },
+    {
+      "title": "Comment nous utilisons vos informations",
+      "body": "Nous utilisons vos informations pour répondre aux demandes, préparer des estimations de location, coordonner les services de drapage événementiel, gérer les comptes et améliorer nos services. Nous ne vendons pas vos informations personnelles."
+    },
+    {
+      "title": "Données d'estimation et d'événement",
+      "body": "Les dossiers d'estimation peuvent inclure les détails de la salle, les mesures, les plans et les fichiers d'inspiration que vous téléversez. Ces données sont utilisées pour préparer les soumissions et planifier les installations."
+    },
+    {
+      "title": "Témoins et analytique",
+      "body": "Nous utilisons des témoins essentiels pour l'authentification et la gestion de session. Des outils d'analytique peuvent être utilisés pour comprendre l'utilisation du site. Vous pouvez contrôler les préférences de thème via le stockage local."
+    },
+    {
+      "title": "Conservation des données",
+      "body": "Nous conservons les données de contact et d'estimation selon les besoins pour fournir nos services et respecter nos obligations légales. Vous pouvez demander la suppression de vos données de compte en nous contactant."
+    },
+    {
+      "title": "Contact",
+      "body": "Pour des questions sur la confidentialité, contactez info@thecurtainguy.com ou appelez le 514-963-3193."
+    }
+  ]
+}

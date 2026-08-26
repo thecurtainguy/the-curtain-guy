@@ -1,0 +1,158 @@
+{
+  "categories": {
+    "about": {
+      "label": "À propos de nos locations",
+      "description": "Ce que The Curtain Guy fait — et ce qu'il ne fait pas."
+    },
+    "estimates": {
+      "label": "Estimations et tarification",
+      "description": "Comment fonctionne la soumission avant la date de votre événement."
+    },
+    "venue": {
+      "label": "Salles et installation",
+      "description": "Accès, calendrier et logistique sur place."
+    },
+    "studio": {
+      "label": "Studio et visualisation",
+      "description": "Dessinez votre salle avant de demander une soumission."
+    },
+    "services": {
+      "label": "Services et tissus",
+      "description": "Pipe and drape, toiles de fond, occultation et plus."
+    }
+  },
+  "items": {
+    "about": [
+      {
+        "question": "Vendez-vous des rideaux résidentiels ou des stores?",
+        "answer": "Non. The Curtain Guy offre la location de drapage événementiel temporaire pour occasions spéciales — mariages, galas, événements corporatifs, mitzvahs et transformations de salles. Nous ne sommes pas un magasin de rideaux résidentiels ni une boutique en ligne."
+      },
+      {
+        "question": "Quelles zones desservez-vous?",
+        "answer": "Nous sommes basés à Montréal et desservons la ville ainsi que les communautés environnantes à travers le Québec. Indiquez l'adresse de votre salle dans une demande Demander une estimation et nous confirmerons la disponibilité du service."
+      },
+      {
+        "question": "Est-ce une location clé en main?",
+        "answer": "Oui. Nos locations de draperie événementielle incluent l'inventaire, la livraison, l'installation professionnelle et le démontage. Le matériel, la sécurité du montage et les finitions sont gérés par des équipes expérimentées — pas seulement une livraison à la porte."
+      },
+      {
+        "question": "Quels types d'événements drappez-vous?",
+        "answer": "Mariages, fonctions corporatives, galas, célébrations Bar et Bat Mitzvah, productions scéniques, installations de salon professionnel et transformations complètes de salles. Si l'objectif est l'ambiance, le masquage ou un focus sur la toile de fond, le drapage est généralement adapté."
+      }
+    ],
+    "estimates": [
+      {
+        "question": "Comment obtenir une estimation de draperie événementielle?",
+        "answer": "Utilisez notre outil Demander une estimation pour partager la date, la salle, le nombre d'invités, les objectifs de drapage et l'inspiration. Nous examinons le dossier et vous recontactons avec une soumission adaptée — souvent incluant des postes pour tissus, matériel, main-d'œuvre et logistique."
+      },
+      {
+        "question": "Quels détails accélèrent la soumission?",
+        "answer": "Date de l'événement, nom ou adresse de la salle, dimensions de la salle ou plans, fenêtres d'installation et de démontage, préférences de tissus et photos de l'espace. Notre outil Studio peut aussi vous aider à dessiner la disposition de la salle avant la soumission."
+      },
+      {
+        "question": "Quand devrais-je réserver le drapage événementiel?",
+        "answer": "Les fins de semaine populaires et les dates de haute saison se remplissent tôt. Contacter 2 à 3 mois à l'avance est idéal pour mariages et galas; nous pouvons souvent accommoder des délais plus courts selon l'inventaire et la disponibilité des équipes."
+      },
+      {
+        "question": "Exigez-vous un dépôt?",
+        "answer": "Les soumissions acceptées incluent généralement des échéances de dépôt et de solde liées au calendrier de votre événement. Les conditions exactes apparaissent sur votre proposition pour que vous sachiez ce qui est dû et quand."
+      }
+    ],
+    "venue": [
+      {
+        "question": "Travaillez-vous avec hôtels, salles de banquet et salles non conventionnelles?",
+        "answer": "Oui — grands salons, hôtels, salles communautaires, entrepôts, tentes et espaces de production. Nous coordonnons les chemins de chargement, les règles de plafond et les politiques de la salle dans la planification."
+      },
+      {
+        "question": "Combien de temps prend l'installation?",
+        "answer": "Le timing dépend des longueurs de mur, de la hauteur du plafond, du type de tissu et de la complexité. Les installations simples de toile de fond peuvent prendre quelques heures; le drapage complet du périmètre d'un grand salon peut nécessiter une fenêtre d'installation plus longue — nous confirmons cela dans votre calendrier de travail."
+      },
+      {
+        "question": "Le drapage peut fonctionner avec l'audiovisuel, la restauration et les issues de secours?",
+        "answer": "Absolument. Nous planifions autour des portes, gicleurs, chemins d'évacuation, installations d'éclairage et éléments de scène. La sécurité et la conformité de la salle sont intégrées à la disposition — pas ajoutées à la dernière minute."
+      },
+      {
+        "question": "Qui gère le démontage après l'événement?",
+        "answer": "Notre équipe revient selon la fenêtre convenue — souvent tard dans la nuit ou le lendemain matin — pour démonter le matériel, emballer l'inventaire et restaurer le chemin d'accès de la salle."
+      }
+    ],
+    "studio": [
+      {
+        "question": "Qu'est-ce que The Curtain Guy Studio?",
+        "answer": "Studio est notre outil gratuit de design de salle. Dessinez votre espace événementiel à l'échelle, placez les lignes de drapage et les éléments de scène, puis prévisualisez la même disposition en 3D interactive avant de soumettre une estimation."
+      },
+      {
+        "question": "Ai-je besoin d'un compte pour utiliser Studio?",
+        "answer": "Vous pouvez explorer Studio et commencer une disposition sans compte. Sauvegarder les designs et les lier aux estimations ou soumissions fonctionne mieux une fois connecté — pour que votre planificateur et notre équipe partagent une même référence."
+      },
+      {
+        "question": "Peut-on attacher un design Studio à ma demande d'estimation?",
+        "answer": "Oui. Lors de la soumission Demander une estimation, vous pouvez référencer un design Studio sauvegardé pour que nous voyions les longueurs de mur, types de traitement et intention de disposition dès le départ."
+      }
+    ],
+    "services": [
+      {
+        "question": "Qu'est-ce que la location de pipe and drape?",
+        "answer": "Le pipe and drape est un système modulaire de montants et traverses habillé de panneaux de tissu — idéal pour murs temporaires, zones d'enregistrement, masquage de périmètre et zonage de salle sans construction permanente."
+      },
+      {
+        "question": "Le drapage peut transformer une salle de mariage?",
+        "answer": "Oui. Le drapage temporaire peut masquer les murs inachevés, créer un focus de cérémonie, adoucir les grands salons et définir les moments photo — toujours planifié selon votre salle et calendrier spécifiques."
+      },
+      {
+        "question": "Offrez-vous la draperie noire de scène et l'occultation?",
+        "answer": "Oui. Les options d'occultation et velours noir aident à contrôler les fuites de lumière, dissimuler les zones backstage et créer des zones focalisées sur la présentation pour galas, productions et scènes corporatives."
+      },
+      {
+        "question": "Une toile de fond peut fonctionner avec des murs LED ou l'éclairage?",
+        "answer": "Souvent oui. Nous planifions la finition du tissu, la profondeur et le montage pour que les toiles de fond complètent — et ne nuisent pas — à votre design audiovisuel et d'éclairage. Partagez les riders techniques ou notes de production tôt pour le meilleur résultat."
+      },
+      {
+        "question": "Fournissez-vous des tissus aux couleurs de marque pour événements corporatifs?",
+        "answer": "Nous pouvons aligner les palettes de drapage avec les directives de marque selon l'inventaire disponible. Partagez les références Pantone ou kits de marque avec votre demande d'estimation."
+      }
+    ]
+  },
+  "topicChips": [
+    "Location de draperie événementielle",
+    "Zone desservie Montréal",
+    "Installation clé en main",
+    "Demander une estimation",
+    "Design de salle Studio",
+    "Drapage de mariage",
+    "Pipe & drape",
+    "Toiles de fond de scène"
+  ],
+  "page": {
+    "eyebrow": "FAQ",
+    "title": "Questions fréquentes",
+    "description": "Réponses sur la location de draperie événementielle de luxe à Montréal — ce que nous faisons, comment fonctionnent les estimations, la planification de salle et notre outil Studio.",
+    "popularTopics": "Sujets populaires",
+    "nextSteps": "Prochaines étapes",
+    "open": "Ouvrir",
+    "metaTitle": "FAQ location de draperie événementielle Montréal",
+    "metaDescription": "Questions fréquentes sur la location de draperie événementielle de luxe à Montréal — estimations, planification de salle, installation clé en main et outils Studio."
+  },
+  "quickLinks": {
+    "estimate": {
+      "label": "Demander une estimation",
+      "description": "Partagez votre salle et vos objectifs de drapage pour une soumission adaptée."
+    },
+    "contact": {
+      "label": "Contact",
+      "description": "Joignez notre équipe directement pour des questions de planification."
+    },
+    "services": {
+      "label": "Services",
+      "description": "Explorez le drapage de mariage, corporatif, scénique et de salle."
+    },
+    "studio": {
+      "label": "Studio",
+      "description": "Dessinez votre salle et prévisualisez le drapage en 3D."
+    }
+  },
+  "cta": {
+    "headline": "Vous avez encore des questions?",
+    "description": "Partagez votre salle et vos objectifs de drapage — nous vous recontactons pour discuter d'une estimation de location."
+  }
+}

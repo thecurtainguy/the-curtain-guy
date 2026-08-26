@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
 import {
   CalendarDays,
@@ -75,6 +76,7 @@ export function HeaderAccountMenu({
   className,
 }: HeaderAccountMenuProps) {
   const router = useRouter();
+  const t = useTranslations("common");
 
   async function signOut() {
     const supabase = createBrowserSupabaseClient();
@@ -95,7 +97,7 @@ export function HeaderAccountMenu({
         >
           <Button asChild variant="outline" className="w-full min-h-10">
             <GuardedLink href="/account/login" onClick={onNavigate}>
-              Sign in
+              {t("signIn")}
             </GuardedLink>
           </Button>
         </div>
@@ -113,7 +115,7 @@ export function HeaderAccountMenu({
           className
         )}
       >
-        <GuardedLink href="/account/login">Sign in</GuardedLink>
+        <GuardedLink href="/account/login">{t("signIn")}</GuardedLink>
       </Button>
     );
   }

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { CheckCircle2, FileUp, Loader2, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   ESTIMATE_MAX_FILE_BYTES,
@@ -60,8 +61,16 @@ export function EstimateFilePicker({
   compact = false,
   uploadProgress,
 }: Props) {
+  const t = useTranslations("estimate.filePicker");
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const statusLabels: Record<FileUploadProgressStatus, string> = {
+    queued: t("uploading"),
+    uploading: t("uploading"),
+    uploaded: t("uploaded"),
+    failed: t("failed"),
+  };
 
   function handleSelect(list: FileList | null) {
     if (!list || list.length === 0) return;
@@ -70,14 +79,14 @@ export function EstimateFilePicker({
     const next = [...files];
     for (const file of Array.from(list)) {
       if (next.length >= ESTIMATE_MAX_FILES) {
-        setError(`Maximum of ${ESTIMATE_MAX_FILES} files per estimate.`);
+        setError(t("errors.maxFiles"));
         break;
       }
 
       const contentType = normalizeMime(file);
 
       if (!isAllowedEstimateMimeType(contentType)) {
-        setError("Only PDF, PNG, JPG, and WEBP files are allowed.");
+        setError(t("errors.invalidType"));
         continue;
       }
 
@@ -93,7 +102,7 @@ export function EstimateFilePicker({
       }
 
       if (file.size > ESTIMATE_MAX_FILE_BYTES) {
-        setError("Each file must be 10MB or smaller.");
+        setError(t("errors.tooLarge"));
         continue;
       }
 
@@ -136,7 +145,7 @@ export function EstimateFilePicker({
             </span>
             <div className="min-w-0">
               <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
-                Optional uploads
+                {t("label")}
               </p>
               <p
                 className={cn(
@@ -144,19 +153,14 @@ export function EstimateFilePicker({
                   compact ? "text-xs leading-snug" : "mt-1 text-sm"
                 )}
               >
-                {compact
-                  ? "Floor plan, photo, or inspiration"
-                  : "Upload floor plan, venue photo, or inspiration image"}
+                {compact ? t("label") : t("label")}
               </p>
               {compact ? (
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  PDF / PNG / JPG / WEBP · 10MB
+                  {t("hint")}
                 </p>
               ) : (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  PDF, PNG, JPG, or WEBP · max {ESTIMATE_MAX_FILES} files · 10MB
-                  each · optional
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{t("hint")}</p>
               )}
             </div>
           </div>
@@ -169,7 +173,7 @@ export function EstimateFilePicker({
             onClick={() => inputRef.current?.click()}
           >
             <FileUp className="size-4" />
-            Add files
+            {t("addFiles")}
           </Button>
         </div>
 
@@ -203,7 +207,7 @@ export function EstimateFilePicker({
                   className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
                   onClick={() => removeFile(item.id)}
                   disabled={disabled}
-                  aria-label={`Remove ${item.file.name}`}
+                  aria-label={t("remove")}
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -238,7 +242,7 @@ export function EstimateFilePicker({
                   {item.status === "failed" ? (
                     <X className="size-3.5 text-destructive" />
                   ) : null}
-                  {item.status}
+                  {statusLabels[item.status]}
                 </span>
               </li>
             ))}

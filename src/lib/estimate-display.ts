@@ -3,16 +3,15 @@ import {
   drapeGoals,
   eventTypes,
   fabricDirections,
-  floorPlanOptions,
   formatHeightSummaryValue,
   formatMeasurementSummaryValue,
   formatOptionSummaryValue,
   fullnessOptions,
-  getOptionLabel,
-  getOptionLabels,
+  getEnglishOptionLabel,
+  getEnglishOptionLabels,
+  getEnglishOptions,
   measurementsKnownOptions,
   runLayouts,
-  venueSettings,
   type EstimateFormData,
   type EstimateOption,
 } from "@/data/estimate";
@@ -35,8 +34,8 @@ function asStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-function labelList(options: EstimateOption[], ids: string[]): string {
-  return getOptionLabels(options, ids).join(", ") || "—";
+function labelList(group: "drapeGoals" | "addOns" | "fabricDirections", ids: string[]): string {
+  return getEnglishOptionLabels(group, ids).join(", ") || "—";
 }
 
 export function asOptionIds(value: unknown): string[] {
@@ -52,12 +51,12 @@ export function buildAdminLookAndFabricRows(lookAndFabric: unknown): DetailRow[]
   return [
     {
       label: "Fabric direction",
-      value: labelList(fabricDirections, directions),
+      value: labelList("fabricDirections", directions),
     },
     {
       label: "Fullness",
       value: fullness
-        ? formatOptionSummaryValue(fullnessOptions, fullness)
+        ? formatOptionSummaryValue("fullnessOptions", fullness)
         : "—",
     },
   ];
@@ -94,7 +93,7 @@ export function buildAdminMeasurementRows(measurements: unknown): DetailRow[] {
       label: "Confidence",
       value: pseudo.measurementsKnown
         ? formatOptionSummaryValue(
-            measurementsKnownOptions,
+            "measurementsKnown",
             pseudo.measurementsKnown
           )
         : "—",
@@ -114,7 +113,7 @@ export function buildAdminMeasurementRows(measurements: unknown): DetailRow[] {
     {
       label: "Run layout",
       value: pseudo.runLayout
-        ? formatOptionSummaryValue(runLayouts, pseudo.runLayout)
+        ? formatOptionSummaryValue("runLayouts", pseudo.runLayout)
         : "—",
     },
     {
@@ -124,7 +123,7 @@ export function buildAdminMeasurementRows(measurements: unknown): DetailRow[] {
     {
       label: "Floor plan available",
       value: pseudo.floorPlanAvailable
-        ? formatOptionSummaryValue(floorPlanOptions, pseudo.floorPlanAvailable)
+        ? formatOptionSummaryValue("floorPlanOptions", pseudo.floorPlanAvailable)
         : "—",
     },
   ];
@@ -142,29 +141,38 @@ export function getLookAndFabricIds(lookAndFabric: unknown): {
 }
 
 export function formatDrapeGoals(value: unknown): string {
-  return labelList(drapeGoals, asStringArray(value));
+  return labelList("drapeGoals", asStringArray(value));
 }
 
 export function formatAddOns(value: unknown): string {
   const ids = asStringArray(value);
   if (ids.length === 0) return "None selected";
-  return labelList(addOnOptions, ids);
+  return labelList("addOns", ids);
 }
 
 export function formatVenueSetting(value: string | null): string {
   if (!value) return "—";
-  return getOptionLabel(venueSettings, value) ?? value;
+  return getEnglishOptionLabel("venueSettings", value) ?? value;
 }
 
 export function formatEventType(value: string | null | undefined): string {
   if (!value) return "—";
-  return getOptionLabel(eventTypes, value) ?? value;
+  return getEnglishOptionLabel("eventTypes", value) ?? value;
 }
 
+const englishEventTypes = getEnglishOptions("eventTypes", eventTypes);
+const englishDrapeGoals = getEnglishOptions("drapeGoals", drapeGoals);
+const englishFabricDirections = getEnglishOptions(
+  "fabricDirections",
+  fabricDirections
+);
+const englishFullnessOptions = getEnglishOptions("fullnessOptions", fullnessOptions);
+const englishAddOnOptions = getEnglishOptions("addOns", addOnOptions);
+
 export {
-  addOnOptions,
-  drapeGoals,
-  eventTypes,
-  fabricDirections,
-  fullnessOptions,
+  englishAddOnOptions as addOnOptions,
+  englishDrapeGoals as drapeGoals,
+  englishEventTypes as eventTypes,
+  englishFabricDirections as fabricDirections,
+  englishFullnessOptions as fullnessOptions,
 };

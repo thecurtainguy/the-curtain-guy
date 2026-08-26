@@ -1,4 +1,7 @@
-import Link from "next/link";
+"use client";
+
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import type { SiteMediaKey } from "@/data/site-media";
@@ -7,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 type CtaBandProps = {
   eyebrow?: string;
-  headline: string;
+  headline?: string;
   description?: string;
   primaryHref?: string;
   primaryLabel?: string;
@@ -22,12 +25,18 @@ export function CtaBand({
   headline,
   description,
   primaryHref = "/get-estimate",
-  primaryLabel = "Request an Estimate",
+  primaryLabel,
   secondaryHref = "/contact",
-  secondaryLabel = "Contact The Curtain Guy",
+  secondaryLabel,
   className,
   mediaKey,
 }: CtaBandProps) {
+  const tc = useTranslations("common");
+  const resolvedHeadline = headline ?? tc("ctaBand.headline");
+  const resolvedDescription = description ?? tc("ctaBand.description");
+  const resolvedPrimaryLabel = primaryLabel ?? tc("requestEstimate");
+  const resolvedSecondaryLabel = secondaryLabel ?? tc("contactBrand");
+
   return (
     <section
       className={cn(
@@ -59,25 +68,25 @@ export function CtaBand({
             </p>
           )}
           <h2 className="mt-3 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
-            {headline}
+            {resolvedHeadline}
           </h2>
-          {description && (
+          {resolvedDescription && (
             <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
-              {description}
+              {resolvedDescription}
             </p>
           )}
           <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
             <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
-              <Link href={primaryHref}>{primaryLabel}</Link>
+              <Link href={primaryHref}>{resolvedPrimaryLabel}</Link>
             </Button>
-            {secondaryHref && secondaryLabel && (
+            {secondaryHref && resolvedSecondaryLabel && (
               <Button
                 asChild
                 variant="outline"
                 size="lg"
                 className="min-h-11 w-full sm:w-auto"
               >
-                <Link href={secondaryHref}>{secondaryLabel}</Link>
+                <Link href={secondaryHref}>{resolvedSecondaryLabel}</Link>
               </Button>
             )}
           </div>

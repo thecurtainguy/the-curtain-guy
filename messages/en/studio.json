@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "title": "Draw Your Room in 2D & 3D",
+    "description": "Draw your event room, place drape runs and a stage, then preview the same room design in an interactive 3D Studio."
+  },
+  "hero": {
+    "badge": "The Curtain Guy Studio",
+    "title": "Draw your room and preview your event draping in 3D.",
+    "description": "Build a practical top-down room plan, place drape runs and a stage, then move into a fast interactive 3D view—without losing the precision of your original drawing.",
+    "ctaStart": "Start drawing",
+    "ctaSaved": "View saved designs",
+    "ctaEstimate": "Get estimate",
+    "imageAlt": "Luxury draped event space representing the room design Studio",
+    "viewsLabel": "One design, two views",
+    "view2d": "2D room plan",
+    "view3d": "Generated 3D"
+  },
+  "templates": {
+    "eyebrow": "Choose a starting point",
+    "title": "Start with the room shape you know.",
+    "startRoom": "Start this room",
+    "rectangle": {
+      "title": "Rectangle room",
+      "body": "The most precise V1 workflow for ballrooms, halls, and event spaces.",
+      "badge": "Recommended"
+    },
+    "lShape": {
+      "title": "L-shape room",
+      "body": "Set the overall room and a practical rectangular cutout.",
+      "badge": "Functional"
+    },
+    "custom": {
+      "title": "Blank / custom",
+      "body": "Begin with a basic custom outline. Point editing expands in a later release.",
+      "badge": "Beta"
+    }
+  },
+  "features": {
+    "draw": {
+      "title": "Draw to scale",
+      "body": "Start with room dimensions in feet and inches, then refine each wall."
+    },
+    "drape": {
+      "title": "Place event draping",
+      "body": "Add full-wall treatments, partial runs, backdrops, and dividers."
+    },
+    "preview": {
+      "title": "Preview in 3D",
+      "body": "The 3D room is generated directly from the same drawing data."
+    },
+    "save": {
+      "title": "Save to your account",
+      "body": "Keep designs with your estimates and event planning when signed in."
+    }
+  },
+  "aiTeaser": {
+    "eyebrow": "Built first for precise planning",
+    "title": "AI design assistance is coming next.",
+    "description": "Today's Studio is manual by design. Floor-plan upload and AI-assisted suggestions are not part of this first release.",
+    "cta": "See what's next"
+  }
+}

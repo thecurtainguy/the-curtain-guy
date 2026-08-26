@@ -23,7 +23,6 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   const studioWorkspace = isStudioWorkspace(pathname);
 
   if (isAppShell) {
-    // PortalShell owns its own h-svh lock — don't nest competing viewport shells.
     return (
       <div
         className={cn(

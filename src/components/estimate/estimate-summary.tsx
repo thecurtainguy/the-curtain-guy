@@ -12,36 +12,18 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { type EstimateFormData } from "@/data/estimate";
 import {
-  addOnOptions,
-  drapeGoals,
-  estimateDisclaimer,
-  eventTypes,
-  fabricDirections,
-  floorPlanOptions,
-  formatHeightSummaryValue,
-  formatMeasurementSummaryValue,
-  formatOptionSummaryValue,
-  formatSummaryValue,
-  fullnessOptions,
   getOptionLabel,
-  getOptionLabels,
-  measurementsKnownOptions,
-  runLayouts,
-  SUMMARY_NOT_PROVIDED,
-  SUMMARY_NOT_SURE,
-  type EstimateFormData,
-  type EstimateOption,
-  venueSettings,
-} from "@/data/estimate";
+  useEstimateSummaryFormatters,
+  useLocalizedEstimateOptions,
+  type LocalizedEstimateOption,
+} from "@/lib/i18n/estimate";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
-
-function isPendingValue(value: string): boolean {
-  return value === SUMMARY_NOT_SURE || value === SUMMARY_NOT_PROVIDED;
-}
 
 function SummaryBlock({
   icon: Icon,
@@ -75,13 +57,13 @@ function StatTile({
   icon: Icon,
   label,
   value,
+  pending,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
+  pending: boolean;
 }) {
-  const pending = isPendingValue(value);
-
   return (
     <div className="rounded-xl border border-border/30 bg-background/40 p-3">
       <div className="flex items-start gap-2.5">
@@ -111,13 +93,11 @@ function OptionChips({
   selectedIds,
   emptyLabel,
 }: {
-  options: EstimateOption[];
+  options: LocalizedEstimateOption[];
   selectedIds: string[];
   emptyLabel: string;
 }) {
-  const labels = getOptionLabels(options, selectedIds);
-
-  if (labels.length === 0) {
+  if (selectedIds.length === 0) {
     return (
       <Badge
         variant="outline"
@@ -152,8 +132,10 @@ function OptionChips({
 
 function MeasurementGrid({
   items,
+  isPendingValue,
 }: {
   items: { label: string; value: string }[];
+  isPendingValue: (value: string) => boolean;
 }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
@@ -193,32 +175,53 @@ type EstimateSummaryProps = {
 };
 
 export function EstimateSummary({ data, className }: EstimateSummaryProps) {
+  const t = useTranslations("estimate");
+  const tSummary = useTranslations("estimate.summary");
+  const tBuilder = useTranslations("estimate.builder.measurements");
+  const options = useLocalizedEstimateOptions();
+  const formatters = useEstimateSummaryFormatters(options);
+  const { notSure, notProvided } = formatters;
+
+  const isPendingValue = (value: string) =>
+    value === notSure || value === notProvided;
+
   const eventTypeLabel = data.eventType
-    ? (getOptionLabel(eventTypes, data.eventType) ?? data.eventType)
-    : SUMMARY_NOT_SURE;
-  const eventTypeOption = eventTypes.find((item) => item.id === data.eventType);
+    ? (getOptionLabel(options.eventTypes, data.eventType) ?? data.eventType)
+    : notSure;
+  const eventTypeOption = options.eventTypes.find(
+    (item) => item.id === data.eventType
+  );
   const EventIcon = eventTypeOption?.icon ?? Sparkles;
 
   const parsedDate = parseISODate(data.eventDate);
   const dateLabel = parsedDate
     ? formatDisplayDate(parsedDate)
-    : SUMMARY_NOT_PROVIDED;
+    : notProvided;
 
   const venueSettingLabel = data.venueSetting
-    ? formatOptionSummaryValue(venueSettings, data.venueSetting)
-    : SUMMARY_NOT_PROVIDED;
+    ? formatters.formatOptionSummaryValue(options.venueSettings, data.venueSetting)
+    : notProvided;
   const measurementsKnownLabel = data.measurementsKnown
-    ? formatOptionSummaryValue(measurementsKnownOptions, data.measurementsKnown)
-    : SUMMARY_NOT_SURE;
+    ? formatters.formatOptionSummaryValue(
+        options.measurementsKnownOptions,
+        data.measurementsKnown
+      )
+    : notSure;
   const runLayoutLabel = data.runLayout
-    ? formatOptionSummaryValue(runLayouts, data.runLayout)
-    : SUMMARY_NOT_SURE;
+    ? formatters.formatOptionSummaryValue(options.runLayouts, data.runLayout)
+    : notSure;
   const floorPlanLabel = data.floorPlanAvailable
-    ? formatOptionSummaryValue(floorPlanOptions, data.floorPlanAvailable)
-    : SUMMARY_NOT_SURE;
+    ? formatters.formatOptionSummaryValue(
+        options.floorPlanOptions,
+        data.floorPlanAvailable
+      )
+    : notSure;
   const fullnessLabel = data.fullnessPreference
-    ? formatOptionSummaryValue(fullnessOptions, data.fullnessPreference)
-    : SUMMARY_NOT_PROVIDED;
+    ? formatters.formatOptionSummaryValue(
+        options.fullnessOptions,
+        data.fullnessPreference
+      )
+    : notProvided;
 
   return (
     <Card
@@ -238,15 +241,15 @@ export function EstimateSummary({ data, className }: EstimateSummaryProps) {
           </span>
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-              Estimate Brief
+              {t("page.eyebrow")}
             </p>
             <CardTitle className="mt-1 font-heading text-xl font-semibold text-foreground sm:text-2xl">
               {eventTypeLabel}
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              {dateLabel !== SUMMARY_NOT_PROVIDED
+              {dateLabel !== notProvided
                 ? dateLabel
-                : "Event date to be confirmed"}
+                : tSummary("labels.dateTbc")}
               {data.cityArea.trim() ? ` · ${data.cityArea.trim()}` : ""}
             </p>
           </div>
@@ -254,50 +257,72 @@ export function EstimateSummary({ data, className }: EstimateSummaryProps) {
       </div>
 
       <CardContent className="space-y-6 p-5 sm:p-6">
-        <SummaryBlock icon={Calendar} title="Event Basics">
+        <SummaryBlock icon={Calendar} title={tSummary("sections.event")}>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <StatTile icon={Sparkles} label="Event type" value={eventTypeLabel} />
-            <StatTile icon={Calendar} label="Date" value={dateLabel} />
+            <StatTile
+              icon={Sparkles}
+              label={tSummary("labels.eventType")}
+              value={eventTypeLabel}
+              pending={isPendingValue(eventTypeLabel)}
+            />
+            <StatTile
+              icon={Calendar}
+              label={tSummary("labels.eventDate")}
+              value={dateLabel}
+              pending={isPendingValue(dateLabel)}
+            />
             <StatTile
               icon={MapPin}
-              label="Venue"
+              label={tSummary("labels.venue")}
               value={
                 data.venueName.trim()
-                  ? formatSummaryValue(data.venueName)
-                  : SUMMARY_NOT_PROVIDED
+                  ? formatters.formatSummaryValue(data.venueName)
+                  : notProvided
+              }
+              pending={
+                !data.venueName.trim() || isPendingValue(
+                  formatters.formatSummaryValue(data.venueName)
+                )
               }
             />
             <StatTile
               icon={MapPin}
-              label="City / area"
+              label={tSummary("labels.cityArea")}
               value={
                 data.cityArea.trim()
-                  ? formatSummaryValue(data.cityArea)
-                  : SUMMARY_NOT_SURE
+                  ? formatters.formatSummaryValue(data.cityArea)
+                  : notSure
               }
+              pending={!data.cityArea.trim()}
             />
-            <StatTile icon={Layers} label="Setting" value={venueSettingLabel} />
+            <StatTile
+              icon={Layers}
+              label={tSummary("labels.venueSetting")}
+              value={venueSettingLabel}
+              pending={isPendingValue(venueSettingLabel)}
+            />
             <StatTile
               icon={Users}
-              label="Guests"
+              label={tSummary("labels.guestCount")}
               value={
                 data.guestCount.trim()
-                  ? formatSummaryValue(data.guestCount)
-                  : SUMMARY_NOT_PROVIDED
+                  ? formatters.formatSummaryValue(data.guestCount)
+                  : notProvided
               }
+              pending={!data.guestCount.trim()}
             />
           </div>
         </SummaryBlock>
 
-        <SummaryBlock icon={Layers} title="Drape Goals">
+        <SummaryBlock icon={Layers} title={tSummary("sections.goals")}>
           <OptionChips
-            options={drapeGoals}
+            options={options.drapeGoals}
             selectedIds={data.drapeGoals}
-            emptyLabel={SUMMARY_NOT_SURE}
+            emptyLabel={notSure}
           />
         </SummaryBlock>
 
-        <SummaryBlock icon={Ruler} title="Measurements">
+        <SummaryBlock icon={Ruler} title={tSummary("sections.measurements")}>
           <div className="mb-3">
             <Badge
               variant="outline"
@@ -312,37 +337,40 @@ export function EstimateSummary({ data, className }: EstimateSummaryProps) {
             </Badge>
           </div>
           <MeasurementGrid
+            isPendingValue={isPendingValue}
             items={[
               {
-                label: "Linear feet",
-                value: formatMeasurementSummaryValue(data.linearFeet),
+                label: tBuilder("wallLength"),
+                value: formatters.formatMeasurementSummaryValue(data.linearFeet),
               },
               {
-                label: "Height",
-                value: formatHeightSummaryValue(data),
+                label: tBuilder("ceilingHeight"),
+                value: formatters.formatHeightSummaryValue(data),
               },
               {
-                label: "Walls / sections",
-                value: formatMeasurementSummaryValue(data.wallSections),
+                label: tSummary("labels.layout"),
+                value: formatters.formatMeasurementSummaryValue(data.wallSections),
               },
-              { label: "Run layout", value: runLayoutLabel },
+              { label: tBuilder("runLayout"), value: runLayoutLabel },
               {
-                label: "Doors / openings",
-                value: formatMeasurementSummaryValue(data.doorsOpenings),
+                label: tSummary("labels.floorPlan"),
+                value: formatters.formatMeasurementSummaryValue(data.doorsOpenings),
               },
-              { label: "Floor plan", value: floorPlanLabel },
+              { label: tBuilder("floorPlan"), value: floorPlanLabel },
             ]}
           />
         </SummaryBlock>
 
-        <SummaryBlock icon={Palette} title="Look & Fabric">
+        <SummaryBlock icon={Palette} title={tSummary("sections.look")}>
           <OptionChips
-            options={fabricDirections}
+            options={options.fabricDirections}
             selectedIds={data.fabricDirections}
-            emptyLabel={SUMMARY_NOT_SURE}
+            emptyLabel={notSure}
           />
           <div className="mt-3 flex items-center gap-2 border-t border-border/30 pt-3">
-            <span className="text-xs text-muted-foreground">Fullness</span>
+            <span className="text-xs text-muted-foreground">
+              {tSummary("labels.fullness")}
+            </span>
             <Badge
               variant="outline"
               className={cn(
@@ -357,29 +385,40 @@ export function EstimateSummary({ data, className }: EstimateSummaryProps) {
           </div>
         </SummaryBlock>
 
-        <SummaryBlock icon={Sparkles} title="Add-ons">
+        <SummaryBlock icon={Sparkles} title={tSummary("sections.addOns")}>
           <OptionChips
-            options={addOnOptions}
+            options={options.addOns}
             selectedIds={data.addOns}
-            emptyLabel="None selected"
+            emptyLabel={tSummary("labels.noneSelected")}
           />
         </SummaryBlock>
 
         {(data.name || data.email || data.phone || data.message) && (
-          <SummaryBlock icon={MessageSquare} title="Notes & Contact">
+          <SummaryBlock icon={MessageSquare} title={tSummary("sections.contact")}>
             <div className="grid gap-2 sm:grid-cols-2">
               {data.name && (
-                <StatTile icon={Users} label="Name" value={data.name} />
+                <StatTile
+                  icon={Users}
+                  label={tSummary("labels.name")}
+                  value={data.name}
+                  pending={false}
+                />
               )}
               {data.email && (
                 <StatTile
                   icon={MessageSquare}
-                  label="Email"
+                  label={tSummary("labels.email")}
                   value={data.email}
+                  pending={false}
                 />
               )}
               {data.phone && (
-                <StatTile icon={MessageSquare} label="Phone" value={data.phone} />
+                <StatTile
+                  icon={MessageSquare}
+                  label={tSummary("labels.phone")}
+                  value={data.phone}
+                  pending={false}
+                />
               )}
             </div>
             {data.message && (
@@ -393,7 +432,7 @@ export function EstimateSummary({ data, className }: EstimateSummaryProps) {
         <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
           <ClipboardList className="mt-0.5 size-4 shrink-0 text-primary" />
           <p className="text-xs leading-relaxed text-muted-foreground">
-            {estimateDisclaimer}
+            {t("disclaimer")}
           </p>
         </div>
       </CardContent>

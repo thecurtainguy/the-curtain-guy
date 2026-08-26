@@ -1,59 +1,26 @@
 import type { Metadata } from "next";
 import type { FaqItem } from "@/data/faq";
-import { navLinks, siteConfig } from "@/data/site";
+import { siteConfig } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
+import type { AppLocale } from "@/i18n/routing";
 
 function baseUrl() {
   return getSiteUrl().replace(/\/$/, "");
 }
 
-const seoNavExtras = [
-  { label: "Get Estimate", href: "/get-estimate" },
-  { label: "FAQ", href: "/faq" },
-  { label: "Reviews", href: "/reviews" },
-] as const;
-
-function organizationNode(base: string) {
-  return {
-    "@type": "LocalBusiness",
-    "@id": `${base}/#organization`,
-    name: siteConfig.name,
-    description: siteConfig.description,
-    url: base,
-    email: siteConfig.email,
-    telephone: siteConfig.phone,
-    logo: `${base}/images/brand/logo-full.png`,
-    image: `${base}/images/brand/logo-full.png`,
-    areaServed: {
-      "@type": "GeoCircle",
-      geoMidpoint: {
-        "@type": "City",
-        name: "Montreal",
-      },
-      geoRadius: "75000",
-    },
-    serviceType: [
-      "Event drape rental",
-      "Pipe and drape rental",
-      "Wedding draping",
-      "Corporate event draping",
-      "Stage backdrop rental",
-      "Venue transformation draping",
-      "Blackout drape rental",
-      "Room divider draping",
-    ],
-    knowsAbout: [
-      "Luxury event drape rentals",
-      "Temporary event draping",
-      "Full-service drape installation and teardown",
-      "Montreal event production draping",
-    ],
-  };
+function localizedPath(path: string, locale: AppLocale) {
+  const normalized = path === "/" ? "" : path;
+  return locale === "fr" ? `/fr${normalized}` : normalized || "/";
 }
 
-export function buildSiteGraphJsonLd() {
+function absoluteUrl(path: string, locale: AppLocale) {
+  const localized = localizedPath(path, locale);
+  const suffix = localized === "/" ? "" : localized;
+  return `${baseUrl()}${suffix}`;
+}
+
+export function buildSiteGraphJsonLd(navItems: Array<{ label: string; href: string }>) {
   const base = baseUrl();
-  const navItems = [...navLinks, ...seoNavExtras];
 
   return {
     "@context": "https://schema.org",
@@ -64,32 +31,82 @@ export function buildSiteGraphJsonLd() {
         url: base,
         name: siteConfig.name,
         description: siteConfig.description,
-        inLanguage: "en-CA",
+        inLanguage: ["en-CA", "fr-CA"],
         publisher: { "@id": `${base}/#organization` },
       },
-      organizationNode(base),
+      {
+        "@type": "LocalBusiness",
+        "@id": `${base}/#organization`,
+        name: siteConfig.name,
+        description: siteConfig.description,
+        url: base,
+        email: siteConfig.email,
+        telephone: siteConfig.phone,
+        logo: `${base}/images/brand/logo-full.png`,
+        image: `${base}/images/brand/logo-full.png`,
+        areaServed: {
+          "@type": "GeoCircle",
+          geoMidpoint: {
+            "@type": "City",
+            name: "Montreal",
+          },
+          geoRadius: "75000",
+        },
+        serviceType: [
+          "Event drape rental",
+          "Pipe and drape rental",
+          "Wedding draping",
+          "Corporate event draping",
+          "Stage backdrop rental",
+          "Venue transformation draping",
+          "Blackout drape rental",
+          "Room divider draping",
+        ],
+        knowsAbout: [
+          "Luxury event drape rentals",
+          "Temporary event draping",
+          "Full-service drape installation and teardown",
+          "Montreal event production draping",
+        ],
+      },
       {
         "@type": "SiteNavigationElement",
         "@id": `${base}/#main-navigation`,
         name: "Main navigation",
-        hasPart: navItems.map((link) => ({
-          "@type": "WebPage",
-          name: link.label,
-          url: `${base}${link.href === "/" ? "" : link.href}`,
-        })),
+        hasPart: navItems.flatMap((link) => {
+          const enPath = link.href === "/" ? "" : link.href;
+          const frPath = `/fr${enPath}`;
+          return [
+            {
+              "@type": "WebPage",
+              name: link.label,
+              url: `${base}${enPath}`,
+              inLanguage: "en-CA",
+            },
+            {
+              "@type": "WebPage",
+              name: link.label,
+              url: `${base}${frPath}`,
+              inLanguage: "fr-CA",
+            },
+          ];
+        }),
       },
     ],
   };
 }
 
 /** @deprecated Use buildSiteGraphJsonLd() — kept for any legacy imports. */
-export const organizationJsonLd = organizationNode("https://www.thecurtainguy.com");
+export const organizationJsonLd = {
+  "@type": "LocalBusiness",
+  "@id": "https://www.thecurtainguy.com/#organization",
+  name: siteConfig.name,
+};
 
 export function createBreadcrumbJsonLd(
-  items: Array<{ name: string; path: string }>
+  items: Array<{ name: string; path: string }>,
+  locale: AppLocale = "en"
 ) {
-  const base = baseUrl();
-
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -97,7 +114,7 @@ export function createBreadcrumbJsonLd(
       "@type": "ListItem",
       position: index + 1,
       name: item.name,
-      item: `${base}${item.path === "/" ? "" : item.path}`,
+      item: absoluteUrl(item.path, locale),
     })),
   };
 }
@@ -121,23 +138,34 @@ export function createPageMetadata({
   title,
   description,
   path = "",
+  locale = "en",
 }: {
   title: string;
   description: string;
   path?: string;
+  locale?: AppLocale;
 }): Metadata {
-  const url = `${baseUrl()}${path === "/" ? "" : path}`;
+  const canonical = absoluteUrl(path, locale);
+  const enUrl = absoluteUrl(path, "en");
+  const frUrl = absoluteUrl(path, "fr");
 
   return {
     title,
     description,
-    alternates: { canonical: url || baseUrl() },
+    alternates: {
+      canonical,
+      languages: {
+        en: enUrl,
+        "fr-CA": frUrl,
+        "x-default": enUrl,
+      },
+    },
     openGraph: {
       title: `${title} | ${siteConfig.name}`,
       description,
-      url: url || baseUrl(),
+      url: canonical,
       siteName: siteConfig.name,
-      locale: "en_CA",
+      locale: locale === "fr" ? "fr_CA" : "en_CA",
       type: "website",
     },
   };

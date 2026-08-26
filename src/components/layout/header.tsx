@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { usePathname } from "@/i18n/navigation";
 import { Menu } from "lucide-react";
 import { navLinks, siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ import {
   type HeaderSession,
 } from "@/components/layout/header-account-menu";
 import { headerActionClassName, headerActionGoldClassName } from "@/components/layout/header-actions";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { GuardedLink } from "@/components/ui/guarded-link";
@@ -22,8 +24,19 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+const navKeyByHref: Record<string, string> = {
+  "/": "home",
+  "/services": "services",
+  "/gallery": "gallery",
+  "/about": "about",
+  "/contact": "contact",
+  "/studio": "studio",
+};
+
 export function Header() {
   const pathname = usePathname();
+  const t = useTranslations("nav.links");
+  const tc = useTranslations("common");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const [session, setSession] = useState<HeaderSession>({
@@ -61,8 +74,6 @@ export function Header() {
   }, [pathname]);
 
   useEffect(() => {
-    // Compact is visual-only (no layout height change). Still use hysteresis so
-    // the shadow/logo scale doesn't chatter at the threshold.
     const COMPACT_ON = 48;
     const COMPACT_OFF = 8;
     let frame = 0;
@@ -75,7 +86,6 @@ export function Header() {
       setCompact((prev) => {
         const next = prev ? y > COMPACT_OFF : y > COMPACT_ON;
         if (next !== prev) {
-          // Ignore scroll while CSS transitions settle.
           lockedUntil = Date.now() + 320;
         }
         return next;
@@ -95,11 +105,14 @@ export function Header() {
     };
   }, []);
 
+  function navLabel(href: string, fallback: string) {
+    const key = navKeyByHref[href];
+    return key ? t(key) : fallback;
+  }
+
   return (
     <header
       className={cn(
-        // Fixed on mobile avoids sticky + transform scroll bugs (homepage especially).
-        // Desktop keeps sticky so long pages don't need a spacer in the layout.
         "fixed left-0 right-0 top-0 z-50 w-full overflow-anchor-none border-b border-border/40 lg:sticky lg:left-auto lg:right-auto",
         "pt-[env(safe-area-inset-top,0px)]",
         "bg-background lg:bg-background/70 lg:backdrop-blur-xl lg:supports-backdrop-filter:bg-background/60",
@@ -111,7 +124,6 @@ export function Header() {
     >
       <div
         className={cn(
-          // Fixed height — never animate layout height while sticky
           "mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-[4.25rem] sm:gap-4 sm:px-6 lg:px-8"
         )}
       >
@@ -142,22 +154,23 @@ export function Header() {
                 )}
               >
                 {Icon && <Icon className="size-3.5" />}
-                {link.label}
+                {navLabel(link.href, link.label)}
               </GuardedLink>
             );
           })}
         </nav>
 
         <div className="flex items-center gap-2">
+          <LanguageSwitcher className="hidden sm:inline-flex" />
           <ThemeToggle className="size-9 shrink-0" />
           <HeaderAccountMenu session={session} />
           <Button
             asChild
             variant="outline"
             size="lg"
-            className={cn(headerActionClassName, headerActionGoldClassName)}
+            className={cn(headerActionClassName, headerActionGoldClassName, "hidden sm:inline-flex")}
           >
-            <GuardedLink href="/get-estimate">Get Estimate</GuardedLink>
+            <GuardedLink href="/get-estimate">{tc("getEstimate")}</GuardedLink>
           </Button>
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -166,7 +179,7 @@ export function Header() {
                 variant="outline"
                 size="icon-sm"
                 className="lg:hidden"
-                aria-label="Open menu"
+                aria-label={tc("openMenu")}
               >
                 <Menu />
               </Button>
@@ -208,7 +221,7 @@ export function Header() {
                         )}
                       >
                         {Icon && <Icon className="size-4 shrink-0" />}
-                        {link.label}
+                        {navLabel(link.href, link.label)}
                       </GuardedLink>
                     );
                   })}
@@ -220,15 +233,19 @@ export function Header() {
                   />
 
                   <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
-                    <span className="text-sm text-muted-foreground">Theme</span>
+                    <span className="text-sm text-muted-foreground">{tc("theme")}</span>
                     <ThemeToggle />
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/20 px-3 py-2">
+                    <span className="text-sm text-muted-foreground">{tc("languageSwitcher")}</span>
+                    <LanguageSwitcher />
                   </div>
                   <Button asChild className="mt-3 w-full min-h-10">
                     <GuardedLink
                       href="/get-estimate"
                       onClick={() => setMobileOpen(false)}
                     >
-                      Get Estimate
+                      {tc("getEstimate")}
                     </GuardedLink>
                   </Button>
                 </nav>

@@ -1,0 +1,345 @@
+{
+  "page": {
+    "eyebrow": "Avis",
+    "title": "Expériences clients",
+    "description": "Ce que planificateurs, couples et équipes de production disent de leur collaboration avec The Curtain Guy pour le drapage événementiel à Montréal.",
+    "shareCta": "Partager votre expérience",
+    "getEstimate": "Demander une estimation",
+    "metaTitle": "Avis location de draperie événementielle Montréal",
+    "metaDescription": "Avis clients pour The Curtain Guy — location de draperie événementielle de luxe à Montréal pour mariages, événements corporatifs, galas et transformations de salles."
+  },
+  "categories": {
+    "all": "Tous les avis",
+    "wedding": "Mariages",
+    "corporate": "Corporatif",
+    "gala": "Galas",
+    "mitzvah": "Mitzvahs",
+    "venue": "Salles",
+    "production": "Production"
+  },
+  "stats": {
+    "stat1": {
+      "value": "5,0",
+      "label": "Note moyenne"
+    },
+    "stat2": {
+      "value": "30+",
+      "label": "Témoignages clients"
+    },
+    "stat3": {
+      "value": "100 %",
+      "label": "Installations clé en main"
+    },
+    "stat4": {
+      "value": "Montréal",
+      "label": "et les environs"
+    }
+  },
+  "items": {
+    "r01": {
+      "name": "Sophie Marchessault",
+      "role": "Mariée",
+      "venue": "Ritz-Carlton Montréal",
+      "location": "Montréal",
+      "eventLabel": "Mariage en grand salon en janvier",
+      "quote": "Honnêtement, la salle avait l'air complètement différente une fois le drapage installé — plus douce, plus chaleureuse, bien meilleure en photos que je pensais. Ils ont été discrets, sans stresser personne, et je ne savais même pas que le démontage avait été fait jusqu'à que ma coordinatrice m'en a parlé le lendemain."
+    },
+    "r02": {
+      "name": "Marc-André Lefebvre",
+      "role": "Directeur d'événements",
+      "organization": "Summit AV Productions",
+      "venue": "Palais des congrès",
+      "location": "Montréal",
+      "eventLabel": "Keynote de lancement de produit",
+      "quote": "Gros mur LED, calendrier de montage serré, zéro drame — c'est exactement ce dont j'avais besoin. Leurs gars ont travaillé autour de notre équipe tech sans se mettre en travers, et le masquage était clean sur caméra. Je les rappellerais sans hésiter."
+    },
+    "r03": {
+      "name": "Isabelle Fontaine",
+      "role": "Présidente de gala",
+      "organization": "Montreal Children's Foundation",
+      "venue": "Hotel William Gray",
+      "location": "Vieux-Montréal",
+      "eventLabel": "Gala de charité",
+      "quote": "Les gens commentaient la salle avant même que le dîner commence, ce qui arrive rarement à nos galas. Le drapage doré a transformé un grand salon d'hôtel standard en une vraie soirée black-tie. Chaque poste du budget en valait la peine."
+    },
+    "r04": {
+      "name": "David Chen",
+      "role": "Planificateur",
+      "organization": "Lumière Events",
+      "location": "Westmount",
+      "eventLabel": "Réception en tente de jardin",
+      "quote": "La pluie a tout repoussé de trois heures et ils ont quand même fini les murs de tente et la toile de fond avant que les invités arrivent. Mon couple m'envoie encore des photos du tissu au coucher du soleil — je prends ça comme une victoire."
+    },
+    "r05": {
+      "name": "Nadia Rahman",
+      "role": "VP Marketing",
+      "organization": "Northline Biotech",
+      "location": "Laval",
+      "eventLabel": "Réception pour investisseurs",
+      "quote": "On avait des piliers laids et un coin d'enregistrement bizarre. Le pipe and drape a corrigé les deux sans que la salle ait l'air fermée. La soumission était claire, l'équipe était ponctuelle, personne a eu à courir après personne pour des nouvelles."
+    },
+    "r06": {
+      "name": "Thomas Bergeron",
+      "role": "Père de la bar mitzvah",
+      "venue": "Congregation Shaar Hashomayim",
+      "location": "Westmount",
+      "eventLabel": "Fête de bat mitzvah",
+      "quote": "On ne voulait pas que ça ressemble à un gymnase pour enfants, et ça n'y ressemblait pas. Belle toile de fond pour la hora, et le lounge latéral a vraiment été utilisé — ma femme était surprise que les parents restent hors de la piste aussi longtemps."
+    },
+    "r07": {
+      "name": "Émilie Gagnon",
+      "role": "Gérante de salle",
+      "organization": "Le Salon 1861",
+      "location": "Montréal",
+      "eventLabel": "Partenaire de salle régulier",
+      "quote": "On leur envoie beaucoup de demandes de drapage. Ils connaissent nos règles de chargement, ils parlent à la restauration au lieu de deviner, et l'espace est toujours laissé comme on en a besoin pour le prochain événement."
+    },
+    "r08": {
+      "name": "James Whitfield",
+      "role": "Gestionnaire de production",
+      "organization": "Stagecraft Montréal",
+      "venue": "Théâtre Maisonneuve",
+      "location": "Place des Arts",
+      "eventLabel": "Répétition générale de gala de remise de prix",
+      "quote": "Côtés noirs, masquage arrière, tout étiqueté — notre éclairagiste était content, ce qui est rare. Le jour du show, zéro surprise de drapage. Dans ce milieu, c'est pratiquement un avis cinq étoiles."
+    },
+    "r09": {
+      "name": "Camille Dubois",
+      "role": "Mariée",
+      "venue": "Château Vaudreuil",
+      "location": "Vaudreuil-Dorion",
+      "eventLabel": "Cérémonie et réception au château",
+      "quote": "J'ai envoyé des photos Pinterest et une disposition Studio que j'avais faite à minuit lol — et ça correspondait quand même à ce que j'avais en tête. L'équipe était super gentille pendant les photos, pas envahissante ni de petites conversations gênantes."
+    },
+    "r10": {
+      "name": "Robert Kowalski",
+      "role": "COO",
+      "organization": "Harbour Capital",
+      "location": "Montréal",
+      "eventLabel": "Sommet annuel de leadership",
+      "quote": "Salles de sous-groupes, scène principale, murs brandés — un seul fournisseur a géré tout ça. Notre responsable a vraiment répondu aux courriels à 21 h la semaine avant. Petit détail, mais ça compte."
+    },
+    "r11": {
+      "name": "Leah Cohen",
+      "role": "Mère de la mitzvah",
+      "venue": "Temple Emanu-El-Beth Sholom",
+      "location": "Westmount",
+      "eventLabel": "Fête de bar mitzvah",
+      "quote": "Salle communautaire, 200 personnes, on voulait que ça fasse spécial. Le drapage de piste de danse et un vrai mur photo ont fait l'affaire. L'installation était terminée avant notre arrivée — pas en plein service d'entrées comme avec un autre fournisseur la dernière fois."
+    },
+    "r12": {
+      "name": "Antoine Mercier",
+      "role": "Directeur créatif",
+      "organization": "Maison Éclat",
+      "location": "Montréal",
+      "eventLabel": "Collecte de fonds mode",
+      "quote": "L'éclairage de podium est capricieux — spots chauds, spots froids, photographes qui râlent pour tout. Le choix de tissu était bon quand même. Les photos sont revenues clean et on n'a pas eu à corriger en post-production."
+    },
+    "r13": {
+      "name": "Priya Sharma",
+      "role": "Planificateur",
+      "organization": "Two Peonies Co.",
+      "location": "Montréal",
+      "eventLabel": "Mariage fusion sud-asiatique",
+      "quote": "Mandap, périmètre, lounge séparé — beaucoup de pièces en mouvement. Zéro crise, zéro « ça ne va pas rentrer » de dernière minute. La mariée a pleuré en voyant la salle. Le marié a fait semblant de ne pas. Du mariage classique."
+    },
+    "r14": {
+      "name": "François Tremblay",
+      "role": "DG",
+      "organization": "Hôtel Nelligan",
+      "location": "Vieux-Montréal",
+      "eventLabel": "Installation partenaire hôtel",
+      "quote": "Ascenseur de service, protection des planchers, démontage à 2 h du matin — ils connaissent la routine ici. C'est pour ça qu'on continue de les recommander quand les couples demandent du drapage."
+    },
+    "r15": {
+      "name": "Hannah Brooks",
+      "role": "Adjointe exécutive",
+      "organization": "Clarion Legal LLP",
+      "location": "Montréal",
+      "eventLabel": "Dîner de retraite des associés",
+      "quote": "On a transformé une salle de conférence ennuyante en quelque chose qui ressemblait vraiment à un dîner privé. La soumission avait de vrais chiffres, pas des fourchettes vagues. Les associés ont remarqué — un a demandé qui avait fait le drapage."
+    },
+    "r16": {
+      "name": "Michael O'Brien",
+      "role": "Directeur technique",
+      "venue": "Club Soda",
+      "location": "Montréal",
+      "eventLabel": "Concert diffusé en direct",
+      "quote": "Le mur du fond était un désastre pour les caméras de diffusion. Le masquage d'occultation a corrigé ça. Montage sécurisé, démontage rapide après le rappel — l'équipe savait ce qu'elle faisait."
+    },
+    "r17": {
+      "name": "Valérie Poirier",
+      "role": "Mariée",
+      "venue": "Espace C2",
+      "location": "Montréal",
+      "eventLabel": "Mariage loft moderne",
+      "quote": "Les mariages en loft peuvent sembler froids. Le drapage a adouci l'espace sans couvrir les fenêtres pour lesquelles on avait payé extra. Notre photographe a dit que la toile de fond de la table d'honneur était la photo de la soirée — elle n'est pas souvent aussi enthousiaste."
+    },
+    "r18": {
+      "name": "Daniel Kim",
+      "role": "Responsable événements",
+      "organization": "NeoHealth",
+      "location": "Brossard",
+      "eventLabel": "Lancement national des ventes",
+      "quote": "Le fret a été en retard, pas de leur faute, et ils ont quand même monté l'enregistrement et les deux pods de démo avant l'ouverture. Le pipe and drape marine correspondait aux couleurs de notre marque — ça a l'air petit, mais notre PDG a remarqué."
+    },
+    "r19": {
+      "name": "Rachel Stein",
+      "role": "Directrice de collecte de fonds",
+      "organization": "Montreal Arts Council",
+      "location": "Montréal",
+      "eventLabel": "Dîner des mécènes des arts",
+      "quote": "Atrium de musée, œuvres partout, conservateurs nerveux pour tout. L'installation a respecté les dégagements et a quand même rendu la salle intime. Un gros soulagement pour notre équipe."
+    },
+    "r20": {
+      "name": "Gabriel Santos",
+      "role": "Planificateur",
+      "organization": "Velvet Circle Events",
+      "location": "Montréal",
+      "eventLabel": "Mariage hôtel style destination",
+      "quote": "Je n'ajoute pas des fournisseurs à ma liste courte facilement. Ces gars-là restent sur le dossier — les propositions sont claires, les finitions sont soignées, et je ne reçois pas de textos de mariées demandant pourquoi le drapage est froissé."
+    },
+    "r21": {
+      "name": "Chloé Martin",
+      "role": "Présidente d'événement",
+      "organization": "West Island Hospital Foundation",
+      "location": "Pointe-Claire",
+      "eventLabel": "Gala de la fondation hospitalière",
+      "quote": "On a battu les chiffres de l'an dernier et je suis convaincue que la salle a joué un rôle. Le drapage de scène a attiré les regards vers les orateurs sans bloquer la vue depuis les sièges moins chers — les mots de notre présidente du conseil, pas les miens."
+    },
+    "r22": {
+      "name": "Alexandre Roy",
+      "role": "Gestionnaire des opérations",
+      "organization": "Montreal Auto Show",
+      "location": "Montréal",
+      "eventLabel": "Lounge VIP avant-première",
+      "quote": "Construit pendant la nuit, parti avant l'ouverture au public. Les murs temporaires ont caché tout notre chaos de stockage. Le timing de salon professionnel est brutal et ils n'ont pas raté la fenêtre."
+    },
+    "r23": {
+      "name": "Maya Patel",
+      "role": "Mariée",
+      "venue": "Le Mount Stephen",
+      "location": "Montréal",
+      "eventLabel": "Mariage hôtel patrimonial",
+      "quote": "Vieux bâtiment, règles de salle strictes, beaucoup de moulures. Ils ont utilisé des tapis de protection, n'ont rien égratigné, et le drapage s'intégrait à la salle au lieu de la combattre. La gérante de la salle m'a remerciée — c'est rare."
+    },
+    "r24": {
+      "name": "Jonathan Walsh",
+      "role": "Producteur",
+      "organization": "Lumen Broadcast",
+      "location": "Montréal",
+      "eventLabel": "Enregistrement télévisé de gala",
+      "quote": "Le réalisateur voulait un mur masqué en vingt minutes. Je ne pensais pas que c'était possible. Ils ont réussi et les plans larges ressemblaient à une vraie construction de studio. Ça m'a sauvé mon après-midi."
+    },
+    "r25": {
+      "name": "Fatima El-Amin",
+      "role": "Organisatrice communautaire",
+      "venue": "Centre communautaire Côte-des-Neiges",
+      "location": "Montréal",
+      "eventLabel": "Célébration communautaire",
+      "quote": "Budget serré, on voulait quand même que ça ait l'air bien. Ils ont suggéré de concentrer sur la toile de fond, la table d'honneur et la piste de danse plutôt que draper tout le gymnase. Bonne décision — ça avait l'air beaucoup plus cher que ça l'était."
+    },
+    "r26": {
+      "name": "Christine Lau",
+      "role": "Directrice des événements",
+      "organization": "Québec Finance Forum",
+      "location": "Montréal",
+      "eventLabel": "Conférence de deux jours",
+      "quote": "Deux jours, quatre salles, même image de marque partout. Les calendriers étaient écrits, les noms de l'équipe étaient sur la feuille, les changements ont été faits quand ils avaient dit. Je ne dis pas ça pour tous les fournisseurs."
+    },
+    "r27": {
+      "name": "Olivier Bélanger",
+      "role": "Marié",
+      "venue": "Domaine Cataraqui",
+      "location": "Région de Québec",
+      "eventLabel": "Mariage en tente sur domaine",
+      "quote": "Ils ont fait le trajet pour notre mariage en tente et ont géré la pluie, la boue et un changement de paroi de dernière minute sans se plaindre. Ma belle-mère parle encore de comment l'équipe était gentille. Je prends ça."
+    },
+    "r28": {
+      "name": "Sandra Mitchell",
+      "role": "Directrice générale",
+      "organization": "Verde Hospitality",
+      "location": "Montréal",
+      "eventLabel": "Partenaire fournisseur privilégié",
+      "quote": "Nos clients s'attendent à ce que les fournisseurs agissent comme le personnel de l'hôtel, pas comme des contracteurs random. Ces gars-là arrivent à l'heure, lisent le BEO, et ne laissent pas un désordre pour l'entretien. C'est pour ça qu'on continue de leur envoyer du travail."
+    },
+    "r29": {
+      "name": "Kevin Nguyen",
+      "role": "Producteur step-and-repeat",
+      "organization": "Red Carpet Montréal",
+      "location": "Montréal",
+      "eventLabel": "Mur presse et masquage",
+      "quote": "Coins carrés, panneaux qui ne flottent pas, photographes qui arrêtent de râler — mes trois critères pour un bon mur presse. Je les ai déjà bookés pour notre prochaine avant-première."
+    },
+    "r30": {
+      "name": "Amélie Caron",
+      "role": "Mariée",
+      "venue": "Arthurs Bar & Grill private event",
+      "location": "Saint-Henri",
+      "eventLabel": "Mariage intime en restaurant",
+      "quote": "Quarante invités, coin bizarre près du bar, besoin d'un espace pour la cérémonie. Ils en ont fait la partie la plus jolie de la salle. Deux cousins ont demandé si on avait fait des rénovations. On n'a pas — juste du bon drapage."
+    }
+  },
+  "showcase": {
+    "featuredEyebrow": "Témoignages en vedette",
+    "featuredTitle": "Planificateurs, salles et hôtes sur leur collaboration avec nous",
+    "featuredRatingNote": "Principalement des commentaires cinq étoiles de planificateurs, salles et hôtes avec qui nous travaillons autour de Montréal.",
+    "browseEyebrow": "Parcourir par type d'événement",
+    "browseTitle": "Trente perspectives clients sur les événements montréalais",
+    "emptyCategory": "Aucun avis dans cette catégorie pour l'instant."
+  },
+  "shareDialog": {
+    "eyebrow": "Partager votre expérience",
+    "title": "Parlez-nous de votre expérience de drapage événementiel",
+    "description": "Vous avez travaillé avec nous pour un mariage, un événement corporatif, un gala ou une production? Partagez les détails — nous utilisons ces commentaires pour nous améliorer et pouvons publier votre avis avec votre permission.",
+    "aboutEyebrow": "À propos de vous",
+    "aboutTitle": "À qui devons-nous attribuer le témoignage?",
+    "fullName": "Nom complet",
+    "namePlaceholder": "Votre nom",
+    "email": "Courriel",
+    "emailPlaceholder": "vous@exemple.com",
+    "phoneOptional": "Téléphone (facultatif)",
+    "roleTitle": "Rôle / titre",
+    "rolePlaceholder": "Mariée, planificateur, gérant de salle…",
+    "organization": "Entreprise / organisation",
+    "organizationPlaceholder": "Facultatif",
+    "eventEyebrow": "Votre événement",
+    "eventTitle": "Qu'avons-nous drapé?",
+    "eventType": "Type d'événement",
+    "eventLabel": "Nom / libellé de l'événement",
+    "eventLabelPlaceholder": "Mariage d'hiver, gala, lancement…",
+    "eventDate": "Date de l'événement",
+    "venue": "Salle",
+    "venuePlaceholder": "Nom de la salle",
+    "location": "Ville / secteur",
+    "locationPlaceholder": "Montréal, Westmount…",
+    "reviewEyebrow": "Votre avis",
+    "reviewTitle": "Comment ça s'est passé?",
+    "rating": "Note globale",
+    "experience": "Votre expérience",
+    "experiencePlaceholder": "Qu'avons-nous installé, comment l'équipe s'est-elle comportée, qu'est-ce qui vous a marqué ou vos invités?",
+    "services": "Drapage / services utilisés",
+    "servicesPlaceholder": "Pipe and drape, toile de fond, périmètre, occultation…",
+    "highlights": "Autre chose à mentionner?",
+    "highlightsPlaceholder": "Calendrier, communication, coordination avec la salle…",
+    "recommend": "Nous recommanderiez-vous?",
+    "selectOne": "Sélectionner une option",
+    "recommendYes": "Oui, sans hésiter",
+    "recommendMaybe": "Peut-être / selon le projet",
+    "recommendNo": "Non",
+    "permissionsEyebrow": "Permissions",
+    "permissionsTitle": "Comment pouvons-nous utiliser ceci?",
+    "publishTitle": "OK pour publier sur notre site",
+    "publishDescription": "Nous pouvons éditer légèrement pour la longueur et vous contacter avant publication.",
+    "contactTitle": "OK pour me contacter pour un suivi",
+    "contactDescription": "Pour clarifications, photos ou invitations à laisser un avis Google.",
+    "submit": "Soumettre votre expérience",
+    "submitting": "Envoi de l'avis…",
+    "successTitle": "Merci — nous avons reçu votre avis",
+    "successDescription": "Notre équipe le lira bientôt. Si vous avez accepté la publication, nous pourrions vous contacter avant de l'ajouter au site.",
+    "close": "Fermer",
+    "errors": {
+      "generic": "Une erreur s'est produite. Veuillez écrire directement à info@thecurtainguy.com."
+    }
+  }
+}

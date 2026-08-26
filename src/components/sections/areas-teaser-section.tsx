@@ -1,5 +1,8 @@
-import Link from "next/link";
+"use client";
+
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { areas } from "@/data/areas";
 import { areaCardMediaKey } from "@/data/site-media";
 import { SectionHeading } from "@/components/section-heading";
@@ -11,14 +14,17 @@ import { Stagger } from "@/components/animation/stagger";
 import { AnimatedCard } from "@/components/animation/animated-card";
 
 export function AreasTeaserSection() {
+  const t = useTranslations("home.areasTeaser");
+  const ta = useTranslations("areas");
+
   return (
     <SectionShell variant="fabric" divider="top" className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal variant="fade-up">
           <SectionHeading
-            eyebrow="Service area"
-            title="Montreal and surrounding areas."
-            description="Event drape rentals for Montreal, Laval, Longueuil, the West Island, and nearby venues — planned with delivery, installation, and teardown."
+            eyebrow={t("eyebrow")}
+            title={t("title")}
+            description={t("description")}
           />
         </Reveal>
 
@@ -49,13 +55,13 @@ export function AreasTeaserSection() {
                     )}
                     <CardContent className="p-5">
                       <h3 className="font-heading text-base font-medium text-foreground group-hover:text-primary">
-                        {area.name}
+                        {ta(`${area.slug}.name`)}
                       </h3>
                       <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">
-                        {area.intro}
+                        {ta(`${area.slug}.intro`)}
                       </p>
                       <p className="mt-3 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.14em] text-primary/80">
-                        View area
+                        {t("viewArea")}
                         <ArrowRight className="size-3" />
                       </p>
                     </CardContent>

@@ -1,0 +1,410 @@
+{
+  "page": {
+    "eyebrow": "Demander une estimation",
+    "title": "Demander une estimation de draperie événementielle",
+    "description": "Partagez votre salle, le type d'événement et vos objectifs de drapage. Notre équipe examine votre dossier et vous recontacte pour une discussion d'estimation de location adaptée.",
+    "studioPromo": "Vous voulez dessiner votre salle d'abord? Utilisez Studio pour ajouter des lignes de drapage et prévisualiser en 3D — puis retournez ici pour soumettre votre dossier.",
+    "studioLink": "Ouvrir le Studio",
+    "metaTitle": "Demander une estimation de draperie événementielle Montréal",
+    "metaDescription": "Demandez une estimation de location de draperie événementielle de luxe à Montréal — partagez les détails de la salle, objectifs de drapage, mesures et préférences de tissus."
+  },
+  "intro": {
+    "eyebrow": "Outil d'estimation",
+    "title": "Construisez votre dossier de draperie événementielle",
+    "description": "Un formulaire guidé qui capture ce dont nous avons besoin pour soumissionner avec précision — détails de l'événement, objectifs de drapage, mesures, direction des tissus et options.",
+    "chips": [
+      "Drapage de mariage et célébration",
+      "Finition corporatif et gala",
+      "Murs pipe and drape",
+      "Toiles de fond de scène",
+      "Occultation et séparateurs de salle"
+    ],
+    "trust": [
+      "Location clé en main",
+      "Livraison",
+      "Installation",
+      "Démontage"
+    ],
+    "startCta": "Commencer l'estimation"
+  },
+  "steps": {
+    "event-basics": {
+      "title": "Bases de l'événement",
+      "shortTitle": "Événement",
+      "description": "Parlez-nous de votre événement, salle et nombre d'invités."
+    },
+    "drape-goal": {
+      "title": "Objectif de drapage",
+      "shortTitle": "Objectifs",
+      "description": "Que souhaitez-vous que le drapage accomplisse?"
+    },
+    "measurements": {
+      "title": "Mesures",
+      "shortTitle": "Mesures",
+      "description": "Partagez ce que vous savez — nous pouvons aider à compléter le reste."
+    },
+    "look-fabric": {
+      "title": "Look et tissu",
+      "shortTitle": "Look",
+      "description": "Direction pour tissu, couleur et ampleur."
+    },
+    "add-ons": {
+      "title": "Options",
+      "shortTitle": "Options",
+      "description": "Améliorations facultatives pour votre installation."
+    },
+    "contact-summary": {
+      "title": "Contact et résumé",
+      "shortTitle": "Résumé",
+      "description": "Révisez votre dossier et partagez vos coordonnées."
+    }
+  },
+  "options": {
+    "eventTypes": {
+      "wedding": {
+        "label": "Mariage"
+      },
+      "corporate": {
+        "label": "Événement corporatif"
+      },
+      "gala": {
+        "label": "Gala"
+      },
+      "mitzvah": {
+        "label": "Bar/Bat Mitzvah"
+      },
+      "stage-show": {
+        "label": "Scène/Show"
+      },
+      "trade-show": {
+        "label": "Salon professionnel"
+      },
+      "private": {
+        "label": "Événement privé"
+      },
+      "other": {
+        "label": "Autre"
+      }
+    },
+    "venueSettings": {
+      "indoor": {
+        "label": "Intérieur",
+        "description": "Grand salon, salle ou salle fermée"
+      },
+      "outdoor": {
+        "label": "Extérieur",
+        "description": "Tente, terrasse ou installation en plein air"
+      }
+    },
+    "drapeGoals": {
+      "full-room": {
+        "label": "Transformation complète de salle",
+        "description": "Drapage de périmètre qui redéfinit l'espace entier"
+      },
+      "ceremony-backdrop": {
+        "label": "Toile de fond de cérémonie",
+        "description": "Point focal encadré pour vœux et moments clés"
+      },
+      "stage-backdrop": {
+        "label": "Toile de fond de scène",
+        "description": "Drapage de présentation, performance ou programme"
+      },
+      "room-divider": {
+        "label": "Séparateur de salle",
+        "description": "Partitions en tissu entre zones ou espaces"
+      },
+      "blackout-masking": {
+        "label": "Occultation / masquage",
+        "description": "Contrôle de la lumière, masquage de fenêtres ou dissimulation backstage"
+      },
+      "photo-backdrop": {
+        "label": "Toile de fond photo / step-and-repeat",
+        "description": "Installation brandée ou élégante pour moments photo"
+      },
+      "entrance-reveal": {
+        "label": "Révélation d'entrée",
+        "description": "Dévoilement spectaculaire ou moment d'entrée kabuki"
+      },
+      "trade-show-booth": {
+        "label": "Kiosque de salon professionnel",
+        "description": "Murs pipe and drape de kiosque et zones de marque"
+      },
+      "vip-lounge": {
+        "label": "Zone VIP / lounge",
+        "description": "Lounge drapé intime ou zone premium pour invités"
+      },
+      "screen-surround": {
+        "label": "Surround d'écran",
+        "description": "Drapage autour d'écrans, murs LED ou projection"
+      }
+    },
+    "runLayouts": {
+      "straight": {
+        "label": "Ligne droite",
+        "description": "Une seule ligne de drapage continue"
+      },
+      "corners": {
+        "label": "Multiples virages / coins",
+        "description": "Périmètre en L, en U ou complexe"
+      },
+      "not-sure": {
+        "label": "Pas encore certain",
+        "description": "Nous pouvons évaluer depuis votre plan de salle"
+      }
+    },
+    "floorPlanOptions": {
+      "yes": {
+        "label": "Oui",
+        "description": "J'ai un plan de salle à partager"
+      },
+      "no": {
+        "label": "Non",
+        "description": "Je n'en ai pas encore"
+      },
+      "not-sure": {
+        "label": "Pas certain",
+        "description": "Je pourrais en obtenir un de la salle"
+      }
+    },
+    "measurementsKnown": {
+      "know": {
+        "label": "J'ai les mesures",
+        "description": "Je peux partager pieds linéaires, hauteur, murs ou détails de disposition"
+      },
+      "partial": {
+        "label": "J'ai quelques détails",
+        "description": "Quelques mesures ou infos de salle — pas tout encore"
+      },
+      "help": {
+        "label": "Pas certain — aidez-moi à calculer",
+        "description": "Notre équipe aidera depuis vos détails de salle ou plan"
+      }
+    },
+    "heightOptions": {
+      "8ft-under": {
+        "label": "8 pi ou moins",
+        "description": "Plafond bas ou hauteur de salle intime"
+      },
+      "10-12ft": {
+        "label": "10–12 pi",
+        "description": "Hauteur typique de grand salon ou salle événementielle"
+      },
+      "14ft-plus": {
+        "label": "14 pi ou plus",
+        "description": "Plafond élevé ou volume de salle grandiose"
+      },
+      "not-sure": {
+        "label": "Pas certain — recommandez pour moi",
+        "description": "Nous suggérerons la hauteur appropriée pour votre espace"
+      }
+    },
+    "fabricDirections": {
+      "black-velvet": {
+        "label": "Look velours / velours noir",
+        "description": "Profondeur théâtrale riche et absorption de lumière"
+      },
+      "white-ivory": {
+        "label": "Draperie blanche / ivoire",
+        "description": "Finition événementielle lumineuse, élégante et classique"
+      },
+      "champagne": {
+        "label": "Champagne / neutre",
+        "description": "Tons chaleureux et raffinés pour ambiances haut de gamme"
+      },
+      "sheer-overlay": {
+        "label": "Voilage / superposition douce",
+        "description": "Transparence superposée et lueur ambiante douce"
+      },
+      "blackout-fabric": {
+        "label": "Occultation / masquage",
+        "description": "Contrôle maximal de la lumière pour scènes et productions"
+      },
+      "star-drape": {
+        "label": "Draperie étoilée",
+        "description": "Effet étoilé fibre optique ou LED scintillant"
+      },
+      "custom-color": {
+        "label": "Direction couleur personnalisée",
+        "description": "Couleurs de marque ou palette spécifique en tête"
+      },
+      "recommend": {
+        "label": "Pas certain, recommandez pour moi",
+        "description": "Notre équipe suggérera des tissus adaptés à votre événement"
+      }
+    },
+    "fullnessOptions": {
+      "clean-flat": {
+        "label": "Propre / plat",
+        "description": "Plis minimal, moderne et épuré"
+      },
+      "premium": {
+        "label": "Ampleur premium",
+        "description": "Plis équilibrés avec finition événementielle élevée"
+      },
+      "luxury-deep": {
+        "label": "Plis profonds de luxe",
+        "description": "Volume maximal et présence dramatique du tissu"
+      },
+      "recommend": {
+        "label": "Pas certain, recommandez pour moi",
+        "description": "Notre équipe suggérera la bonne ampleur"
+      }
+    },
+    "addOns": {
+      "uplighting": {
+        "label": "Éclairage d'ambiance"
+      },
+      "star-drape": {
+        "label": "Draperie étoilée"
+      },
+      "kabuki-reveal": {
+        "label": "Kabuki / moment de révélation"
+      },
+      "event-carpet": {
+        "label": "Tapis événementiel"
+      },
+      "stanchions": {
+        "label": "Potelets / cordons"
+      },
+      "screen-surround": {
+        "label": "Surround d'écran"
+      },
+      "dj-booth": {
+        "label": "Surround cabine DJ / tech"
+      },
+      "step-repeat": {
+        "label": "Toile de fond step-and-repeat"
+      },
+      "ceiling-draping": {
+        "label": "Drapage de plafond"
+      },
+      "double-sided": {
+        "label": "Draperie double face"
+      },
+      "premium-hardware": {
+        "label": "Finition matériel premium"
+      },
+      "rush-setup": {
+        "label": "Installation urgente / délai court"
+      }
+    }
+  },
+  "measurementsReassurance": "Pas certain? Aucun problème. L'équipe The Curtain Guy peut aider à calculer depuis vos détails de salle ou plan.",
+  "disclaimer": "Ceci est un dossier de planification, pas un prix final. L'équipe The Curtain Guy examinera mesures, disponibilité, main-d'œuvre, livraison, installation et démontage avant de confirmer une estimation finale de location.",
+  "summary": {
+    "notSure": "Pas certain — examen par l'équipe",
+    "notProvided": "Non fourni",
+    "sections": {
+      "event": "Événement",
+      "goals": "Objectifs de drapage",
+      "measurements": "Mesures",
+      "look": "Look et tissu",
+      "addOns": "Options",
+      "contact": "Contact"
+    },
+    "labels": {
+      "eventType": "Type d'événement",
+      "eventDate": "Date de l'événement",
+      "guestCount": "Nombre d'invités",
+      "venue": "Salle",
+      "cityArea": "Ville / zone",
+      "venueSetting": "Type de salle",
+      "goals": "Objectifs",
+      "layout": "Disposition",
+      "floorPlan": "Plan de salle",
+      "measurements": "Mesures connues",
+      "wallLength": "Longueur de mur",
+      "ceilingHeight": "Hauteur du plafond",
+      "fabric": "Direction du tissu",
+      "fullness": "Ampleur",
+      "addOns": "Options",
+      "name": "Nom",
+      "email": "Courriel",
+      "phone": "Téléphone",
+      "notes": "Notes",
+      "files": "Fichiers",
+      "noneSelected": "Aucune sélection",
+      "dateTbc": "Date de l'événement à confirmer"
+    }
+  },
+  "builder": {
+    "stepOf": "Étape {current} sur {total}",
+    "percentComplete": "{percent} % complété",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Soumettre la demande d'estimation",
+    "submitting": "Soumission en cours...",
+    "requiredFields": "Veuillez compléter les champs requis.",
+    "contactRequired": "Veuillez ajouter votre nom et courriel.",
+    "submitError": "Une erreur s'est produite. Veuillez réessayer ou nous envoyer un courriel directement.",
+    "submitErrorNetwork": "Erreur réseau. Vérifiez votre connexion et réessayez.",
+    "emailFallback": "Envoyer votre dossier par courriel",
+    "eventBasics": {
+      "eventType": "Type d'événement",
+      "eventDate": "Date de l'événement",
+      "guestCount": "Nombre d'invités",
+      "venueName": "Nom de la salle",
+      "cityArea": "Ville / zone",
+      "venueSetting": "Intérieur ou extérieur"
+    },
+    "drapeGoal": {
+      "title": "Que souhaitez-vous que le drapage accomplisse?",
+      "subtitle": "Sélectionnez tout ce qui s'applique."
+    },
+    "measurements": {
+      "floorPlan": "Avez-vous un plan de salle?",
+      "measurementsKnown": "Connaissez-vous vos mesures?",
+      "wallLength": "Longueur approximative de mur / ligne",
+      "wallLengthPlaceholder": "ex. 60 pi de périmètre total",
+      "ceilingHeight": "Hauteur du plafond",
+      "runLayout": "Disposition des lignes"
+    },
+    "lookFabric": {
+      "fabric": "Direction du tissu",
+      "fullness": "Ampleur",
+      "colorNotes": "Notes de couleur / style (facultatif)",
+      "colorNotesPlaceholder": "Couleurs de marque, inspiration ou préférences de tissu..."
+    },
+    "addOns": {
+      "title": "Options (facultatif)",
+      "subtitle": "Améliorations pour votre installation."
+    },
+    "contact": {
+      "honeypot": "Laisser vide"
+    }
+  },
+  "validation": {
+    "eventTypeRequired": "Veuillez sélectionner un type d'événement.",
+    "cityAreaRequired": "Veuillez entrer votre ville ou zone.",
+    "drapeGoalsRequired": "Veuillez sélectionner au moins un objectif de drapage.",
+    "measurementsKnownRequired": "Veuillez indiquer si vous connaissez vos mesures.",
+    "floorPlanRequired": "Veuillez indiquer si vous avez un plan de salle.",
+    "fabricRequired": "Veuillez sélectionner au moins une direction de tissu.",
+    "nameRequired": "Veuillez entrer votre nom.",
+    "emailRequired": "Veuillez entrer une adresse courriel valide."
+  },
+  "success": {
+    "title": "Demande d'estimation reçue",
+    "description": "Merci — nous avons reçu votre dossier et vous recontacterons pour une discussion d'estimation de location.",
+    "reference": "Référence",
+    "uploadPartial": "{uploaded} fichier(s) téléversé(s). {failed} fichier(s) n'ont pas pu être téléversés — vous pouvez nous les envoyer par courriel.",
+    "guestCta": "Créer un compte pour suivre votre estimation",
+    "customerCta": "Voir votre estimation",
+    "ownerCta": "Voir dans l'admin",
+    "newEstimate": "Soumettre une autre estimation"
+  },
+  "filePicker": {
+    "label": "Plans de salle et inspiration (facultatif)",
+    "hint": "PDF, JPG ou PNG — jusqu'à 10 Mo chacun.",
+    "addFiles": "Ajouter des fichiers",
+    "remove": "Retirer",
+    "uploading": "Téléversement en cours...",
+    "uploaded": "Téléversé",
+    "failed": "Échec du téléversement",
+    "errors": {
+      "tooLarge": "Le fichier dépasse la limite de 10 Mo.",
+      "invalidType": "Seuls les fichiers PDF, JPG et PNG sont permis.",
+      "maxFiles": "Maximum 5 fichiers permis."
+    }
+  }
+}

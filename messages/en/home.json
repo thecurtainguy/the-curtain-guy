@@ -1,0 +1,215 @@
+{
+  "hero": {
+    "eyebrow": "The Curtain Guy · Montreal",
+    "title": "Luxury Event Drape Rentals in Montreal",
+    "description": "Premium draping, pipe and drape, backdrops, blackout masking, and venue transformations for weddings, galas, corporate events, and milestone celebrations."
+  },
+  "trust": {
+    "capability": "Capability",
+    "process": [
+      "Full-service rental",
+      "Delivery",
+      "Installation",
+      "Teardown"
+    ],
+    "eventTypes": [
+      "Wedding draping",
+      "Corporate events",
+      "Galas",
+      "Bar & Bat Mitzvah",
+      "Stage backdrops"
+    ]
+  },
+  "services": {
+    "eyebrow": "Services",
+    "title": "Event drape rental services",
+    "description": "Luxury temporary draping for Montreal weddings, corporate events, galas, mitzvahs, and venue transformations."
+  },
+  "howItWorks": {
+    "eyebrow": "How it works",
+    "title": "From brief to installed draping",
+    "description": "A full-service rental process — not drop-off fabric. We plan, deliver, install, and teardown around your event timeline.",
+    "steps": [
+      {
+        "title": "Event details",
+        "description": "Date, venue, guest count, and event type — wedding, corporate, gala, or mitzvah."
+      },
+      {
+        "title": "Drape goal",
+        "description": "What you want to achieve — backdrop, perimeter, room dividers, stage masking, or full transformation."
+      },
+      {
+        "title": "Measurements / floor plan",
+        "description": "Room dimensions or a venue floor plan to scope pipe and drape, height, and coverage."
+      },
+      {
+        "title": "Fabric and color",
+        "description": "Drape style, color, fullness, and texture preferences for your event atmosphere."
+      },
+      {
+        "title": "Add-ons",
+        "description": "Star drape, blackout zones, step-and-repeat, uplighting surrounds, and specialty elements."
+      },
+      {
+        "title": "Review and submit",
+        "description": "Confirm your setup and request a final event drape rental estimate from our team."
+      }
+    ],
+    "cta": "Start your estimate"
+  },
+  "why": {
+    "eyebrow": "Why The Curtain Guy",
+    "title": "Luxury event draping, managed end to end",
+    "description": "Premium fabrics, experienced crews, and planning shaped around Montreal venues — from intimate celebrations to full ballroom transformations.",
+    "cards": [
+      {
+        "title": "Luxury event finish",
+        "description": "Premium event curtain rentals with refined fabrics and installation details — every venue feels elevated, never like a basic rental catalog."
+      },
+      {
+        "title": "Full-service drape rental",
+        "description": "Rental, delivery, professional installation, and teardown handled end to end. This is temporary event draping as a managed service."
+      },
+      {
+        "title": "Clean installation and teardown",
+        "description": "Experienced crews respect your timeline, rig safely, and leave the venue ready — full-service drape installation and teardown included."
+      },
+      {
+        "title": "Designed around your venue",
+        "description": "Every setup is shaped by your room, event type, and atmosphere goals — from gala drape rentals to full perimeter transformations."
+      },
+      {
+        "title": "Hardware, safety, and details handled",
+        "description": "Uprights, horizontals, bases, sandbags, and safe rigging are part of the rental — not an afterthought."
+      },
+      {
+        "title": "Montreal-focused service",
+        "description": "Event drape rentals for Montreal and surrounding areas, with local venue knowledge and responsive event-day support."
+      }
+    ]
+  },
+  "transformation": {
+    "eyebrow": "Venue transformation",
+    "title": "What event draping can do",
+    "description": "Temporary fabric architecture that reshapes rooms, masks unfinished walls, and creates focal moments.",
+    "cards": [
+      {
+        "title": "Mask unfinished venue walls",
+        "description": "Pipe and drape and perimeter draping hide dated ballrooms, concrete, and blank walls — turning an ordinary room into an elegant event space.",
+        "icon": {}
+      },
+      {
+        "title": "Create ceremony and reception backdrops",
+        "description": "Wedding draping and luxury fabric backdrops frame your most important moments, adding depth, texture, and a polished focal point.",
+        "icon": {}
+      },
+      {
+        "title": "Divide rooms with draped partitions",
+        "description": "Room divider draping separates cocktail areas, dining zones, and VIP spaces without permanent walls — keeping flow elegant and intentional.",
+        "icon": {}
+      },
+      {
+        "title": "Build stage and photo moments",
+        "description": "Stage backdrop rentals and step-and-repeat setups create polished presentation areas and red-carpet photo opportunities.",
+        "icon": {}
+      },
+      {
+        "title": "Control light with blackout draping",
+        "description": "Blackout drape rentals mask windows, backstage areas, and unwanted light spill — essential for galas, productions, and presentations.",
+        "icon": {}
+      },
+      {
+        "title": "Deliver dramatic reveal moments",
+        "description": "Star drape and kabuki-style reveal draping creates unforgettable entrances and unveilings that captivate your audience.",
+        "icon": {}
+      }
+    ]
+  },
+  "estimatePromo": {
+    "eyebrow": "Get Estimate",
+    "title": "Share your venue and draping goals",
+    "description": "Our multi-step estimate builder captures event details, measurements, fabric direction, and add-ons — so we can quote accurately.",
+    "cta": "Start estimate",
+    "features": [
+      "Event date & venue",
+      "Drape goals & measurements",
+      "Fabric & add-ons",
+      "Fast team follow-up"
+    ]
+  },
+  "galleryTeaser": {
+    "eyebrow": "Gallery",
+    "title": "Event draping inspiration",
+    "description": "Weddings, galas, corporate events, and venue transformations — explore the atmosphere we create with luxury event draping.",
+    "explore": "Explore Gallery"
+  },
+  "areasTeaser": {
+    "eyebrow": "Service areas",
+    "title": "Montreal & surrounding areas",
+    "description": "Luxury event drape rentals across Montreal, Laval, Longueuil, and the West Island — full-service delivery, installation, and teardown.",
+    "viewArea": "View area"
+  },
+  "aiTeaser": {
+    "eyebrow": "Studio",
+    "title": "Plan your drape layout",
+    "description": "Sketch your room, add drape runs, and preview in 3D — a planning tool built for event rental, not residential curtains.",
+    "badge": "Destination",
+    "cta": "Open Studio",
+    "secondary": "Learn more",
+    "paths": [
+      {
+        "title": "Upload a Floor Plan",
+        "description": "Future: upload a PDF, image, or sketch and identify drape zones, wall lengths, and setup needs for your Montreal venue.",
+        "icon": {}
+      },
+      {
+        "title": "Draw Your Room",
+        "description": "Available now: sketch a room manually, add drape runs and a stage, and inspect the same design in 3D.",
+        "icon": {}
+      },
+      {
+        "title": "3D Drape Preview",
+        "description": "Coming soon: configure color, fullness, rail placement, height, and add-ons in an interactive drape studio built for event rental planning.",
+        "icon": {}
+      }
+    ]
+  },
+  "serviceCards": [
+    {
+      "title": "Pipe & Drape Rentals",
+      "description": "Temporary pipe and drape systems for event walls, trade show booths, and venue perimeters. The foundation of most Montreal event draping — masking walls and defining spaces without construction."
+    },
+    {
+      "title": "Wedding Draping",
+      "description": "Ceremony backdrops, sweetheart tables, and full-room wedding draping in Montreal. We shape the atmosphere around your venue — not sell off-the-rack curtains."
+    },
+    {
+      "title": "Corporate Event Draping",
+      "description": "Polished draping for conferences, product launches, and executive gatherings. Corporate event draping that elevates brand environments and presentation areas."
+    },
+    {
+      "title": "Stage Backdrops",
+      "description": "Stage backdrop rentals including surrounds, masking, and theatrical drape for presentations, performances, and gala programs."
+    },
+    {
+      "title": "Room Dividers",
+      "description": "Room divider draping creates intimate zones within ballrooms and event halls — separating cocktail, dining, and lounge areas with elegant fabric partitions."
+    },
+    {
+      "title": "Blackout & Masking",
+      "description": "Blackout drape rentals for light control on stages, windows, and production areas. Essential when your event demands darkness, focus, or concealed backstage space."
+    },
+    {
+      "title": "Photo & Step-and-Repeat Backdrops",
+      "description": "Step-and-repeat backdrop rentals and branded photo walls for galas, launches, and celebrations. Designed to photograph beautifully under event lighting."
+    },
+    {
+      "title": "Star Drape & Reveal Moments",
+      "description": "Sparkling star drape and kabuki reveal setups for dramatic entrances and unveilings — a specialty drape rental for high-impact event moments."
+    }
+  ],
+  "meta": {
+    "title": "Luxury Event Drape Rentals Montreal",
+    "description": "Luxury event drape rentals in Montreal — premium draping, pipe and drape, backdrops, blackout masking, and venue transformations for weddings, galas, corporate events, and celebrations."
+  }
+}

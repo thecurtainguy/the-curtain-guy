@@ -1,22 +1,30 @@
-import Link from "next/link";
-import type { ServicePage } from "@/data/services";
+"use client";
+
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { getServiceBySlug } from "@/data/services";
 import { serviceCardMediaKey } from "@/data/site-media";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 type ServiceCardProps = {
-  service: ServicePage;
+  slug: string;
   className?: string;
 };
 
-export function ServiceCard({ service, className }: ServiceCardProps) {
+export function ServiceCard({ slug, className }: ServiceCardProps) {
+  const t = useTranslations("services");
+  const tc = useTranslations("common");
+  const service = getServiceBySlug(slug);
+  if (!service) return null;
+
   const Icon = service.icon;
-  const mediaKey = serviceCardMediaKey[service.slug];
+  const mediaKey = serviceCardMediaKey[slug];
 
   return (
     <Link
-      href={`/services/${service.slug}`}
+      href={`/services/${slug}`}
       className={cn("group block h-full", className)}
     >
       <Card className="h-full overflow-hidden border-border/40 bg-background/50 shadow-[0_2px_16px_rgba(0,0,0,0.15)] transition-all hover:border-primary/25 hover:shadow-[0_8px_28px_rgba(0,0,0,0.25),0_0_16px_rgba(212,175,55,0.06)]">
@@ -42,13 +50,13 @@ export function ServiceCard({ service, className }: ServiceCardProps) {
         </div>
         <CardContent className="pt-5 pb-6">
           <h3 className="font-heading text-base font-medium text-foreground transition-colors group-hover:text-primary">
-            {service.shortTitle}
+            {t(`${slug}.shortTitle`)}
           </h3>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            {service.hubCardDescription}
+            {t(`${slug}.hubCardDescription`)}
           </p>
           <p className="mt-3 text-xs font-medium uppercase tracking-[0.14em] text-primary/80">
-            View service
+            {tc("viewService")}
           </p>
         </CardContent>
       </Card>

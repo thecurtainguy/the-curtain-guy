@@ -1,8 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import NextLink from "next/link";
 import type { ComponentProps, MouseEvent } from "react";
+import { Link } from "@/i18n/navigation";
 import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
+import { isRootOnlyPath } from "@/lib/i18n/path-locale";
 
 type GuardedLinkProps = ComponentProps<typeof Link> & {
   /** Skip the unsaved-progress guard for this link. */
@@ -23,6 +25,7 @@ function resolveHref(href: ComponentProps<typeof Link>["href"]): string {
 
 /**
  * Drop-in Link that shows the themed leave-estimate modal when progress is dirty.
+ * Account, admin, studio workspace, and /ai use root paths (no /fr prefix).
  */
 export function GuardedLink({
   href,
@@ -32,12 +35,12 @@ export function GuardedLink({
 }: GuardedLinkProps) {
   const { isDirty, requestNavigation } = useOptionalUnsavedChanges();
   const resolved = resolveHref(href);
+  const useRoot = isRootOnlyPath(resolved);
 
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     onClick?.(event);
     if (event.defaultPrevented || bypassGuard) return;
 
-    // Let modified clicks (new tab) through.
     if (
       event.metaKey ||
       event.ctrlKey ||
@@ -52,6 +55,12 @@ export function GuardedLink({
 
     event.preventDefault();
     requestNavigation(resolved);
+  }
+
+  if (useRoot) {
+    return (
+      <NextLink href={resolved} onClick={handleClick} {...props} />
+    );
   }
 
   return <Link href={href} onClick={handleClick} {...props} />;

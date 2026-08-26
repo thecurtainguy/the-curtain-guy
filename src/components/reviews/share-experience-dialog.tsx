@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Building2,
   CalendarDays,
@@ -118,6 +119,8 @@ function FieldError({
 }
 
 export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) {
+  const t = useTranslations("reviews.shareDialog");
+  const tCategories = useTranslations("reviews.categories");
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<ReviewSubmissionData>(emptyForm);
   const [honeypot, setHoneypot] = useState("");
@@ -176,10 +179,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
 
       if (!response.ok || !payload.ok) {
         if (payload.fieldErrors) setFieldErrors(payload.fieldErrors);
-        setSubmitError(
-          payload.message ??
-            "Something went wrong. Please email info@thecurtainguy.com directly."
-        );
+        setSubmitError(payload.message ?? t("errors.generic"));
         return;
       }
 
@@ -187,9 +187,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
       setFieldErrors({});
       setShowValidation(false);
     } catch {
-      setSubmitError(
-        "Something went wrong. Please email info@thecurtainguy.com directly."
-      );
+      setSubmitError(t("errors.generic"));
     } finally {
       setIsSubmitting(false);
     }
@@ -208,15 +206,13 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
         <div className="shrink-0 border-b border-border/40 bg-gradient-to-br from-primary/10 via-card/40 to-transparent px-6 py-5 sm:px-7">
           <DialogHeader className="gap-2 text-left">
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-              Share your experience
+              {t("eyebrow")}
             </p>
             <DialogTitle className="font-heading text-2xl font-semibold text-foreground">
-              Tell us about your event drape experience
+              {t("title")}
             </DialogTitle>
             <DialogDescription className="max-w-xl text-sm leading-relaxed">
-              Worked with us on a wedding, corporate event, gala, or production?
-              Share the details — we use this to improve and may publish your
-              feedback with permission.
+              {t("description")}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -228,11 +224,10 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                 <CheckCircle2 className="size-7" />
               </div>
               <h3 className="mt-4 font-heading text-xl font-semibold text-foreground">
-                Thank you — we got your review
+                {t("successTitle")}
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Our team will read it soon. If you opted in to publish, we may
-                reach out before adding it to the site.
+                {t("successDescription")}
               </p>
               <Button
                 type="button"
@@ -242,7 +237,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                   setOpen(false);
                 }}
               >
-                Close
+                {t("close")}
               </Button>
             </div>
           </div>
@@ -265,18 +260,18 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
 
             <div className="luxury-scroll flex-1 overflow-y-auto px-6 py-5 sm:px-7">
               <div className="space-y-4">
-            <SectionCard icon={UserRound} eyebrow="About you" title="Who should we credit?">
+            <SectionCard icon={UserRound} eyebrow={t("aboutEyebrow")} title={t("aboutTitle")}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="review-name">
-                    Full name <span className="text-primary">*</span>
+                    {t("fullName")} <span className="text-primary">*</span>
                   </Label>
                   <Input
                     id="review-name"
                     value={formData.name}
                     onChange={(e) => updateField("name", e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="Your name"
+                    placeholder={t("namePlaceholder")}
                   />
                   <FieldError
                     show={showValidation}
@@ -286,7 +281,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="review-email">
-                    Email <span className="text-primary">*</span>
+                    {t("email")} <span className="text-primary">*</span>
                   </Label>
                   <Input
                     id="review-email"
@@ -294,7 +289,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                     value={formData.email}
                     onChange={(e) => updateField("email", e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="you@example.com"
+                    placeholder={t("emailPlaceholder")}
                   />
                   <FieldError
                     show={showValidation}
@@ -303,7 +298,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="review-phone">Phone (optional)</Label>
+                  <Label htmlFor="review-phone">{t("phoneOptional")}</Label>
                   <Input
                     id="review-phone"
                     type="tel"
@@ -314,33 +309,33 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="review-role">Role / title</Label>
+                  <Label htmlFor="review-role">{t("roleTitle")}</Label>
                   <Input
                     id="review-role"
                     value={formData.role}
                     onChange={(e) => updateField("role", e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="Bride, planner, venue manager…"
+                    placeholder={t("rolePlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="review-org">Company / organization</Label>
+                  <Label htmlFor="review-org">{t("organization")}</Label>
                   <Input
                     id="review-org"
                     value={formData.organization}
                     onChange={(e) => updateField("organization", e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="Optional"
+                    placeholder={t("organizationPlaceholder")}
                   />
                 </div>
               </div>
             </SectionCard>
 
-            <SectionCard icon={CalendarDays} eyebrow="Your event" title="What did we drape?">
+            <SectionCard icon={CalendarDays} eyebrow={t("eventEyebrow")} title={t("eventTitle")}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2">
                   <Label>
-                    Event type <span className="text-primary">*</span>
+                    {t("eventType")} <span className="text-primary">*</span>
                   </Label>
                   <div className="flex flex-wrap gap-2">
                     {categoryOptions.map((category) => {
@@ -362,7 +357,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                           )}
                         >
                           {Icon ? <Icon className="size-3.5 text-primary/80" /> : null}
-                          {category.label}
+                          {tCategories(category.id)}
                         </button>
                       );
                     })}
@@ -374,17 +369,17 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="review-event-label">Event name / label</Label>
+                  <Label htmlFor="review-event-label">{t("eventLabel")}</Label>
                   <Input
                     id="review-event-label"
                     value={formData.eventLabel}
                     onChange={(e) => updateField("eventLabel", e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="Winter wedding, gala, launch…"
+                    placeholder={t("eventLabelPlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="review-event-date">Event date</Label>
+                  <Label htmlFor="review-event-date">{t("eventDate")}</Label>
                   <DateInput
                     id="review-event-date"
                     value={formData.eventDate}
@@ -395,37 +390,37 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                 <div className="space-y-2">
                   <Label htmlFor="review-venue" className="flex items-center gap-1.5">
                     <Building2 className="size-3.5 text-primary/80" />
-                    Venue
+                    {t("venue")}
                   </Label>
                   <Input
                     id="review-venue"
                     value={formData.venue}
                     onChange={(e) => updateField("venue", e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="Venue name"
+                    placeholder={t("venuePlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="review-location" className="flex items-center gap-1.5">
                     <MapPin className="size-3.5 text-primary/80" />
-                    City / area
+                    {t("location")}
                   </Label>
                   <Input
                     id="review-location"
                     value={formData.location}
                     onChange={(e) => updateField("location", e.target.value)}
                     disabled={isSubmitting}
-                    placeholder="Montréal, Westmount…"
+                    placeholder={t("locationPlaceholder")}
                   />
                 </div>
               </div>
             </SectionCard>
 
-            <SectionCard icon={MessageSquareQuote} eyebrow="Your review" title="How did it go?">
+            <SectionCard icon={MessageSquareQuote} eyebrow={t("reviewEyebrow")} title={t("reviewTitle")}>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>
-                    Overall rating <span className="text-primary">*</span>
+                    {t("rating")} <span className="text-primary">*</span>
                   </Label>
                   <StarRatingInput
                     value={formData.rating}
@@ -441,7 +436,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
 
                 <div className="space-y-2">
                   <Label htmlFor="review-experience">
-                    Your experience <span className="text-primary">*</span>
+                    {t("experience")} <span className="text-primary">*</span>
                   </Label>
                   <Textarea
                     id="review-experience"
@@ -449,7 +444,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                     onChange={(e) => updateField("experience", e.target.value)}
                     disabled={isSubmitting}
                     rows={5}
-                    placeholder="What did we install, how did the crew do, what stood out to you or your guests?"
+                    placeholder={t("experiencePlaceholder")}
                   />
                   <FieldError
                     show={showValidation}
@@ -459,32 +454,32 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="review-services">Draping / services used</Label>
+                  <Label htmlFor="review-services">{t("services")}</Label>
                   <Textarea
                     id="review-services"
                     value={formData.servicesUsed}
                     onChange={(e) => updateField("servicesUsed", e.target.value)}
                     disabled={isSubmitting}
                     rows={2}
-                    placeholder="Pipe and drape, backdrop, perimeter, blackout…"
+                    placeholder={t("servicesPlaceholder")}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="review-highlights">Anything else worth mentioning?</Label>
+                  <Label htmlFor="review-highlights">{t("highlights")}</Label>
                   <Textarea
                     id="review-highlights"
                     value={formData.highlights}
                     onChange={(e) => updateField("highlights", e.target.value)}
                     disabled={isSubmitting}
                     rows={2}
-                    placeholder="Timeline, communication, venue coordination…"
+                    placeholder={t("highlightsPlaceholder")}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="review-recommend">
-                    Would you recommend us? <span className="text-primary">*</span>
+                    {t("recommend")} <span className="text-primary">*</span>
                   </Label>
                   <div className="relative">
                     <select
@@ -502,10 +497,10 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                         !formData.wouldRecommend && "text-muted-foreground"
                       )}
                     >
-                      <option value="">Select one</option>
-                      <option value="yes">Yes, definitely</option>
-                      <option value="maybe">Maybe / depends on the project</option>
-                      <option value="no">No</option>
+                      <option value="">{t("selectOne")}</option>
+                      <option value="yes">{t("recommendYes")}</option>
+                      <option value="maybe">{t("recommendMaybe")}</option>
+                      <option value="no">{t("recommendNo")}</option>
                     </select>
                     <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
                   </div>
@@ -518,7 +513,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
               </div>
             </SectionCard>
 
-            <SectionCard icon={Sparkles} eyebrow="Permissions" title="How can we use this?">
+            <SectionCard icon={Sparkles} eyebrow={t("permissionsEyebrow")} title={t("permissionsTitle")}>
               <div className="space-y-3">
                 <label className="flex items-start gap-3 rounded-2xl border border-border/40 bg-background/40 p-3">
                   <input
@@ -532,10 +527,10 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                   />
                   <span className="text-sm leading-relaxed text-muted-foreground">
                     <span className="font-medium text-foreground">
-                      OK to publish on our website
+                      {t("publishTitle")}
                     </span>
                     <br />
-                    We may edit lightly for length and contact you before posting.
+                    {t("publishDescription")}
                   </span>
                 </label>
                 <label className="flex items-start gap-3 rounded-2xl border border-border/40 bg-background/40 p-3">
@@ -548,10 +543,10 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                   />
                   <span className="text-sm leading-relaxed text-muted-foreground">
                     <span className="font-medium text-foreground">
-                      OK to contact me for follow-up
+                      {t("contactTitle")}
                     </span>
                     <br />
-                    For clarifications, photos, or Google review invites.
+                    {t("contactDescription")}
                   </span>
                 </label>
               </div>
@@ -570,10 +565,10 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                 type="submit"
                 className="w-full min-h-11 gap-2"
                 isLoading={isSubmitting}
-                loadingText="Sending review…"
+                loadingText={t("submitting")}
               >
                 <Star className="size-4" />
-                Submit your experience
+                {t("submit")}
               </LoadingButton>
             </div>
           </form>

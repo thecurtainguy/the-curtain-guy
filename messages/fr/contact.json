@@ -1,0 +1,43 @@
+{
+  "page": {
+    "eyebrow": "Contact",
+    "title": "Nous joindre",
+    "description": "Des questions sur le drapage événementiel, la disponibilité ou votre salle? Contactez notre équipe à Montréal — nous répondons rapidement aux demandes de planification.",
+    "phone": "Téléphone",
+    "email": "Courriel",
+    "serviceArea": "Zone desservie",
+    "preferEstimate": "Vous préférez un dossier structuré?",
+    "preferEstimateDescription": "Notre outil Demander une estimation capture les détails de l'événement, les mesures et les objectifs de drapage pour une soumission plus rapide et plus précise.",
+    "metaTitle": "Contacter The Curtain Guy Montréal",
+    "metaDescription": "Contactez The Curtain Guy pour la location de draperie événementielle de luxe à Montréal — mariages, événements corporatifs, galas et transformations de salles."
+  },
+  "form": {
+    "name": "Nom",
+    "namePlaceholder": "Votre nom",
+    "email": "Courriel",
+    "emailPlaceholder": "vous@exemple.com",
+    "phone": "Téléphone (facultatif)",
+    "eventType": "Type d'événement (facultatif)",
+    "eventTypePlaceholder": "Sélectionner le type d'événement",
+    "eventDate": "Date de l'événement (facultatif)",
+    "venue": "Salle / lieu (facultatif)",
+    "venuePlaceholder": "Nom de la salle ou secteur de Montréal",
+    "message": "Message",
+    "messagePlaceholder": "Type d'événement, salle, date et besoins de drapage...",
+    "submit": "Envoyer le message",
+    "submitting": "Envoi en cours...",
+    "successEyebrow": "Message reçu",
+    "successTitle": "Le rideau s'ouvre sur votre demande",
+    "successDescription": "Merci — votre message a été envoyé. Notre équipe à Montréal examinera les détails de votre événement et vous répondra sous peu.",
+    "responseTime": "Habituellement dans un jour ouvrable",
+    "planDraping": "Planifier votre drapage",
+    "sendAnother": "Envoyer un autre message",
+    "errors": {
+      "name": "Le nom est requis.",
+      "email": "Un courriel valide est requis.",
+      "message": "Le message est requis.",
+      "eventType": "Le type d'événement est requis.",
+      "generic": "Une erreur s'est produite. Veuillez écrire directement à info@thecurtainguy.com."
+    }
+  }
+}

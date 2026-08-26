@@ -1,21 +1,33 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { transformationCards } from "@/data/site";
 import { SectionHeading } from "@/components/section-heading";
 import { SectionShell } from "@/components/section-shell";
 import { Card, CardContent } from "@/components/ui/card";
 
+type CardTranslation = {
+  title: string;
+  description: string;
+};
+
 export function TransformationSection() {
+  const t = useTranslations("home.transformation");
+  const cards = t.raw("cards") as CardTranslation[];
+
   return (
     <SectionShell className="py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
-          eyebrow="Event Transformation"
-          title="Venue transformation draping that solves real event problems."
-          description="We rent and install temporary drape for live events — masking walls, building backdrops, dividing rooms, and shaping atmosphere. Not residential curtains. Not an online shop."
+          eyebrow={t("eyebrow")}
+          title={t("title")}
+          description={t("description")}
         />
 
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {transformationCards.map((card) => {
+          {transformationCards.map((card, index) => {
             const Icon = card.icon;
+            const translated = cards[index];
             return (
               <Card
                 key={card.title}
@@ -26,10 +38,10 @@ export function TransformationSection() {
                     <Icon className="size-5" />
                   </div>
                   <h3 className="font-heading text-base font-medium text-foreground">
-                    {card.title}
+                    {translated?.title ?? card.title}
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {card.description}
+                    {translated?.description ?? card.description}
                   </p>
                 </CardContent>
               </Card>

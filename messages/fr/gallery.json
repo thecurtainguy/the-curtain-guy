@@ -1,0 +1,78 @@
+{
+  "page": {
+    "eyebrow": "Galerie",
+    "title": "Inspiration en drapage événementiel",
+    "description": "Explorez le drapage de mariage, corporatif, de gala et les transformations de salles — images d'inspiration pour la location événementielle à Montréal.",
+    "relatedService": "Service associé",
+    "inspiration": "Inspiration",
+    "uploadTitle": "Vous avez des photos de votre événement?",
+    "uploadDescription": "Nous constituons un portfolio de projets réels à Montréal. Partagez vos photos d'événement et nous pourrons les mettre en vedette avec permission.",
+    "uploadCta": "Contactez-nous pour partager",
+    "metaTitle": "Galerie de drapage événementiel Montréal",
+    "metaDescription": "Galerie d'inspiration en drapage événementiel — mariages, galas, événements corporatifs et transformations de salles à Montréal."
+  },
+  "categories": {
+    "weddings": {
+      "label": "Drapage de mariage",
+      "description": "Toiles de fond de cérémonie, adoucissement de réception et moments photo."
+    },
+    "corporate": {
+      "label": "Pipe and drape",
+      "description": "Murs modulaires, partitions et zonage de salle."
+    },
+    "galas": {
+      "label": "Toiles de fond de scène",
+      "description": "Plans focaux de présentation, cérémonie et divertissement."
+    },
+    "mitzvahs": {
+      "label": "Corporatif / gala",
+      "description": "Conférences, lancements et drapage soigné de grands salons."
+    },
+    "stage": {
+      "label": "Occultation / masquage",
+      "description": "Contrôle de la lumière, dissimulation et séparateurs de salle."
+    },
+    "room-transformations": {
+      "label": "Bar / Bat Mitzvah",
+      "description": "Salles de célébration, entrées et focus scénique."
+    }
+  },
+  "pageCategories": {
+    "weddings": {
+      "label": "Mariages",
+      "description": "Drapage de mariage à Montréal — toiles de fond de cérémonie, drapage de périmètre de réception et transformations complètes de salle."
+    },
+    "corporate": {
+      "label": "Corporatif",
+      "description": "Drapage événementiel corporatif pour conférences, lancements et environnements brandés."
+    },
+    "galas": {
+      "label": "Galas",
+      "description": "Location de draperie pour galas qui sublime les grands salons avec drapage de périmètre, scènes et finitions élégantes en tissu."
+    },
+    "mitzvahs": {
+      "label": "Mitzvahs",
+      "description": "Drapage Bar Mitzvah et Bat Mitzvah pour transformations de salle, scènes et toiles de fond de célébration."
+    },
+    "stage": {
+      "label": "Scène",
+      "description": "Location de toiles de fond de scène incluant surrounds, occultation et drapage de présentation."
+    },
+    "room-transformation": {
+      "label": "Transformation de salle",
+      "description": "Location de draperie pour transformations de salles qui redéfinissent des espaces entiers avec drapage de périmètre et décoratif."
+    },
+    "blackout-masking": {
+      "label": "Occultation / masquage",
+      "description": "Location de draperie d'occultation pour contrôle de la lumière, masquage de fenêtres et dissimulation de production."
+    },
+    "photo-backdrops": {
+      "label": "Toiles de fond photo",
+      "description": "Location de toiles de fond step-and-repeat et drapage pour moments photo lors d'événements et galas."
+    }
+  },
+  "cta": {
+    "headline": "Prêt à transformer votre salle?",
+    "description": "Partagez les détails de votre événement et vos objectifs de drapage. Nous examinons votre dossier et vous recontactons pour discuter d'une estimation de location."
+  }
+}

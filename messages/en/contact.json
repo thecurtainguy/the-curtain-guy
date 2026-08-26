@@ -1,0 +1,43 @@
+{
+  "page": {
+    "eyebrow": "Contact",
+    "title": "Get in touch",
+    "description": "Questions about event draping, availability, or your venue? Reach our Montreal team — we respond to planning inquiries promptly.",
+    "phone": "Phone",
+    "email": "Email",
+    "serviceArea": "Service area",
+    "preferEstimate": "Prefer a structured brief?",
+    "preferEstimateDescription": "Our Get Estimate builder captures event details, measurements, and draping goals for a faster, more accurate quote.",
+    "metaTitle": "Contact The Curtain Guy Montreal",
+    "metaDescription": "Contact The Curtain Guy for luxury event drape rentals in Montreal — weddings, corporate events, galas, and venue transformations."
+  },
+  "form": {
+    "name": "Name",
+    "namePlaceholder": "Your name",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "phone": "Phone (optional)",
+    "eventType": "Event type (optional)",
+    "eventTypePlaceholder": "Select event type",
+    "eventDate": "Event date (optional)",
+    "venue": "Venue / location (optional)",
+    "venuePlaceholder": "Venue name or Montreal area",
+    "message": "Message",
+    "messagePlaceholder": "Event type, venue, date, and draping needs...",
+    "submit": "Send Message",
+    "submitting": "Sending...",
+    "successEyebrow": "Message received",
+    "successTitle": "The curtains are opening on your request",
+    "successDescription": "Thanks — your message was sent. Our Montreal team will review your event details and get back to you shortly.",
+    "responseTime": "Usually within one business day",
+    "planDraping": "Plan your draping",
+    "sendAnother": "Send another message",
+    "errors": {
+      "name": "Name is required.",
+      "email": "A valid email is required.",
+      "message": "Message is required.",
+      "eventType": "Event type is required.",
+      "generic": "Something went wrong. Please email info@thecurtainguy.com directly."
+    }
+  }
+}

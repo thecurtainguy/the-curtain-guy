@@ -1,5 +1,9 @@
-import Link from "next/link";
+"use client";
+
 import { ArrowRight, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import { RootLink } from "@/components/ui/root-link";
 import { aiPaths } from "@/data/site";
 import { SectionHeading } from "@/components/section-heading";
 import { SectionShell } from "@/components/section-shell";
@@ -10,15 +14,23 @@ import { Reveal } from "@/components/animation/reveal";
 import { Stagger } from "@/components/animation/stagger";
 import { AnimatedCard } from "@/components/animation/animated-card";
 
+type PathTranslation = {
+  title: string;
+  description: string;
+};
+
 export function AiTeaserSection() {
+  const t = useTranslations("home.aiTeaser");
+  const paths = t.raw("paths") as PathTranslation[];
+
   return (
     <SectionShell variant="glow" className="py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal variant="blur-in">
           <SectionHeading
-            eyebrow="Coming Soon"
-            title="Estimate smarter. Visualize before you rent."
-            description="The Curtain Guy is building a guided estimate and drape visualization experience for Montreal event rentals — so you can plan pipe and drape, wedding draping, and venue transformations before installation day."
+            eyebrow={t("eyebrow")}
+            title={t("title")}
+            description={t("description")}
             align="center"
             className="mx-auto"
           />
@@ -27,6 +39,7 @@ export function AiTeaserSection() {
         <Stagger className="mt-12 grid gap-4 md:grid-cols-3">
           {aiPaths.map((path, index) => {
             const Icon = path.icon;
+            const translated = paths[index];
             const isFinal = index === aiPaths.length - 1;
 
             return (
@@ -41,17 +54,17 @@ export function AiTeaserSection() {
                   <CardContent className="pt-6">
                     {isFinal && (
                       <Badge className="mb-3 bg-primary/20 text-primary">
-                        Destination
+                        {t("badge")}
                       </Badge>
                     )}
                     <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
                       <Icon className="size-5" />
                     </div>
                     <h3 className="font-heading text-base font-medium text-foreground">
-                      {path.title}
+                      {translated?.title ?? path.title}
                     </h3>
                     <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      {path.description}
+                      {translated?.description ?? path.description}
                     </p>
                   </CardContent>
                 </Card>
@@ -63,15 +76,15 @@ export function AiTeaserSection() {
         <Reveal variant="fade-up" delay={0.1} className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Button asChild>
             <Link href="/get-estimate">
-              Start with Get Estimate
+              {t("cta")}
               <ArrowRight />
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/ai">
+            <RootLink href="/ai">
               <Sparkles className="size-4" />
-              Preview AI Studio
-            </Link>
+              {t("secondary")}
+            </RootLink>
           </Button>
         </Reveal>
       </div>

@@ -1,0 +1,10 @@
+{
+  "links": {
+    "home": "Accueil",
+    "services": "Services",
+    "gallery": "Galerie",
+    "about": "À propos",
+    "contact": "Contact",
+    "studio": "Studio"
+  }
+}

@@ -1,6 +1,12 @@
-import Link from "next/link";
+"use client";
+
 import { ArrowRight } from "lucide-react";
-import { galleryCategories } from "@/data/gallery";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
+import {
+  galleryCategories,
+  type GalleryCategoryId,
+} from "@/data/gallery";
 import type { SiteMediaKey } from "@/data/site-media";
 import { SectionHeading } from "@/components/section-heading";
 import { SectionShell } from "@/components/section-shell";
@@ -19,20 +25,32 @@ const teaserKeys: Record<string, SiteMediaKey> = {
   mitzvah: "home.gallery.mitzvah",
 };
 
+const galleryTeaserCategoryKeys: Record<GalleryCategoryId, string> = {
+  wedding: "weddings",
+  "pipe-and-drape": "corporate",
+  stage: "galas",
+  corporate: "mitzvahs",
+  blackout: "stage",
+  mitzvah: "room-transformations",
+};
+
 export function GalleryTeaserSection() {
+  const t = useTranslations("home.galleryTeaser");
+  const tg = useTranslations("gallery");
+
   return (
     <SectionShell variant="fabric" divider="top" className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal variant="fade-up">
           <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
             <SectionHeading
-              eyebrow="Gallery"
-              title="Event draping inspiration by category."
-              description="Browse visual examples of the drape installations we plan and quote. Images are licensed inspiration until owner project photography is added."
+              eyebrow={t("eyebrow")}
+              title={t("title")}
+              description={t("description")}
             />
             <Button asChild variant="outline" className="min-h-11 shrink-0">
               <Link href="/gallery">
-                Explore Gallery
+                {t("explore")}
                 <ArrowRight />
               </Link>
             </Button>
@@ -42,6 +60,7 @@ export function GalleryTeaserSection() {
         <Stagger className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:gap-4" stagger={0.07}>
           {galleryCategories.map((category) => {
             const mediaKey = teaserKeys[category.id];
+            const categoryKey = galleryTeaserCategoryKeys[category.id];
             return (
               <AnimatedCard
                 key={category.id}
@@ -64,10 +83,10 @@ export function GalleryTeaserSection() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
                   <div className="absolute inset-x-0 bottom-0 p-4">
                     <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary/80">
-                      Inspiration
+                      {tg("page.inspiration")}
                     </p>
                     <p className="mt-1 text-sm font-medium text-foreground">
-                      {category.label}
+                      {tg(`categories.${categoryKey}.label`)}
                     </p>
                   </div>
                 </Link>

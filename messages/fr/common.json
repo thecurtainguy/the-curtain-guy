@@ -1,0 +1,40 @@
+{
+  "brand": "The Curtain Guy",
+  "tagline": "Drapage événementiel et location",
+  "motto": "Transformer les espaces · Créer des moments",
+  "location": "Montréal et les environs",
+  "getEstimate": "Demander une estimation",
+  "requestEstimate": "Demander une estimation",
+  "viewServices": "Voir les services",
+  "viewService": "Voir le service",
+  "contact": "Contact",
+  "contactBrand": "Contacter The Curtain Guy",
+  "allServices": "Tous les services",
+  "home": "Accueil",
+  "services": "Services",
+  "faq": "FAQ",
+  "reviews": "Avis",
+  "privacy": "Confidentialité",
+  "navigate": "Navigation",
+  "theme": "Thème",
+  "openMenu": "Ouvrir le menu",
+  "languageSwitcher": "Langue",
+  "signIn": "Connexion",
+  "copyright": "Tous droits réservés.",
+  "quoteCta": {
+    "headline": "Parlez-nous de ce que vous planifiez.",
+    "description": "Partagez votre salle, le type d'événement et vos objectifs de drapage. Nous examinons votre dossier et vous recontactons pour discuter d'une estimation de location — livraison, installation et démontage inclus."
+  },
+  "ctaBand": {
+    "headline": "Prêt à transformer votre salle?",
+    "description": "Partagez les détails de votre événement et vos objectifs de drapage. Nous examinons votre dossier et vous recontactons pour discuter d'une estimation de location."
+  },
+  "footer": {
+    "blurb": "Location de draperie événementielle de luxe pour mariages, événements corporatifs, galas, mitzvahs et transformations de salles à Montréal. Service complet de location avec livraison, installation et démontage.",
+    "locationLine": "Montréal, Québec, Canada"
+  },
+  "breadcrumbs": {
+    "home": "Accueil",
+    "services": "Services"
+  }
+}

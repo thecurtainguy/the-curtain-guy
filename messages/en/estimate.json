@@ -1,0 +1,410 @@
+{
+  "page": {
+    "eyebrow": "Get Estimate",
+    "title": "Request an event drape estimate",
+    "description": "Share your venue, event type, and draping goals. Our team reviews your brief and follows up with a tailored rental estimate conversation.",
+    "studioPromo": "Want to sketch your room first? Use Studio to add drape runs and preview in 3D — then return here to submit your brief.",
+    "studioLink": "Open Studio",
+    "metaTitle": "Get Event Drape Estimate Montreal",
+    "metaDescription": "Request a luxury event drape rental estimate in Montreal — share venue details, draping goals, measurements, and fabric preferences."
+  },
+  "intro": {
+    "eyebrow": "Estimate builder",
+    "title": "Build your event drape brief",
+    "description": "A guided form that captures what we need to quote accurately — event details, draping goals, measurements, fabric direction, and add-ons.",
+    "chips": [
+      "Wedding & celebration draping",
+      "Corporate & gala polish",
+      "Pipe & drape walls",
+      "Stage backdrops",
+      "Blackout & room dividers"
+    ],
+    "trust": [
+      "Full-service rental",
+      "Delivery",
+      "Installation",
+      "Teardown"
+    ],
+    "startCta": "Start estimate"
+  },
+  "steps": {
+    "event-basics": {
+      "title": "Event Basics",
+      "shortTitle": "Event",
+      "description": "Tell us about your event, venue, and guest count."
+    },
+    "drape-goal": {
+      "title": "Drape Goal",
+      "shortTitle": "Goals",
+      "description": "What do you want the draping to achieve?"
+    },
+    "measurements": {
+      "title": "Measurements",
+      "shortTitle": "Measure",
+      "description": "Share what you know — we can help fill in the rest."
+    },
+    "look-fabric": {
+      "title": "Look & Fabric",
+      "shortTitle": "Look",
+      "description": "Direction for fabric, color, and fullness."
+    },
+    "add-ons": {
+      "title": "Add-ons",
+      "shortTitle": "Add-ons",
+      "description": "Optional enhancements for your setup."
+    },
+    "contact-summary": {
+      "title": "Contact & Summary",
+      "shortTitle": "Summary",
+      "description": "Review your brief and share contact details."
+    }
+  },
+  "options": {
+    "eventTypes": {
+      "wedding": {
+        "label": "Wedding"
+      },
+      "corporate": {
+        "label": "Corporate Event"
+      },
+      "gala": {
+        "label": "Gala"
+      },
+      "mitzvah": {
+        "label": "Bar/Bat Mitzvah"
+      },
+      "stage-show": {
+        "label": "Stage/Show"
+      },
+      "trade-show": {
+        "label": "Trade Show"
+      },
+      "private": {
+        "label": "Private Event"
+      },
+      "other": {
+        "label": "Other"
+      }
+    },
+    "venueSettings": {
+      "indoor": {
+        "label": "Indoor",
+        "description": "Ballroom, hall, or enclosed venue"
+      },
+      "outdoor": {
+        "label": "Outdoor",
+        "description": "Tent, terrace, or open-air setup"
+      }
+    },
+    "drapeGoals": {
+      "full-room": {
+        "label": "Full room transformation",
+        "description": "Perimeter draping that reshapes the entire space"
+      },
+      "ceremony-backdrop": {
+        "label": "Ceremony backdrop",
+        "description": "Framed focal point for vows and key moments"
+      },
+      "stage-backdrop": {
+        "label": "Stage backdrop",
+        "description": "Presentation, performance, or program draping"
+      },
+      "room-divider": {
+        "label": "Room divider",
+        "description": "Fabric partitions between zones or areas"
+      },
+      "blackout-masking": {
+        "label": "Blackout / masking",
+        "description": "Light control, window masking, or backstage concealment"
+      },
+      "photo-backdrop": {
+        "label": "Photo / step-and-repeat backdrop",
+        "description": "Branded or elegant photo moment setup"
+      },
+      "entrance-reveal": {
+        "label": "Entrance reveal",
+        "description": "Dramatic unveil or kabuki-style entrance moment"
+      },
+      "trade-show-booth": {
+        "label": "Trade show booth",
+        "description": "Pipe and drape booth walls and branding zones"
+      },
+      "vip-lounge": {
+        "label": "VIP / lounge area",
+        "description": "Intimate draped lounge or premium guest zone"
+      },
+      "screen-surround": {
+        "label": "Screen surround",
+        "description": "Draping around screens, LED walls, or projection"
+      }
+    },
+    "runLayouts": {
+      "straight": {
+        "label": "Straight run",
+        "description": "Single continuous drape line"
+      },
+      "corners": {
+        "label": "Multiple turns / corners",
+        "description": "L-shaped, U-shaped, or complex perimeter"
+      },
+      "not-sure": {
+        "label": "Not sure yet",
+        "description": "We can assess from your floor plan"
+      }
+    },
+    "floorPlanOptions": {
+      "yes": {
+        "label": "Yes",
+        "description": "I have a floor plan to share"
+      },
+      "no": {
+        "label": "No",
+        "description": "I don't have one yet"
+      },
+      "not-sure": {
+        "label": "Not sure",
+        "description": "I may be able to get one from the venue"
+      }
+    },
+    "measurementsKnown": {
+      "know": {
+        "label": "I have measurements",
+        "description": "I can share linear feet, height, walls, or layout details"
+      },
+      "partial": {
+        "label": "I have some details",
+        "description": "A few numbers or venue info — not everything yet"
+      },
+      "help": {
+        "label": "Not sure — help me calculate",
+        "description": "Our team will help from your venue details or floor plan"
+      }
+    },
+    "heightOptions": {
+      "8ft-under": {
+        "label": "8 ft or under",
+        "description": "Lower ceiling or intimate room height"
+      },
+      "10-12ft": {
+        "label": "10–12 ft",
+        "description": "Typical ballroom or event hall height"
+      },
+      "14ft-plus": {
+        "label": "14 ft or higher",
+        "description": "Tall ceiling or grand venue volume"
+      },
+      "not-sure": {
+        "label": "Not sure — recommend for me",
+        "description": "We'll suggest the right height for your space"
+      }
+    },
+    "fabricDirections": {
+      "black-velvet": {
+        "label": "Black velvet / velour look",
+        "description": "Rich, theatrical depth and light absorption"
+      },
+      "white-ivory": {
+        "label": "White / ivory drape",
+        "description": "Bright, elegant, and classic event finish"
+      },
+      "champagne": {
+        "label": "Champagne / neutral",
+        "description": "Warm, refined tones for upscale atmospheres"
+      },
+      "sheer-overlay": {
+        "label": "Sheer / soft overlay",
+        "description": "Layered translucency and soft ambient glow"
+      },
+      "blackout-fabric": {
+        "label": "Blackout / masking",
+        "description": "Maximum light control for stages and productions"
+      },
+      "star-drape": {
+        "label": "Star drape",
+        "description": "Sparkling fiber-optic or LED star effect"
+      },
+      "custom-color": {
+        "label": "Custom color direction",
+        "description": "Brand colors or a specific palette in mind"
+      },
+      "recommend": {
+        "label": "Not sure, recommend for me",
+        "description": "Our team will suggest fabrics that fit your event"
+      }
+    },
+    "fullnessOptions": {
+      "clean-flat": {
+        "label": "Clean / flat",
+        "description": "Minimal gather, modern and streamlined"
+      },
+      "premium": {
+        "label": "Premium fullness",
+        "description": "Balanced pleats with an elevated event finish"
+      },
+      "luxury-deep": {
+        "label": "Luxury deep pleats",
+        "description": "Maximum volume and dramatic fabric presence"
+      },
+      "recommend": {
+        "label": "Not sure, recommend for me",
+        "description": "Our team will suggest the right fullness"
+      }
+    },
+    "addOns": {
+      "uplighting": {
+        "label": "Uplighting"
+      },
+      "star-drape": {
+        "label": "Star drape"
+      },
+      "kabuki-reveal": {
+        "label": "Kabuki / reveal moment"
+      },
+      "event-carpet": {
+        "label": "Event carpet"
+      },
+      "stanchions": {
+        "label": "Stanchions / ropes"
+      },
+      "screen-surround": {
+        "label": "Screen surround"
+      },
+      "dj-booth": {
+        "label": "DJ / tech booth surround"
+      },
+      "step-repeat": {
+        "label": "Step-and-repeat backdrop"
+      },
+      "ceiling-draping": {
+        "label": "Ceiling draping"
+      },
+      "double-sided": {
+        "label": "Double-sided drape"
+      },
+      "premium-hardware": {
+        "label": "Premium hardware finish"
+      },
+      "rush-setup": {
+        "label": "Rush setup / tight timeline"
+      }
+    }
+  },
+  "measurementsReassurance": "Not sure? No problem. The Curtain Guy team can help calculate this from your venue details or floor plan.",
+  "disclaimer": "This is a planning brief, not final pricing. The Curtain Guy team will review measurements, availability, labor, delivery, installation, and teardown before confirming a final rental estimate.",
+  "summary": {
+    "notSure": "Not sure — team to review",
+    "notProvided": "Not provided",
+    "sections": {
+      "event": "Event",
+      "goals": "Drape goals",
+      "measurements": "Measurements",
+      "look": "Look & fabric",
+      "addOns": "Add-ons",
+      "contact": "Contact"
+    },
+    "labels": {
+      "eventType": "Event type",
+      "eventDate": "Event date",
+      "guestCount": "Guest count",
+      "venue": "Venue",
+      "cityArea": "City / area",
+      "venueSetting": "Venue setting",
+      "goals": "Goals",
+      "layout": "Layout",
+      "floorPlan": "Floor plan",
+      "measurements": "Measurements known",
+      "wallLength": "Wall length",
+      "ceilingHeight": "Ceiling height",
+      "fabric": "Fabric direction",
+      "fullness": "Fullness",
+      "addOns": "Add-ons",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "notes": "Notes",
+      "files": "Files",
+      "noneSelected": "None selected",
+      "dateTbc": "Event date to be confirmed"
+    }
+  },
+  "builder": {
+    "stepOf": "Step {current} of {total}",
+    "percentComplete": "{percent}% complete",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit estimate request",
+    "submitting": "Submitting...",
+    "requiredFields": "Please complete the required fields.",
+    "contactRequired": "Please add your name and email.",
+    "submitError": "Something went wrong. Please try again or email us directly.",
+    "submitErrorNetwork": "Network error. Please check your connection and try again.",
+    "emailFallback": "Email your brief instead",
+    "eventBasics": {
+      "eventType": "Event type",
+      "eventDate": "Event date",
+      "guestCount": "Guest count",
+      "venueName": "Venue name",
+      "cityArea": "City / area",
+      "venueSetting": "Indoor or outdoor"
+    },
+    "drapeGoal": {
+      "title": "What do you want the draping to achieve?",
+      "subtitle": "Select all that apply."
+    },
+    "measurements": {
+      "floorPlan": "Do you have a floor plan?",
+      "measurementsKnown": "Do you know your measurements?",
+      "wallLength": "Approximate wall / run length",
+      "wallLengthPlaceholder": "e.g. 60 ft total perimeter",
+      "ceilingHeight": "Ceiling height",
+      "runLayout": "Run layout"
+    },
+    "lookFabric": {
+      "fabric": "Fabric direction",
+      "fullness": "Fullness",
+      "colorNotes": "Color / style notes (optional)",
+      "colorNotesPlaceholder": "Brand colors, inspiration, or fabric preferences..."
+    },
+    "addOns": {
+      "title": "Add-ons (optional)",
+      "subtitle": "Enhancements for your setup."
+    },
+    "contact": {
+      "honeypot": "Leave blank"
+    }
+  },
+  "validation": {
+    "eventTypeRequired": "Please select an event type.",
+    "cityAreaRequired": "Please enter your city or area.",
+    "drapeGoalsRequired": "Please select at least one drape goal.",
+    "measurementsKnownRequired": "Please select whether you know your measurements.",
+    "floorPlanRequired": "Please indicate if you have a floor plan.",
+    "fabricRequired": "Please select at least one fabric direction.",
+    "nameRequired": "Please enter your name.",
+    "emailRequired": "Please enter a valid email address."
+  },
+  "success": {
+    "title": "Estimate request received",
+    "description": "Thank you — we received your brief and will follow up with a rental estimate conversation.",
+    "reference": "Reference",
+    "uploadPartial": "{uploaded} file(s) uploaded. {failed} file(s) could not be uploaded — you can email them to us.",
+    "guestCta": "Create an account to track your estimate",
+    "customerCta": "View your estimate",
+    "ownerCta": "View in admin",
+    "newEstimate": "Submit another estimate"
+  },
+  "filePicker": {
+    "label": "Floor plans & inspiration (optional)",
+    "hint": "PDF, JPG, or PNG — up to 10 MB each.",
+    "addFiles": "Add files",
+    "remove": "Remove",
+    "uploading": "Uploading...",
+    "uploaded": "Uploaded",
+    "failed": "Upload failed",
+    "errors": {
+      "tooLarge": "File exceeds 10 MB limit.",
+      "invalidType": "Only PDF, JPG, and PNG files are allowed.",
+      "maxFiles": "Maximum 5 files allowed."
+    }
+  }
+}

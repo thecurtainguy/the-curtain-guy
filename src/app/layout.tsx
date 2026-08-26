@@ -1,14 +1,19 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Inter, Playfair_Display } from "next/font/google";
+import { getLocale } from "next-intl/server";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { LocaleProvider } from "@/components/i18n/locale-provider";
+import { LocaleHtmlLang } from "@/components/i18n/locale-html-lang";
 import { SiteShell } from "@/components/layout/site-shell";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UnsavedChangesProvider } from "@/components/providers/unsaved-changes-provider";
 import { siteConfig } from "@/data/site";
 import { buildSiteGraphJsonLd } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/env";
+import { navLinks } from "@/data/site";
+import { loadAllMessages } from "@/lib/i18n/load-messages";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -69,10 +74,19 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
+  const messagesByLocale = await loadAllMessages();
+  const navItems = [
+    ...navLinks,
+    { label: "Get Estimate", href: "/get-estimate" },
+    { label: "FAQ", href: "/faq" },
+    { label: "Reviews", href: "/reviews" },
+  ];
+
   return (
     <html
-      lang="en"
+      lang={locale}
       suppressHydrationWarning
       className={cn(
         "h-full",
@@ -95,13 +109,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(buildSiteGraphJsonLd()),
+            __html: JSON.stringify(buildSiteGraphJsonLd(navItems)),
           }}
         />
         <ThemeProvider>
-          <UnsavedChangesProvider>
-            <SiteShell>{children}</SiteShell>
-          </UnsavedChangesProvider>
+          <LocaleProvider messagesByLocale={messagesByLocale}>
+            <LocaleHtmlLang />
+            <UnsavedChangesProvider>
+              <SiteShell>{children}</SiteShell>
+            </UnsavedChangesProvider>
+          </LocaleProvider>
         </ThemeProvider>
         <GoogleAnalytics />
       </body>

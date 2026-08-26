@@ -1,0 +1,40 @@
+{
+  "brand": "The Curtain Guy",
+  "tagline": "Event Draping & Rentals",
+  "motto": "Transform Spaces · Create Moments",
+  "location": "Montreal and surrounding areas",
+  "getEstimate": "Get Estimate",
+  "requestEstimate": "Request an Estimate",
+  "viewServices": "View Services",
+  "viewService": "View service",
+  "contact": "Contact",
+  "contactBrand": "Contact The Curtain Guy",
+  "allServices": "All services",
+  "home": "Home",
+  "services": "Services",
+  "faq": "FAQ",
+  "reviews": "Reviews",
+  "privacy": "Privacy",
+  "navigate": "Navigate",
+  "theme": "Theme",
+  "openMenu": "Open menu",
+  "languageSwitcher": "Language",
+  "signIn": "Sign in",
+  "copyright": "All rights reserved.",
+  "quoteCta": {
+    "headline": "Tell us what you are planning.",
+    "description": "Share your venue, event type, and draping goals. We review your brief and follow up with a rental estimate conversation — full-service delivery, installation, and teardown."
+  },
+  "ctaBand": {
+    "headline": "Ready to transform your venue?",
+    "description": "Share your event details and draping goals. We review your brief and follow up with a rental estimate conversation."
+  },
+  "footer": {
+    "blurb": "Luxury event drape rentals for Montreal weddings, corporate events, galas, mitzvahs, and venue transformations. Full-service rental with delivery, installation, and teardown.",
+    "locationLine": "Montreal, Quebec, Canada"
+  },
+  "breadcrumbs": {
+    "home": "Home",
+    "services": "Services"
+  }
+}

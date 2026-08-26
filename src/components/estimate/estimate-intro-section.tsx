@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Building2,
   Layers,
@@ -8,20 +10,19 @@ import {
   Truck,
   Wrench,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { trustProcessItems } from "@/data/site";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-const estimateFocusAreas = [
-  { label: "Wedding draping", icon: Layers },
-  { label: "Corporate events", icon: Building2 },
-  { label: "Stage backdrops", icon: Theater },
-  { label: "Room dividers", icon: Layers },
-  { label: "Blackout drape", icon: Moon },
-] as const;
+const chipIcons = [Layers, Building2, Layers, Theater, Moon] as const;
 
 export function EstimateIntroSection() {
+  const t = useTranslations("estimate.intro");
+  const chips = t.raw("chips") as string[];
+  const trustLabels = t.raw("trust") as string[];
+
   return (
     <div
       className={cn(
@@ -38,35 +39,36 @@ export function EstimateIntroSection() {
         <div className="flex flex-col justify-center gap-6 p-6 sm:p-8 lg:p-10">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-              Guided estimate · Montreal
+              {t("eyebrow")}
             </p>
             <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              Tell us your vision. We&apos;ll shape the drape plan.
+              {t("title")}
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Walk through six quick steps — event details, drape goals,
-              measurements, fabric direction, and add-ons — and we&apos;ll build
-              a thoughtful pipe and drape rental brief for our team. No final
-              pricing yet; just clarity before your Montreal event.
+              {t("description")}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {estimateFocusAreas.map(({ label, icon: Icon }) => (
-              <Badge
-                key={label}
-                variant="outline"
-                className="h-auto gap-1.5 border-primary/20 bg-primary/5 py-1.5 pr-3 pl-2 text-foreground"
-              >
-                <Icon className="size-3.5 text-primary" />
-                {label}
-              </Badge>
-            ))}
+            {chips.map((label, index) => {
+              const Icon = chipIcons[index] ?? Layers;
+              return (
+                <Badge
+                  key={label}
+                  variant="outline"
+                  className="h-auto gap-1.5 border-primary/20 bg-primary/5 py-1.5 pr-3 pl-2 text-foreground"
+                >
+                  <Icon className="size-3.5 text-primary" />
+                  {label}
+                </Badge>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-2 gap-2 border-t border-border/40 pt-5 sm:grid-cols-4">
-            {trustProcessItems.map((item) => {
+            {trustProcessItems.map((item, index) => {
               const Icon = item.icon;
+              const label = trustLabels[index] ?? item.label;
               return (
                 <div
                   key={item.label}
@@ -76,7 +78,7 @@ export function EstimateIntroSection() {
                     <Icon className="size-3.5" strokeWidth={1.75} />
                   </span>
                   <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground sm:text-[11px]">
-                    {item.label}
+                    {label}
                   </span>
                 </div>
               );
@@ -100,14 +102,13 @@ export function EstimateIntroSection() {
           <div className="relative flex h-full min-h-[240px] flex-col justify-end p-6 sm:p-8 lg:absolute lg:inset-0 lg:justify-end lg:p-10">
             <div className="max-w-sm rounded-2xl border border-border/55 bg-card/95 p-4 shadow-[0_10px_28px_oklch(0_0_0/12%)] backdrop-blur-md sm:p-5 dark:border-white/10 dark:bg-black/45 dark:shadow-none">
               <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-                Full-service rental
+                {trustLabels[0]}
               </p>
               <p className="mt-2 font-heading text-lg font-medium text-foreground">
-                Delivery, installation, and teardown included
+                {trustLabels.slice(1).join(" · ")}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                When you book with The Curtain Guy, your estimate covers the
-                complete event drape experience — not just fabric on a rack.
+                {t("description")}
               </p>
               <div className="mt-4 flex items-center gap-3 text-primary/90">
                 <Package className="size-4 shrink-0" />

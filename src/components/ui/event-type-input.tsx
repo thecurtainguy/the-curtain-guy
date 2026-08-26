@@ -2,28 +2,8 @@
 
 import * as React from "react";
 import { Check, ChevronDown } from "lucide-react";
-import { eventTypes, getOptionLabel } from "@/data/estimate";
+import { useLocalizedEventTypes } from "@/lib/i18n/estimate";
 import { cn } from "@/lib/utils";
-
-const SUGGESTIONS = eventTypes.filter((type) => type.id !== "other");
-
-function toDisplay(value: string): string {
-  if (!value) return "";
-  return getOptionLabel(eventTypes, value) ?? value;
-}
-
-/** Commit typed text: trim ends only, map exact label/id → stored id. */
-function toStored(display: string): string {
-  const trimmed = display.trim();
-  if (!trimmed) return "";
-  const byId = SUGGESTIONS.find((type) => type.id === trimmed);
-  if (byId) return byId.id;
-  const byLabel = SUGGESTIONS.find(
-    (type) => type.label.toLowerCase() === trimmed.toLowerCase()
-  );
-  if (byLabel) return byLabel.id;
-  return trimmed;
-}
 
 type EventTypeInputProps = Omit<
   React.ComponentProps<"input">,
@@ -46,20 +26,23 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
     },
     ref
   ) {
+    const localizedTypes = useLocalizedEventTypes();
+    const suggestions = localizedTypes.filter((type) => type.id !== "other");
+
     const rootRef = React.useRef<HTMLDivElement>(null);
     const inputRef = React.useRef<HTMLInputElement>(null);
     const [open, setOpen] = React.useState(false);
     const [focused, setFocused] = React.useState(false);
-    const [draft, setDraft] = React.useState(() => toDisplay(value));
+    const [draft, setDraft] = React.useState(() => toDisplay(value, suggestions));
     const [activeIndex, setActiveIndex] = React.useState(-1);
 
     React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
     React.useEffect(() => {
       if (!focused) {
-        setDraft(toDisplay(value));
+        setDraft(toDisplay(value, suggestions));
       }
-    }, [value, focused]);
+    }, [value, focused, suggestions]);
 
     React.useEffect(() => {
       if (!open) return;
@@ -73,8 +56,8 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
     }, [open]);
 
     function commitDraft(nextDraft: string) {
-      const stored = toStored(nextDraft);
-      setDraft(toDisplay(stored) || nextDraft.trim());
+      const stored = toStored(nextDraft, suggestions);
+      setDraft(toDisplay(stored, suggestions) || nextDraft.trim());
       onChange?.(stored);
     }
 
@@ -89,7 +72,6 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
     function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
       const next = event.target.value;
       setDraft(next);
-      // Keep spaces while typing — only normalize on blur / list select
       onChange?.(next);
       setOpen(true);
       setActiveIndex(-1);
@@ -97,7 +79,6 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
 
     function handleBlur() {
       setFocused(false);
-      // Defer so option click can run first
       window.setTimeout(() => {
         if (rootRef.current?.contains(document.activeElement)) return;
         const current = inputRef.current?.value ?? draft;
@@ -112,7 +93,7 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
       if (event.key === "ArrowDown") {
         event.preventDefault();
         setOpen(true);
-        setActiveIndex((index) => (index + 1) % SUGGESTIONS.length);
+        setActiveIndex((index) => (index + 1) % suggestions.length);
         return;
       }
 
@@ -120,7 +101,7 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
         event.preventDefault();
         setOpen(true);
         setActiveIndex(
-          (index) => (index - 1 + SUGGESTIONS.length) % SUGGESTIONS.length
+          (index) => (index - 1 + suggestions.length) % suggestions.length
         );
         return;
       }
@@ -129,10 +110,10 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
         event.key === "Enter" &&
         open &&
         activeIndex >= 0 &&
-        SUGGESTIONS[activeIndex]
+        suggestions[activeIndex]
       ) {
         event.preventDefault();
-        const option = SUGGESTIONS[activeIndex];
+        const option = suggestions[activeIndex];
         selectOption(option.id, option.label);
         return;
       }
@@ -144,8 +125,8 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
     }
 
     const selectedId =
-      SUGGESTIONS.find((type) => type.id === toStored(value))?.id ??
-      SUGGESTIONS.find(
+      suggestions.find((type) => type.id === toStored(value, suggestions))?.id ??
+      suggestions.find(
         (type) => type.label.toLowerCase() === draft.trim().toLowerCase()
       )?.id;
 
@@ -214,7 +195,7 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
               Event types
             </p>
             <ul className="max-h-56 overflow-y-auto">
-              {SUGGESTIONS.map((type, index) => {
+              {suggestions.map((type, index) => {
                 const isActive = index === activeIndex;
                 const isSelected = type.id === selectedId;
                 return (
@@ -254,5 +235,30 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
     );
   }
 );
+
+function toDisplay(
+  value: string,
+  suggestions: Array<{ id: string; label: string }>
+): string {
+  if (!value) return "";
+  const byId = suggestions.find((type) => type.id === value);
+  if (byId) return byId.label;
+  return value;
+}
+
+function toStored(
+  display: string,
+  suggestions: Array<{ id: string; label: string }>
+): string {
+  const trimmed = display.trim();
+  if (!trimmed) return "";
+  const byId = suggestions.find((type) => type.id === trimmed);
+  if (byId) return byId.id;
+  const byLabel = suggestions.find(
+    (type) => type.label.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (byLabel) return byLabel.id;
+  return trimmed;
+}
 
 export { EventTypeInput };

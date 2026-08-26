@@ -18,13 +18,23 @@ import {
   Timer,
   Wand2,
 } from "lucide-react";
+import enEstimate from "../../messages/en/estimate.json";
 import { siteConfig } from "@/data/site";
+
+export type EstimateOptionDef = {
+  id: string;
+  icon?: LucideIcon;
+};
 
 export type EstimateOption = {
   id: string;
   label: string;
   description?: string;
   icon?: LucideIcon;
+};
+
+export type EstimateStepDef = {
+  id: string;
 };
 
 export type EstimateStep = {
@@ -34,269 +44,123 @@ export type EstimateStep = {
   description: string;
 };
 
-export const estimateBuilderSteps: EstimateStep[] = [
-  {
-    id: "event-basics",
-    title: "Event Basics",
-    shortTitle: "Event",
-    description: "Tell us about your event, venue, and guest count.",
-  },
-  {
-    id: "drape-goal",
-    title: "Drape Goal",
-    shortTitle: "Goals",
-    description: "What do you want the draping to achieve?",
-  },
-  {
-    id: "measurements",
-    title: "Measurements",
-    shortTitle: "Measure",
-    description: "Share what you know — we can help fill in the rest.",
-  },
-  {
-    id: "look-fabric",
-    title: "Look & Fabric",
-    shortTitle: "Look",
-    description: "Direction for fabric, color, and fullness.",
-  },
-  {
-    id: "add-ons",
-    title: "Add-ons",
-    shortTitle: "Add-ons",
-    description: "Optional enhancements for your setup.",
-  },
-  {
-    id: "contact-summary",
-    title: "Contact & Summary",
-    shortTitle: "Summary",
-    description: "Review your brief and share contact details.",
-  },
+type EstimateOptionGroup = keyof typeof enEstimate.options;
+
+export const estimateBuilderSteps: EstimateStepDef[] = [
+  { id: "event-basics" },
+  { id: "drape-goal" },
+  { id: "measurements" },
+  { id: "look-fabric" },
+  { id: "add-ons" },
+  { id: "contact-summary" },
 ];
 
-export const eventTypes: EstimateOption[] = [
-  { id: "wedding", label: "Wedding", icon: Layers },
-  { id: "corporate", label: "Corporate Event", icon: Building2 },
-  { id: "gala", label: "Gala", icon: Crown },
-  { id: "mitzvah", label: "Bar/Bat Mitzvah", icon: PartyPopper },
-  { id: "stage-show", label: "Stage/Show", icon: Theater },
-  { id: "trade-show", label: "Trade Show", icon: LayoutGrid },
-  { id: "private", label: "Private Event", icon: Sparkles },
-  { id: "other", label: "Other", icon: Wand2 },
+export const eventTypes: EstimateOptionDef[] = [
+  { id: "wedding", icon: Layers },
+  { id: "corporate", icon: Building2 },
+  { id: "gala", icon: Crown },
+  { id: "mitzvah", icon: PartyPopper },
+  { id: "stage-show", icon: Theater },
+  { id: "trade-show", icon: LayoutGrid },
+  { id: "private", icon: Sparkles },
+  { id: "other", icon: Wand2 },
 ];
 
-export const venueSettings: EstimateOption[] = [
-  { id: "indoor", label: "Indoor", description: "Ballroom, hall, or enclosed venue" },
-  { id: "outdoor", label: "Outdoor", description: "Tent, terrace, or open-air setup" },
+export const venueSettings: EstimateOptionDef[] = [
+  { id: "indoor" },
+  { id: "outdoor" },
 ];
 
-export const drapeGoals: EstimateOption[] = [
-  {
-    id: "full-room",
-    label: "Full room transformation",
-    description: "Perimeter draping that reshapes the entire space",
-    icon: LayoutGrid,
-  },
-  {
-    id: "ceremony-backdrop",
-    label: "Ceremony backdrop",
-    description: "Framed focal point for vows and key moments",
-    icon: Layers,
-  },
-  {
-    id: "stage-backdrop",
-    label: "Stage backdrop",
-    description: "Presentation, performance, or program draping",
-    icon: Theater,
-  },
-  {
-    id: "room-divider",
-    label: "Room divider",
-    description: "Fabric partitions between zones or areas",
-    icon: Columns3,
-  },
-  {
-    id: "blackout-masking",
-    label: "Blackout / masking",
-    description: "Light control, window masking, or backstage concealment",
-    icon: EyeOff,
-  },
-  {
-    id: "photo-backdrop",
-    label: "Photo / step-and-repeat backdrop",
-    description: "Branded or elegant photo moment setup",
-    icon: Camera,
-  },
-  {
-    id: "entrance-reveal",
-    label: "Entrance reveal",
-    description: "Dramatic unveil or kabuki-style entrance moment",
-    icon: Star,
-  },
-  {
-    id: "trade-show-booth",
-    label: "Trade show booth",
-    description: "Pipe and drape booth walls and branding zones",
-    icon: Building2,
-  },
-  {
-    id: "vip-lounge",
-    label: "VIP / lounge area",
-    description: "Intimate draped lounge or premium guest zone",
-    icon: Crown,
-  },
-  {
-    id: "screen-surround",
-    label: "Screen surround",
-    description: "Draping around screens, LED walls, or projection",
-    icon: Monitor,
-  },
+export const drapeGoals: EstimateOptionDef[] = [
+  { id: "full-room", icon: LayoutGrid },
+  { id: "ceremony-backdrop", icon: Layers },
+  { id: "stage-backdrop", icon: Theater },
+  { id: "room-divider", icon: Columns3 },
+  { id: "blackout-masking", icon: EyeOff },
+  { id: "photo-backdrop", icon: Camera },
+  { id: "entrance-reveal", icon: Star },
+  { id: "trade-show-booth", icon: Building2 },
+  { id: "vip-lounge", icon: Crown },
+  { id: "screen-surround", icon: Monitor },
 ];
 
-export const runLayouts: EstimateOption[] = [
-  { id: "straight", label: "Straight run", description: "Single continuous drape line" },
-  {
-    id: "corners",
-    label: "Multiple turns / corners",
-    description: "L-shaped, U-shaped, or complex perimeter",
-  },
-  { id: "not-sure", label: "Not sure yet", description: "We can assess from your floor plan" },
+export const runLayouts: EstimateOptionDef[] = [
+  { id: "straight" },
+  { id: "corners" },
+  { id: "not-sure" },
 ];
 
-export const floorPlanOptions: EstimateOption[] = [
-  { id: "yes", label: "Yes", description: "I have a floor plan to share" },
-  { id: "no", label: "No", description: "I don't have one yet" },
-  { id: "not-sure", label: "Not sure", description: "I may be able to get one from the venue" },
+export const floorPlanOptions: EstimateOptionDef[] = [
+  { id: "yes" },
+  { id: "no" },
+  { id: "not-sure" },
 ];
 
-export const measurementsKnownOptions: EstimateOption[] = [
-  {
-    id: "know",
-    label: "I have measurements",
-    description: "I can share linear feet, height, walls, or layout details",
-  },
-  {
-    id: "partial",
-    label: "I have some details",
-    description: "A few numbers or venue info — not everything yet",
-  },
-  {
-    id: "help",
-    label: "Not sure — help me calculate",
-    description: "Our team will help from your venue details or floor plan",
-  },
+export const measurementsKnownOptions: EstimateOptionDef[] = [
+  { id: "know" },
+  { id: "partial" },
+  { id: "help" },
 ];
 
-export const heightOptions: EstimateOption[] = [
-  { id: "8ft-under", label: "8 ft or under", description: "Lower ceiling or intimate room height" },
-  { id: "10-12ft", label: "10–12 ft", description: "Typical ballroom or event hall height" },
-  { id: "14ft-plus", label: "14 ft or higher", description: "Tall ceiling or grand venue volume" },
-  {
-    id: "not-sure",
-    label: "Not sure — recommend for me",
-    description: "We'll suggest the right height for your space",
-  },
+export const heightOptions: EstimateOptionDef[] = [
+  { id: "8ft-under" },
+  { id: "10-12ft" },
+  { id: "14ft-plus" },
+  { id: "not-sure" },
 ];
 
-export const fabricDirections: EstimateOption[] = [
-  {
-    id: "black-velvet",
-    label: "Black velvet / velour look",
-    description: "Rich, theatrical depth and light absorption",
-    icon: Moon,
-  },
-  {
-    id: "white-ivory",
-    label: "White / ivory drape",
-    description: "Bright, elegant, and classic event finish",
-    icon: Layers,
-  },
-  {
-    id: "champagne",
-    label: "Champagne / neutral",
-    description: "Warm, refined tones for upscale atmospheres",
-    icon: Sparkles,
-  },
-  {
-    id: "sheer-overlay",
-    label: "Sheer / soft overlay",
-    description: "Layered translucency and soft ambient glow",
-    icon: Wand2,
-  },
-  {
-    id: "blackout-fabric",
-    label: "Blackout / masking",
-    description: "Maximum light control for stages and productions",
-    icon: EyeOff,
-  },
-  {
-    id: "star-drape",
-    label: "Star drape",
-    description: "Sparkling fiber-optic or LED star effect",
-    icon: Star,
-  },
-  {
-    id: "custom-color",
-    label: "Custom color direction",
-    description: "Brand colors or a specific palette in mind",
-    icon: Wand2,
-  },
-  {
-    id: "recommend",
-    label: "Not sure, recommend for me",
-    description: "Our team will suggest fabrics that fit your event",
-    icon: Sparkles,
-  },
+export const fabricDirections: EstimateOptionDef[] = [
+  { id: "black-velvet", icon: Moon },
+  { id: "white-ivory", icon: Layers },
+  { id: "champagne", icon: Sparkles },
+  { id: "sheer-overlay", icon: Wand2 },
+  { id: "blackout-fabric", icon: EyeOff },
+  { id: "star-drape", icon: Star },
+  { id: "custom-color", icon: Wand2 },
+  { id: "recommend", icon: Sparkles },
 ];
 
-export const fullnessOptions: EstimateOption[] = [
-  { id: "clean-flat", label: "Clean / flat", description: "Minimal gather, modern and streamlined" },
-  {
-    id: "premium",
-    label: "Premium fullness",
-    description: "Balanced pleats with an elevated event finish",
-  },
-  {
-    id: "luxury-deep",
-    label: "Luxury deep pleats",
-    description: "Maximum volume and dramatic fabric presence",
-  },
-  {
-    id: "recommend",
-    label: "Not sure, recommend for me",
-    description: "Our team will suggest the right fullness",
-  },
+export const fullnessOptions: EstimateOptionDef[] = [
+  { id: "clean-flat" },
+  { id: "premium" },
+  { id: "luxury-deep" },
+  { id: "recommend" },
 ];
 
-export const addOnOptions: EstimateOption[] = [
-  { id: "uplighting", label: "Uplighting", icon: Lightbulb },
-  { id: "star-drape", label: "Star drape", icon: Star },
-  { id: "kabuki-reveal", label: "Kabuki / reveal moment", icon: Theater },
-  { id: "event-carpet", label: "Event carpet", icon: LayoutGrid },
-  { id: "stanchions", label: "Stanchions / ropes", icon: Columns3 },
-  { id: "screen-surround", label: "Screen surround", icon: Monitor },
-  { id: "dj-booth", label: "DJ / tech booth surround", icon: Music },
-  { id: "step-repeat", label: "Step-and-repeat backdrop", icon: Camera },
-  { id: "ceiling-draping", label: "Ceiling draping", icon: Layers },
-  { id: "double-sided", label: "Double-sided drape", icon: Columns3 },
-  { id: "premium-hardware", label: "Premium hardware finish", icon: Sparkles },
-  { id: "rush-setup", label: "Rush setup / tight timeline", icon: Timer },
+export const addOnOptions: EstimateOptionDef[] = [
+  { id: "uplighting", icon: Lightbulb },
+  { id: "star-drape", icon: Star },
+  { id: "kabuki-reveal", icon: Theater },
+  { id: "event-carpet", icon: LayoutGrid },
+  { id: "stanchions", icon: Columns3 },
+  { id: "screen-surround", icon: Monitor },
+  { id: "dj-booth", icon: Music },
+  { id: "step-repeat", icon: Camera },
+  { id: "ceiling-draping", icon: Layers },
+  { id: "double-sided", icon: Columns3 },
+  { id: "premium-hardware", icon: Sparkles },
+  { id: "rush-setup", icon: Timer },
 ];
 
-export const measurementsReassurance =
-  "Not sure? No problem. The Curtain Guy team can help calculate this from your venue details or floor plan.";
+export const SUMMARY_NOT_SURE = enEstimate.summary.notSure;
+export const SUMMARY_NOT_PROVIDED = enEstimate.summary.notProvided;
 
-export const estimateDisclaimer =
-  "This is a planning brief, not final pricing. The Curtain Guy team will review measurements, availability, labor, delivery, installation, and teardown before confirming a final rental estimate.";
-
-export const SUMMARY_NOT_SURE = "Not sure — team to review";
-export const SUMMARY_NOT_PROVIDED = "Not provided";
+export type EstimateValidationKey =
+  | "eventTypeRequired"
+  | "cityAreaRequired"
+  | "drapeGoalsRequired"
+  | "measurementsKnownRequired"
+  | "floorPlanRequired"
+  | "fabricRequired"
+  | "nameRequired"
+  | "emailRequired";
 
 export type StepValidationResult = {
   valid: boolean;
-  message?: string;
+  messageKey?: EstimateValidationKey;
 };
 
-const NOT_SURE_IDS = new Set(["not-sure", "help", "recommend"]);
+export const NOT_SURE_IDS = new Set(["not-sure", "help", "recommend"]);
 
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -309,53 +173,31 @@ export function validateEstimateStep(
   switch (stepId) {
     case "event-basics": {
       if (!data.eventType) {
-        return {
-          valid: false,
-          message: "Select an event type so we know what kind of draping setup to plan.",
-        };
+        return { valid: false, messageKey: "eventTypeRequired" };
       }
       if (!data.cityArea.trim()) {
-        return {
-          valid: false,
-          message: "Add your city or area so we can confirm Montreal service coverage.",
-        };
+        return { valid: false, messageKey: "cityAreaRequired" };
       }
       return { valid: true };
     }
     case "drape-goal": {
       if (data.drapeGoals.length === 0) {
-        return {
-          valid: false,
-          message:
-            "Choose at least one drape goal so we know what you're trying to create.",
-        };
+        return { valid: false, messageKey: "drapeGoalsRequired" };
       }
       return { valid: true };
     }
     case "measurements": {
       if (!data.measurementsKnown) {
-        return {
-          valid: false,
-          message:
-            "Not sure on measurements? That's okay — select the option that says you need help calculating.",
-        };
+        return { valid: false, messageKey: "measurementsKnownRequired" };
       }
       if (!data.floorPlanAvailable) {
-        return {
-          valid: false,
-          message:
-            "Let us know if you have a floor plan — or select Not sure if you're still checking with the venue.",
-        };
+        return { valid: false, messageKey: "floorPlanRequired" };
       }
       return { valid: true };
     }
     case "look-fabric": {
       if (data.fabricDirections.length === 0) {
-        return {
-          valid: false,
-          message:
-            "Choose at least one fabric direction — or select Not sure, recommend for me.",
-        };
+        return { valid: false, messageKey: "fabricRequired" };
       }
       return { valid: true };
     }
@@ -363,18 +205,10 @@ export function validateEstimateStep(
       return { valid: true };
     case "contact-summary": {
       if (!data.name.trim()) {
-        return {
-          valid: false,
-          message:
-            "Add your name and email so our team can follow up on the estimate brief.",
-        };
+        return { valid: false, messageKey: "nameRequired" };
       }
       if (!data.email.trim() || !isValidEmail(data.email)) {
-        return {
-          valid: false,
-          message:
-            "Add a valid email address so our team can follow up on the estimate brief.",
-        };
+        return { valid: false, messageKey: "emailRequired" };
       }
       return { valid: true };
     }
@@ -435,6 +269,36 @@ export const initialEstimateFormData: EstimateFormData = {
   message: "",
 };
 
+function getEnglishOptionEntry(group: EstimateOptionGroup, id: string) {
+  const options = enEstimate.options[group] as Record<
+    string,
+    { label: string; description?: string }
+  >;
+  return options[id];
+}
+
+export function getEnglishOptions(
+  group: EstimateOptionGroup,
+  defs: EstimateOptionDef[]
+): EstimateOption[] {
+  return defs.map((def) => {
+    const entry = getEnglishOptionEntry(group, def.id);
+    return {
+      id: def.id,
+      icon: def.icon,
+      label: entry?.label ?? def.id,
+      description: entry?.description,
+    };
+  });
+}
+
+export function getEnglishOptionLabel(
+  group: EstimateOptionGroup,
+  id: string
+): string | undefined {
+  return getEnglishOptionEntry(group, id)?.label;
+}
+
 export function getOptionLabel(
   options: EstimateOption[],
   id: string
@@ -448,6 +312,15 @@ export function getOptionLabels(
 ): string[] {
   return ids
     .map((id) => getOptionLabel(options, id))
+    .filter((label): label is string => Boolean(label));
+}
+
+export function getEnglishOptionLabels(
+  group: EstimateOptionGroup,
+  ids: string[]
+): string[] {
+  return ids
+    .map((id) => getEnglishOptionLabel(group, id))
     .filter((label): label is string => Boolean(label));
 }
 
@@ -465,18 +338,18 @@ export function formatMeasurementSummaryValue(
 }
 
 export function formatOptionSummaryValue(
-  options: EstimateOption[],
+  group: EstimateOptionGroup,
   id: string | undefined
 ): string {
   if (!id?.trim()) return SUMMARY_NOT_SURE;
   if (NOT_SURE_IDS.has(id)) return SUMMARY_NOT_SURE;
-  return getOptionLabel(options, id) ?? id;
+  return getEnglishOptionLabel(group, id) ?? id;
 }
 
 export function formatHeightSummaryValue(data: EstimateFormData): string {
   if (!data.heightNeeded?.trim()) return SUMMARY_NOT_SURE;
   if (NOT_SURE_IDS.has(data.heightNeeded)) return SUMMARY_NOT_SURE;
-  const fromOption = getOptionLabel(heightOptions, data.heightNeeded);
+  const fromOption = getEnglishOptionLabel("heightOptions", data.heightNeeded);
   if (fromOption) return fromOption;
   return data.heightNeeded.trim();
 }
@@ -495,22 +368,112 @@ export function formatEstimateReference(
   return `TCG-${id.slice(0, 8).toUpperCase()}`;
 }
 
-export function buildEstimateBrief(data: EstimateFormData): string {
-  const eventType = getOptionLabel(eventTypes, data.eventType) ?? data.eventType;
+export type EstimateLabelSource = {
+  eventType: (id: string) => string | undefined;
+  venueSetting: (id: string) => string | undefined;
+  drapeGoals: (ids: string[]) => string[];
+  measurementsKnown: (id: string) => string | undefined;
+  height: (id: string) => string | undefined;
+  runLayout: (id: string) => string | undefined;
+  floorPlan: (id: string) => string | undefined;
+  fabricDirections: (ids: string[]) => string[];
+  fullness: (id: string) => string | undefined;
+  addOns: (ids: string[]) => string[];
+  notSure: string;
+  notProvided: string;
+  disclaimer: string;
+};
+
+export function createEnglishLabelSource(): EstimateLabelSource {
+  return {
+    eventType: (id) => getEnglishOptionLabel("eventTypes", id),
+    venueSetting: (id) => getEnglishOptionLabel("venueSettings", id),
+    drapeGoals: (ids) => getEnglishOptionLabels("drapeGoals", ids),
+    measurementsKnown: (id) => getEnglishOptionLabel("measurementsKnown", id),
+    height: (id) => getEnglishOptionLabel("heightOptions", id),
+    runLayout: (id) => formatOptionSummaryValue("runLayouts", id),
+    floorPlan: (id) => formatOptionSummaryValue("floorPlanOptions", id),
+    fabricDirections: (ids) => getEnglishOptionLabels("fabricDirections", ids),
+    fullness: (id) => formatOptionSummaryValue("fullnessOptions", id),
+    addOns: (ids) => getEnglishOptionLabels("addOns", ids),
+    notSure: SUMMARY_NOT_SURE,
+    notProvided: SUMMARY_NOT_PROVIDED,
+    disclaimer: enEstimate.disclaimer,
+  };
+}
+
+export function createLabelSourceFromOptions(
+  options: {
+    eventTypes: EstimateOption[];
+    venueSettings: EstimateOption[];
+    drapeGoals: EstimateOption[];
+    measurementsKnownOptions: EstimateOption[];
+    heightOptions: EstimateOption[];
+    runLayouts: EstimateOption[];
+    floorPlanOptions: EstimateOption[];
+    fabricDirections: EstimateOption[];
+    fullnessOptions: EstimateOption[];
+    addOns: EstimateOption[];
+  },
+  strings: {
+    notSure: string;
+    notProvided: string;
+    disclaimer: string;
+  }
+): EstimateLabelSource {
+  const formatLocalizedOption = (
+    optionList: EstimateOption[],
+    id: string | undefined
+  ) => {
+    if (!id?.trim()) return strings.notSure;
+    if (NOT_SURE_IDS.has(id)) return strings.notSure;
+    return getOptionLabel(optionList, id) ?? id;
+  };
+
+  return {
+    eventType: (id) => getOptionLabel(options.eventTypes, id),
+    venueSetting: (id) => getOptionLabel(options.venueSettings, id),
+    drapeGoals: (ids) => getOptionLabels(options.drapeGoals, ids),
+    measurementsKnown: (id) =>
+      getOptionLabel(options.measurementsKnownOptions, id),
+    height: (id) => getOptionLabel(options.heightOptions, id),
+    runLayout: (id) => formatLocalizedOption(options.runLayouts, id),
+    floorPlan: (id) => formatLocalizedOption(options.floorPlanOptions, id),
+    fabricDirections: (ids) => getOptionLabels(options.fabricDirections, ids),
+    fullness: (id) => formatLocalizedOption(options.fullnessOptions, id),
+    addOns: (ids) => getOptionLabels(options.addOns, ids),
+    notSure: strings.notSure,
+    notProvided: strings.notProvided,
+    disclaimer: strings.disclaimer,
+  };
+}
+
+export function buildEstimateBrief(
+  data: EstimateFormData,
+  labels: EstimateLabelSource = createEnglishLabelSource()
+): string {
+  const eventType = labels.eventType(data.eventType) ?? data.eventType;
   const venueSetting =
-    getOptionLabel(venueSettings, data.venueSetting) ?? data.venueSetting;
-  const runLayout = formatOptionSummaryValue(runLayouts, data.runLayout);
-  const floorPlan = formatOptionSummaryValue(
-    floorPlanOptions,
-    data.floorPlanAvailable
-  );
-  const fullness = formatOptionSummaryValue(
-    fullnessOptions,
-    data.fullnessPreference
-  );
+    labels.venueSetting(data.venueSetting) ?? data.venueSetting;
+  const runLayout = labels.runLayout(data.runLayout);
+  const floorPlan = labels.floorPlan(data.floorPlanAvailable);
+  const fullness = labels.fullness(data.fullnessPreference);
   const measurementsKnown =
-    getOptionLabel(measurementsKnownOptions, data.measurementsKnown) ??
-    data.measurementsKnown;
+    labels.measurementsKnown(data.measurementsKnown) ?? data.measurementsKnown;
+
+  const formatMeasurement = (value: string | undefined) => {
+    if (!value?.trim()) return labels.notSure;
+    if (NOT_SURE_IDS.has(value.trim())) return labels.notSure;
+    return value.trim();
+  };
+
+  const formatHeight = () => {
+    if (!data.heightNeeded?.trim()) return labels.notSure;
+    if (NOT_SURE_IDS.has(data.heightNeeded)) return labels.notSure;
+    const heightLabel = labels.height(data.heightNeeded);
+    if (heightLabel) return heightLabel;
+    return data.heightNeeded.trim();
+  };
 
   return [
     "--- EVENT BASICS ---",
@@ -522,23 +485,23 @@ export function buildEstimateBrief(data: EstimateFormData): string {
     `Guest count: ${data.guestCount || "—"}`,
     "",
     "--- DRAPE GOALS ---",
-    getOptionLabels(drapeGoals, data.drapeGoals).join(", ") || "—",
+    labels.drapeGoals(data.drapeGoals).join(", ") || "—",
     "",
     "--- MEASUREMENTS ---",
-    `Measurement confidence: ${measurementsKnown || SUMMARY_NOT_SURE}`,
-    `Linear feet: ${formatMeasurementSummaryValue(data.linearFeet)}`,
-    `Height needed: ${formatHeightSummaryValue(data)}`,
-    `Walls / sections: ${formatMeasurementSummaryValue(data.wallSections)}`,
+    `Measurement confidence: ${measurementsKnown || labels.notSure}`,
+    `Linear feet: ${formatMeasurement(data.linearFeet)}`,
+    `Height needed: ${formatHeight()}`,
+    `Walls / sections: ${formatMeasurement(data.wallSections)}`,
     `Run layout: ${runLayout}`,
-    `Doors / openings: ${formatMeasurementSummaryValue(data.doorsOpenings)}`,
+    `Doors / openings: ${formatMeasurement(data.doorsOpenings)}`,
     `Floor plan available: ${floorPlan}`,
     "",
     "--- LOOK & FABRIC ---",
-    `Fabric direction: ${getOptionLabels(fabricDirections, data.fabricDirections).join(", ") || "—"}`,
+    `Fabric direction: ${labels.fabricDirections(data.fabricDirections).join(", ") || "—"}`,
     `Fullness: ${fullness || "—"}`,
     "",
     "--- ADD-ONS ---",
-    getOptionLabels(addOnOptions, data.addOns).join(", ") || "None selected",
+    labels.addOns(data.addOns).join(", ") || "None selected",
     "",
     "--- CONTACT ---",
     `Name: ${data.name || "—"}`,
@@ -548,12 +511,15 @@ export function buildEstimateBrief(data: EstimateFormData): string {
     "--- NOTES ---",
     data.message || "—",
     "",
-    estimateDisclaimer,
+    labels.disclaimer,
   ].join("\n");
 }
 
-export function buildEstimateMailto(data: EstimateFormData): string {
-  const eventType = getOptionLabel(eventTypes, data.eventType) ?? data.eventType;
+export function buildEstimateMailto(
+  data: EstimateFormData,
+  labels: EstimateLabelSource = createEnglishLabelSource()
+): string {
+  const eventType = labels.eventType(data.eventType) ?? data.eventType;
 
   const subject = encodeURIComponent(
     `Event Drape Rental Estimate Request — ${eventType || "Montreal Event"}`
@@ -564,7 +530,7 @@ export function buildEstimateMailto(data: EstimateFormData): string {
     "",
     "I'd like to request a final event drape rental estimate based on my planning brief:",
     "",
-    buildEstimateBrief(data),
+    buildEstimateBrief(data, labels),
     "",
     "Submitted via the Get Estimate builder on thecurtainguy.com",
   ];

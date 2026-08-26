@@ -1,0 +1,268 @@
+{
+  "hub": {
+    "eyebrow": "Location de draperie événementielle",
+    "title": "Services de location de draperie événementielle",
+    "description": "Drapage temporaire de luxe pour mariages, événements corporatifs, galas, mitzvahs et transformations de salles à Montréal — location clé en main avec livraison, installation et démontage.",
+    "notSureTitle": "Vous ne savez pas ce dont vous avez besoin?",
+    "notSureDescription": "Parlez-nous de votre salle et de vos objectifs. Nous recommandons l'approche de drapage appropriée — pipe and drape, toiles de fond, séparateurs de salle ou transformation complète.",
+    "metaTitle": "Services de location de draperie événementielle Montréal",
+    "metaDescription": "Services de location de draperie événementielle de luxe à Montréal — drapage de mariage, pipe and drape, événements corporatifs, toiles de fond de scène, occultation et transformations de salles."
+  },
+  "detail": {
+    "eyebrow": "Location de draperie événementielle",
+    "whatItIs": "Ce que ce service est",
+    "bestUseCases": "Meilleurs cas d'usage",
+    "planningFactors": "Ce qui influence la planification",
+    "whatWeHandle": "Ce que The Curtain Guy gère",
+    "commonQuestions": "Questions courantes",
+    "inspirationExample": "Exemple d'inspiration",
+    "visualContext": "Contexte visuel",
+    "visualContextTitle": "Planifié selon votre salle à Montréal",
+    "visualContextBody": "Images d'inspiration — les photos de projets du propriétaire remplaceront les images stock au fur et à mesure que les événements seront documentés.",
+    "relatedServices": "Services associés",
+    "ctaHeadline": "Planifiez {service} pour votre événement à Montréal.",
+    "ctaDescription": "Partagez votre salle, la date et vos objectifs de drapage. Nous examinons votre dossier et vous recontactons pour discuter d'une estimation de location."
+  },
+  "trustCapabilities": [
+    "Drapage de mariage",
+    "Pipe & Drape",
+    "Corporatif & Gala",
+    "Toiles de fond de scène",
+    "Occultation & séparateurs",
+    "Bar & Bat Mitzvah"
+  ],
+  "wedding-draping": {
+    "title": "Drapage de mariage",
+    "shortTitle": "Drapage de mariage",
+    "hubCardDescription": "Toiles de fond de cérémonie, transformation de salle de réception, tables d'honneur, entrées et espaces photo pour mariages à Montréal.",
+    "intro": "Le drapage de mariage à Montréal façonne l'ambiance autour de votre cérémonie et réception — murs en tissu doux, toiles de fond élégantes et adoucissement de salle qui photographie magnifiquement sans promettre un design unique.",
+    "whatItIs": "Le drapage de mariage est du tissu de luxe temporaire installé pour le jour de votre événement : points focaux de cérémonie, périmètres de réception, toiles de fond de table d'honneur, entrées et moments photo. C'est du drapage de location événementielle — pas des rideaux résidentiels ou traitements de fenêtres.",
+    "bestUseCases": [
+      "Toile de fond de cérémonie et encadrement de l'allée",
+      "Périmètre de salle de réception et adoucissement du plafond",
+      "Toile de fond de table d'honneur ou sweetheart",
+      "Révélation d'entrée et espaces photo",
+      "Murs de salle nécessitant un look plus soigné"
+    ],
+    "planningFactors": [
+      "Disposition de la salle, hauteur du plafond et options de charge",
+      "Timing cérémonie vs réception et rotations de salle",
+      "Couleur du tissu, ampleur et objectifs d'éclairage",
+      "Circulation des invités, axes photo et décor existant",
+      "Accès pour livraison, fenêtre d'installation et calendrier de démontage"
+    ],
+    "whatWeHandle": [
+      "Planification de la disposition de drapage selon votre salle",
+      "Matériel pipe and drape au besoin",
+      "Livraison, installation professionnelle et démontage",
+      "Notes de coordination pour votre planificateur ou la salle"
+    ],
+    "faq": [
+      {
+        "question": "Le drapage peut transformer une salle de mariage?",
+        "answer": "Oui. Le drapage temporaire peut masquer les murs inachevés, créer un focus de cérémonie, adoucir les grands salons et définir les moments photo — toujours planifié selon votre salle et calendrier spécifiques."
+      },
+      {
+        "question": "Quels détails aident une estimation de drapage de mariage?",
+        "answer": "Date de l'événement, nom ou adresse de la salle, nombre d'invités, objectifs de cérémonie et réception, look de tissu préféré, et plans de salle ou photos d'inspiration."
+      }
+    ],
+    "metaTitle": "Drapage de mariage Montréal",
+    "metaDescription": "Drapage de mariage de luxe à Montréal — toiles de fond de cérémonie, transformation de salle de réception, tables d'honneur et espaces photo. Location clé en main avec livraison, installation et démontage."
+  },
+  "pipe-and-drape-rental": {
+    "title": "Location de pipe and drape",
+    "shortTitle": "Pipe & Drape",
+    "hubCardDescription": "Murs de draperie modulaires, partitions temporaires, zones d'enregistrement et zonage de salle pour événements à Montréal.",
+    "intro": "La location de pipe and drape à Montréal vous offre des murs en tissu modulaires pour zonage, masquage et architecture temporaire soignée — sans construction.",
+    "whatItIs": "Le pipe and drape est un système modulaire de montants et traverses habillé de panneaux de tissu. Il crée murs temporaires, kiosques, corridors et finitions de périmètre pour événements, installations de salon professionnel et transformations de salles.",
+    "bestUseCases": [
+      "Murs événementiels temporaires et masquage de périmètre",
+      "Zones d'enregistrement et d'accueil",
+      "Encadrement de kiosques corporatifs ou de salon professionnel",
+      "Zonage de salle et corridors de circulation",
+      "Dissimulation arrière-scène et stockage"
+    ],
+    "planningFactors": [
+      "Longueurs de mur, hauteurs et portées ouvertes",
+      "Emprise de plaque de base et sécurité dans les zones d'invités",
+      "Opacité, couleur et finition du tissu",
+      "Portes, audiovisuel, chemins de restauration et issues de secours",
+      "Fenêtres d'installation et de démontage à la salle"
+    ],
+    "whatWeHandle": [
+      "Dimensionnement du matériel et tissus pour votre disposition",
+      "Montage sécurisé avec bases et lest au besoin",
+      "Livraison, installation et démontage",
+      "Ajustements selon les règles et accès de la salle"
+    ],
+    "faq": [
+      {
+        "question": "Qu'est-ce que la location de pipe and drape?",
+        "answer": "La location de pipe and drape est un système modulaire de murs temporaires utilisant montants, traverses et panneaux de tissu — idéal pour masquage, zonage et création d'architecture événementielle soignée sans construction permanente."
+      },
+      {
+        "question": "Le pipe and drape est seulement pour les salons professionnels?",
+        "answer": "Non. Il est largement utilisé pour mariages, galas, événements corporatifs et transformations de salles chaque fois que vous avez besoin de murs temporaires, toiles de fond ou définition de salle."
+      }
+    ],
+    "metaTitle": "Location de pipe and drape Montréal",
+    "metaDescription": "Location de pipe and drape à Montréal pour murs événementiels modulaires, partitions, zones d'enregistrement et zonage de salle. Livraison, installation et démontage complets."
+  },
+  "corporate-event-draping": {
+    "title": "Drapage événementiel corporatif",
+    "shortTitle": "Corporatif & Gala",
+    "hubCardDescription": "Conférences, lancements de produits, galas, révélations de marque, toiles de fond de commanditaires et masquage soigné de salle.",
+    "intro": "Le drapage événementiel corporatif à Montréal sublime conférences, lancements et galas avec mise en scène soignée, toiles de fond prêtes pour commanditaires et salles qui semblent intentionnelles — pas inachevées.",
+    "whatItIs": "Le drapage corporatif et de gala utilise du tissu temporaire pour polir les salles, encadrer les scènes, dissimuler le désordre et soutenir les moments de marque. C'est de la location événementielle orientée production, pas du shopping de décoration.",
+    "bestUseCases": [
+      "Mise en scène de conférence et keynote",
+      "Lancements de produits et révélations de marque",
+      "Périmètre et finition de grand salon de gala",
+      "Toiles de fond de commanditaires et médias",
+      "Masquage du désordre et des murs inachevés de la salle"
+    ],
+    "planningFactors": [
+      "Flux du programme, taille de scène et couleurs de marque",
+      "Murs de logos de commanditaires et exigences photo",
+      "Axes audiovisuels, éclairage et positions de caméra",
+      "Capacité d'invités et timing de rotation de salle",
+      "Accès de chargement et besoins de sécurité de nuit"
+    ],
+    "whatWeHandle": [
+      "Planification de disposition pour scène et finition de salle",
+      "Sélection de toile de fond et tissus de périmètre",
+      "Livraison, installation et démontage",
+      "Coordination avec planificateurs, audiovisuel et salles"
+    ],
+    "faq": [
+      {
+        "question": "Le drapage peut fonctionner pour conférences et galas?",
+        "answer": "Oui. Les mêmes systèmes de location soutiennent la finition corporative de jour et l'ambiance de gala de soirée — planifiés selon votre programme, marque et contraintes de salle."
+      },
+      {
+        "question": "Fournissez-vous des tissus aux couleurs de marque?",
+        "answer": "Nous planifions la couleur et la finition du tissu selon vos objectifs de marque pendant le dossier d'estimation. L'inventaire exact dépend de l'événement et de la disponibilité."
+      }
+    ],
+    "metaTitle": "Drapage événementiel corporatif Montréal",
+    "metaDescription": "Drapage événementiel corporatif et de gala à Montréal — conférences, lancements de produits, toiles de fond de commanditaires et finition de salle. Location clé en main avec installation et démontage."
+  },
+  "stage-backdrop-rentals": {
+    "title": "Location de toiles de fond de scène",
+    "shortTitle": "Toiles de fond de scène",
+    "hubCardDescription": "Scènes, présentations, murs médias, cérémonies, zones DJ et drapage de toile de fond adapté à la production.",
+    "intro": "La location de toiles de fond de scène à Montréal offre un plan focal soigné pour présentations, cérémonies et performances — adapté à la production et à l'empreinte de votre scène.",
+    "whatItIs": "Le drapage de toile de fond de scène est du tissu temporaire derrière ou autour d'une scène ou zone de présentation. Il peut inclure occultation noire, panneaux colorés, surrounds et murs adaptés aux caméras et à l'éclairage.",
+    "bestUseCases": [
+      "Scènes de keynote et présentation",
+      "Plateformes de cérémonie et divertissement",
+      "Encadrement de toile de fond DJ et groupe",
+      "Murs adaptés aux médias et caméras",
+      "Occultation noire de scène pour productions"
+    ],
+    "planningFactors": [
+      "Largeur, hauteur et profondeur de scène",
+      "Éclairage, murs LED et angles de caméra",
+      "Couleur du tissu (souvent noir ou teinte de marque)",
+      "Occultation des côtés et dissimulation backstage",
+      "Points de montage vs systèmes autoportants"
+    ],
+    "whatWeHandle": [
+      "Dimensionnement de toile de fond selon votre scène",
+      "Planification d'occultation et surrounds",
+      "Matériel, livraison, installation et démontage",
+      "Notes pour équipes audiovisuel et production"
+    ],
+    "faq": [
+      {
+        "question": "Offrez-vous la location de draperie noire de scène?",
+        "answer": "Oui. L'occultation noire et la draperie de scène sont courantes pour présentations et productions quand vous avez besoin d'une toile de fond soignée et contrôlée en lumière."
+      },
+      {
+        "question": "Une toile de fond peut fonctionner avec des murs LED?",
+        "answer": "Souvent oui. Nous planifions le tissu autour des écrans, truss et axes de caméra pour que la scène soit soignée sans nuire à votre design de production."
+      }
+    ],
+    "metaTitle": "Location de toiles de fond de scène Montréal",
+    "metaDescription": "Location de toile de fond de scène à Montréal pour présentations, cérémonies, zones DJ et productions. Draperie de scène événementielle complète avec livraison, installation et démontage."
+  },
+  "blackout-room-divider-drapes": {
+    "title": "Draperie d'occultation et séparateurs de salle",
+    "shortTitle": "Occultation & séparateurs",
+    "hubCardDescription": "Occultation, séparateurs de salle, dissimulation de stockage et restauration, et contrôle des axes visuels.",
+    "intro": "La draperie d'occultation et les séparateurs de salle à Montréal contrôlent la lumière et les axes visuels — dissimulant stockage, restauration et audiovisuel tout en divisant les grandes salles en zones intentionnelles.",
+    "whatItIs": "Le drapage d'occultation utilise du tissu opaque pour bloquer la lumière et dissimuler les zones. Le drapage séparateur de salle crée des partitions temporaires pour qu'une salle accueille cocktail, repas et espaces de programme sans murs permanents.",
+    "bestUseCases": [
+      "Contrôle de la lumière des fenêtres et lucarnes",
+      "Dissimulation de stockage, restauration et arrière-scène",
+      "Division de grands salons en zones",
+      "Dissimulation audiovisuel et production",
+      "Contrôle des axes visuels des invités"
+    ],
+    "planningFactors": [
+      "Le niveau d'obscurité requis",
+      "Longueurs de séparateurs et emplacements de portes",
+      "Hauteur du plafond et emprise du matériel",
+      "Circulation des invités vs corridors de service",
+      "Issues de secours et règles de sécurité de la salle"
+    ],
+    "whatWeHandle": [
+      "Recommandations d'opacité et de disposition",
+      "Matériel de séparateurs et occultation",
+      "Livraison, installation et démontage",
+      "Coordination avec les opérations de la salle"
+    ],
+    "faq": [
+      {
+        "question": "Quand utiliser le drapage d'occultation?",
+        "answer": "Utilisez le drapage d'occultation quand présentations, projections ou ambiance de soirée nécessitent une lumière contrôlée — ou quand fenêtres et zones inachevées doivent disparaître du regard des invités."
+      },
+      {
+        "question": "Les séparateurs de salle sont permanents?",
+        "answer": "Non. Ce sont des partitions de location temporaires installées pour votre événement et retirées lors du démontage."
+      }
+    ],
+    "metaTitle": "Draperie d'occultation et séparateurs de salle Montréal",
+    "metaDescription": "Location de draperie d'occultation et séparateurs de salle à Montréal pour contrôle de la lumière, masquage et zonage de salle. Livraison, installation et démontage complets."
+  },
+  "bar-bat-mitzvah-draping": {
+    "title": "Drapage Bar & Bat Mitzvah",
+    "shortTitle": "Bar & Bat Mitzvah",
+    "hubCardDescription": "Transformation de salle de célébration, toiles de fond de scène et DJ, révélations d'entrée et moments photo.",
+    "intro": "Le drapage Bar et Bat Mitzvah à Montréal transforme les salles de célébration avec focus scénique, moments d'entrée et tissu qui soutient les photos de famille et l'énergie de soirée.",
+    "whatItIs": "Le drapage de mitzvah est du tissu événementiel temporaire pour salles de célébration — transformation de salle, toiles de fond de scène ou DJ, entrées et espaces photo planifiés selon votre thème et calendrier.",
+    "bestUseCases": [
+      "Adoucissement complet de salle de célébration",
+      "Toile de fond de scène, DJ ou divertissement",
+      "Moments de révélation d'entrée",
+      "Espaces photo et toiles de fond familiales",
+      "Masquage des murs de salle de banquet"
+    ],
+    "planningFactors": [
+      "Type de salle et décor existant",
+      "Couleurs de thème et objectifs d'éclairage",
+      "Empreinte de scène de divertissement",
+      "Nombre d'invités et disposition de piste de danse",
+      "Timing d'installation autour restauration et décoration"
+    ],
+    "whatWeHandle": [
+      "Planification de disposition pour flux de célébration",
+      "Toile de fond et drapage de périmètre",
+      "Livraison, installation et démontage",
+      "Coordination avec planificateurs et salles"
+    ],
+    "faq": [
+      {
+        "question": "Le drapage peut correspondre à un thème de mitzvah?",
+        "answer": "Nous planifions la couleur et le placement du tissu selon vos objectifs de célébration. Partagez les notes de thème et photos d'inspiration avec votre dossier d'estimation pour que nous dimensionnons le bon look."
+      },
+      {
+        "question": "Gérez-vous les salles de banquet et salles communautaires?",
+        "answer": "Oui. Beaucoup de célébrations de mitzvah utilisent salles de banquet et salles communautaires — nous planifions selon l'accès, le timing et ce que la salle fournit déjà."
+      }
+    ],
+    "metaTitle": "Drapage Bar & Bat Mitzvah Montréal",
+    "metaDescription": "Drapage Bar et Bat Mitzvah à Montréal — transformation de salle de célébration, toiles de fond de scène, entrées et moments photo. Location clé en main avec installation et démontage."
+  }
+}

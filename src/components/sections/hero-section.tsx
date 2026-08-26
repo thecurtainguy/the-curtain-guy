@@ -1,11 +1,17 @@
-import Link from "next/link";
+"use client";
+
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { HeroVisual } from "@/components/hero-visual";
 import { SectionShell } from "@/components/section-shell";
 import { Reveal } from "@/components/animation/reveal";
 
 export function HeroSection() {
+  const t = useTranslations("home.hero");
+  const tc = useTranslations("common");
+
   return (
     <SectionShell variant="glow" className="overflow-hidden max-lg:overflow-anchor-none">
       <div
@@ -16,20 +22,18 @@ export function HeroSection() {
       <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:gap-12 sm:px-6 sm:py-20 lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)] lg:items-center lg:gap-14 lg:px-8 lg:py-28 xl:gap-16 xl:py-32">
         <Reveal variant="fade-up" immediate className="order-2 lg:order-1">
           <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
-            The Curtain Guy · Montreal
+            {t("eyebrow")}
           </p>
           <h1 className="mt-4 font-heading text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-            Luxury Event Drape Rentals in Montreal
+            {t("title")}
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Premium draping, pipe and drape, backdrops, blackout masking, and
-            venue transformations for weddings, galas, corporate events, and
-            milestone celebrations.
+            {t("description")}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
               <Link href="/get-estimate">
-                Request an Estimate
+                {tc("requestEstimate")}
                 <ArrowRight className="ml-1" />
               </Link>
             </Button>
@@ -39,7 +43,7 @@ export function HeroSection() {
               size="lg"
               className="min-h-11 w-full sm:w-auto"
             >
-              <Link href="/services">View Services</Link>
+              <Link href="/services">{tc("viewServices")}</Link>
             </Button>
           </div>
         </Reveal>

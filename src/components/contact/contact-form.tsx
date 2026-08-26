@@ -8,8 +8,9 @@ import {
   MessageSquare,
   Send,
 } from "lucide-react";
-import { eventTypes } from "@/data/estimate";
+import { useTranslations } from "next-intl";
 import { siteConfig } from "@/data/site";
+import { useLocalizedEventTypes } from "@/lib/i18n/estimate";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,8 @@ const emptyForm: ContactFormData = {
 };
 
 export function ContactForm() {
+  const t = useTranslations("contact.form");
+  const eventTypeOptions = useLocalizedEventTypes();
   const [formData, setFormData] = useState<ContactFormData>(emptyForm);
   const [honeypot, setHoneypot] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -82,10 +85,7 @@ export function ContactForm() {
         if (payload.fieldErrors) {
           setFieldErrors(payload.fieldErrors);
         }
-        setSubmitError(
-          payload.message ??
-            "Something went wrong. Please email info@thecurtainguy.com directly."
-        );
+        setSubmitError(payload.message ?? t("errors.generic"));
         return;
       }
 
@@ -95,9 +95,7 @@ export function ContactForm() {
       setHoneypot("");
       setShowValidation(false);
     } catch {
-      setSubmitError(
-        "Something went wrong. Please email info@thecurtainguy.com directly."
-      );
+      setSubmitError(t("errors.generic"));
     } finally {
       setIsSubmitting(false);
     }
@@ -130,11 +128,11 @@ export function ContactForm() {
 
       <div className="space-y-2">
         <Label htmlFor="contact-name">
-          Name <span className="text-primary">*</span>
+          {t("name")} <span className="text-primary">*</span>
         </Label>
         <Input
           id="contact-name"
-          placeholder="Your name"
+          placeholder={t("namePlaceholder")}
           value={formData.name}
           onChange={(e) => updateField("name", e.target.value)}
           disabled={isSubmitting}
@@ -150,12 +148,12 @@ export function ContactForm() {
 
       <div className="space-y-2">
         <Label htmlFor="contact-email">
-          Email <span className="text-primary">*</span>
+          {t("email")} <span className="text-primary">*</span>
         </Label>
         <Input
           id="contact-email"
           type="email"
-          placeholder="you@example.com"
+          placeholder={t("emailPlaceholder")}
           value={formData.email}
           onChange={(e) => updateField("email", e.target.value)}
           disabled={isSubmitting}
@@ -170,7 +168,7 @@ export function ContactForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="contact-phone">Phone (optional)</Label>
+        <Label htmlFor="contact-phone">{t("phone")}</Label>
         <Input
           id="contact-phone"
           type="tel"
@@ -192,7 +190,7 @@ export function ContactForm() {
         <div className="space-y-2">
           <Label htmlFor="contact-event-type" className="flex items-center gap-1.5">
             <CalendarDays className="size-3.5 text-primary/80" />
-            Event type (optional)
+            {t("eventType")}
           </Label>
           <div className="relative">
             <select
@@ -208,8 +206,8 @@ export function ContactForm() {
               )}
               aria-invalid={fieldErrors.eventType ? true : undefined}
             >
-              <option value="">Select event type</option>
-              {eventTypes.map((type) => (
+              <option value="">{t("eventTypePlaceholder")}</option>
+              {eventTypeOptions.map((type) => (
                 <option key={type.id} value={type.id} className="text-foreground">
                   {type.label}
                 </option>
@@ -226,7 +224,7 @@ export function ContactForm() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="contact-event-date">Event date (optional)</Label>
+          <Label htmlFor="contact-event-date">{t("eventDate")}</Label>
           <DateInput
             id="contact-event-date"
             value={formData.eventDate}
@@ -239,11 +237,11 @@ export function ContactForm() {
       <div className="space-y-2">
         <Label htmlFor="contact-venue" className="flex items-center gap-1.5">
           <MapPin className="size-3.5 text-primary/80" />
-          Venue / location (optional)
+          {t("venue")}
         </Label>
         <Input
           id="contact-venue"
-          placeholder="Venue name or Montreal area"
+          placeholder={t("venuePlaceholder")}
           value={formData.venue}
           onChange={(e) => updateField("venue", e.target.value)}
           disabled={isSubmitting}
@@ -260,11 +258,11 @@ export function ContactForm() {
       <div className="space-y-2">
         <Label htmlFor="contact-message" className="flex items-center gap-1.5">
           <MessageSquare className="size-3.5 text-primary/80" />
-          Message <span className="text-primary">*</span>
+          {t("message")} <span className="text-primary">*</span>
         </Label>
         <Textarea
           id="contact-message"
-          placeholder="Event type, venue, date, and draping needs..."
+          placeholder={t("messagePlaceholder")}
           rows={4}
           value={formData.message}
           onChange={(e) => updateField("message", e.target.value)}
@@ -289,10 +287,10 @@ export function ContactForm() {
         type="submit"
         className="w-full min-h-11"
         isLoading={isSubmitting}
-        loadingText="Sending..."
+        loadingText={t("submitting")}
         icon={<Send className="size-4" />}
       >
-        Send Message
+        {t("submit")}
       </LoadingButton>
     </form>
   );

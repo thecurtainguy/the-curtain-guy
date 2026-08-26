@@ -1,0 +1,78 @@
+{
+  "page": {
+    "eyebrow": "Gallery",
+    "title": "Event draping inspiration",
+    "description": "Explore wedding, corporate, gala, and venue transformation draping — inspiration imagery for Montreal event rentals.",
+    "relatedService": "Related service",
+    "inspiration": "Inspiration",
+    "uploadTitle": "Have photos from your event?",
+    "uploadDescription": "We are building a portfolio of real Montreal projects. Share your event photos and we may feature them with permission.",
+    "uploadCta": "Contact us to share",
+    "metaTitle": "Event Draping Gallery Montreal",
+    "metaDescription": "Event draping inspiration gallery — weddings, galas, corporate events, and venue transformations in Montreal."
+  },
+  "categories": {
+    "weddings": {
+      "label": "Wedding draping",
+      "description": "Ceremony backdrops, reception softening, and photo moments."
+    },
+    "corporate": {
+      "label": "Pipe and drape",
+      "description": "Modular walls, partitions, and venue zoning."
+    },
+    "galas": {
+      "label": "Stage backdrops",
+      "description": "Presentation, ceremony, and entertainment focal planes."
+    },
+    "mitzvahs": {
+      "label": "Corporate / gala",
+      "description": "Conferences, launches, and polished ballroom draping."
+    },
+    "stage": {
+      "label": "Blackout / masking",
+      "description": "Light control, concealment, and room dividers."
+    },
+    "room-transformations": {
+      "label": "Bar / Bat Mitzvah",
+      "description": "Celebration rooms, entrances, and stage focus."
+    }
+  },
+  "pageCategories": {
+    "weddings": {
+      "label": "Weddings",
+      "description": "Wedding draping in Montreal — ceremony backdrops, reception perimeter draping, and full-room transformations."
+    },
+    "corporate": {
+      "label": "Corporate",
+      "description": "Corporate event draping for conferences, launches, and branded environments."
+    },
+    "galas": {
+      "label": "Galas",
+      "description": "Gala drape rentals that elevate ballrooms with perimeter draping, stages, and elegant fabric finishes."
+    },
+    "mitzvahs": {
+      "label": "Mitzvahs",
+      "description": "Bar Mitzvah and Bat Mitzvah draping for room transformations, stages, and celebration backdrops."
+    },
+    "stage": {
+      "label": "Stage",
+      "description": "Stage backdrop rentals including surrounds, masking, and presentation draping."
+    },
+    "room-transformation": {
+      "label": "Room Transformation",
+      "description": "Venue transformation drape rentals that reshape entire rooms with perimeter and decorative draping."
+    },
+    "blackout-masking": {
+      "label": "Blackout / Masking",
+      "description": "Blackout drape rentals for light control, window masking, and production concealment."
+    },
+    "photo-backdrops": {
+      "label": "Photo Backdrops",
+      "description": "Step-and-repeat backdrop rentals and photo moment draping for events and galas."
+    }
+  },
+  "cta": {
+    "headline": "Ready to transform your venue?",
+    "description": "Share your event details and draping goals. We review your brief and follow up with a rental estimate conversation."
+  }
+}

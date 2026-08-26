@@ -1,23 +1,15 @@
+import enEstimate from "../../messages/en/estimate.json";
 import {
-  addOnOptions,
   buildEstimateBrief,
-  drapeGoals,
-  estimateDisclaimer,
-  eventTypes,
-  fabricDirections,
-  floorPlanOptions,
   formatEstimateReference,
   formatHeightSummaryValue,
   formatMeasurementSummaryValue,
   formatOptionSummaryValue,
-  getOptionLabel,
-  getOptionLabels,
-  measurementsKnownOptions,
-  runLayouts,
+  getEnglishOptionLabel,
+  getEnglishOptionLabels,
   SUMMARY_NOT_PROVIDED,
   SUMMARY_NOT_SURE,
   type EstimateFormData,
-  venueSettings,
 } from "@/data/estimate";
 import {
   getEstimateFrom,
@@ -87,18 +79,18 @@ function buildEstimateEmailContext(
 
 function buildAdminEmailSections(data: EstimateFormData): EmailSection[] {
   const eventTypeLabel =
-    getOptionLabel(eventTypes, data.eventType) ?? data.eventType ?? "—";
+    getEnglishOptionLabel("eventTypes", data.eventType) ?? data.eventType ?? "—";
   const venueSettingLabel = data.venueSetting
-    ? formatOptionSummaryValue(venueSettings, data.venueSetting)
+    ? formatOptionSummaryValue("venueSettings", data.venueSetting)
     : SUMMARY_NOT_PROVIDED;
   const measurementsKnownLabel = data.measurementsKnown
-    ? formatOptionSummaryValue(measurementsKnownOptions, data.measurementsKnown)
+    ? formatOptionSummaryValue("measurementsKnown", data.measurementsKnown)
     : SUMMARY_NOT_SURE;
   const runLayoutLabel = data.runLayout
-    ? formatOptionSummaryValue(runLayouts, data.runLayout)
+    ? formatOptionSummaryValue("runLayouts", data.runLayout)
     : SUMMARY_NOT_SURE;
   const floorPlanLabel = data.floorPlanAvailable
-    ? formatOptionSummaryValue(floorPlanOptions, data.floorPlanAvailable)
+    ? formatOptionSummaryValue("floorPlanOptions", data.floorPlanAvailable)
     : SUMMARY_NOT_SURE;
 
   return [
@@ -127,7 +119,7 @@ function buildAdminEmailSections(data: EstimateFormData): EmailSection[] {
         {
           label: "Goals",
           value:
-            getOptionLabels(drapeGoals, data.drapeGoals).join(", ") || "—",
+            getEnglishOptionLabels("drapeGoals", data.drapeGoals).join(", ") || "—",
         },
       ],
     },
@@ -158,7 +150,7 @@ function buildAdminEmailSections(data: EstimateFormData): EmailSection[] {
         {
           label: "Direction",
           value:
-            getOptionLabels(fabricDirections, data.fabricDirections).join(
+            getEnglishOptionLabels("fabricDirections", data.fabricDirections).join(
               ", "
             ) || "—",
         },
@@ -170,7 +162,7 @@ function buildAdminEmailSections(data: EstimateFormData): EmailSection[] {
         {
           label: "Selected",
           value:
-            getOptionLabels(addOnOptions, data.addOns).join(", ") ||
+            getEnglishOptionLabels("addOns", data.addOns).join(", ") ||
             "None selected",
         },
       ],
@@ -184,7 +176,7 @@ function buildAdminEmailSections(data: EstimateFormData): EmailSection[] {
 
 function buildNotificationSubject(data: EstimateFormData, reference: string): string {
   const eventTypeLabel =
-    getOptionLabel(eventTypes, data.eventType) ?? data.eventType ?? "Event";
+    getEnglishOptionLabel("eventTypes", data.eventType) ?? data.eventType ?? "Event";
   return `New estimate request — ${reference} — ${eventTypeLabel}`;
 }
 
@@ -221,7 +213,7 @@ function buildNotificationText(ctx: EstimateEmailContext): string {
   lines.push("--- FULL BRIEF ---");
   lines.push(buildEstimateBrief(data));
   lines.push("");
-  lines.push(`Reminder: ${estimateDisclaimer}`);
+  lines.push(`Reminder: ${enEstimate.disclaimer}`);
 
   return lines.join("\n");
 }

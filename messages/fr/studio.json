@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "title": "Dessinez votre salle en 2D et 3D",
+    "description": "Dessinez la salle de votre événement, placez les pans de draperie et une scène, puis prévisualisez le même aménagement dans un Studio 3D interactif."
+  },
+  "hero": {
+    "badge": "Studio The Curtain Guy",
+    "title": "Dessinez votre salle et prévisualisez votre drapage d'événement en 3D.",
+    "description": "Créez un plan de salle pratique en vue de dessus, placez les pans de draperie et une scène, puis passez à une vue 3D interactive rapide — sans perdre la précision de votre dessin original.",
+    "ctaStart": "Commencer à dessiner",
+    "ctaSaved": "Voir les designs sauvegardés",
+    "ctaEstimate": "Demander une estimation",
+    "imageAlt": "Espace événementiel avec draperie de luxe illustrant le Studio de conception de salle",
+    "viewsLabel": "Un design, deux vues",
+    "view2d": "Plan 2D",
+    "view3d": "3D généré"
+  },
+  "templates": {
+    "eyebrow": "Choisissez un point de départ",
+    "title": "Commencez avec la forme de salle que vous connaissez.",
+    "startRoom": "Commencer cette salle",
+    "rectangle": {
+      "title": "Salle rectangulaire",
+      "body": "Le flux V1 le plus précis pour les salles de bal, halls et espaces événementiels.",
+      "badge": "Recommandé"
+    },
+    "lShape": {
+      "title": "Salle en L",
+      "body": "Définissez la salle globale et une découpe rectangulaire pratique.",
+      "badge": "Fonctionnel"
+    },
+    "custom": {
+      "title": "Vierge / personnalisé",
+      "body": "Commencez avec un contour personnalisé de base. L'édition par points arrive dans une prochaine version.",
+      "badge": "Bêta"
+    }
+  },
+  "features": {
+    "draw": {
+      "title": "Dessin à l'échelle",
+      "body": "Partez des dimensions de la salle en pieds et pouces, puis affinez chaque mur."
+    },
+    "drape": {
+      "title": "Placer le drapage événementiel",
+      "body": "Ajoutez des traitements muraux complets, des pans partiels, des toiles de fond et des séparateurs."
+    },
+    "preview": {
+      "title": "Prévisualisation 3D",
+      "body": "La salle 3D est générée directement à partir des mêmes données de dessin."
+    },
+    "save": {
+      "title": "Sauvegarder dans votre compte",
+      "body": "Conservez vos designs avec vos estimations et votre planification d'événement lorsque vous êtes connecté."
+    }
+  },
+  "aiTeaser": {
+    "eyebrow": "Conçu d'abord pour une planification précise",
+    "title": "L'assistance design par IA arrive bientôt.",
+    "description": "Le Studio d'aujourd'hui est manuel par conception. Le téléversement de plan et les suggestions assistées par IA ne font pas partie de cette première version.",
+    "cta": "Voir la suite"
+  }
+}

@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { galleryPageCategories } from "@/data/site";
 import { SectionHeading } from "@/components/section-heading";
 import { SectionShell } from "@/components/section-shell";
@@ -8,14 +11,28 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+const galleryPageCategoryKeys = [
+  "weddings",
+  "corporate",
+  "galas",
+  "mitzvahs",
+  "stage",
+  "room-transformation",
+  "blackout-masking",
+  "photo-backdrops",
+] as const;
+
 export function GalleryCategoriesSection() {
+  const t = useTranslations("gallery");
+  const tc = useTranslations("common");
+
   return (
     <SectionShell variant="elevated" divider="top" className="py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
-          eyebrow="Categories"
-          title="Event draping categories we serve."
-          description="From wedding draping and gala drape rentals to stage backdrops, blackout masking, and photo moments — each category is scoped, installed, and torn down by our Montreal team."
+          eyebrow={t("page.eyebrow")}
+          title={t("page.title")}
+          description={t("page.description")}
           align="center"
           className="mx-auto"
         />
@@ -23,9 +40,11 @@ export function GalleryCategoriesSection() {
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {galleryPageCategories.map((category, index) => {
             const Icon = category.icon;
+            const categoryKey = galleryPageCategoryKeys[index];
+            const label = t(`pageCategories.${categoryKey}.label`);
             return (
               <Card
-                key={category.label}
+                key={categoryKey}
                 className={cn(
                   "group overflow-hidden border-border/40 bg-background/50 p-0 surface-tile",
                   "transition-all duration-500 hover:border-primary/25 hover:bg-background/70",
@@ -36,7 +55,7 @@ export function GalleryCategoriesSection() {
                   {category.image && (
                     <Image
                       src={category.image}
-                      alt={category.alt ?? category.label}
+                      alt={category.alt ?? label}
                       fill
                       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       className="object-cover transition-transform duration-700 group-hover:scale-[1.04]"
@@ -56,14 +75,14 @@ export function GalleryCategoriesSection() {
                       {String(index + 1).padStart(2, "0")}
                     </p>
                     <h3 className="font-heading text-sm font-medium text-foreground">
-                      {category.label}
+                      {label}
                     </h3>
                   </div>
                 </div>
 
                 <CardContent className="px-4 pb-5 pt-4">
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    {category.description}
+                    {t(`pageCategories.${categoryKey}.description`)}
                   </p>
                 </CardContent>
               </Card>
@@ -79,22 +98,21 @@ export function GalleryCategoriesSection() {
           <div className="relative flex flex-col items-center gap-5 text-center sm:flex-row sm:justify-between sm:text-left">
             <div className="max-w-xl">
               <p className="font-heading text-lg font-medium text-foreground sm:text-xl">
-                Ready to plan your own venue transformation drape rental?
+                {t("cta.headline")}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Share your event type, venue, and draping goals — we&apos;ll help
-                shape the right Montreal event drape rental setup.
+                {t("cta.description")}
               </p>
             </div>
             <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
               <Button asChild>
                 <Link href="/get-estimate">
-                  Get Estimate
+                  {tc("getEstimate")}
                   <ArrowRight />
                 </Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/contact">Contact Us</Link>
+                <Link href="/contact">{tc("contact")}</Link>
               </Button>
             </div>
           </div>

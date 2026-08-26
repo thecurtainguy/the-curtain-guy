@@ -1,4 +1,4 @@
-import { getOptionLabel, eventTypes } from "@/data/estimate";
+import { getEnglishOptionLabel } from "@/data/estimate";
 import { getContactFrom, getContactNotifyTo } from "@/lib/env";
 import type { ContactFormData } from "@/lib/contact-schema";
 
@@ -27,7 +27,7 @@ function displayValue(value: string): string {
 function formatEventType(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "—";
-  return getOptionLabel(eventTypes, trimmed) ?? trimmed;
+  return getEnglishOptionLabel("eventTypes", trimmed) ?? trimmed;
 }
 
 async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {

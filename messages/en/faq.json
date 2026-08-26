@@ -1,0 +1,158 @@
+{
+  "categories": {
+    "about": {
+      "label": "About our rentals",
+      "description": "What The Curtain Guy does — and what we don’t."
+    },
+    "estimates": {
+      "label": "Estimates & pricing",
+      "description": "How quoting works before your event date."
+    },
+    "venue": {
+      "label": "Venues & installation",
+      "description": "Access, timing, and on-site logistics."
+    },
+    "studio": {
+      "label": "Studio & visualization",
+      "description": "Draw your room before you request a quote."
+    },
+    "services": {
+      "label": "Services & fabrics",
+      "description": "Pipe and drape, backdrops, blackout, and more."
+    }
+  },
+  "items": {
+    "about": [
+      {
+        "question": "Do you sell residential window curtains or blinds?",
+        "answer": "No. The Curtain Guy rents temporary event draping for live occasions — weddings, galas, corporate events, mitzvahs, and venue transformations. We are not a residential curtain store or e-commerce shop."
+      },
+      {
+        "question": "What areas do you serve?",
+        "answer": "We are based in Montreal and serve the city plus surrounding communities across Quebec. Share your venue address in a Get Estimate request and we will confirm service availability."
+      },
+      {
+        "question": "Is this full-service rental?",
+        "answer": "Yes. Our event drape rentals include inventory, delivery, professional installation, and teardown. Hardware, rigging safety, and finishing details are handled by experienced crews — not drop-off only."
+      },
+      {
+        "question": "What types of events do you drape?",
+        "answer": "Weddings, corporate functions, galas, Bar and Bat Mitzvah celebrations, stage productions, trade setups, and full-room venue transformations. If the goal is atmosphere, masking, or backdrop focus, draping is usually a fit."
+      }
+    ],
+    "estimates": [
+      {
+        "question": "How do I get an event drape estimate?",
+        "answer": "Use our Get Estimate builder to share event date, venue, guest count, draping goals, and inspiration. We review the brief and follow up with a tailored quote — often including line items for fabric, hardware, labour, and logistics."
+      },
+      {
+        "question": "What details help you quote faster?",
+        "answer": "Event date, venue name or address, room dimensions or floor plans, install and teardown windows, fabric preferences, and photos of the space. Our Studio tool can also help you sketch a room layout before you submit."
+      },
+      {
+        "question": "When should I book event draping?",
+        "answer": "Popular weekends and peak season dates fill early. Reaching out 2–3 months ahead is ideal for weddings and galas; we can often accommodate shorter timelines depending on inventory and crew availability."
+      },
+      {
+        "question": "Do you require a deposit?",
+        "answer": "Accepted quotes typically include deposit and balance milestones tied to your event schedule. Exact terms appear on your proposal so you know what is due and when."
+      }
+    ],
+    "venue": [
+      {
+        "question": "Do you work with hotels, banquet halls, and unconventional venues?",
+        "answer": "Yes — ballrooms, hotels, community halls, warehouses, tents, and production spaces. We coordinate load-in paths, ceiling rules, and venue policies as part of planning."
+      },
+      {
+        "question": "How long does installation take?",
+        "answer": "Timing depends on wall lengths, ceiling height, fabric type, and complexity. Simple backdrop setups may take a few hours; full perimeter ballroom draping can require a longer install window — we confirm this in your job schedule."
+      },
+      {
+        "question": "Can draping work around AV, catering, and fire exits?",
+        "answer": "Absolutely. We plan around doors, sprinklers, exit paths, lighting rigs, and stage elements. Safety and venue compliance are built into the layout — not added at the last minute."
+      },
+      {
+        "question": "Who handles teardown after the event?",
+        "answer": "Our crew returns per your agreed window — often late night or next morning — to strike hardware, pack inventory, and restore the venue access path."
+      }
+    ],
+    "studio": [
+      {
+        "question": "What is The Curtain Guy Studio?",
+        "answer": "Studio is our free room design tool. Draw your event space to scale, place drape runs and stage elements, then preview the same layout in interactive 3D before you submit an estimate."
+      },
+      {
+        "question": "Do I need an account to use Studio?",
+        "answer": "You can explore Studio and start a layout without an account. Saving designs and linking them to estimates or quotes works best once you sign in — so your planner and our team share one reference."
+      },
+      {
+        "question": "Can I attach a Studio design to my estimate request?",
+        "answer": "Yes. When you submit Get Estimate, you can reference a saved Studio design so we see wall lengths, treatment types, and layout intent from the start."
+      }
+    ],
+    "services": [
+      {
+        "question": "What is pipe and drape rental?",
+        "answer": "Pipe and drape is a modular upright-and-crossbar system dressed with fabric panels — ideal for temporary walls, registration areas, perimeter masking, and venue zoning without permanent construction."
+      },
+      {
+        "question": "Can draping transform a wedding venue?",
+        "answer": "Yes. Temporary draping can mask unfinished walls, create ceremony focus, soften large ballrooms, and define photo moments — always planned around your specific room and timeline."
+      },
+      {
+        "question": "Do you offer black stage drape and blackout masking?",
+        "answer": "Yes. Blackout and black velour options help control light spill, conceal backstage areas, and create presentation-focused zones for galas, productions, and corporate stages."
+      },
+      {
+        "question": "Can a backdrop work with LED walls or lighting?",
+        "answer": "Often yes. We plan fabric finish, depth, and rigging so backdrops complement — not fight — your AV and lighting design. Share tech riders or production notes early for the best result."
+      },
+      {
+        "question": "Do you provide brand-coloured fabrics for corporate events?",
+        "answer": "We can align drape palettes with brand guidelines where inventory allows. Share Pantone references or brand kits with your estimate request."
+      }
+    ]
+  },
+  "topicChips": [
+    "Event drape rental",
+    "Montreal service area",
+    "Full-service install",
+    "Get Estimate",
+    "Studio room design",
+    "Wedding draping",
+    "Pipe & drape",
+    "Stage backdrops"
+  ],
+  "page": {
+    "eyebrow": "FAQ",
+    "title": "Frequently asked questions",
+    "description": "Answers about luxury event drape rentals in Montreal — what we do, how estimates work, venue planning, and our Studio tool.",
+    "popularTopics": "Popular topics",
+    "nextSteps": "Next steps",
+    "open": "Open",
+    "metaTitle": "Event Drape Rental FAQ Montreal",
+    "metaDescription": "Frequently asked questions about luxury event drape rentals in Montreal — estimates, venue planning, full-service installation, and Studio tools."
+  },
+  "quickLinks": {
+    "estimate": {
+      "label": "Get Estimate",
+      "description": "Share your venue and draping goals for a tailored quote."
+    },
+    "contact": {
+      "label": "Contact",
+      "description": "Reach our team directly for planning questions."
+    },
+    "services": {
+      "label": "Services",
+      "description": "Explore wedding, corporate, stage, and venue draping."
+    },
+    "studio": {
+      "label": "Studio",
+      "description": "Sketch your room and preview draping in 3D."
+    }
+  },
+  "cta": {
+    "headline": "Still have questions?",
+    "description": "Share your venue and draping goals — we follow up with a rental estimate conversation."
+  }
+}

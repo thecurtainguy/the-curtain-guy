@@ -1,11 +1,17 @@
-import { trustCapabilityLabels } from "@/data/services";
-import { trustProcessItems } from "@/data/site";
+"use client";
+
+import { useTranslations } from "next-intl";
+import { trustProcessItems, trustEventTypes } from "@/data/site";
 import { SectionShell } from "@/components/section-shell";
 import { Reveal } from "@/components/animation/reveal";
 import { Stagger, StaggerItem } from "@/components/animation/stagger";
 import { cn } from "@/lib/utils";
 
 export function TrustStrip() {
+  const t = useTranslations("home.trust");
+  const eventTypes = t.raw("eventTypes") as string[];
+  const processLabels = t.raw("process") as string[];
+
   return (
     <SectionShell divider="both" variant="fabric" className="bg-card/25">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,oklch(0.76_0.15_88/6%),transparent_55%)]" aria-hidden />
@@ -16,7 +22,7 @@ export function TrustStrip() {
             <div className="flex items-center gap-3 sm:gap-4">
               <span className="h-px w-12 bg-gradient-to-r from-transparent to-primary/40 sm:w-16" aria-hidden />
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary sm:text-sm">
-                Capability
+                {t("capability")}
               </p>
               <span className="h-px w-12 bg-gradient-to-l from-transparent to-primary/40 sm:w-16" aria-hidden />
             </div>
@@ -25,8 +31,9 @@ export function TrustStrip() {
               className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3"
               stagger={0.05}
             >
-              {trustCapabilityLabels.map((type) => {
+              {trustEventTypes.map((type, index) => {
                 const Icon = type.icon;
+                const label = eventTypes[index] ?? type.label;
                 return (
                   <StaggerItem key={type.label}>
                   <span
@@ -56,7 +63,7 @@ export function TrustStrip() {
                         "sm:text-xs"
                       )}
                     >
-                      {type.label}
+                      {label}
                     </span>
                     <span
                       className="pointer-events-none absolute inset-0 translate-x-[-120%] bg-gradient-to-r from-transparent via-primary/10 to-transparent opacity-0 transition-all duration-500 group-hover:translate-x-[120%] group-hover:opacity-100 motion-reduce:hidden"
@@ -72,6 +79,7 @@ export function TrustStrip() {
           <Stagger className="grid w-full max-w-4xl grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {trustProcessItems.map((item, index) => {
               const Icon = item.icon;
+              const label = processLabels[index] ?? item.label;
               return (
                 <StaggerItem key={item.label}>
                 <div
@@ -105,7 +113,7 @@ export function TrustStrip() {
                   </div>
 
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground transition-colors duration-300 group-hover:text-primary sm:text-xs">
-                    {item.label}
+                    {label}
                   </p>
 
                   <span

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   CheckCircle2,
   Clock3,
@@ -11,8 +11,8 @@ import {
   Shield,
   UserPlus,
 } from "lucide-react";
-import { estimateDisclaimer } from "@/data/estimate";
 import { siteConfig } from "@/data/site";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { CurtainReveal } from "@/components/ui/curtain-reveal";
 import { CelebrationConfetti } from "@/components/ui/celebration-confetti";
@@ -46,6 +46,8 @@ export function EstimateSubmitSuccess({
   uploadProgress,
   onSubmitAnother,
 }: EstimateSubmitSuccessProps) {
+  const t = useTranslations("estimate.success");
+  const tDisclaimer = useTranslations("estimate");
   const stageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,21 +85,19 @@ export function EstimateSubmitSuccess({
         </span>
 
         <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-          Estimate received
+          {t("title")}
         </p>
         <h3 className="font-heading text-2xl font-semibold text-foreground sm:text-[1.65rem]">
-          The curtains are opening on your brief
+          {t("title")}
         </h3>
         <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
-          Your estimate brief was sent. The Curtain Guy team will review your
-          event details, measurements, and availability — then follow up by
-          email.
+          {t("description")}
         </p>
 
         {reference ? (
           <div className="surface-tile mx-auto w-full max-w-sm rounded-2xl px-4 py-3">
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Reference
+              {t("reference")}
             </p>
             <p className="mt-1 font-heading text-xl font-semibold text-foreground">
               {reference}
@@ -117,24 +117,23 @@ export function EstimateSubmitSuccess({
         </div>
 
         <div className="mx-auto w-full max-w-lg space-y-2 text-sm leading-relaxed text-muted-foreground">
-          <p>
-            A confirmation email has been sent if the email address was entered
-            correctly.
-          </p>
           {typeof uploadUploaded === "number" && uploadUploaded > 0 ? (
             <p className="text-emerald-700 dark:text-emerald-300">
-              {uploadUploaded} file{uploadUploaded === 1 ? "" : "s"} uploaded and
-              attached to your estimate.
+              {t("uploadPartial", {
+                uploaded: uploadUploaded,
+                failed: 0,
+              })}
             </p>
           ) : null}
           {uploadFailed && uploadFailed > 0 ? (
             <p className="text-amber-800 dark:text-amber-200">
-              Your estimate was received, but {uploadFailed} file
-              {uploadFailed === 1 ? "" : "s"} failed to upload. You can add files
-              later from your account.
+              {t("uploadPartial", {
+                uploaded: uploadUploaded ?? 0,
+                failed: uploadFailed,
+              })}
             </p>
           ) : null}
-          <p className="text-xs">{estimateDisclaimer}</p>
+          <p className="text-xs">{tDisclaimer("disclaimer")}</p>
         </div>
 
         {uploadProgress.length > 0 ? (
@@ -150,10 +149,7 @@ export function EstimateSubmitSuccess({
 
         {viewerRole === "guest" ? (
           <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
-            <p className="text-sm font-medium text-foreground">
-              Create an account to view this estimate, upload more files, and
-              track updates.
-            </p>
+            <p className="text-sm font-medium text-foreground">{t("guestCta")}</p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="min-h-10">
                 <Link
@@ -172,9 +168,7 @@ export function EstimateSubmitSuccess({
 
         {viewerRole === "customer" ? (
           <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
-            <p className="text-sm font-medium text-foreground">
-              This estimate is now saved to your account.
-            </p>
+            <p className="text-sm font-medium text-foreground">{t("customerCta")}</p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="min-h-10">
                 <Link href={accountHref}>View estimate in account</Link>
@@ -193,7 +187,7 @@ export function EstimateSubmitSuccess({
                   onClick={onSubmitAnother}
                 >
                   <Plus className="size-4" />
-                  Submit another estimate
+                  {t("newEstimate")}
                 </Button>
               ) : null}
             </div>
@@ -202,14 +196,12 @@ export function EstimateSubmitSuccess({
 
         {viewerRole === "owner" ? (
           <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
-            <p className="text-sm font-medium text-foreground">
-              Estimate received.
-            </p>
+            <p className="text-sm font-medium text-foreground">{t("title")}</p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="min-h-10">
                 <Link href={adminHref}>
                   <Shield className="size-4" />
-                  View in admin
+                  {t("ownerCta")}
                 </Link>
               </Button>
               <Button asChild variant="outline" className="min-h-10">
@@ -226,7 +218,7 @@ export function EstimateSubmitSuccess({
                   onClick={onSubmitAnother}
                 >
                   <Plus className="size-4" />
-                  Submit another estimate
+                  {t("newEstimate")}
                 </Button>
               ) : null}
             </div>

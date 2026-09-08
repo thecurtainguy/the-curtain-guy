@@ -157,43 +157,47 @@ export function evaluateProductCompleteness(input: {
         });
       }
     }
+    // Product-linked full/transport services are optional — public logistics
+    // is cart-level by delivery zone (see rentals-logistics.ts).
     if (!input.product.full_service_product_id) {
       issues.push({
         code: "missing_full_service",
-        message: "Link a Full service (transport + install + teardown) item.",
-        severity: "error",
+        message:
+          "Optional: link a Full service SKU for admin reference (public cart uses zone pricing).",
+        severity: "warning",
       });
     } else if (!input.fullService) {
       issues.push({
         code: "broken_full_service",
         message: "Full service link is broken.",
-        severity: "error",
+        severity: "warning",
       });
     } else if (!input.fullService.is_active) {
       issues.push({
         code: "broken_full_service",
         message: "Linked Full service item is inactive.",
-        severity: "error",
+        severity: "warning",
       });
     }
 
     if (!input.product.transport_only_product_id) {
       issues.push({
         code: "missing_transport_only",
-        message: "Link a Transport only service item.",
-        severity: "error",
+        message:
+          "Optional: link a Transport only SKU for admin reference (public cart uses zone pricing).",
+        severity: "warning",
       });
     } else if (!input.transportOnly) {
       issues.push({
         code: "broken_transport_only",
         message: "Transport only link is broken.",
-        severity: "error",
+        severity: "warning",
       });
     } else if (!input.transportOnly.is_active) {
       issues.push({
         code: "broken_transport_only",
         message: "Linked Transport only item is inactive.",
-        severity: "error",
+        severity: "warning",
       });
     }
   }

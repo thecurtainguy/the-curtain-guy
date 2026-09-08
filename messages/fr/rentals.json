@@ -1,13 +1,13 @@
 {
   "page": {
-    "eyebrow": "Location",
+    "eyebrow": "Locations",
     "title": "Locations de drapés d’événement à configurer",
-    "description": "Parcourez les forfaits publics, réglez le métrage linéaire ou la quantité, choisissez le service complet ou le transport, puis envoyez une demande d’estimation — le prix final est confirmé par notre équipe.",
+    "description": "Parcourez les forfaits publics, réglez le métrage linéaire ou la quantité, puis envoyez une demande d’estimation — le prix final est confirmé par notre équipe.",
     "catalogEyebrow": "Catalogue",
     "catalogTitle": "Forfaits disponibles",
     "catalogDescription": "Chaque fiche est prête pour la configuration publique. Les prix affichés sont des estimations de planification seulement.",
     "metaTitle": "Location de drapés d’événement Montréal",
-    "metaDescription": "Configurez des locations de drapés de luxe à Montréal — forfaits au pied linéaire, options et installation clé en main. Demandez une estimation en ligne."
+    "metaDescription": "Configurez des locations de drapés de luxe à Montréal — forfaits au pied linéaire, options et logistique. Demandez une estimation en ligne."
   },
   "catalog": {
     "emptyTitle": "Catalogue bientôt disponible",
@@ -36,13 +36,14 @@
     "includeQty": "{qty} {unit}",
     "serviceEyebrow": "Service",
     "serviceTitle": "Livraison et installation",
+    "logisticsNote": "Le service complet ou le transport TCG se choisit une seule fois pour tout le panier — dans le tiroir panier et au paiement avec votre zone de livraison.",
     "fullServiceDescription": "Transport, installation professionnelle et démontage — recommandé pour la plupart des lieux.",
-    "transportWarning": "Sans service complet, notre équipe n’installera ni ne démontera. Vous êtes responsable du montage sur place. Le transport seul nécessite tout de même une planification avec nous.",
+    "transportWarning": "Sans service complet, notre équipe n’installera ni ne démontera. Vous êtes responsable du montage sur place.",
     "transportDescription": "Livraison et ramassage seulement — pas d’installation ni de démontage.",
     "addonsEyebrow": "Optionnel",
     "addonsTitle": "Extras",
     "addonQty": "Quantité pour {name}",
-    "estimateTotal": "Sous-total estimé",
+    "estimateTotal": "Estimation du forfait",
     "addToCart": "Ajouter au panier"
   },
   "cart": {
@@ -56,7 +57,29 @@
     "checkout": "Demander une estimation",
     "footerNote": "Aucun paiement en ligne — ceci envoie une demande d’estimation.",
     "fabLabel": "Panier",
-    "openAria": "Ouvrir le panier de location"
+    "openAria": "Ouvrir le panier de location",
+    "logisticsEyebrow": "Logistique",
+    "logisticsTitle": "Livraison et équipe TCG",
+    "logisticsHint": "Un seul choix pour tout le panier — pas par produit.",
+    "logisticsNeedZone": "Choisir la zone à la commande",
+    "logisticsDiyPrice": "Sans frais de logistique",
+    "logisticsZoneCheckout": "Choisissez votre zone de livraison à la page de commande pour débloquer l’estimation forfaitaire.",
+    "logisticsDiyWarning": "TCG ne livrera pas, n’installera pas et ne démontera pas. Vous gérez toute la logistique.",
+    "logisticsQuoteOnly": "Selon devis",
+    "logisticsModes": {
+      "full_service": {
+        "title": "Service complet",
+        "description": "Transport + installation + démontage"
+      },
+      "transport_only": {
+        "title": "Transport seulement",
+        "description": "Livraison / récupération — sans équipe d’installation"
+      },
+      "diy": {
+        "title": "Je m’en occupe",
+        "description": "Sans transport ni installation TCG"
+      }
+    }
   },
   "checkout": {
     "eyebrow": "Commande",
@@ -75,9 +98,20 @@
       "eventDatePlaceholder": "Choisir une date",
       "eventType": "Type d’événement",
       "venue": "Nom du lieu",
+      "address": "Adresse (optionnel)",
+      "addressPlaceholder": "123 rue Exemple, bureau…",
+      "addressHint": "Optionnel pour l’instant — utile pour l’équipe, mais le tarif de livraison suit la zone choisie ci-dessous (pas de géocodage).",
+      "deliveryZone": "Zone de livraison",
+      "deliveryZoneHint": "Choisissez la zone qui correspond à votre lieu. Cela fixe l’estimation forfaitaire de logistique. Hors zone = selon devis.",
       "city": "Ville / secteur",
       "message": "Notes pour notre équipe"
     },
+    "zoneQuoteOnly": "Selon devis",
+    "zoneDiy": "Sans frais de logistique",
+    "summaryPackages": "Forfaits {amount}",
+    "summaryLogistics": "{label} : {amount}",
+    "summaryLogisticsPending": "Logistique : choisissez une zone de livraison",
+    "summaryLogisticsDiy": "Logistique : gérée par vous",
     "disclaimer": "Ceci est une demande d’estimation, pas un prix final. Notre équipe révise les mesures, la main-d’œuvre, la livraison, l’installation et le démontage avant de confirmer.",
     "submit": "Envoyer la demande",
     "emptyCart": "Votre panier est vide. Ajoutez des forfaits avant de continuer.",
@@ -86,7 +120,9 @@
     "summaryTitle": "Résumé de l’estimation",
     "summaryItems": "{count, plural, one {# forfait} other {# forfaits}}",
     "errors": {
-      "generic": "Une erreur s’est produite. Veuillez réessayer."
+      "generic": "Une erreur s’est produite. Veuillez réessayer.",
+      "zoneRequired": "Sélectionnez une zone de livraison pour continuer.",
+      "venueRequired": "Le nom du lieu est requis."
     },
     "success": {
       "eyebrow": "Demande reçue",

@@ -36,13 +36,14 @@
     "includeQty": "{qty} {unit}",
     "serviceEyebrow": "Service",
     "serviceTitle": "Delivery & installation",
+    "logisticsNote": "TCG full service or transport is chosen once for your whole cart — in the cart drawer and at checkout with your delivery area.",
     "fullServiceDescription": "Transport, professional installation, and teardown — recommended for most venues.",
     "transportWarning": "Without full service, our crew will not install or tear down. You are responsible for setup on site. Transport-only still requires scheduling with our team.",
     "transportDescription": "Delivery and pickup only — no installation or teardown.",
     "addonsEyebrow": "Optional",
     "addonsTitle": "Add-ons",
     "addonQty": "Quantity for {name}",
-    "estimateTotal": "Estimate subtotal",
+    "estimateTotal": "Package estimate",
     "addToCart": "Add to cart"
   },
   "cart": {
@@ -56,7 +57,29 @@
     "checkout": "Request estimate",
     "footerNote": "No payment online — this submits a planning estimate request.",
     "fabLabel": "Cart",
-    "openAria": "Open rental cart"
+    "openAria": "Open rental cart",
+    "logisticsEyebrow": "Logistics",
+    "logisticsTitle": "TCG delivery & crew",
+    "logisticsHint": "One choice for the whole cart — not per product.",
+    "logisticsNeedZone": "Select delivery area at checkout",
+    "logisticsDiyPrice": "No logistics charge",
+    "logisticsZoneCheckout": "Pick your delivery area on the checkout page to unlock the flat transport estimate.",
+    "logisticsDiyWarning": "TCG will not deliver, install, or tear down. You handle all logistics.",
+    "logisticsQuoteOnly": "Subject to quote",
+    "logisticsModes": {
+      "full_service": {
+        "title": "Full service",
+        "description": "Transport + install + teardown"
+      },
+      "transport_only": {
+        "title": "Transport only",
+        "description": "Delivery / pickup — no install crew"
+      },
+      "diy": {
+        "title": "I'll handle it",
+        "description": "No TCG transport or install"
+      }
+    }
   },
   "checkout": {
     "eyebrow": "Checkout",
@@ -75,9 +98,20 @@
       "eventDatePlaceholder": "Select date",
       "eventType": "Event type",
       "venue": "Venue name",
+      "address": "Street address (optional)",
+      "addressPlaceholder": "123 Example St, Suite…",
+      "addressHint": "Optional for now — helps our team, but delivery pricing uses the zone you select below (not map geocoding).",
+      "deliveryZone": "Delivery area",
+      "deliveryZoneHint": "Choose the zone that matches your venue. This sets the flat logistics estimate. Outside areas are quote-only.",
       "city": "City / area",
       "message": "Notes for our team"
     },
+    "zoneQuoteOnly": "Subject to quote",
+    "zoneDiy": "No logistics charge",
+    "summaryPackages": "Packages {amount}",
+    "summaryLogistics": "{label}: {amount}",
+    "summaryLogisticsPending": "Logistics: choose a delivery area",
+    "summaryLogisticsDiy": "Logistics: handled by you",
     "disclaimer": "This is an estimate request, not final pricing. Our team reviews measurements, labor, delivery, installation, and teardown before confirming.",
     "submit": "Submit estimate request",
     "emptyCart": "Your cart is empty. Add packages before checkout.",
@@ -86,7 +120,9 @@
     "summaryTitle": "Estimate summary",
     "summaryItems": "{count, plural, one {# package} other {# packages}}",
     "errors": {
-      "generic": "Something went wrong. Please try again."
+      "generic": "Something went wrong. Please try again.",
+      "zoneRequired": "Select a delivery area to continue.",
+      "venueRequired": "Venue name is required."
     },
     "success": {
       "eyebrow": "Request received",

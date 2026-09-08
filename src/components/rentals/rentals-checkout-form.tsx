@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  Check,
   CheckCircle2,
   Clock3,
   MapPin,
@@ -10,6 +11,13 @@ import {
 import { useTranslations } from "next-intl";
 import { eventTypes } from "@/data/estimate";
 import { formatCadFromCents } from "@/data/rentals";
+import {
+  RENTAL_DELIVERY_ZONES,
+  formatLogisticsEstimateLabel,
+  getRentalDeliveryZone,
+  isRentalDeliveryZoneId,
+  type RentalDeliveryZoneId,
+} from "@/data/rentals-logistics";
 import { siteConfig } from "@/data/site";
 import { useLocalizedEventTypes } from "@/lib/i18n/estimate";
 import { Link } from "@/i18n/navigation";
@@ -45,7 +53,7 @@ type FormState = {
   eventDate: string;
   eventType: string;
   venueName: string;
-  cityArea: string;
+  venueAddress: string;
   message: string;
 };
 
@@ -55,7 +63,18 @@ export function RentalsCheckoutForm({
 }: RentalsCheckoutFormProps) {
   const t = useTranslations("rentals.checkout");
   const eventTypeOptions = useLocalizedEventTypes();
-  const { lines, subtotalCents, clear, itemCount } = useRentalsCart();
+  const {
+    lines,
+    checkoutLines,
+    subtotalCents,
+    clear,
+    itemCount,
+    logisticsMode,
+    deliveryZoneId,
+    setDeliveryZoneId,
+    logisticsLine,
+    merchandiseSubtotalCents,
+  } = useRentalsCart();
 
   const [form, setForm] = useState<FormState>({
     name: defaultContact?.name ?? "",
@@ -64,7 +83,7 @@ export function RentalsCheckoutForm({
     eventDate: "",
     eventType: eventTypes[0]?.id ?? "other",
     venueName: "",
-    cityArea: "",
+    venueAddress: "",
     message: "",
   });
   const [honeypot, setHoneypot] = useState("");
@@ -94,18 +113,46 @@ export function RentalsCheckoutForm({
       setSubmitError(t("emptyCart"));
       return;
     }
+    if (!deliveryZoneId) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        deliveryZoneId: t("errors.zoneRequired"),
+      }));
+      setSubmitError(t("errors.zoneRequired"));
+      return;
+    }
+    if (!form.venueName.trim()) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        venueName: t("errors.venueRequired"),
+      }));
+      setSubmitError(t("errors.venueRequired"));
+      return;
+    }
 
     setIsSubmitting(true);
     setSubmitError(null);
+
+    const zone = getRentalDeliveryZone(deliveryZoneId);
 
     try {
       const response = await fetch("/api/rentals/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          eventDate: form.eventDate,
+          eventType: form.eventType,
+          venueName: form.venueName,
+          venueAddress: form.venueAddress,
+          cityArea: zone?.label || deliveryZoneId,
+          deliveryZoneId,
+          logisticsMode,
+          message: form.message,
           website: honeypot,
-          lines,
+          lines: checkoutLines,
         }),
       });
 
@@ -319,32 +366,113 @@ export function RentalsCheckoutForm({
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="rentals-venue">{t("fields.venue")}</Label>
-                  <Input
-                    id="rentals-venue"
-                    value={form.venueName}
-                    onChange={(e) => updateField("venueName", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rentals-city">
-                    {t("fields.city")} <span className="text-primary">*</span>
+              <div className="space-y-2">
+                <Label htmlFor="rentals-venue">
+                  {t("fields.venue")} <span className="text-primary">*</span>
+                </Label>
+                <Input
+                  id="rentals-venue"
+                  value={form.venueName}
+                  onChange={(e) => updateField("venueName", e.target.value)}
+                  aria-invalid={fieldErrors.venueName ? true : undefined}
+                  required
+                />
+                {fieldErrors.venueName ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.venueName}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="rentals-address">{t("fields.address")}</Label>
+                <Input
+                  id="rentals-address"
+                  value={form.venueAddress}
+                  onChange={(e) => updateField("venueAddress", e.target.value)}
+                  placeholder={t("fields.addressPlaceholder")}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {t("fields.addressHint")}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <Label>
+                    {t("fields.deliveryZone")}{" "}
+                    <span className="text-primary">*</span>
                   </Label>
-                  <Input
-                    id="rentals-city"
-                    value={form.cityArea}
-                    onChange={(e) => updateField("cityArea", e.target.value)}
-                    aria-invalid={fieldErrors.cityArea ? true : undefined}
-                    required
-                  />
-                  {fieldErrors.cityArea ? (
-                    <p className="text-xs text-destructive">
-                      {fieldErrors.cityArea}
-                    </p>
-                  ) : null}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("fields.deliveryZoneHint")}
+                  </p>
                 </div>
+                <div className="grid gap-2" role="radiogroup">
+                  {RENTAL_DELIVERY_ZONES.map((zone) => {
+                    const selected = deliveryZoneId === zone.id;
+                    const priceLabel =
+                      logisticsMode === "diy"
+                        ? t("zoneDiy")
+                        : !zone.priced
+                          ? t("zoneQuoteOnly")
+                          : formatLogisticsEstimateLabel({
+                              mode: logisticsMode,
+                              zoneId: zone.id,
+                            });
+                    return (
+                      <button
+                        key={zone.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => {
+                          if (isRentalDeliveryZoneId(zone.id)) {
+                            setDeliveryZoneId(zone.id as RentalDeliveryZoneId);
+                          }
+                          if (fieldErrors.deliveryZoneId) {
+                            setFieldErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.deliveryZoneId;
+                              return next;
+                            });
+                          }
+                        }}
+                        className={cn(
+                          "flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition-all",
+                          "border-border/40 bg-background/40 hover:border-primary/30",
+                          "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+                          selected &&
+                            "border-primary/50 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"
+                        )}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium text-foreground">
+                            {zone.label}
+                          </span>
+                          <span className="mt-1 block text-xs font-medium text-primary">
+                            {priceLabel}
+                          </span>
+                        </span>
+                        <span
+                          className={cn(
+                            "flex size-5 shrink-0 items-center justify-center rounded-full border",
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "border-border/60 bg-background/50 text-transparent"
+                          )}
+                          aria-hidden
+                        >
+                          <Check className="size-3" strokeWidth={3} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {fieldErrors.deliveryZoneId ? (
+                  <p className="text-xs text-destructive">
+                    {fieldErrors.deliveryZoneId}
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -400,6 +528,30 @@ export function RentalsCheckoutForm({
           <h3 className="mt-1 font-heading text-lg font-semibold">
             {t("summaryTitle")}
           </h3>
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t("summaryPackages", {
+              amount: formatCadFromCents(merchandiseSubtotalCents),
+            })}
+          </p>
+          {logisticsLine ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("summaryLogistics", {
+                label: logisticsLine.name,
+                amount:
+                  logisticsLine.unitPriceCents > 0
+                    ? formatCadFromCents(logisticsLine.unitPriceCents)
+                    : t("zoneQuoteOnly"),
+              })}
+            </p>
+          ) : logisticsMode !== "diy" ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("summaryLogisticsPending")}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("summaryLogisticsDiy")}
+            </p>
+          )}
           <p className="mt-3 font-heading text-2xl font-semibold text-foreground">
             {formatCadFromCents(subtotalCents)}
           </p>

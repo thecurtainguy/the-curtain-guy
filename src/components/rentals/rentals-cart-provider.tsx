@@ -10,18 +10,38 @@ import {
   type ReactNode,
 } from "react";
 import type { RentalCartLine } from "@/data/rentals";
+import {
+  buildCartLogisticsLine,
+  isRentalDeliveryZoneId,
+  isRentalLogisticsMode,
+  stripServiceLines,
+  type RentalDeliveryZoneId,
+  type RentalLogisticsMode,
+} from "@/data/rentals-logistics";
 import { cartSubtotalCents } from "@/lib/rentals";
 
-const STORAGE_KEY = "tcg-rentals-cart-v1";
+const STORAGE_KEY = "tcg-rentals-cart-v2";
 
 type StoredCart = {
-  version: 1;
+  version: 2;
   lines: RentalCartLine[];
+  logisticsMode: RentalLogisticsMode;
+  deliveryZoneId: RentalDeliveryZoneId | null;
   updatedAt: string;
+};
+
+type CartSnapshot = {
+  lines: RentalCartLine[];
+  logisticsMode: RentalLogisticsMode;
+  deliveryZoneId: RentalDeliveryZoneId | null;
 };
 
 type RentalsCartContextValue = {
   lines: RentalCartLine[];
+  logisticsMode: RentalLogisticsMode;
+  deliveryZoneId: RentalDeliveryZoneId | null;
+  setLogisticsMode: (mode: RentalLogisticsMode) => void;
+  setDeliveryZoneId: (zoneId: RentalDeliveryZoneId | null) => void;
   hydrated: boolean;
   sheetOpen: boolean;
   setSheetOpen: (open: boolean) => void;
@@ -30,14 +50,25 @@ type RentalsCartContextValue = {
   addLines: (lines: RentalCartLine[]) => void;
   removeByParentKey: (parentKey: string) => void;
   clear: () => void;
+  /** Product lines only (no logistics). */
+  merchandiseSubtotalCents: number;
+  /** Merchandise + logistics estimate when zone is known. */
   subtotalCents: number;
+  logisticsLine: RentalCartLine | null;
+  checkoutLines: RentalCartLine[];
   itemCount: number;
 };
 
 const RentalsCartContext = createContext<RentalsCartContextValue | null>(null);
 
 const EMPTY_LINES: RentalCartLine[] = [];
-let cachedLines: RentalCartLine[] = EMPTY_LINES;
+const DEFAULT_SNAPSHOT: CartSnapshot = {
+  lines: EMPTY_LINES,
+  logisticsMode: "full_service",
+  deliveryZoneId: null,
+};
+
+let cachedSnapshot: CartSnapshot = DEFAULT_SNAPSHOT;
 let didHydrateFromStorage = false;
 const listeners = new Set<() => void>();
 
@@ -45,35 +76,70 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
-function parseStoredCart(): RentalCartLine[] {
-  if (typeof window === "undefined") return EMPTY_LINES;
+function parseStoredCart(): CartSnapshot {
+  if (typeof window === "undefined") return DEFAULT_SNAPSHOT;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY_LINES;
-    const parsed = JSON.parse(raw) as StoredCart;
-    if (parsed?.version !== 1 || !Array.isArray(parsed.lines)) {
-      return EMPTY_LINES;
+    const rawV2 = window.localStorage.getItem(STORAGE_KEY);
+    if (rawV2) {
+      const parsed = JSON.parse(rawV2) as StoredCart;
+      if (parsed?.version === 2 && Array.isArray(parsed.lines)) {
+        return {
+          lines: stripServiceLines(
+            parsed.lines.length ? parsed.lines : EMPTY_LINES
+          ),
+          logisticsMode: isRentalLogisticsMode(parsed.logisticsMode)
+            ? parsed.logisticsMode
+            : "full_service",
+          deliveryZoneId:
+            parsed.deliveryZoneId &&
+            isRentalDeliveryZoneId(parsed.deliveryZoneId)
+              ? parsed.deliveryZoneId
+              : null,
+        };
+      }
     }
-    return parsed.lines.length ? parsed.lines : EMPTY_LINES;
+
+    // Migrate v1 cart lines if present
+    const rawV1 = window.localStorage.getItem("tcg-rentals-cart-v1");
+    if (rawV1) {
+      const parsed = JSON.parse(rawV1) as {
+        version?: number;
+        lines?: RentalCartLine[];
+      };
+      if (Array.isArray(parsed.lines) && parsed.lines.length) {
+        return {
+          lines: stripServiceLines(parsed.lines),
+          logisticsMode: "full_service",
+          deliveryZoneId: null,
+        };
+      }
+    }
   } catch {
-    return EMPTY_LINES;
+    /* ignore */
   }
+  return DEFAULT_SNAPSHOT;
 }
 
 function ensureHydratedFromStorage() {
   if (didHydrateFromStorage || typeof window === "undefined") return;
   didHydrateFromStorage = true;
-  cachedLines = parseStoredCart();
+  cachedSnapshot = parseStoredCart();
 }
 
-function writeStoredCart(lines: RentalCartLine[]) {
-  const next = lines.length ? lines : EMPTY_LINES;
-  cachedLines = next;
+function writeStoredCart(next: CartSnapshot) {
+  const lines = next.lines.length ? next.lines : EMPTY_LINES;
+  cachedSnapshot = {
+    lines,
+    logisticsMode: next.logisticsMode,
+    deliveryZoneId: next.deliveryZoneId,
+  };
   didHydrateFromStorage = true;
   if (typeof window !== "undefined") {
     const payload: StoredCart = {
-      version: 1,
-      lines: next === EMPTY_LINES ? [] : next,
+      version: 2,
+      lines: lines === EMPTY_LINES ? [] : lines,
+      logisticsMode: cachedSnapshot.logisticsMode,
+      deliveryZoneId: cachedSnapshot.deliveryZoneId,
       updatedAt: new Date().toISOString(),
     };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -87,13 +153,13 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-function getClientSnapshot(): RentalCartLine[] {
+function getClientSnapshot(): CartSnapshot {
   ensureHydratedFromStorage();
-  return cachedLines;
+  return cachedSnapshot;
 }
 
-function getServerSnapshot(): RentalCartLine[] {
-  return EMPTY_LINES;
+function getServerSnapshot(): CartSnapshot {
+  return DEFAULT_SNAPSHOT;
 }
 
 function getHydratedClientSnapshot(): boolean {
@@ -116,7 +182,7 @@ function isInGroup(line: RentalCartLine, parentKey: string): boolean {
 }
 
 export function RentalsCartProvider({ children }: { children: ReactNode }) {
-  const lines = useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     subscribe,
     getClientSnapshot,
     getServerSnapshot
@@ -129,31 +195,75 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const addLines = useCallback((incoming: RentalCartLine[]) => {
-    if (!incoming.length) return;
-    const parentKey = groupParentKey(incoming);
+    const cleaned = stripServiceLines(incoming);
+    if (!cleaned.length) return;
+    const parentKey = groupParentKey(cleaned);
     const prev = getClientSnapshot();
     const filtered =
       parentKey != null
-        ? prev.filter((line) => !isInGroup(line, parentKey))
-        : prev;
-    writeStoredCart([...filtered, ...incoming]);
+        ? prev.lines.filter((line) => !isInGroup(line, parentKey))
+        : prev.lines;
+    writeStoredCart({
+      ...prev,
+      lines: [...filtered, ...cleaned],
+    });
     setSheetOpen(true);
   }, []);
 
   const removeByParentKey = useCallback((parentKey: string) => {
-    writeStoredCart(
-      getClientSnapshot().filter((line) => !isInGroup(line, parentKey))
-    );
+    const prev = getClientSnapshot();
+    writeStoredCart({
+      ...prev,
+      lines: prev.lines.filter((line) => !isInGroup(line, parentKey)),
+    });
   }, []);
 
   const clear = useCallback(() => {
-    writeStoredCart([]);
+    writeStoredCart({
+      lines: EMPTY_LINES,
+      logisticsMode: "full_service",
+      deliveryZoneId: null,
+    });
   }, []);
 
+  const setLogisticsMode = useCallback((mode: RentalLogisticsMode) => {
+    const prev = getClientSnapshot();
+    writeStoredCart({ ...prev, logisticsMode: mode });
+  }, []);
+
+  const setDeliveryZoneId = useCallback(
+    (zoneId: RentalDeliveryZoneId | null) => {
+      const prev = getClientSnapshot();
+      writeStoredCart({ ...prev, deliveryZoneId: zoneId });
+    },
+    []
+  );
+
   const value = useMemo<RentalsCartContextValue>(() => {
+    const lines = snapshot.lines;
+    const logisticsLine = buildCartLogisticsLine({
+      mode: snapshot.logisticsMode,
+      zoneId: snapshot.deliveryZoneId,
+    });
+    // Only attach a priced or quote-only logistics line once a zone is chosen
+    // (or DIY which returns null). Mode alone without zone = no line yet.
+    const resolvedLogistics =
+      snapshot.logisticsMode === "diy"
+        ? null
+        : snapshot.deliveryZoneId
+          ? logisticsLine
+          : null;
+    const checkoutLines = resolvedLogistics
+      ? [...lines, resolvedLogistics]
+      : lines;
     const mains = lines.filter((line) => line.lineKind === "main");
+    const merchandiseSubtotalCents = cartSubtotalCents(lines);
     return {
       lines,
+      logisticsMode: snapshot.logisticsMode,
+      deliveryZoneId: snapshot.deliveryZoneId,
+      setLogisticsMode,
+      setDeliveryZoneId,
       hydrated,
       sheetOpen,
       setSheetOpen,
@@ -162,10 +272,22 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
       addLines,
       removeByParentKey,
       clear,
-      subtotalCents: cartSubtotalCents(lines),
+      merchandiseSubtotalCents,
+      subtotalCents: cartSubtotalCents(checkoutLines),
+      logisticsLine: resolvedLogistics,
+      checkoutLines,
       itemCount: mains.length,
     };
-  }, [lines, hydrated, sheetOpen, addLines, removeByParentKey, clear]);
+  }, [
+    snapshot,
+    hydrated,
+    sheetOpen,
+    addLines,
+    removeByParentKey,
+    clear,
+    setLogisticsMode,
+    setDeliveryZoneId,
+  ]);
 
   return (
     <RentalsCartContext.Provider value={value}>

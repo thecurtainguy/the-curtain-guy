@@ -25,7 +25,10 @@ export type RentalsCheckoutInput = {
   eventDate?: string;
   eventType?: string;
   venueName?: string;
+  venueAddress?: string;
   cityArea?: string;
+  deliveryZoneId?: string;
+  logisticsMode?: string;
   message?: string;
   lines: RentalCartLine[];
   submittedFromUrl?: string | null;
@@ -71,6 +74,13 @@ function linesToEstimateForm(
     message: [
       input.message?.trim(),
       "Submitted from Rentals cart (estimate only — final quote by The Curtain Guy).",
+      input.deliveryZoneId
+        ? `Delivery zone: ${input.cityArea || input.deliveryZoneId}`
+        : null,
+      input.logisticsMode ? `Logistics mode: ${input.logisticsMode}` : null,
+      input.venueAddress?.trim()
+        ? `Venue address: ${input.venueAddress.trim()}`
+        : null,
       `Cart estimate subtotal: ${formatCadFromCents(totalCents)}`,
       "",
       "Cart lines:",
@@ -85,20 +95,27 @@ function linesToEstimateForm(
 }
 
 function cartLinesToQuoteItems(lines: RentalCartLine[]): LineItemInput[] {
-  return lines.map((line, index) => ({
-    category: line.category || "custom",
-    description: line.description,
-    quantity: line.quantity,
-    unit_price_cents: line.unitPriceCents,
-    status: "priced",
-    customer_visible: true,
-    is_taxable: line.isTaxable && line.unitPriceCents > 0,
-    tax_category: line.isTaxable && line.unitPriceCents > 0 ? "standard" : "exempt",
-    sort_order: index,
-    product_id: line.productId,
-    image_url: line.imageUrl,
-    image_alt: line.imageAlt,
-  }));
+  return lines.map((line, index) => {
+    const looksLikeUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        line.productId
+      );
+    return {
+      category: line.category || "custom",
+      description: line.description,
+      quantity: line.quantity,
+      unit_price_cents: line.unitPriceCents,
+      status: "priced",
+      customer_visible: true,
+      is_taxable: line.isTaxable && line.unitPriceCents > 0,
+      tax_category:
+        line.isTaxable && line.unitPriceCents > 0 ? "standard" : "exempt",
+      sort_order: index,
+      product_id: looksLikeUuid ? line.productId : null,
+      image_url: line.imageUrl,
+      image_alt: line.imageAlt,
+    };
+  });
 }
 
 export async function submitRentalsCheckout(
@@ -109,6 +126,10 @@ export async function submitRentalsCheckout(
   const email = input.email.trim();
   if (!email) fieldErrors.email = "Email is required.";
   else if (!isValidEmail(email)) fieldErrors.email = "Enter a valid email.";
+  if (!input.venueName?.trim()) fieldErrors.venueName = "Venue name is required.";
+  if (!input.deliveryZoneId?.trim()) {
+    fieldErrors.deliveryZoneId = "Select a delivery area.";
+  }
   if (!input.cityArea?.trim()) fieldErrors.cityArea = "City or area is required.";
   if (!input.lines.length) {
     return { ok: false, message: "Your cart is empty." };

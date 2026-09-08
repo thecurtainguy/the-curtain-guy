@@ -10,6 +10,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       enableSystem={false}
       storageKey="tcg-theme"
       disableTransitionOnChange
+      scriptProps={{ suppressHydrationWarning: true }}
     >
       {children}
     </NextThemesProvider>

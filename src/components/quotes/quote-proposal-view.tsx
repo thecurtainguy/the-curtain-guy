@@ -616,31 +616,53 @@ export function QuoteProposalView({
                           key={item.id}
                           className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1.6fr)_72px_100px_110px] sm:items-center sm:gap-3 sm:px-5"
                         >
-                          <div className="min-w-0 space-y-2">
-                            <p className="font-medium text-foreground">
-                              {item.description}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="inline-flex rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-primary">
-                                {categoryLabel(item.category)}
-                              </span>
-                              <QuoteLineStatusBadge status={item.status} />
-                              {item.is_taxable !== false ? (
-                                <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                                  Taxable
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                                  Non-taxable
-                                </span>
+                          <div className="flex min-w-0 gap-3">
+                            <div
+                              className={cn(
+                                "relative size-14 shrink-0 overflow-hidden rounded-xl border sm:size-16",
+                                item.image_url
+                                  ? "border-border/40 bg-muted/30"
+                                  : "border-[#e2d4b0]/40 bg-[#f5efe0] dark:border-primary/20 dark:bg-primary/10"
                               )}
+                              aria-hidden={!item.image_url}
+                            >
+                              {item.image_url ? (
+                                <Image
+                                  src={item.image_url}
+                                  alt={item.image_alt || item.description}
+                                  fill
+                                  className="object-cover"
+                                  sizes="64px"
+                                  unoptimized
+                                />
+                              ) : null}
                             </div>
-                            <p className="text-xs text-muted-foreground sm:hidden">
-                              Qty {item.quantity}
-                              {showMoney
-                                ? ` · ${formatCadFromCents(item.unit_price_cents)} each`
-                                : ""}
-                            </p>
+                            <div className="min-w-0 space-y-2">
+                              <p className="font-medium text-foreground">
+                                {item.description}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="inline-flex rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-primary">
+                                  {categoryLabel(item.category)}
+                                </span>
+                                <QuoteLineStatusBadge status={item.status} />
+                                {item.is_taxable !== false ? (
+                                  <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                                    Taxable
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
+                                    Non-taxable
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground sm:hidden">
+                                Qty {item.quantity}
+                                {showMoney
+                                  ? ` · ${formatCadFromCents(item.unit_price_cents)} each`
+                                  : ""}
+                              </p>
+                            </div>
                           </div>
                           <p className="hidden text-right text-sm tabular-nums text-foreground sm:block">
                             {item.quantity}

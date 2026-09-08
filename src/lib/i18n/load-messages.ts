@@ -5,6 +5,7 @@ const namespaces = [
   "nav",
   "home",
   "services",
+  "rentals",
   "areas",
   "faq",
   "estimate",

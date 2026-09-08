@@ -10,6 +10,7 @@ import { Reveal } from "@/components/animation/reveal";
 const navKeyByHref: Record<string, string> = {
   "/": "home",
   "/services": "services",
+  "/rentals": "rentals",
   "/gallery": "gallery",
   "/about": "about",
   "/contact": "contact",

@@ -404,7 +404,7 @@ export async function recalculateQuoteTotals(quoteId: string): Promise<void> {
 
 export async function createQuoteFromEstimate(input: {
   estimate: EstimateRequestRow;
-  createdByUserId: string;
+  createdByUserId?: string | null;
 }): Promise<{ quote: QuoteRow; created: boolean } | { error: string }> {
   const opportunityRef = await ensureOpportunityRef(input.estimate.id);
   if (!opportunityRef) {
@@ -437,7 +437,7 @@ export async function createQuoteFromEstimate(input: {
       gst_rate: DEFAULT_GST_RATE,
       qst_rate: DEFAULT_QST_RATE,
       terms: DEFAULT_QUOTE_TERMS,
-      created_by_user_id: input.createdByUserId,
+      created_by_user_id: input.createdByUserId || null,
     })
     .select("*")
     .single();
@@ -450,7 +450,7 @@ export async function createQuoteFromEstimate(input: {
   await logQuoteEvent({
     quoteId: data.id,
     actorType: "owner",
-    actorUserId: input.createdByUserId,
+    actorUserId: input.createdByUserId || null,
     eventType: "quote_created",
     summary: `Created ${displayRef}`,
     metadata: {
@@ -650,6 +650,9 @@ export async function createQuoteRevision(input: {
       is_taxable: item.is_taxable !== false,
       tax_category: item.tax_category || "standard",
       sort_order: item.sort_order ?? index,
+      product_id: item.product_id ?? null,
+      image_url: item.image_url ?? null,
+      image_alt: item.image_alt ?? null,
     }));
     const { error: lineError } = await admin
       .from("quote_line_items")
@@ -805,6 +808,9 @@ export type LineItemInput = {
   is_taxable?: boolean;
   tax_category?: QuoteTaxCategory | string;
   sort_order?: number;
+  product_id?: string | null;
+  image_url?: string | null;
+  image_alt?: string | null;
 };
 
 export async function upsertLineItems(input: {
@@ -861,6 +867,9 @@ export async function upsertLineItems(input: {
       is_taxable: isTaxable,
       tax_category: isTaxable ? taxCategory : "exempt",
       sort_order: item.sort_order ?? index,
+      product_id: item.product_id ?? null,
+      image_url: item.image_url?.trim() || null,
+      image_alt: item.image_alt?.trim() || null,
     };
 
     if (item.id) {

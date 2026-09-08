@@ -206,6 +206,7 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.navySoft,
     borderRadius: 6,
     paddingVertical: 7,
@@ -221,18 +222,63 @@ const styles = StyleSheet.create({
   },
   tableRow: {
     flexDirection: "row",
-    paddingVertical: 7,
+    alignItems: "flex-start",
+    paddingVertical: 8,
     paddingHorizontal: 8,
     borderBottomWidth: 0.75,
     borderBottomColor: COLORS.line,
   },
-  colDesc: { width: "44%" },
-  colCat: { width: "20%" },
-  colQty: { width: "10%", textAlign: "right" },
-  colUnit: { width: "13%", textAlign: "right" },
-  colTotal: { width: "13%", textAlign: "right" },
-  cell: { fontSize: 8.5, color: COLORS.ink },
-  cellMuted: { fontSize: 8, color: COLORS.muted },
+  colThumb: {
+    width: "7%",
+    paddingRight: 6,
+  },
+  lineThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    objectFit: "cover",
+  },
+  lineThumbPlaceholder: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    backgroundColor: COLORS.goldWash,
+  },
+  colDesc: {
+    width: "38%",
+    paddingRight: 10,
+  },
+  colCat: {
+    width: "18%",
+    paddingRight: 8,
+  },
+  colQty: {
+    width: "10%",
+    paddingRight: 6,
+  },
+  colUnit: {
+    width: "13%",
+    paddingRight: 6,
+  },
+  colTotal: {
+    width: "14%",
+  },
+  cell: {
+    fontSize: 8.5,
+    color: COLORS.ink,
+    lineHeight: 1.35,
+  },
+  cellMuted: {
+    fontSize: 8,
+    color: COLORS.muted,
+    lineHeight: 1.35,
+  },
+  cellRight: {
+    textAlign: "right",
+  },
+  headerRight: {
+    textAlign: "right",
+  },
   totalsWrap: {
     marginTop: 10,
     flexDirection: "row",
@@ -564,40 +610,75 @@ function QuotePdfDocument({
 
         <Text style={styles.sectionTitle}>Scope & pricing</Text>
         <View style={styles.tableHeader}>
-          <Text style={[styles.colDesc, styles.tableHeaderText]}>
-            Description
-          </Text>
-          <Text style={[styles.colCat, styles.tableHeaderText]}>Category</Text>
-          <Text style={[styles.colQty, styles.tableHeaderText]}>Qty</Text>
-          <Text style={[styles.colUnit, styles.tableHeaderText]}>Unit</Text>
-          <Text style={[styles.colTotal, styles.tableHeaderText]}>Total</Text>
+          <View style={styles.colThumb}>
+            <Text style={styles.tableHeaderText}> </Text>
+          </View>
+          <View style={styles.colDesc}>
+            <Text style={styles.tableHeaderText}>Description</Text>
+          </View>
+          <View style={styles.colCat}>
+            <Text style={styles.tableHeaderText}>Category</Text>
+          </View>
+          <View style={styles.colQty}>
+            <Text style={[styles.tableHeaderText, styles.headerRight]}>
+              Qty
+            </Text>
+          </View>
+          <View style={styles.colUnit}>
+            <Text style={[styles.tableHeaderText, styles.headerRight]}>
+              Unit
+            </Text>
+          </View>
+          <View style={styles.colTotal}>
+            <Text style={[styles.tableHeaderText, styles.headerRight]}>
+              Total
+            </Text>
+          </View>
         </View>
         {pricedItems.length === 0 ? (
           <Text style={styles.cellMuted}>No priced line items yet.</Text>
         ) : (
           pricedItems.map((item) => (
             <View key={item.id} style={styles.tableRow} wrap={false}>
-              <Text style={[styles.colDesc, styles.cell]}>
-                {item.description}
-                {item.status === "included" ? " (Included)" : ""}
-              </Text>
-              <Text style={[styles.colCat, styles.cellMuted]}>
-                {QUOTE_CATEGORY_LABELS[item.category as QuoteLineCategory] ||
-                  item.category}
-              </Text>
-              <Text style={[styles.colQty, styles.cell]}>
-                {String(item.quantity)}
-              </Text>
-              <Text style={[styles.colUnit, styles.cell]}>
-                {item.status === "included"
-                  ? "—"
-                  : formatCadFromCents(item.unit_price_cents)}
-              </Text>
-              <Text style={[styles.colTotal, styles.cell]}>
-                {item.status === "included"
-                  ? "Included"
-                  : formatCadFromCents(item.line_total_cents)}
-              </Text>
+              <View style={styles.colThumb}>
+                {item.image_url ? (
+                  // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
+                  <Image src={item.image_url} style={styles.lineThumb} />
+                ) : (
+                  <View style={styles.lineThumbPlaceholder} />
+                )}
+              </View>
+              <View style={styles.colDesc}>
+                <Text style={styles.cell}>
+                  {item.description}
+                  {item.status === "included" ? " (Included)" : ""}
+                </Text>
+              </View>
+              <View style={styles.colCat}>
+                <Text style={styles.cellMuted}>
+                  {QUOTE_CATEGORY_LABELS[item.category as QuoteLineCategory] ||
+                    item.category}
+                </Text>
+              </View>
+              <View style={styles.colQty}>
+                <Text style={[styles.cell, styles.cellRight]}>
+                  {String(item.quantity)}
+                </Text>
+              </View>
+              <View style={styles.colUnit}>
+                <Text style={[styles.cell, styles.cellRight]}>
+                  {item.status === "included"
+                    ? "—"
+                    : formatCadFromCents(item.unit_price_cents)}
+                </Text>
+              </View>
+              <View style={styles.colTotal}>
+                <Text style={[styles.cell, styles.cellRight]}>
+                  {item.status === "included"
+                    ? "Included"
+                    : formatCadFromCents(item.line_total_cents)}
+                </Text>
+              </View>
             </View>
           ))
         )}

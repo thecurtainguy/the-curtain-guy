@@ -1,0 +1,104 @@
+{
+  "page": {
+    "eyebrow": "Rentals",
+    "title": "Event drape rentals you can configure",
+    "description": "Browse public rental packages, set linear footage or quantity, choose full service or transport, and send an estimate request — final pricing confirmed by our team.",
+    "catalogEyebrow": "Catalog",
+    "catalogTitle": "Available packages",
+    "catalogDescription": "Each listing is ready for public configuration. Prices shown are planning estimates only.",
+    "metaTitle": "Event Drape Rentals Montreal",
+    "metaDescription": "Configure luxury event drape rentals in Montreal — linear footage packages, add-ons, and full-service install options. Request an estimate online."
+  },
+  "catalog": {
+    "emptyTitle": "Catalog coming soon",
+    "emptyDescription": "Public rental packages will appear here once they are marked ready in the product catalog.",
+    "fromPerFt": "From {price} / linear ft",
+    "fromEach": "From {price} / {unit}"
+  },
+  "product": {
+    "eyebrow": "Configure rental",
+    "detailsEyebrow": "Details",
+    "fromPerFt": "From {price} / linear ft",
+    "fromEach": "From {price} / {unit}",
+    "fallbackDescription": "Configure {name} for your Montreal event and request an estimate.",
+    "notFoundTitle": "Rental not found",
+    "notFoundDescription": "This rental package is unavailable or not ready for public booking."
+  },
+  "configurator": {
+    "estimateEyebrow": "Estimate only",
+    "disclaimer": "Prices and quantities are planning estimates — not a final quote. The Curtain Guy reviews measurements, labor, delivery, installation, teardown, and availability before confirming rental pricing.",
+    "disclaimerShort": "Estimate only. Final quote after team review.",
+    "linearFeet": "Linear feet of draping",
+    "segmentsHint": "About {segments} segment(s) at {feet} ft each (rounded up).",
+    "quantity": "Quantity",
+    "includesEyebrow": "Included",
+    "includesTitle": "Hardware & components",
+    "includeQty": "{qty} {unit}",
+    "serviceEyebrow": "Service",
+    "serviceTitle": "Delivery & installation",
+    "fullServiceDescription": "Transport, professional installation, and teardown — recommended for most venues.",
+    "transportWarning": "Without full service, our crew will not install or tear down. You are responsible for setup on site. Transport-only still requires scheduling with our team.",
+    "transportDescription": "Delivery and pickup only — no installation or teardown.",
+    "addonsEyebrow": "Optional",
+    "addonsTitle": "Add-ons",
+    "addonQty": "Quantity for {name}",
+    "estimateTotal": "Estimate subtotal",
+    "addToCart": "Add to cart"
+  },
+  "cart": {
+    "title": "Your rental cart",
+    "disclaimer": "Cart totals are estimates only. Final rental pricing is confirmed by The Curtain Guy after review.",
+    "empty": "Your cart is empty. Browse packages to get started.",
+    "browse": "Browse rentals",
+    "remove": "Remove from cart",
+    "included": "Included",
+    "estimateSubtotal": "Estimate subtotal",
+    "checkout": "Request estimate",
+    "footerNote": "No payment online — this submits a planning estimate request.",
+    "fabLabel": "Cart",
+    "openAria": "Open rental cart"
+  },
+  "checkout": {
+    "eyebrow": "Checkout",
+    "title": "Request your rental estimate",
+    "description": "Share event details and we will turn your cart into a reviewed estimate. No payment is taken online.",
+    "metaTitle": "Rentals Checkout",
+    "metaDescription": "Submit your event drape rental cart for a reviewed estimate from The Curtain Guy in Montreal.",
+    "formEyebrow": "Contact",
+    "formTitle": "Event & contact details",
+    "formDescription": "We use this to follow up on your rental estimate request.",
+    "fields": {
+      "name": "Full name",
+      "email": "Email",
+      "phone": "Phone",
+      "eventDate": "Event date",
+      "eventDatePlaceholder": "Select date",
+      "eventType": "Event type",
+      "venue": "Venue name",
+      "city": "City / area",
+      "message": "Notes for our team"
+    },
+    "disclaimer": "This is an estimate request, not final pricing. Our team reviews measurements, labor, delivery, installation, and teardown before confirming.",
+    "submit": "Submit estimate request",
+    "emptyCart": "Your cart is empty. Add packages before checkout.",
+    "browse": "Browse rentals",
+    "summaryEyebrow": "Cart",
+    "summaryTitle": "Estimate summary",
+    "summaryItems": "{count, plural, one {# package} other {# packages}}",
+    "errors": {
+      "generic": "Something went wrong. Please try again."
+    },
+    "success": {
+      "eyebrow": "Request received",
+      "title": "Your rental estimate is on its way",
+      "description": "Thanks — we received your cart and will follow up, usually within one business day.",
+      "reference": "Reference",
+      "responseTime": "Usually within one business day",
+      "guestCta": "Create an account to track estimates and quotes.",
+      "createAccount": "Create an account",
+      "signIn": "Sign in",
+      "viewAccount": "View estimates in account",
+      "backToRentals": "Back to rentals"
+    }
+  }
+}

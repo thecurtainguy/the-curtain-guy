@@ -100,13 +100,21 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       )}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <Script id="tcg-theme-init" strategy="beforeInteractive">
+        <Script
+          id="tcg-theme-init"
+          strategy="beforeInteractive"
+          suppressHydrationWarning
+        >
           {`(function(){try{var t=localStorage.getItem("tcg-theme");if(t==="dark"){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}}catch(e){document.documentElement.classList.remove("dark")}})();`}
         </Script>
         <script
           type="application/ld+json"
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify(buildSiteGraphJsonLd(navItems)),
+            __html: JSON.stringify(buildSiteGraphJsonLd(navItems)).replace(
+              /</g,
+              "\\u003c"
+            ),
           }}
         />
         <ThemeProvider>

@@ -86,6 +86,18 @@ export async function POST(request: Request, context: RouteContext) {
         typeof row.tax_category === "string" ? row.tax_category : "standard",
       sort_order:
         typeof row.sort_order === "number" ? row.sort_order : undefined,
+      product_id:
+        typeof row.product_id === "string" && row.product_id.trim()
+          ? row.product_id.trim()
+          : null,
+      image_url:
+        typeof row.image_url === "string" && row.image_url.trim()
+          ? row.image_url.trim()
+          : null,
+      image_alt:
+        typeof row.image_alt === "string" && row.image_alt.trim()
+          ? row.image_alt.trim()
+          : null,
     });
   }
 

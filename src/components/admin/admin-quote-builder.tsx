@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Check,
+  ChevronDown,
   Copy,
   Download,
   ExternalLink,
   FileText,
   Loader2,
+  Package,
   Pencil,
   Plus,
   Trash2,
@@ -31,6 +33,7 @@ import {
   rateToPercentInput,
   resolveQuoteDisplayRef,
   shouldAutofillQuoteDescription,
+  isQuoteLineCategory,
   type QuoteLineCategory,
   type QuoteLineStatus,
   type QuoteManualTaxLine,
@@ -62,9 +65,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import {
+  AdminInventoryPickerDialog,
+  type InventoryPickResult,
+} from "@/components/admin/admin-inventory-picker-dialog";
+import Image from "next/image";
 
 const selectClass =
-  "flex h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-70";
+  "h-8 w-full min-w-0 appearance-none rounded-2xl border border-transparent bg-input/50 py-1 pl-2.5 pr-8 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-70";
+
+function PrettySelect({
+  className,
+  children,
+  ...props
+}: ComponentProps<"select">) {
+  return (
+    <div className="relative">
+      <select className={cn(selectClass, className)} {...props}>
+        {children}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+        strokeWidth={2}
+        aria-hidden
+      />
+    </div>
+  );
+}
 
 type QuoteSourceEventPlan = {
   id: string;
@@ -80,6 +107,9 @@ type DraftLine = {
   unitPriceDollars: string;
   status: QuoteLineStatus;
   isTaxable: boolean;
+  productId: string | null;
+  imageUrl: string | null;
+  imageAlt: string | null;
 };
 
 type DraftManualTaxLine = {
@@ -104,6 +134,9 @@ function linesFromQuote(quote: QuoteWithRelations): DraftLine[] {
     unitPriceDollars: centsToDollarInput(item.unit_price_cents),
     status: item.status,
     isTaxable: item.is_taxable !== false,
+    productId: item.product_id ?? null,
+    imageUrl: item.image_url ?? null,
+    imageAlt: item.image_alt ?? null,
   }));
 }
 
@@ -164,6 +197,27 @@ function emptyLine(): DraftLine {
     unitPriceDollars: "0.00",
     status: "priced",
     isTaxable: true,
+    productId: null,
+    imageUrl: null,
+    imageAlt: null,
+  };
+}
+
+function lineFromInventory(item: InventoryPickResult): DraftLine {
+  const category = isQuoteLineCategory(item.category)
+    ? item.category
+    : "custom";
+  return {
+    key: `new-${crypto.randomUUID()}`,
+    category,
+    description: item.description,
+    quantity: 1,
+    unitPriceDollars: centsToDollarInput(item.unitPriceCents),
+    status: "priced",
+    isTaxable: item.isTaxable,
+    productId: item.productId,
+    imageUrl: item.imageUrl,
+    imageAlt: item.imageAlt,
   };
 }
 
@@ -209,6 +263,7 @@ export function AdminQuoteBuilder({
   const [error, setError] = useState<string | null>(null);
   const [publicUrl, setPublicUrl] = useState<string | null>(initialGuestUrl);
   const [copied, setCopied] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
 
   const [convertFor, setConvertFor] = useState<string | null>(null);
   const [convertCategory, setConvertCategory] =
@@ -337,6 +392,9 @@ export function AdminQuoteBuilder({
         is_taxable: line.isTaxable,
         tax_category: line.isTaxable ? "standard" : "exempt",
         sort_order: index,
+        product_id: line.productId,
+        image_url: line.imageUrl,
+        image_alt: line.imageAlt,
       })),
       tax_mode: taxMode,
       manual_tax_lines: draftManualLines,
@@ -790,23 +848,42 @@ export function AdminQuoteBuilder({
             </p>
           </div>
           {isEditing ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setLines((prev) => [...prev, emptyLine()])}
-            >
-              <Plus className="size-4" />
-              Add row
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setInventoryOpen(true)}
+              >
+                <Package className="size-4" />
+                Add from inventory
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLines((prev) => [...prev, emptyLine()])}
+              >
+                <Plus className="size-4" />
+                Add row
+              </Button>
+            </div>
           ) : null}
         </div>
+
+        <AdminInventoryPickerDialog
+          open={inventoryOpen}
+          onOpenChange={setInventoryOpen}
+          onPick={(item) =>
+            setLines((prev) => [...prev, lineFromInventory(item)])
+          }
+        />
 
         <div className="mt-4 space-y-3">
           {lines.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-border/40 px-4 py-8 text-center text-sm text-muted-foreground">
               {isEditing
-                ? "No line items yet. Add a row to start pricing."
+                ? "No line items yet. Add from inventory or add a blank row."
                 : "No line items yet."}
             </p>
           ) : (
@@ -818,14 +895,29 @@ export function AdminQuoteBuilder({
               return (
                 <div
                   key={line.key}
-                  className="grid gap-3 rounded-2xl border border-border/40 bg-background/40 p-4 xl:grid-cols-[minmax(140px,0.9fr)_minmax(0,1.8fr)_72px_100px_minmax(110px,0.9fr)_120px_auto]"
+                  className="grid grid-cols-1 gap-3 rounded-2xl border border-border/40 bg-background/40 p-4 sm:grid-cols-[56px_minmax(0,1fr)] lg:grid-cols-[56px_210px_minmax(0,1fr)_72px_88px_128px_112px_96px] lg:items-end"
                 >
-                  <div className="space-y-1.5">
+                  <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
+                    {line.imageUrl ? (
+                      <Image
+                        src={line.imageUrl}
+                        alt={line.imageAlt || line.description}
+                        fill
+                        className="object-cover"
+                        sizes="56px"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-muted-foreground">
+                        <Package className="size-4" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
                       Category
                     </Label>
-                    <select
-                      className={selectClass}
+                    <PrettySelect
                       value={line.category}
                       disabled={!isEditing}
                       onChange={(e) =>
@@ -839,9 +931,9 @@ export function AdminQuoteBuilder({
                           {QUOTE_CATEGORY_LABELS[cat]}
                         </option>
                       ))}
-                    </select>
+                    </PrettySelect>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5 sm:col-span-2 lg:col-span-1">
                     <Label className="text-xs text-muted-foreground">
                       Description
                     </Label>
@@ -854,7 +946,7 @@ export function AdminQuoteBuilder({
                       placeholder="What is included"
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Qty</Label>
                     <Input
                       type="number"
@@ -869,7 +961,7 @@ export function AdminQuoteBuilder({
                       }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
                       Unit CAD
                     </Label>
@@ -884,12 +976,11 @@ export function AdminQuoteBuilder({
                       }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
                       Status
                     </Label>
-                    <select
-                      className={selectClass}
+                    <PrettySelect
                       value={line.status}
                       disabled={!isEditing}
                       onChange={(e) =>
@@ -903,14 +994,14 @@ export function AdminQuoteBuilder({
                           {QUOTE_LINE_STATUS_LABELS[status]}
                         </option>
                       ))}
-                    </select>
+                    </PrettySelect>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Tax</Label>
                     <label className="flex h-8 items-center gap-2 rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm">
                       <input
                         type="checkbox"
-                        className="size-4 rounded border-border accent-primary"
+                        className="size-4 shrink-0 rounded border-border accent-primary"
                         checked={line.isTaxable}
                         disabled={!isEditing}
                         onChange={(e) =>
@@ -919,13 +1010,13 @@ export function AdminQuoteBuilder({
                           })
                         }
                       />
-                      <span className="text-xs text-foreground">
-                        {line.isTaxable ? "Taxable" : "Non-taxable"}
+                      <span className="truncate text-xs text-foreground">
+                        {line.isTaxable ? "Taxable" : "Non-tax"}
                       </span>
                     </label>
                   </div>
-                  <div className="flex items-end justify-between gap-3 lg:flex-col lg:items-end">
-                    <p className="text-sm font-medium tabular-nums">
+                  <div className="flex min-w-0 items-end justify-between gap-2 lg:flex-col lg:items-end lg:justify-end">
+                    <p className="w-full text-right text-sm font-medium tabular-nums">
                       {formatCadFromCents(lineTotal)}
                     </p>
                     {isEditing ? (
@@ -933,7 +1024,7 @@ export function AdminQuoteBuilder({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:text-destructive"
+                        className="shrink-0 text-destructive hover:text-destructive"
                         onClick={() =>
                           setLines((prev) =>
                             prev.filter((row) => row.key !== line.key)
@@ -943,7 +1034,9 @@ export function AdminQuoteBuilder({
                       >
                         <Trash2 className="size-4" />
                       </Button>
-                    ) : null}
+                    ) : (
+                      <span className="hidden h-8 lg:block" aria-hidden />
+                    )}
                   </div>
                 </div>
               );
@@ -970,9 +1063,8 @@ export function AdminQuoteBuilder({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="tax_mode">Tax mode</Label>
-              <select
+              <PrettySelect
                 id="tax_mode"
-                className={selectClass}
                 value={taxMode}
                 disabled={!isEditing}
                 onChange={(e) =>
@@ -984,7 +1076,7 @@ export function AdminQuoteBuilder({
                     {QUOTE_TAX_MODE_LABELS[mode]}
                   </option>
                 ))}
-              </select>
+              </PrettySelect>
             </div>
 
             {isEditing ? (
@@ -1198,8 +1290,7 @@ export function AdminQuoteBuilder({
                   <div className="mt-3 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Category</Label>
-                      <select
-                        className={selectClass}
+                      <PrettySelect
                         value={convertCategory}
                         onChange={(e) => {
                           const next = e.target.value as QuoteLineCategory;
@@ -1216,7 +1307,7 @@ export function AdminQuoteBuilder({
                             {QUOTE_CATEGORY_LABELS[cat]}
                           </option>
                         ))}
-                      </select>
+                      </PrettySelect>
                     </div>
                     <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                       <Label className="text-xs">Description</Label>

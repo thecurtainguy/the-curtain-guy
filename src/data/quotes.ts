@@ -292,6 +292,9 @@ export type QuoteLineItemRow = {
   is_taxable: boolean;
   tax_category: QuoteTaxCategory;
   sort_order: number;
+  product_id: string | null;
+  image_url: string | null;
+  image_alt: string | null;
   created_at: string;
   updated_at: string;
 };

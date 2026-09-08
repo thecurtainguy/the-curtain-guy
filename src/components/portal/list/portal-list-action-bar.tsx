@@ -57,7 +57,7 @@ export function PortalListActionBar({
       )}
     >
       <div className="flex flex-col gap-2.5 px-3 py-3 sm:px-4 lg:flex-row lg:items-center lg:gap-3">
-        <div className="relative min-w-0 flex-1">
+        <div className="relative min-w-0 w-full lg:max-w-[16rem] xl:max-w-[18rem]">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="portal-list-q"
@@ -82,16 +82,16 @@ export function PortalListActionBar({
           ) : null}
         </div>
 
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           {hasStatusFilters ? (
-            <label className="relative inline-flex items-center">
+            <label className="relative inline-flex min-w-[9.5rem] items-center">
               <Filter className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
               <select
                 id="portal-list-status"
                 value={status}
                 onChange={(e) => onStatusChange?.(e.target.value)}
                 aria-label={statusLabel}
-                className="h-9 appearance-none rounded-lg border border-border bg-background py-0 pl-8 pr-8 text-sm text-foreground outline-none transition-colors hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="h-9 w-full appearance-none rounded-lg border border-border bg-background py-0 pl-8 pr-8 text-sm text-foreground outline-none transition-colors hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 <option value="">
                   {statusLabel}: {allStatusLabel}

@@ -1,0 +1,104 @@
+{
+  "page": {
+    "eyebrow": "Location",
+    "title": "Locations de drapés d’événement à configurer",
+    "description": "Parcourez les forfaits publics, réglez le métrage linéaire ou la quantité, choisissez le service complet ou le transport, puis envoyez une demande d’estimation — le prix final est confirmé par notre équipe.",
+    "catalogEyebrow": "Catalogue",
+    "catalogTitle": "Forfaits disponibles",
+    "catalogDescription": "Chaque fiche est prête pour la configuration publique. Les prix affichés sont des estimations de planification seulement.",
+    "metaTitle": "Location de drapés d’événement Montréal",
+    "metaDescription": "Configurez des locations de drapés de luxe à Montréal — forfaits au pied linéaire, options et installation clé en main. Demandez une estimation en ligne."
+  },
+  "catalog": {
+    "emptyTitle": "Catalogue bientôt disponible",
+    "emptyDescription": "Les forfaits publics apparaîtront ici une fois marqués prêts dans le catalogue produits.",
+    "fromPerFt": "À partir de {price} / pi linéaire",
+    "fromEach": "À partir de {price} / {unit}"
+  },
+  "product": {
+    "eyebrow": "Configurer la location",
+    "detailsEyebrow": "Détails",
+    "fromPerFt": "À partir de {price} / pi linéaire",
+    "fromEach": "À partir de {price} / {unit}",
+    "fallbackDescription": "Configurez {name} pour votre événement à Montréal et demandez une estimation.",
+    "notFoundTitle": "Location introuvable",
+    "notFoundDescription": "Ce forfait n’est pas disponible ou n’est pas prêt pour la réservation publique."
+  },
+  "configurator": {
+    "estimateEyebrow": "Estimation seulement",
+    "disclaimer": "Les prix et quantités sont des estimations de planification — pas un devis final. The Curtain Guy révise les mesures, la main-d’œuvre, la livraison, l’installation, le démontage et la disponibilité avant de confirmer le tarif.",
+    "disclaimerShort": "Estimation seulement. Devis final après révision.",
+    "linearFeet": "Pieds linéaires de drapé",
+    "segmentsHint": "Environ {segments} segment(s) de {feet} pi chacun (arrondi vers le haut).",
+    "quantity": "Quantité",
+    "includesEyebrow": "Inclus",
+    "includesTitle": "Matériel et composants",
+    "includeQty": "{qty} {unit}",
+    "serviceEyebrow": "Service",
+    "serviceTitle": "Livraison et installation",
+    "fullServiceDescription": "Transport, installation professionnelle et démontage — recommandé pour la plupart des lieux.",
+    "transportWarning": "Sans service complet, notre équipe n’installera ni ne démontera. Vous êtes responsable du montage sur place. Le transport seul nécessite tout de même une planification avec nous.",
+    "transportDescription": "Livraison et ramassage seulement — pas d’installation ni de démontage.",
+    "addonsEyebrow": "Optionnel",
+    "addonsTitle": "Extras",
+    "addonQty": "Quantité pour {name}",
+    "estimateTotal": "Sous-total estimé",
+    "addToCart": "Ajouter au panier"
+  },
+  "cart": {
+    "title": "Votre panier de location",
+    "disclaimer": "Les totaux du panier sont des estimations seulement. Le tarif final est confirmé par The Curtain Guy après révision.",
+    "empty": "Votre panier est vide. Parcourez les forfaits pour commencer.",
+    "browse": "Voir les locations",
+    "remove": "Retirer du panier",
+    "included": "Inclus",
+    "estimateSubtotal": "Sous-total estimé",
+    "checkout": "Demander une estimation",
+    "footerNote": "Aucun paiement en ligne — ceci envoie une demande d’estimation.",
+    "fabLabel": "Panier",
+    "openAria": "Ouvrir le panier de location"
+  },
+  "checkout": {
+    "eyebrow": "Commande",
+    "title": "Demandez votre estimation de location",
+    "description": "Partagez les détails de l’événement et nous transformerons votre panier en estimation révisée. Aucun paiement n’est pris en ligne.",
+    "metaTitle": "Panier locations",
+    "metaDescription": "Soumettez votre panier de location de drapés pour une estimation révisée par The Curtain Guy à Montréal.",
+    "formEyebrow": "Contact",
+    "formTitle": "Événement et coordonnées",
+    "formDescription": "Nous utilisons ces infos pour donner suite à votre demande d’estimation.",
+    "fields": {
+      "name": "Nom complet",
+      "email": "Courriel",
+      "phone": "Téléphone",
+      "eventDate": "Date de l’événement",
+      "eventDatePlaceholder": "Choisir une date",
+      "eventType": "Type d’événement",
+      "venue": "Nom du lieu",
+      "city": "Ville / secteur",
+      "message": "Notes pour notre équipe"
+    },
+    "disclaimer": "Ceci est une demande d’estimation, pas un prix final. Notre équipe révise les mesures, la main-d’œuvre, la livraison, l’installation et le démontage avant de confirmer.",
+    "submit": "Envoyer la demande",
+    "emptyCart": "Votre panier est vide. Ajoutez des forfaits avant de continuer.",
+    "browse": "Voir les locations",
+    "summaryEyebrow": "Panier",
+    "summaryTitle": "Résumé de l’estimation",
+    "summaryItems": "{count, plural, one {# forfait} other {# forfaits}}",
+    "errors": {
+      "generic": "Une erreur s’est produite. Veuillez réessayer."
+    },
+    "success": {
+      "eyebrow": "Demande reçue",
+      "title": "Votre estimation de location est en cours",
+      "description": "Merci — nous avons reçu votre panier et vous répondrons, généralement dans un jour ouvrable.",
+      "reference": "Référence",
+      "responseTime": "Généralement en un jour ouvrable",
+      "guestCta": "Créez un compte pour suivre vos estimations et devis.",
+      "createAccount": "Créer un compte",
+      "signIn": "Se connecter",
+      "viewAccount": "Voir les estimations dans le compte",
+      "backToRentals": "Retour aux locations"
+    }
+  }
+}

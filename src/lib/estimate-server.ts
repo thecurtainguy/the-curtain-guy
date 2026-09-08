@@ -16,6 +16,8 @@ export type EstimateInsertMeta = {
   userId?: string | null;
   uploadTokenHash?: string | null;
   uploadTokenExpiresAt?: string | null;
+  source?: string | null;
+  cartSnapshot?: unknown;
 };
 
 export type EstimateInsertResult =
@@ -191,6 +193,10 @@ export function buildEstimateInsertRow(
     user_id: meta.userId ?? null,
     upload_token_hash: meta.uploadTokenHash ?? null,
     upload_token_expires_at: meta.uploadTokenExpiresAt ?? null,
+    ...(meta.source ? { source: meta.source } : {}),
+    ...(meta.cartSnapshot !== undefined
+      ? { cart_snapshot: meta.cartSnapshot }
+      : {}),
   };
 }
 

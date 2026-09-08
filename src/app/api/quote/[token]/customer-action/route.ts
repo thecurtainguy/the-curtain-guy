@@ -71,6 +71,23 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  if (quote.status === "draft") {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "This proposal is still a draft and cannot be accepted yet.",
+      },
+      { status: 409 }
+    );
+  }
+
+  if (quote.status === "cancelled" || quote.status === "expired") {
+    return NextResponse.json(
+      { ok: false, message: "This proposal is no longer available." },
+      { status: 409 }
+    );
+  }
+
   const action = body.action?.trim();
   const admin = createAdminSupabaseClient();
   const email = quote.customer_email;

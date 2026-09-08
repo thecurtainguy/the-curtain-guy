@@ -24,6 +24,7 @@ export type EventPlanSubmissionRow = {
   design_json: Record<string, unknown>;
   owner_user_id: string | null;
   studio_design_id: string | null;
+  estimate_request_id: string | null;
   status: EventPlanStatus;
   submitted_from_url: string | null;
   user_agent: string | null;

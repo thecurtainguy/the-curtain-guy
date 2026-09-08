@@ -20,8 +20,22 @@ import {
   normalizeManualTaxLines,
   resolveQuoteDisplayRef,
 } from "@/data/quotes";
+import {
+  initialEstimateFormData,
+  type EstimateFormData,
+} from "@/data/estimate";
+import { formatEventPlanReference, type EventPlanSubmissionRow } from "@/data/event-plans";
+import { parseEventBuilderBrief } from "@/data/event-builder/brief";
 import { isEmailVerified } from "@/lib/auth";
-import type { EstimateRequestRow } from "@/lib/estimate-access";
+import {
+  fetchEstimateById,
+  type EstimateRequestRow,
+} from "@/lib/estimate-access";
+import { buildEstimateInsertRow } from "@/lib/estimate-server";
+import {
+  mapEventBuilderBriefToEstimate,
+  mergeEstimatePrefill,
+} from "@/lib/event-builder/map-brief-to-estimate";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import {
   buildPublicQuoteUrl,
@@ -234,7 +248,8 @@ export async function fetchQuoteByPublicToken(
     .from("quotes")
     .select("*")
     .eq("public_token_hash", tokenHash)
-    .neq("status", "draft")
+    // Guest links are issued on drafts for owner preview; cancel blocks the link.
+    .neq("status", "cancelled")
     .maybeSingle();
 
   if (error) {
@@ -451,6 +466,128 @@ export async function createQuoteFromEstimate(input: {
     .neq("status", "closed");
 
   return { quote: data as QuoteRow, created: true };
+}
+
+async function ensureEstimateFromEventPlan(
+  plan: EventPlanSubmissionRow
+): Promise<{ estimate: EstimateRequestRow } | { error: string }> {
+  const admin = createAdminSupabaseClient();
+
+  if (plan.estimate_request_id) {
+    const existing = await fetchEstimateById(plan.estimate_request_id);
+    if (existing) return { estimate: existing };
+  }
+
+  const brief = parseEventBuilderBrief(plan.brief_json);
+  if (!brief) {
+    return { error: "Event plan brief is invalid." };
+  }
+
+  const mapped = mapEventBuilderBriefToEstimate(brief);
+  const form: EstimateFormData = mergeEstimatePrefill(initialEstimateFormData, {
+    ...mapped,
+    name: plan.contact_name,
+    email: plan.contact_email,
+    phone: plan.contact_phone ?? "",
+    eventType: plan.event_type || mapped.eventType || "",
+    eventDate: plan.event_date || mapped.eventDate || "",
+    venueName: plan.venue_name || mapped.venueName || "",
+    cityArea: plan.city_area || mapped.cityArea || "Montreal area",
+    message: [
+      mapped.message?.trim(),
+      plan.notes?.trim() ? `Customer notes:\n${plan.notes.trim()}` : null,
+      `Source event plan: ${formatEventPlanReference(plan.id, plan.reference)}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+  });
+
+  if (!form.fabricDirections.length) {
+    form.fabricDirections = ["recommend"];
+  }
+  if (!form.drapeGoals.length) {
+    form.drapeGoals = ["full-room"];
+  }
+  if (!form.measurementsKnown) {
+    form.measurementsKnown = "help";
+  }
+  if (!form.floorPlanAvailable) {
+    form.floorPlanAvailable = "no";
+  }
+
+  const row = {
+    ...buildEstimateInsertRow(form, {
+      submittedFromUrl: plan.submitted_from_url,
+      userAgent: plan.user_agent,
+      userId: plan.owner_user_id,
+    }),
+    source: "event_plan_submission",
+    status: "reviewed",
+    raw_payload: {
+      ...form,
+      event_plan_submission_id: plan.id,
+      event_plan_reference: formatEventPlanReference(plan.id, plan.reference),
+      brief_json: plan.brief_json,
+    },
+  };
+
+  const { data: inserted, error } = await admin
+    .from("estimate_requests")
+    .insert(row)
+    .select("*")
+    .single();
+
+  if (error || !inserted) {
+    console.error("[quotes] ensureEstimateFromEventPlan insert", error);
+    return { error: error?.message || "Failed to create estimate from event plan." };
+  }
+
+  const estimate = inserted as EstimateRequestRow;
+
+  const { error: linkError } = await admin
+    .from("event_plan_submissions")
+    .update({ estimate_request_id: estimate.id })
+    .eq("id", plan.id);
+
+  if (linkError) {
+    console.error("[quotes] link event plan to estimate", linkError);
+  }
+
+  return { estimate };
+}
+
+export async function createQuoteFromEventPlan(input: {
+  plan: EventPlanSubmissionRow;
+  createdByUserId: string;
+}): Promise<
+  | { quote: QuoteRow; created: boolean; estimateId: string }
+  | { error: string }
+> {
+  const estimateResult = await ensureEstimateFromEventPlan(input.plan);
+  if ("error" in estimateResult) return estimateResult;
+
+  const quoteResult = await createQuoteFromEstimate({
+    estimate: estimateResult.estimate,
+    createdByUserId: input.createdByUserId,
+  });
+
+  if ("error" in quoteResult) return quoteResult;
+
+  const admin = createAdminSupabaseClient();
+  await admin
+    .from("event_plan_submissions")
+    .update({
+      estimate_request_id: estimateResult.estimate.id,
+      status: "quoted",
+    })
+    .eq("id", input.plan.id)
+    .neq("status", "archived");
+
+  return {
+    quote: quoteResult.quote,
+    created: quoteResult.created,
+    estimateId: estimateResult.estimate.id,
+  };
 }
 
 export async function createQuoteRevision(input: {

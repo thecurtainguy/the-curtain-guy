@@ -8,6 +8,7 @@ import { AdminQuoteBuilder } from "@/components/admin/admin-quote-builder";
 import { AdminQuoteJobActions } from "@/components/admin/admin-quote-job-actions";
 import { getSiteUrl } from "@/lib/env";
 import { fetchEstimateFiles } from "@/lib/estimate-access";
+import { fetchEventPlanByEstimateId } from "@/lib/event-plan-access";
 import { fetchJobByQuoteId } from "@/lib/jobs";
 import { fetchQuoteById, findActivePublicQuoteUrl } from "@/lib/quotes";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,9 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
         "pending",
       ])
     : [];
+  const sourceEventPlan = quote.estimate_request_id
+    ? await fetchEventPlanByEstimateId(quote.estimate_request_id)
+    : null;
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -77,6 +81,14 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
           quote={quote}
           initialGuestUrl={initialGuestUrl}
           opportunityFiles={estimateFiles}
+          sourceEventPlan={
+            sourceEventPlan
+              ? {
+                  id: sourceEventPlan.id,
+                  reference: sourceEventPlan.reference,
+                }
+              : null
+          }
         />
       </div>
     </AdminPageFrame>

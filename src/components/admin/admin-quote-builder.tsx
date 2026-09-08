@@ -54,6 +54,7 @@ import {
   centsToDollarInput,
   dollarsToCents,
 } from "@/lib/quote-tokens";
+import { formatEventPlanReference } from "@/data/event-plans";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { EventTypeInput } from "@/components/ui/event-type-input";
@@ -64,6 +65,11 @@ import { cn } from "@/lib/utils";
 
 const selectClass =
   "flex h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-70";
+
+type QuoteSourceEventPlan = {
+  id: string;
+  reference: string | null;
+};
 
 type DraftLine = {
   key: string;
@@ -165,11 +171,16 @@ export function AdminQuoteBuilder({
   quote,
   initialGuestUrl = null,
   opportunityFiles = [],
+  sourceEventPlan = null,
 }: {
   quote: QuoteWithRelations;
   initialGuestUrl?: string | null;
   opportunityFiles?: OpportunityFileItem[];
+  sourceEventPlan?: QuoteSourceEventPlan | null;
 }) {
+  const eventPlanRef = sourceEventPlan
+    ? formatEventPlanReference(sourceEventPlan.id, sourceEventPlan.reference)
+    : null;
   const router = useRouter();
   const { setDirty, clearDirty } = useOptionalUnsavedChanges();
   const [isEditing, setIsEditing] = useState(false);
@@ -554,7 +565,17 @@ export function AdminQuoteBuilder({
               ) : null;
             })()}
             <QuoteStatusBadge status={quote.status} />
-            {quote.estimate_request_id ? (
+            {sourceEventPlan && eventPlanRef ? (
+              <span>
+                From event plan{" "}
+                <Link
+                  href={`/admin/event-plans/${sourceEventPlan.id}`}
+                  className="font-medium text-primary hover:underline"
+                >
+                  {eventPlanRef}
+                </Link>
+              </span>
+            ) : quote.estimate_request_id ? (
               <span>
                 From{" "}
                 <Link
@@ -618,6 +639,25 @@ export function AdminQuoteBuilder({
           </div>
         }
       />
+
+      {sourceEventPlan && eventPlanRef ? (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/[0.08] px-4 py-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+              Source
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+              Converted from event plan{" "}
+              <span className="font-semibold text-primary">{eventPlanRef}</span>
+            </p>
+          </div>
+          <Button asChild size="sm">
+            <Link href={`/admin/event-plans/${sourceEventPlan.id}`}>
+              Open {eventPlanRef}
+            </Link>
+          </Button>
+        </section>
+      ) : null}
 
       {(message || error) && (
         <div
@@ -1307,8 +1347,15 @@ export function AdminQuoteBuilder({
             </dd>
           </div>
         </dl>
-        {quote.estimate_request_id ? (
+        {sourceEventPlan && eventPlanRef ? (
           <Button asChild variant="outline" size="sm" className="mt-4 w-full">
+            <Link href={`/admin/event-plans/${sourceEventPlan.id}`}>
+              Open event plan {eventPlanRef}
+            </Link>
+          </Button>
+        ) : null}
+        {quote.estimate_request_id ? (
+          <Button asChild variant="outline" size="sm" className="mt-2 w-full">
             <Link href={`/admin/estimates/${quote.estimate_request_id}`}>
               Open linked estimate
             </Link>

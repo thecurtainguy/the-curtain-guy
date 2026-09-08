@@ -58,6 +58,22 @@ export async function fetchEventPlanById(
   return data as EventPlanSubmissionRow;
 }
 
+export async function fetchEventPlanByEstimateId(
+  estimateRequestId: string
+): Promise<EventPlanSubmissionRow | null> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
+    .from("event_plan_submissions")
+    .select("*")
+    .eq("estimate_request_id", estimateRequestId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as EventPlanSubmissionRow;
+}
+
 export async function listEventPlansForCustomer(
   user: User
 ): Promise<EventPlanSubmissionRow[]> {

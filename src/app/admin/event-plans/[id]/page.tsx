@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
+import { AdminEventPlanQuotesSection } from "@/components/admin/admin-event-plan-quotes-section";
 import { EventPlanPortalDetail } from "@/components/event-plans/event-plan-portal-detail";
 import {
   fetchEventPlanById,
@@ -9,6 +10,7 @@ import {
   parseEventPlanDesign,
 } from "@/lib/event-plan-access";
 import { formatEventPlanReference } from "@/data/event-plans";
+import { listQuotesForEstimate } from "@/lib/quotes";
 
 export const metadata: Metadata = {
   title: "Event plan detail",
@@ -32,6 +34,9 @@ export default async function AdminEventPlanDetailPage({ params }: PageProps) {
 
   const reference = formatEventPlanReference(plan.id, plan.reference);
   const submittedAt = new Date(plan.created_at).toLocaleString();
+  const quotes = plan.estimate_request_id
+    ? await listQuotesForEstimate(plan.estimate_request_id)
+    : [];
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -52,6 +57,13 @@ export default async function AdminEventPlanDetailPage({ params }: PageProps) {
         }}
         backHref="/admin/event-plans"
         backLabel="All event plans"
+        afterHeader={
+          <AdminEventPlanQuotesSection
+            eventPlanId={plan.id}
+            estimateId={plan.estimate_request_id}
+            quotes={quotes}
+          />
+        }
       />
     </AdminPageFrame>
   );

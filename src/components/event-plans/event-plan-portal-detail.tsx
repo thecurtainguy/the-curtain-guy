@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { PencilLine, Sparkles } from "lucide-react";
@@ -33,6 +33,7 @@ type EventPlanPortalDetailProps = {
   };
   backHref: string;
   backLabel: string;
+  afterHeader?: ReactNode;
 };
 
 export function EventPlanPortalDetail({
@@ -47,6 +48,7 @@ export function EventPlanPortalDetail({
   contactDefaults,
   backHref,
   backLabel,
+  afterHeader,
 }: EventPlanPortalDetailProps) {
   const t = useTranslations("eventBuilder.portalDetail");
   const router = useRouter();
@@ -106,6 +108,8 @@ export function EventPlanPortalDetail({
           </Button>
         }
       />
+
+      {afterHeader}
 
       <EventPlanBriefView
         plan={planView}

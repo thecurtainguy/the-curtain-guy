@@ -169,6 +169,20 @@ export const DEFAULT_QUOTE_TERMS = [
   "The client is responsible for accurate venue details, load-in access, and any venue rules affecting installation.",
 ].join("\n");
 
+/** One term per line. Numbered bullets/dashes are stripped so PDF and web match. */
+export function splitQuoteTerms(
+  terms: string | null | undefined,
+  fallback?: string | null
+): string[] {
+  const raw = (terms?.trim() || fallback?.trim() || "").trim();
+  if (!raw) return [];
+  return raw
+    .split(/\n+/)
+    .map((line) => line.replace(/^[-•\d.)\s]+/, "").trim())
+    .filter((line) => line.length > 0)
+    .filter((line) => !/^currency is cad\.?$/i.test(line));
+}
+
 export const QUOTE_TAX_MODES = ["quebec_gst_qst", "none", "manual"] as const;
 export type QuoteTaxMode = (typeof QUOTE_TAX_MODES)[number];
 

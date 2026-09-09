@@ -17,11 +17,13 @@ import {
   QUOTE_CATEGORY_LABELS,
   formatCadFromCents,
   getQuoteTaxBreakdownRows,
+  splitQuoteTerms,
   type CustomerSafeQuote,
   type QuoteLineCategory,
 } from "@/data/quotes";
 import { siteConfig } from "@/data/site";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
+import { getDocumentTextsMap } from "@/lib/document-texts";
 
 const COLORS = {
   ink: "#1a1612",
@@ -388,15 +390,6 @@ function formatPdfDate(value: string | null | undefined): string {
   }
 }
 
-function splitTerms(terms: string | null | undefined): string[] {
-  const raw = (terms?.trim() || DEFAULT_QUOTE_TERMS).trim();
-  return raw
-    .split(/\n+/)
-    .map((line) => line.replace(/^[-•\d.)\s]+/, "").trim())
-    .filter((line) => line.length > 0)
-    .filter((line) => !/^currency is cad\.?$/i.test(line));
-}
-
 function IconLink({ size = 9 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -483,17 +476,19 @@ function QuotePdfDocument({
   publicUrl,
   generatedAt,
   siteUrl,
+  pdfFooter,
 }: {
   quote: CustomerSafeQuote;
   publicUrl?: string | null;
   generatedAt: string;
   siteUrl: string;
+  pdfFooter: string;
 }) {
   const pricedItems = quote.line_items.filter(
     (item) => item.status === "priced" || item.status === "included"
   );
   const taxRows = getQuoteTaxBreakdownRows(quote, { variant: "customer" });
-  const terms = splitTerms(quote.terms);
+  const terms = splitQuoteTerms(quote.terms, DEFAULT_QUOTE_TERMS);
   const proposalUrl = publicUrl || quote.share_url || null;
   const base = siteUrl.replace(/\/$/, "");
   const websiteUrl = `https://${siteConfig.domain}`;
@@ -727,7 +722,7 @@ function QuotePdfDocument({
             {siteConfig.name} · {siteConfig.email} · {siteConfig.phone} ·{" "}
             {siteConfig.location}
             {"\n"}
-            Planning proposal only. Booking confirmed separately in writing.
+            {pdfFooter}
           </Text>
           <Text style={styles.footerRight}>
             Generated {generatedAt}
@@ -751,12 +746,18 @@ export async function renderQuotePdfBuffer(input: {
   const siteUrl =
     input.siteUrl?.replace(/\/$/, "") ||
     `https://${siteConfig.domain}`;
+  const copy = await getDocumentTextsMap();
+  const quote = {
+    ...input.quote,
+    terms: input.quote.terms?.trim() || copy["quote.terms"],
+  };
   const buffer = await renderToBuffer(
     <QuotePdfDocument
-      quote={input.quote}
+      quote={quote}
       publicUrl={input.publicUrl}
       generatedAt={generatedAt}
       siteUrl={siteUrl}
+      pdfFooter={copy["quote.pdf_footer"]}
     />
   );
   return Buffer.from(buffer);

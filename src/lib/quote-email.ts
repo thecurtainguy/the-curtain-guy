@@ -9,6 +9,7 @@ import {
   getQuoteFrom,
   getSiteUrl,
 } from "@/lib/env";
+import { getDocumentTextsMap } from "@/lib/document-texts";
 
 type ResendEmailPayload = {
   apiKey: string;
@@ -56,7 +57,7 @@ async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
   }
 }
 
-function brandShell(title: string, innerHtml: string): string {
+function brandShell(title: string, innerHtml: string, footer: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
@@ -67,7 +68,7 @@ function brandShell(title: string, innerHtml: string): string {
       <h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#f8f5ec;">${escapeHtml(title)}</h1>
       ${innerHtml}
     </div>
-    <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#8b909a;">Montreal event drape rental · thecurtainguy.com</p>
+    <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#8b909a;">${escapeHtml(footer)}</p>
   </div>
 </body>
 </html>`;
@@ -108,6 +109,10 @@ export async function sendQuoteReadyEmail(input: {
     .filter(Boolean)
     .join(" · ");
 
+  const copy = await getDocumentTextsMap();
+  const emailNote = copy["quote.email_note"];
+  const emailFooter = copy["quote.email_footer"];
+
   const text = [
     `Your Curtain Guy quote is ready — ${displayRef}`,
     "",
@@ -118,8 +123,7 @@ export async function sendQuoteReadyEmail(input: {
     "Review your proposal, request options, or ask for changes:",
     publicQuoteUrl,
     "",
-    "Availability is confirmed only after The Curtain Guy follows up.",
-    "No payment is requested in this email.",
+    emailNote,
   ]
     .filter(Boolean)
     .join("\n");
@@ -146,9 +150,10 @@ export async function sendQuoteReadyEmail(input: {
       </a>
     </p>
     <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#8b909a;">
-      Availability is not guaranteed until confirmed. Setup, installation, and teardown are planned around your event timeline.
+      ${escapeHtml(emailNote)}
     </p>
-  `
+  `,
+    emailFooter
   );
 
   await sendResendEmail({
@@ -182,6 +187,7 @@ export async function sendQuoteOwnerActionNotification(input: {
     .filter(Boolean)
     .join("\n");
 
+  const copy = await getDocumentTextsMap();
   const html = brandShell(
     "Quote activity",
     `
@@ -202,7 +208,8 @@ export async function sendQuoteOwnerActionNotification(input: {
     <a href="${escapeHtml(adminUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
       Open in admin
     </a>
-  `
+  `,
+    copy["quote.email_footer"]
   );
 
   await sendResendEmail({

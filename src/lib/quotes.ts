@@ -2,7 +2,6 @@ import type { User } from "@supabase/supabase-js";
 import {
   DEFAULT_GST_RATE,
   DEFAULT_QST_RATE,
-  DEFAULT_QUOTE_TERMS,
   type CustomerSafeQuote,
   type QuoteCustomerRequestRow,
   type QuoteEventRow,
@@ -36,6 +35,7 @@ import {
   mapEventBuilderBriefToEstimate,
   mergeEstimatePrefill,
 } from "@/lib/event-builder/map-brief-to-estimate";
+import { getDocumentText, resolveQuoteTerms } from "@/lib/document-texts";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import {
   buildPublicQuoteUrl,
@@ -418,6 +418,7 @@ export async function createQuoteFromEstimate(input: {
   }
 
   const displayRef = buildQuoteDisplayRef(opportunityRef, 1);
+  const defaultTerms = await getDocumentText("quote.terms");
   const { data, error } = await admin
     .from("quotes")
     .insert({
@@ -436,7 +437,7 @@ export async function createQuoteFromEstimate(input: {
       tax_mode: "quebec_gst_qst",
       gst_rate: DEFAULT_GST_RATE,
       qst_rate: DEFAULT_QST_RATE,
-      terms: DEFAULT_QUOTE_TERMS,
+      terms: defaultTerms,
       created_by_user_id: input.createdByUserId || null,
     })
     .select("*")
@@ -466,6 +467,94 @@ export async function createQuoteFromEstimate(input: {
     .neq("status", "closed");
 
   return { quote: data as QuoteRow, created: true };
+}
+
+export type DirectQuoteInput = {
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string | null;
+  eventDate?: string | null;
+  eventType?: string | null;
+  venueName?: string | null;
+  cityArea?: string | null;
+  ownerNotes?: string | null;
+  createdByUserId: string;
+};
+
+export async function createDirectQuote(
+  input: DirectQuoteInput
+): Promise<{ quote: QuoteRow } | { error: string }> {
+  const customerName = input.customerName.trim();
+  const customerEmail = input.customerEmail.trim().toLowerCase();
+  if (!customerName) {
+    return { error: "Customer name is required." };
+  }
+  if (!customerEmail || !customerEmail.includes("@")) {
+    return { error: "A valid customer email is required." };
+  }
+
+  const form: EstimateFormData = {
+    ...initialEstimateFormData,
+    name: customerName,
+    email: customerEmail,
+    phone: input.customerPhone?.trim() || "",
+    eventType: input.eventType?.trim() || "",
+    eventDate: input.eventDate?.trim() || "",
+    venueName: input.venueName?.trim() || "",
+    cityArea: input.cityArea?.trim() || "Montreal area",
+    message: input.ownerNotes?.trim() || "",
+    drapeGoals: ["full-room"],
+    measurementsKnown: "help",
+    floorPlanAvailable: "no",
+    fabricDirections: ["recommend"],
+  };
+
+  const admin = createAdminSupabaseClient();
+  const row = {
+    ...buildEstimateInsertRow(form, {
+      userId: input.createdByUserId,
+      source: "admin_direct_quote",
+    }),
+    source: "admin_direct_quote",
+    status: "quoted",
+    raw_payload: {
+      ...form,
+      created_via: "admin_direct_quote",
+    },
+  };
+
+  const { data: inserted, error: estimateError } = await admin
+    .from("estimate_requests")
+    .insert(row)
+    .select("*")
+    .single();
+
+  if (estimateError || !inserted) {
+    console.error("[quotes] createDirectQuote estimate", estimateError);
+    return {
+      error: estimateError?.message || "Failed to create opportunity for quote.",
+    };
+  }
+
+  const estimate = inserted as EstimateRequestRow;
+  const quoteResult = await createQuoteFromEstimate({
+    estimate,
+    createdByUserId: input.createdByUserId,
+  });
+
+  if ("error" in quoteResult) {
+    return quoteResult;
+  }
+
+  if (input.ownerNotes?.trim()) {
+    await admin
+      .from("quotes")
+      .update({ owner_notes: input.ownerNotes.trim() })
+      .eq("id", quoteResult.quote.id);
+    quoteResult.quote.owner_notes = input.ownerNotes.trim();
+  }
+
+  return { quote: quoteResult.quote };
 }
 
 async function ensureEstimateFromEventPlan(
@@ -626,7 +715,7 @@ export async function createQuoteRevision(input: {
       manual_tax_lines: normalizeManualTaxLines(source.manual_tax_lines),
       customer_notes: source.customer_notes,
       owner_notes: source.owner_notes,
-      terms: source.terms || DEFAULT_QUOTE_TERMS,
+      terms: await resolveQuoteTerms(source.terms),
       created_by_user_id: input.createdByUserId,
     })
     .select("*")

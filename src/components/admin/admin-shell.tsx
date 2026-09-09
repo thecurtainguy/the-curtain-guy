@@ -11,6 +11,7 @@ import {
   Package,
   PanelsTopLeft,
   PenLine,
+  ScrollText,
   Sparkles,
   Star,
 } from "lucide-react";
@@ -41,6 +42,7 @@ const links: PortalNavItem[] = [
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/event-plans", label: "Event plans", icon: Sparkles },
   { href: "/admin/studio", label: "Studio", icon: PanelsTopLeft },
+  { href: "/admin/documents", label: "Documents", icon: ScrollText },
   { href: "/", label: "Site", icon: Globe, exact: true },
 ];
 

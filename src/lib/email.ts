@@ -1,4 +1,3 @@
-import enEstimate from "../../messages/en/estimate.json";
 import {
   buildEstimateBrief,
   formatEstimateReference,
@@ -23,6 +22,7 @@ import {
   formatEventPlanSummaryText,
 } from "@/lib/event-builder/format-event-plan-summary";
 import type { StudioDesignJson } from "@/data/studio";
+import { getDocumentText } from "@/lib/document-texts";
 import type { EventPlanContact } from "@/lib/event-builder/event-plan-server";
 
 export type SendEstimateNotificationInput = {
@@ -188,7 +188,7 @@ function buildNotificationSubject(data: EstimateFormData, reference: string): st
   return `New estimate request — ${reference} — ${eventTypeLabel}`;
 }
 
-function buildNotificationText(ctx: EstimateEmailContext): string {
+function buildNotificationText(ctx: EstimateEmailContext, disclaimer: string): string {
   const { requestId, reference, data, fileCount } = ctx;
   const sections = buildAdminEmailSections(data);
 
@@ -198,7 +198,7 @@ function buildNotificationText(ctx: EstimateEmailContext): string {
     `Reference: ${reference}`,
     `Request ID: ${requestId}`,
     "",
-    "This is a planning brief, not final pricing.",
+    disclaimer,
     "",
   ];
 
@@ -221,7 +221,7 @@ function buildNotificationText(ctx: EstimateEmailContext): string {
   lines.push("--- FULL BRIEF ---");
   lines.push(buildEstimateBrief(data));
   lines.push("");
-  lines.push(`Reminder: ${enEstimate.disclaimer}`);
+  lines.push(`Reminder: ${disclaimer}`);
 
   return lines.join("\n");
 }
@@ -246,7 +246,13 @@ function renderEmailSectionHtml(section: EmailSection): string {
     </div>`;
 }
 
-function buildNotificationHtml(ctx: EstimateEmailContext): string {
+function disclaimerBannerHtml(disclaimer: string): string {
+  return `<div style="margin-bottom:24px;padding:14px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;">
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;">${escapeHtml(disclaimer).replace(/\n/g, "<br>")}</p>
+        </div>`;
+}
+
+function buildNotificationHtml(ctx: EstimateEmailContext, disclaimer: string): string {
   const { reference, data, fileCount } = ctx;
   const sections = buildAdminEmailSections(data)
     .map(renderEmailSectionHtml)
@@ -269,9 +275,7 @@ function buildNotificationHtml(ctx: EstimateEmailContext): string {
         <p style="margin:0;font-size:14px;color:#d1d5db;">Reference <strong style="color:#ffffff;">${escapeHtml(reference)}</strong></p>
       </div>
       <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
-        <div style="margin-bottom:24px;padding:14px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;">
-          <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;"><strong>Planning brief only.</strong> Review measurements, availability, delivery, installation, and teardown before confirming final pricing.</p>
-        </div>
+        ${disclaimerBannerHtml(disclaimer)}
         ${filesBlock}
         ${sections}
         <div style="margin-top:8px;padding-top:20px;border-top:1px solid #e5e7eb;">
@@ -289,7 +293,10 @@ function buildCustomerConfirmationSubject(reference: string): string {
   return `We received your Curtain Guy estimate request — ${reference}`;
 }
 
-function buildCustomerConfirmationText(ctx: EstimateEmailContext): string {
+function buildCustomerConfirmationText(
+  ctx: EstimateEmailContext,
+  disclaimer: string
+): string {
   const { reference, fileCount } = ctx;
 
   const lines = [
@@ -311,7 +318,7 @@ function buildCustomerConfirmationText(ctx: EstimateEmailContext): string {
   lines.push(
     "The Curtain Guy team will review your measurements, availability, delivery, installation, and teardown before preparing your rental estimate.",
     "",
-    "This is a planning brief, not final pricing. We will follow up by email once we have reviewed your details.",
+    disclaimer,
     "",
     "Need to add updates, photos, or a floor plan? Create an account or reply to this email and we will include them in your file.",
     "",
@@ -322,7 +329,10 @@ function buildCustomerConfirmationText(ctx: EstimateEmailContext): string {
   return lines.join("\n");
 }
 
-function buildCustomerConfirmationHtml(ctx: EstimateEmailContext): string {
+function buildCustomerConfirmationHtml(
+  ctx: EstimateEmailContext,
+  disclaimer: string
+): string {
   const { reference, fileCount } = ctx;
   const filesBlock =
     fileCount > 0
@@ -345,9 +355,7 @@ function buildCustomerConfirmationHtml(ctx: EstimateEmailContext): string {
         </div>
         ${filesBlock}
         <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">We will review measurements, availability, delivery, installation, and teardown before preparing your rental estimate.</p>
-        <div style="margin:0 0 20px;padding:14px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;">
-          <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;"><strong>Planning brief only.</strong> This is not final pricing. We will follow up by email once your details are reviewed.</p>
-        </div>
+        ${disclaimerBannerHtml(disclaimer)}
         <p style="margin:0;font-size:15px;line-height:1.7;color:#374151;">Have updates, photos, or a floor plan to share? Create an account or reply to this email and we will add them to your file.</p>
       </div>
       <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">The Curtain Guy · Montreal event drape rental</p>
@@ -395,6 +403,7 @@ export async function sendEstimateNotificationEmail(
     fileCount,
     opportunityRef
   );
+  const disclaimer = await getDocumentText("estimate.email_disclaimer");
   const customerEmail = data.email.trim();
 
   await sendResendEmail({
@@ -403,8 +412,8 @@ export async function sendEstimateNotificationEmail(
     to: [getEstimateNotifyTo()],
     replyTo: customerEmail || undefined,
     subject: buildNotificationSubject(data, ctx.reference),
-    text: buildNotificationText(ctx),
-    html: buildNotificationHtml(ctx),
+    text: buildNotificationText(ctx, disclaimer),
+    html: buildNotificationHtml(ctx, disclaimer),
   });
 }
 
@@ -429,14 +438,16 @@ export async function sendEstimateCustomerConfirmationEmail(
     opportunityRef
   );
 
+  const disclaimer = await getDocumentText("estimate.email_disclaimer");
+
   await sendResendEmail({
     apiKey,
     from: getEstimateFrom(),
     to: [customerEmail],
     replyTo: getEstimateNotifyTo(),
     subject: buildCustomerConfirmationSubject(ctx.reference),
-    text: buildCustomerConfirmationText(ctx),
-    html: buildCustomerConfirmationHtml(ctx),
+    text: buildCustomerConfirmationText(ctx, disclaimer),
+    html: buildCustomerConfirmationHtml(ctx, disclaimer),
   });
 }
 
@@ -467,7 +478,8 @@ function buildEventPlanSections(
 function buildEventPlanHtml(
   reference: string,
   sections: ReturnType<typeof formatEventPlanSummary>,
-  intro: string
+  intro: string,
+  disclaimer: string
 ): string {
   const sectionHtml = sections
     .map((section) => {
@@ -496,9 +508,7 @@ function buildEventPlanHtml(
           <p style="margin:0;font-size:20px;font-weight:600;color:#111827;">${escapeHtml(reference)}</p>
         </div>
         ${sectionHtml}
-        <div style="margin:0;padding:14px 16px;border-radius:12px;background:#fffbeb;border:1px solid #fde68a;">
-          <p style="margin:0;font-size:13px;line-height:1.6;color:#92400e;"><strong>Planning brief only.</strong> This is not final pricing. Our team will review your room and setups before sending a rental estimate.</p>
-        </div>
+        ${disclaimerBannerHtml(disclaimer)}
       </div>
       <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">The Curtain Guy · Montreal event drape rental</p>
     </div>
@@ -511,7 +521,8 @@ export async function sendEventPlanNotificationEmail(
 ): Promise<void> {
   const { reference, brief, design, contact, apiKey } = input;
   const sections = buildEventPlanSections(brief, design, contact);
-  const text = formatEventPlanSummaryText(reference, sections);
+  const disclaimer = await getDocumentText("estimate.email_disclaimer");
+  const text = `${formatEventPlanSummaryText(reference, sections)}\n\n${disclaimer}`;
   const customerEmail = contact.email.trim();
 
   await sendResendEmail({
@@ -524,7 +535,8 @@ export async function sendEventPlanNotificationEmail(
     html: buildEventPlanHtml(
       reference,
       sections,
-      "A new event plan was submitted from the Studio Event Builder."
+      "A new event plan was submitted from the Studio Event Builder.",
+      disclaimer
     ),
   });
 }
@@ -542,6 +554,7 @@ export async function sendEventPlanCustomerConfirmationEmail(
     input.design,
     input.contact
   );
+  const disclaimer = await getDocumentText("estimate.email_disclaimer");
   const text = [
     `Thank you — we received your event drape plan (${input.reference}).`,
     "",
@@ -549,7 +562,7 @@ export async function sendEventPlanCustomerConfirmationEmail(
     "",
     "Our team will review your room layout and selected setups within 24–48 hours and follow up by email with next steps.",
     "",
-    "This is a planning brief, not final pricing.",
+    disclaimer,
     "",
     "— The Curtain Guy",
   ].join("\n");
@@ -564,7 +577,8 @@ export async function sendEventPlanCustomerConfirmationEmail(
     html: buildEventPlanHtml(
       input.reference,
       sections,
-      "Thank you for submitting your event drape plan. Our team has it on file and will review the details below."
+      "Thank you for submitting your event drape plan. Our team has it on file and will review the details below.",
+      disclaimer
     ),
   });
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { QuoteProposalView } from "@/components/quotes/quote-proposal-view";
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
+import { resolveQuoteTerms } from "@/lib/document-texts";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
 import {
   fetchQuoteByPublicToken,
@@ -28,7 +29,10 @@ export default async function PublicQuotePage({ params }: PageProps) {
 
   const siteUrl = getSiteUrl();
   const shareUrl = buildPublicQuoteUrl(siteUrl, token);
-  const safe = toCustomerSafeQuote(quote, { shareUrl });
+  const safe = toCustomerSafeQuote(
+    { ...quote, terms: await resolveQuoteTerms(quote.terms) },
+    { shareUrl }
+  );
 
   return (
     <div className="relative min-h-[70vh] py-10 sm:py-14">

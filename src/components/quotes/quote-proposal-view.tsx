@@ -41,6 +41,7 @@ import {
   type CustomerSafeQuote,
   type QuoteLineCategory,
 } from "@/data/quotes";
+import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
 import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
 import {
   getAddOnUpsells,
@@ -735,7 +736,7 @@ export function QuoteProposalView({
             </GlassSection>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-4">
             <div className={cn(glassCardClass, "p-5")}>
               <div
                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_12%_0%,rgba(212,175,55,0.08),transparent_50%)]"
@@ -751,21 +752,13 @@ export function QuoteProposalView({
                 </p>
               </div>
             </div>
-            <div className={cn(glassCardClass, "p-5")}>
-              <div
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_12%_0%,rgba(212,175,55,0.08),transparent_50%)]"
-                aria-hidden
-              />
-              <div className="relative">
-                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
-                  Terms
-                </p>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                  {quote.terms ||
-                    "This proposal is a planning quote based on the details shared so far."}
-                </p>
-              </div>
-            </div>
+            <GlassSection
+              icon={FileText}
+              title="Terms & conditions"
+              description="The same numbered list that prints on your proposal PDF."
+            >
+              <QuoteTermsList terms={quote.terms} />
+            </GlassSection>
           </div>
 
           {canAct && featuredUpsells.length > 0 ? (

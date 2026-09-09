@@ -45,6 +45,8 @@ import {
   QuoteStatusBadge,
 } from "@/components/quotes/quote-status-badge";
 import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
+import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
+import { DocumentTextPreviewButton } from "@/components/admin/document-text-preview";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
 import {
@@ -264,6 +266,7 @@ export function AdminQuoteBuilder({
   const [publicUrl, setPublicUrl] = useState<string | null>(initialGuestUrl);
   const [copied, setCopied] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [applyingDefaultTerms, setApplyingDefaultTerms] = useState(false);
 
   const [convertFor, setConvertFor] = useState<string | null>(null);
   const [convertCategory, setConvertCategory] =
@@ -377,6 +380,33 @@ export function AdminQuoteBuilder({
       owner_notes: ownerNotes,
       terms,
     };
+  }
+
+  async function applyDefaultTerms() {
+    setApplyingDefaultTerms(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/admin/document-texts");
+      const json = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        texts?: Array<{ slug: string; body: string }>;
+      };
+      if (!response.ok || !json.ok) {
+        setError(json.message || "Could not load default terms.");
+        return;
+      }
+      const next = json.texts?.find((item) => item.slug === "quote.terms")?.body;
+      if (!next) {
+        setError("Default terms are not configured.");
+        return;
+      }
+      setTerms(next);
+    } catch {
+      setError("Could not load default terms.");
+    } finally {
+      setApplyingDefaultTerms(false);
+    }
   }
 
   function lineItemsPayload() {
@@ -804,7 +834,7 @@ export function AdminQuoteBuilder({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <div className="mt-4 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="customer_notes">Customer notes</Label>
             <Textarea
@@ -825,16 +855,51 @@ export function AdminQuoteBuilder({
               disabled={!isEditing}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="terms">Terms</Label>
+        </div>
+
+        <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <Label htmlFor="terms">Terms & conditions</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                One term per line — same numbered list as the PDF.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <DocumentTextPreviewButton
+                kind="pdf_terms"
+                label="Terms & conditions"
+                body={terms}
+              />
+              {isEditing ? (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                  onClick={() => void applyDefaultTerms()}
+                  disabled={applyingDefaultTerms}
+                >
+                  {applyingDefaultTerms ? "Loading…" : "Use default terms"}
+                </button>
+              ) : (
+                <Link
+                  href="/admin/documents"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Edit defaults
+                </Link>
+              )}
+            </div>
+          </div>
+          {isEditing ? (
             <Textarea
               id="terms"
-              rows={4}
+              rows={8}
               value={terms}
               onChange={(e) => setTerms(e.target.value)}
-              disabled={!isEditing}
+              className="min-h-32 resize-y"
             />
-          </div>
+          ) : null}
+          <QuoteTermsList terms={terms} />
         </div>
       </section>
 

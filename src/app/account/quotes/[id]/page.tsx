@@ -16,6 +16,7 @@ import { OpportunityFilesPanel } from "@/components/estimates/opportunity-files-
 import { PortalBackLink } from "@/components/portal/portal-back-link";
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
+import { resolveQuoteTerms } from "@/lib/document-texts";
 import {
   fetchEstimateById,
   fetchEstimateFiles,
@@ -57,7 +58,10 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
 
   const siteUrl = getSiteUrl().replace(/\/$/, "");
   const shareUrl = `${siteUrl}/account/quotes/${id}`;
-  const safe = toCustomerSafeQuote(quote, { shareUrl });
+  const safe = toCustomerSafeQuote(
+    { ...quote, terms: await resolveQuoteTerms(quote.terms) },
+    { shareUrl }
+  );
   const initialGuestUrl = await findActivePublicQuoteUrl(id, siteUrl);
 
   const allFiles = quote.estimate_request_id

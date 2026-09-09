@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { FileText } from "lucide-react";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
@@ -7,6 +8,7 @@ import {
   type AdminQuoteListRow,
 } from "@/components/admin/lists/admin-quotes-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
+import { Button } from "@/components/ui/button";
 import { listQuotes } from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -57,6 +59,11 @@ export default async function AdminQuotesPage() {
           title="Quotes"
           description="Build, send, revise, and track customer proposals."
           icon={FileText}
+          actions={
+            <Button asChild>
+              <Link href="/admin/quotes/new">Create quote</Link>
+            </Button>
+          }
         />
         <AdminQuotesList rows={listRows} />
       </div>

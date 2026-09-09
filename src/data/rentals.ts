@@ -1,3 +1,4 @@
+import type { ProductColorVariantRow } from "@/data/product-colors";
 import type { ProductKind, ProductRow } from "@/data/products";
 
 export const PRODUCT_CONFIGURATOR_MODES = ["simple", "linear_ft"] as const;
@@ -222,6 +223,7 @@ export type PublicRentalProduct = ProductCatalogRow & {
   addons: ProductAddonWithProduct[];
   fullService: ProductCatalogRow | null;
   transportOnly: ProductCatalogRow | null;
+  colors: ProductColorVariantRow[];
 };
 
 export type RentalCartLineKind = "main" | "include" | "addon" | "service";
@@ -243,6 +245,9 @@ export type RentalCartLine = {
   isTaxable: boolean;
   parentKey?: string;
   linearFeet?: number;
+  colorId?: string | null;
+  colorName?: string | null;
+  colorHex?: string | null;
 };
 
 export type RentalCartSnapshot = {

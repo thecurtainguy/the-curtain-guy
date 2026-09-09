@@ -101,6 +101,11 @@ export async function POST(request: Request) {
     is_active: typeof body.is_active === "boolean" ? body.is_active : true,
     is_public: typeof body.is_public === "boolean" ? body.is_public : false,
     sort_order: Math.round(Number(body.sort_order) || 0),
+    event_type_ids: Array.isArray(body.event_type_ids)
+      ? body.event_type_ids
+          .map((id) => String(id || "").trim())
+          .filter(Boolean)
+      : [],
     configurator_mode:
       body.configurator_mode === "linear_ft" || body.configurator_mode === "simple"
         ? body.configurator_mode
@@ -165,6 +170,56 @@ export async function POST(request: Request) {
           .filter((row) => row.addonProductId),
       });
     }
+  }
+
+  if (Array.isArray(body.color_variants)) {
+    const { replaceProductColorVariants } = await import("@/lib/product-colors");
+    const { isProductAvailabilityStatus } = await import("@/data/products");
+    const variants = body.color_variants as Array<Record<string, unknown>>;
+    await replaceProductColorVariants({
+      productId: result.product.id,
+      variants: variants
+        .map((row) => {
+          const name = String(row.name || "").trim();
+          if (!name) return null;
+          return {
+            name,
+            hex: String(row.hex || "#8B909A"),
+            sort_order: Math.round(Number(row.sort_order) || 0),
+            is_active: row.is_active !== false,
+            image_url:
+              typeof row.image_url === "string" ? row.image_url : null,
+            image_alt:
+              typeof row.image_alt === "string" ? row.image_alt : null,
+            has_own_pricing: row.has_own_pricing === true,
+            unit_price_cents:
+              row.unit_price_cents === null || row.unit_price_cents === undefined
+                ? null
+                : Math.round(Number(row.unit_price_cents) || 0),
+            quantity_on_hand:
+              row.quantity_on_hand === null || row.quantity_on_hand === undefined
+                ? null
+                : Math.round(Number(row.quantity_on_hand) || 0),
+            availability_status:
+              typeof row.availability_status === "string" &&
+              isProductAvailabilityStatus(row.availability_status)
+                ? row.availability_status
+                : null,
+          };
+        })
+        .filter(Boolean) as Array<{
+        name: string;
+        hex: string;
+        sort_order: number;
+        is_active: boolean;
+        image_url: string | null;
+        image_alt: string | null;
+        has_own_pricing: boolean;
+        unit_price_cents: number | null;
+        quantity_on_hand: number | null;
+        availability_status: import("@/data/products").ProductAvailabilityStatus | null;
+      }>,
+    });
   }
 
   return NextResponse.json({ ok: true, product: result.product });

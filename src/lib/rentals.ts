@@ -1,5 +1,10 @@
 import type { ProductRow } from "@/data/products";
 import {
+  resolveColorUnitPriceCents,
+  resolveProductDisplayImage,
+  type ProductColorVariantRow,
+} from "@/data/product-colors";
+import {
   evaluateProductCompleteness,
   isProductConfiguratorMode,
   segmentsForLinearFeet,
@@ -13,6 +18,10 @@ import {
   type PublicRentalProduct,
   type RentalCartLine,
 } from "@/data/rentals";
+import {
+  listColorVariantsForProducts,
+  listProductColorVariants,
+} from "@/lib/product-colors";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export { evaluateProductCompleteness };
@@ -208,12 +217,15 @@ export async function loadPublicRentalProduct(
 
   if (!completeness.readyForPublic) return null;
 
+  const colors = await listProductColorVariants(product.id, { activeOnly: true });
+
   return {
     ...product,
     includes,
     addons: addons.filter((a) => a.is_active && a.addon.is_active),
     fullService,
     transportOnly,
+    colors,
   };
 }
 
@@ -230,8 +242,19 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
 
   if (error || !data?.length) return [];
 
+  const productRows = data as ProductRow[];
+  const allColors = await listColorVariantsForProducts(
+    productRows.map((row) => row.id)
+  );
+  const colorsByProduct = new Map<string, ProductColorVariantRow[]>();
+  for (const color of allColors) {
+    const list = colorsByProduct.get(color.product_id) || [];
+    list.push(color);
+    colorsByProduct.set(color.product_id, list);
+  }
+
   const results: PublicRentalProduct[] = [];
-  for (const row of data as ProductRow[]) {
+  for (const row of productRows) {
     const product = asCatalog(row);
     const [includes, addons] = await Promise.all([
       listFormulaIncludes(product.id),
@@ -257,6 +280,7 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
       addons: addons.filter((a) => a.is_active && a.addon.is_active),
       fullService,
       transportOnly,
+      colors: colorsByProduct.get(product.id) || [],
     });
   }
   return results;
@@ -265,9 +289,10 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
 export async function getAdminProductRentalsBundle(productId: string) {
   const product = await fetchProductCatalogById(productId);
   if (!product) return null;
-  const [includes, addons] = await Promise.all([
+  const [includes, addons, colors] = await Promise.all([
     listFormulaIncludes(productId),
     listProductAddons(productId),
+    listProductColorVariants(productId),
   ]);
   const fullService = product.full_service_product_id
     ? await fetchProductCatalogById(product.full_service_product_id)
@@ -282,7 +307,15 @@ export async function getAdminProductRentalsBundle(productId: string) {
     fullService,
     transportOnly,
   });
-  return { product, includes, addons, fullService, transportOnly, completeness };
+  return {
+    product,
+    includes,
+    addons,
+    colors,
+    fullService,
+    transportOnly,
+    completeness,
+  };
 }
 
 export type AdminProductRentalsBundle = NonNullable<
@@ -359,28 +392,46 @@ export function buildLinearFtCartLines(input: {
   fullServiceEnabled: boolean;
   transportOnlyEnabled: boolean;
   addonSelections: Array<{ addonProductId: string; quantity: number }>;
+  color?: ProductColorVariantRow | null;
 }): RentalCartLine[] {
   const feet = Math.max(0, Number(input.linearFeet) || 0);
   const segment = Number(input.product.formula_segment_feet) || 0;
   const segments = segmentsForLinearFeet(feet, segment);
-  const parentKey = `main:${input.product.id}:${feet}`;
+  const color = input.color || null;
+  const display = resolveProductDisplayImage({
+    productImageUrl: input.product.image_url,
+    productImageAlt: input.product.image_alt,
+    color,
+  });
+  const unitPriceCents = resolveColorUnitPriceCents({
+    productPriceCents: input.product.default_unit_price_cents,
+    color,
+  });
+  const parentKey = color
+    ? `main:${input.product.id}:${color.id}:${feet}`
+    : `main:${input.product.id}:${feet}`;
   const lines: RentalCartLine[] = [
     {
       key: parentKey,
       productId: input.product.id,
       slug: input.product.slug,
       name: input.product.name,
-      description: `${feet} linear ft · ${input.product.name}`,
+      description: color
+        ? `${feet} linear ft · ${input.product.name} · ${color.name}`
+        : `${feet} linear ft · ${input.product.name}`,
       category: String(input.product.category),
       kind: input.product.kind,
       lineKind: "main",
-      imageUrl: input.product.image_url,
-      imageAlt: input.product.image_alt,
+      imageUrl: display.imageUrl,
+      imageAlt: display.imageAlt,
       quantity: feet,
-      unitPriceCents: input.product.default_unit_price_cents,
+      unitPriceCents,
       unitLabel: "linear ft",
       isTaxable: input.product.is_taxable,
       linearFeet: feet,
+      colorId: color?.id ?? null,
+      colorName: color?.name ?? null,
+      colorHex: color?.hex ?? null,
     },
   ];
 
@@ -480,25 +531,43 @@ export function buildSimpleCartLines(input: {
   fullServiceEnabled: boolean;
   transportOnlyEnabled: boolean;
   addonSelections: Array<{ addonProductId: string; quantity: number }>;
+  color?: ProductColorVariantRow | null;
 }): RentalCartLine[] {
   const qty = Math.max(1, Math.round(Number(input.quantity) || 1));
-  const parentKey = `main:${input.product.id}:qty:${qty}:${Date.now().toString(36)}`;
+  const color = input.color || null;
+  const display = resolveProductDisplayImage({
+    productImageUrl: input.product.image_url,
+    productImageAlt: input.product.image_alt,
+    color,
+  });
+  const unitPriceCents = resolveColorUnitPriceCents({
+    productPriceCents: input.product.default_unit_price_cents,
+    color,
+  });
+  const parentKey = color
+    ? `main:${input.product.id}:${color.id}:qty:${qty}:${Date.now().toString(36)}`
+    : `main:${input.product.id}:qty:${qty}:${Date.now().toString(36)}`;
   const lines: RentalCartLine[] = [
     {
       key: parentKey,
       productId: input.product.id,
       slug: input.product.slug,
       name: input.product.name,
-      description: input.product.name,
+      description: color
+        ? `${input.product.name} · ${color.name}`
+        : input.product.name,
       category: String(input.product.category),
       kind: input.product.kind,
       lineKind: "main",
-      imageUrl: input.product.image_url,
-      imageAlt: input.product.image_alt,
+      imageUrl: display.imageUrl,
+      imageAlt: display.imageAlt,
       quantity: qty,
-      unitPriceCents: input.product.default_unit_price_cents,
+      unitPriceCents,
       unitLabel: input.product.unit_label,
       isTaxable: input.product.is_taxable,
+      colorId: color?.id ?? null,
+      colorName: color?.name ?? null,
+      colorHex: color?.hex ?? null,
     },
   ];
 

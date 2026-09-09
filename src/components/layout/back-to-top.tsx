@@ -2,13 +2,14 @@
 
 import {
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUp } from "lucide-react";
+import { usePathname } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,10 @@ const SHOW_AFTER_DESKTOP = 420;
 const HIDE_BELOW_DESKTOP = 280;
 const SHOW_AFTER_MOBILE = 160;
 const HIDE_BELOW_MOBILE = 96;
+
+function subscribeNoop() {
+  return () => {};
+}
 
 function isMobileViewport() {
   return window.matchMedia("(max-width: 767px)").matches;
@@ -67,6 +72,10 @@ function scrollElementToTop(element: HTMLElement, behavior: ScrollBehavior) {
   }
 }
 
+function isRentalsPath(pathname: string) {
+  return pathname === "/rentals" || pathname.startsWith("/rentals/");
+}
+
 type BackToTopProps = {
   /**
    * Portal scroll container. Pass `null` while mounting.
@@ -76,15 +85,13 @@ type BackToTopProps = {
 };
 
 export function BackToTop({ scrollElement }: BackToTopProps = {}) {
+  const pathname = usePathname();
+  const clearRentalsCart = isRentalsPath(pathname);
   const [visible, setVisible] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
   const portalMode = scrollElement !== undefined;
   const scrollRootRef = useRef<HTMLElement | null>(null);
   const scrollingRef = useRef(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useLayoutEffect(() => {
     scrollRootRef.current = portalMode ? scrollElement : null;
@@ -144,7 +151,6 @@ export function BackToTop({ scrollElement }: BackToTopProps = {}) {
       }
       window.visualViewport?.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("resize", onScroll);
-      media.removeEventListener("change", onViewportChange);
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, [portalMode, scrollElement]);
@@ -182,7 +188,10 @@ export function BackToTop({ scrollElement }: BackToTopProps = {}) {
     <div
       className={cn(
         "fixed right-4 z-[200] sm:right-6",
-        "bottom-[max(1rem,env(safe-area-inset-bottom,0px))] sm:bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))]",
+        // On rentals, sit above the cart FAB so the two never overlap.
+        clearRentalsCart
+          ? "bottom-[max(5rem,calc(env(safe-area-inset-bottom,0px)+4rem))] sm:bottom-[max(5.25rem,calc(env(safe-area-inset-bottom,0px)+4.25rem))]"
+          : "bottom-[max(1rem,env(safe-area-inset-bottom,0px))] sm:bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))]",
         "transition-[opacity,transform,visibility] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         "motion-reduce:transition-none",
         visible

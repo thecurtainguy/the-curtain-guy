@@ -1,0 +1,499 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Image from "next/image";
+import {
+  ArrowUpRight,
+  Filter,
+  Package,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { formatCadFromCents, type PublicRentalProduct } from "@/data/rentals";
+import {
+  PRODUCT_EVENT_TYPE_LABELS,
+  type ProductEventTypeId,
+} from "@/data/product-colors";
+import {
+  PRODUCT_AVAILABILITY_LABELS,
+  PRODUCT_AVAILABILITY_STATUSES,
+  type ProductAvailabilityStatus,
+} from "@/data/products";
+import { QUOTE_CATEGORY_LABELS } from "@/data/quotes";
+import { Link } from "@/i18n/navigation";
+import {
+  DEFAULT_RENTALS_FILTERS,
+  activeFilterCount,
+  collectCatalogFacets,
+  filterAndSortRentalsCatalog,
+  type RentalsCatalogFilters,
+  type RentalsSortId,
+} from "@/lib/rentals-catalog-filter";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+
+type RentalsCatalogProps = {
+  products: PublicRentalProduct[];
+};
+
+function toggleValue(list: string[], value: string): string[] {
+  return list.includes(value)
+    ? list.filter((item) => item !== value)
+    : [...list, value];
+}
+
+function FilterPanel({
+  filters,
+  setFilters,
+  facets,
+  resultCount,
+}: {
+  filters: RentalsCatalogFilters;
+  setFilters: (next: RentalsCatalogFilters) => void;
+  facets: ReturnType<typeof collectCatalogFacets>;
+  resultCount: number;
+}) {
+  const t = useTranslations("rentals.filters");
+
+  function patch(partial: Partial<RentalsCatalogFilters>) {
+    setFilters({ ...filters, ...partial });
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="rentals-search">{t("search")}</Label>
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            id="rentals-search"
+            value={filters.search}
+            onChange={(e) => patch({ search: e.target.value })}
+            placeholder={t("searchPlaceholder")}
+            className="pl-9"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="rentals-sort">{t("sort")}</Label>
+        <select
+          id="rentals-sort"
+          className="flex h-9 w-full rounded-2xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+          value={filters.sort}
+          onChange={(e) => patch({ sort: e.target.value as RentalsSortId })}
+        >
+          <option value="featured">{t("sortFeatured")}</option>
+          <option value="price-asc">{t("sortPriceAsc")}</option>
+          <option value="price-desc">{t("sortPriceDesc")}</option>
+          <option value="name-asc">{t("sortName")}</option>
+          <option value="newest">{t("sortNewest")}</option>
+        </select>
+      </div>
+
+      {facets.categories.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{t("category")}</p>
+          <div className="grid gap-2">
+            {facets.categories.map((category) => {
+              const selected = filters.categories.includes(category);
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() =>
+                    patch({
+                      categories: toggleValue(filters.categories, category),
+                    })
+                  }
+                  className={cn(
+                    "rounded-2xl border px-3 py-2.5 text-left text-sm transition-colors",
+                    selected
+                      ? "border-primary/50 bg-primary/10 text-foreground"
+                      : "border-border/40 bg-card/30 text-muted-foreground hover:border-primary/30"
+                  )}
+                >
+                  {QUOTE_CATEGORY_LABELS[category]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {facets.colors.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{t("color")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {facets.colors.map((color) => {
+              const key = color.name.toLowerCase();
+              const selected = filters.colors.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() =>
+                    patch({ colors: toggleValue(filters.colors, key) })
+                  }
+                  className={cn(
+                    "flex items-center gap-2 rounded-2xl border px-2.5 py-2 text-left text-xs transition-colors",
+                    selected
+                      ? "border-primary/50 bg-primary/10"
+                      : "border-border/40 bg-card/30 hover:border-primary/30"
+                  )}
+                >
+                  <span
+                    className="size-4 shrink-0 rounded-full border border-border/50"
+                    style={{ backgroundColor: color.hex }}
+                    aria-hidden
+                  />
+                  <span className="truncate">{color.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {facets.eventTypes.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-sm font-medium">{t("eventType")}</p>
+          <div className="grid gap-2">
+            {facets.eventTypes.map((id) => {
+              const selected = filters.eventTypes.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() =>
+                    patch({
+                      eventTypes: toggleValue(filters.eventTypes, id),
+                    })
+                  }
+                  className={cn(
+                    "rounded-2xl border px-3 py-2.5 text-left text-sm transition-colors",
+                    selected
+                      ? "border-primary/50 bg-primary/10 text-foreground"
+                      : "border-border/40 bg-card/30 text-muted-foreground hover:border-primary/30"
+                  )}
+                >
+                  {PRODUCT_EVENT_TYPE_LABELS[id as ProductEventTypeId]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{t("availability")}</p>
+        <div className="grid gap-2">
+          {PRODUCT_AVAILABILITY_STATUSES.map((status) => {
+            const selected = filters.availability.includes(status);
+            return (
+              <button
+                key={status}
+                type="button"
+                onClick={() =>
+                  patch({
+                    availability: toggleValue(
+                      filters.availability,
+                      status
+                    ) as ProductAvailabilityStatus[],
+                  })
+                }
+                className={cn(
+                  "rounded-2xl border px-3 py-2.5 text-left text-sm transition-colors",
+                  selected
+                    ? "border-primary/50 bg-primary/10 text-foreground"
+                    : "border-border/40 bg-card/30 text-muted-foreground hover:border-primary/30"
+                )}
+              >
+                {PRODUCT_AVAILABILITY_LABELS[status]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{t("price")}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label htmlFor="price-min" className="text-xs text-muted-foreground">
+              {t("priceMin")}
+            </Label>
+            <Input
+              id="price-min"
+              inputMode="decimal"
+              placeholder={formatCadFromCents(facets.priceMinCents).replace(
+                /[^0-9.]/g,
+                ""
+              )}
+              value={
+                filters.priceMinCents == null
+                  ? ""
+                  : String(filters.priceMinCents / 100)
+              }
+              onChange={(e) => {
+                const raw = e.target.value.trim();
+                patch({
+                  priceMinCents: raw
+                    ? Math.max(0, Math.round(Number(raw) * 100) || 0)
+                    : null,
+                });
+              }}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="price-max" className="text-xs text-muted-foreground">
+              {t("priceMax")}
+            </Label>
+            <Input
+              id="price-max"
+              inputMode="decimal"
+              placeholder={formatCadFromCents(facets.priceMaxCents).replace(
+                /[^0-9.]/g,
+                ""
+              )}
+              value={
+                filters.priceMaxCents == null
+                  ? ""
+                  : String(filters.priceMaxCents / 100)
+              }
+              onChange={(e) => {
+                const raw = e.target.value.trim();
+                patch({
+                  priceMaxCents: raw
+                    ? Math.max(0, Math.round(Number(raw) * 100) || 0)
+                    : null,
+                });
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-4">
+        <p className="text-xs text-muted-foreground">
+          {t("results", { count: resultCount })}
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setFilters(DEFAULT_RENTALS_FILTERS)}
+        >
+          {t("clear")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function RentalsCatalog({ products }: RentalsCatalogProps) {
+  const t = useTranslations("rentals.catalog");
+  const tf = useTranslations("rentals.filters");
+  const [filters, setFilters] = useState<RentalsCatalogFilters>(
+    DEFAULT_RENTALS_FILTERS
+  );
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const facets = useMemo(() => collectCatalogFacets(products), [products]);
+  const filtered = useMemo(
+    () => filterAndSortRentalsCatalog(products, filters),
+    [products, filters]
+  );
+  const activeCount = activeFilterCount(filters);
+
+  if (products.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border/50 bg-card/25 px-6 py-16 text-center">
+        <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+          <Package className="size-5" aria-hidden />
+        </span>
+        <h2 className="mt-4 font-heading text-xl font-semibold text-foreground">
+          {t("emptyTitle")}
+        </h2>
+        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+          {t("emptyDescription")}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="hidden lg:block">
+        <div className="sticky top-24 rounded-3xl border border-border/40 bg-card/25 p-5">
+          <div className="mb-5 flex items-center gap-2">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary/12 text-primary">
+              <SlidersHorizontal className="size-4" aria-hidden />
+            </span>
+            <h3 className="font-heading text-base font-semibold">
+              {tf("title")}
+            </h3>
+          </div>
+          <FilterPanel
+            filters={filters}
+            setFilters={setFilters}
+            facets={facets}
+            resultCount={filtered.length}
+          />
+        </div>
+      </aside>
+
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 lg:hidden">
+          <p className="text-sm text-muted-foreground">
+            {tf("results", { count: filtered.length })}
+          </p>
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+            <SheetTrigger asChild>
+              <Button type="button" variant="outline" className="rounded-2xl">
+                <Filter className="size-4" aria-hidden />
+                {tf("title")}
+                {activeCount > 0 ? (
+                  <span className="ml-1 rounded-full bg-primary/15 px-1.5 text-xs text-primary">
+                    {activeCount}
+                  </span>
+                ) : null}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[min(100%,22rem)] overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>{tf("title")}</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6 px-1 pb-8">
+                <FilterPanel
+                  filters={filters}
+                  setFilters={(next) => {
+                    setFilters(next);
+                  }}
+                  facets={facets}
+                  resultCount={filtered.length}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        {activeCount > 0 ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">{tf("active")}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 rounded-full px-2 text-xs"
+              onClick={() => setFilters(DEFAULT_RENTALS_FILTERS)}
+            >
+              <X className="size-3.5" aria-hidden />
+              {tf("clear")}
+            </Button>
+          </div>
+        ) : null}
+
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border/50 bg-card/25 px-6 py-14 text-center">
+            <p className="font-heading text-lg font-semibold">
+              {tf("noResultsTitle")}
+            </p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              {tf("noResultsDescription")}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-4 rounded-2xl"
+              onClick={() => setFilters(DEFAULT_RENTALS_FILTERS)}
+            >
+              {tf("clear")}
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filtered.map((product) => {
+              const priceLabel =
+                product.configurator_mode === "linear_ft"
+                  ? t("fromPerFt", {
+                      price: formatCadFromCents(product.default_unit_price_cents),
+                    })
+                  : t("fromEach", {
+                      price: formatCadFromCents(product.default_unit_price_cents),
+                      unit: product.unit_label,
+                    });
+
+              return (
+                <Link
+                  key={product.id}
+                  href={`/rentals/${product.slug}`}
+                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/25 text-left transition-colors hover:border-primary/35 hover:bg-card/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div className="relative aspect-[4/3] overflow-hidden">
+                    {product.image_url ? (
+                      <Image
+                        src={product.image_url}
+                        alt={product.image_alt || product.name}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center bg-muted/40 text-muted-foreground">
+                        <Package className="size-8" aria-hidden />
+                      </div>
+                    )}
+                    <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border border-border/70 bg-background/85 text-primary opacity-0 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                      <ArrowUpRight className="size-4" aria-hidden />
+                    </span>
+                    {product.colors.length > 0 ? (
+                      <div className="absolute bottom-3 left-3 flex -space-x-1">
+                        {product.colors.slice(0, 5).map((color) => (
+                          <span
+                            key={color.id}
+                            className="size-4 rounded-full border border-background/80 shadow-sm"
+                            style={{ backgroundColor: color.hex }}
+                            title={color.name}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-1 flex-col gap-2 p-4">
+                    <p className="font-heading text-base font-semibold leading-snug text-foreground">
+                      {product.name}
+                    </p>
+                    {product.short_description ? (
+                      <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {product.short_description}
+                      </p>
+                    ) : null}
+                    <p className="mt-auto pt-2 text-sm font-medium text-primary">
+                      {priceLabel}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

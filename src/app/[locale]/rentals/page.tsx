@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { PageHero } from "@/components/page-hero";
-import { RentalsCatalogGrid } from "@/components/rentals/rentals-catalog-grid";
+import { RentalsCatalog } from "@/components/rentals/rentals-catalog";
+import { RentalsHero } from "@/components/rentals/rentals-hero";
 import { Reveal } from "@/components/animation/reveal";
 import { listPublicRentalProducts } from "@/lib/rentals";
 import { createPageMetadata } from "@/lib/seo";
@@ -39,13 +39,9 @@ export default async function RentalsPage({ params }: PageProps) {
 
   return (
     <>
-      <PageHero
-        eyebrow={t("eyebrow")}
-        title={t("title")}
-        description={t("description")}
-      />
+      <RentalsHero />
 
-      <section className="relative py-14 sm:py-20">
+      <section id="catalog" className="relative scroll-mt-24 py-14 sm:py-20">
         <div
           className="fabric-section-overlay pointer-events-none absolute inset-0"
           aria-hidden
@@ -63,7 +59,7 @@ export default async function RentalsPage({ params }: PageProps) {
             </p>
           </Reveal>
 
-          <RentalsCatalogGrid products={products} />
+          <RentalsCatalog products={products} />
         </div>
       </section>
     </>

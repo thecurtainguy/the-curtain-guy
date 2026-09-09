@@ -172,6 +172,18 @@ export function RentalsCartSheet() {
                       <p className="font-heading text-sm font-semibold leading-snug">
                         {main.name}
                       </p>
+                      {main.colorName ? (
+                        <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span
+                            className="size-3 rounded-full border border-border/50"
+                            style={{
+                              backgroundColor: main.colorHex || "#8B909A",
+                            }}
+                            aria-hidden
+                          />
+                          {main.colorName}
+                        </p>
+                      ) : null}
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {main.description}
                       </p>
@@ -352,7 +364,7 @@ export function RentalsCartFab() {
     <button
       type="button"
       onClick={openSheet}
-      className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1.25rem,env(safe-area-inset-right))] z-40 flex min-h-12 items-center gap-2 rounded-full border border-primary/40 bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-[0_12px_40px_oklch(0.62_0.14_80/0.35)] transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-4 z-40 flex min-h-12 items-center gap-2 rounded-full border border-primary/40 bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-[0_12px_40px_oklch(0.62_0.14_80/0.35)] transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))] sm:right-6"
       aria-label={t("openAria")}
     >
       <ShoppingBag className="size-4" aria-hidden />

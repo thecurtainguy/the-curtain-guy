@@ -48,6 +48,7 @@ export type ProductRow = {
   is_active: boolean;
   is_public: boolean;
   sort_order: number;
+  event_type_ids?: string[];
   configurator_mode?: "simple" | "linear_ft";
   formula_segment_feet?: number | null;
   full_service_product_id?: string | null;

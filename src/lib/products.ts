@@ -33,6 +33,7 @@ export type ProductWriteInput = {
   is_active?: boolean;
   is_public?: boolean;
   sort_order?: number;
+  event_type_ids?: string[];
   configurator_mode?: "simple" | "linear_ft";
   formula_segment_feet?: number | null;
   full_service_product_id?: string | null;
@@ -170,6 +171,9 @@ export async function createProduct(
       is_active: isActive,
       is_public: input.is_public ?? false,
       sort_order: Math.round(Number(input.sort_order) || 0),
+      event_type_ids: Array.isArray(input.event_type_ids)
+        ? input.event_type_ids.filter((id) => typeof id === "string" && id.trim())
+        : [],
       configurator_mode:
         input.configurator_mode === "linear_ft" ? "linear_ft" : "simple",
       formula_segment_feet:
@@ -266,6 +270,12 @@ export async function updateProduct(
       sort_order: Math.round(
         Number(input.sort_order ?? existing.sort_order) || 0
       ),
+      event_type_ids:
+        input.event_type_ids === undefined
+          ? existing.event_type_ids ?? []
+          : input.event_type_ids.filter(
+              (id) => typeof id === "string" && id.trim()
+            ),
       configurator_mode:
         input.configurator_mode === "linear_ft"
           ? "linear_ft"
@@ -305,6 +315,9 @@ export async function uploadProductImage(input: {
   fileName: string;
   contentType: string;
   bytes: ArrayBuffer;
+  /** When false, only uploads to storage (e.g. color variant photos). */
+  bindToProduct?: boolean;
+  folder?: string;
 }): Promise<{ imageUrl: string } | { error: string }> {
   const admin = createAdminSupabaseClient();
   const safeName = input.fileName
@@ -319,7 +332,10 @@ export async function uploadProductImage(input: {
         : input.contentType === "image/webp"
           ? ".webp"
           : ".jpg";
-  const objectPath = `${input.productId}/${Date.now().toString(36)}${ext}`;
+  const folder = input.folder?.replace(/[^a-zA-Z0-9_-]+/g, "") || "";
+  const objectPath = folder
+    ? `${input.productId}/${folder}/${Date.now().toString(36)}${ext}`
+    : `${input.productId}/${Date.now().toString(36)}${ext}`;
 
   const { error: uploadError } = await admin.storage
     .from(PRODUCT_IMAGES_BUCKET)
@@ -335,6 +351,10 @@ export async function uploadProductImage(input: {
 
   const imageUrl = buildProductPublicUrl(objectPath);
   if (!imageUrl) return { error: "Could not build image URL." };
+
+  if (input.bindToProduct === false) {
+    return { imageUrl };
+  }
 
   const { error: updateError } = await admin
     .from("products")

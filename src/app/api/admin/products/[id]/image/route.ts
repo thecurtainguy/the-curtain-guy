@@ -56,12 +56,23 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  const bindRaw = String(form.get("bind") || "product");
+  const bindToProduct = bindRaw !== "none" && bindRaw !== "0";
+  const folder =
+    typeof form.get("folder") === "string"
+      ? String(form.get("folder"))
+      : bindToProduct
+        ? undefined
+        : "colors";
+
   const bytes = await file.arrayBuffer();
   const result = await uploadProductImage({
     productId: id,
     fileName: file.name || "photo.jpg",
     contentType: file.type,
     bytes,
+    bindToProduct,
+    folder,
   });
 
   if ("error" in result) {
@@ -69,6 +80,13 @@ export async function POST(request: Request, context: RouteContext) {
       { ok: false, message: result.error },
       { status: 500 }
     );
+  }
+
+  if (!bindToProduct) {
+    return NextResponse.json({
+      ok: true,
+      imageUrl: result.imageUrl,
+    });
   }
 
   const refreshed = await fetchProductById(id);

@@ -20,6 +20,12 @@ import {
 } from "@/components/products/product-status-badges";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
+import {
+  AdminProductColorsSection,
+  colorDraftsFromRows,
+  colorDraftsToPayload,
+  type ColorDraft,
+} from "@/components/admin/admin-product-colors-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +60,7 @@ import { cn } from "@/lib/utils";
 type AdminProductRentalsBundleProp = {
   includes: ProductFormulaIncludeWithProduct[];
   addons: ProductAddonWithProduct[];
+  colors?: import("@/data/product-colors").ProductColorVariantRow[];
   completeness: ProductCompleteness;
 };
 
@@ -243,6 +250,8 @@ type FormState = {
   transport_only_product_id: string;
   formulaIncludes: FormulaIncludeForm[];
   addons: Array<{ addonProductId: string }>;
+  event_type_ids: string[];
+  colorDrafts: ColorDraft[];
 };
 
 function formFromProduct(
@@ -288,6 +297,8 @@ function formFromProduct(
     addons: addonsSource.map((row) => ({
       addonProductId: row.addon_product_id,
     })),
+    event_type_ids: product?.event_type_ids ?? [],
+    colorDrafts: colorDraftsFromRows(rentalsBundle?.colors),
   };
 }
 
@@ -440,6 +451,8 @@ function rentalsPayload(form: FormState) {
       .map((row) => ({
         addonProductId: row.addonProductId,
       })),
+    event_type_ids: form.event_type_ids,
+    color_variants: colorDraftsToPayload(form.colorDrafts),
   };
 }
 
@@ -495,6 +508,8 @@ export function AdminProductEditor({
         transport_only_product_id: prev.transport_only_product_id,
         formulaIncludes: prev.formulaIncludes,
         addons: prev.addons,
+        event_type_ids: prev.event_type_ids,
+        colorDrafts: prev.colorDrafts,
       };
     });
   }
@@ -1229,6 +1244,16 @@ export function AdminProductEditor({
               </div>
             </div>
           </section>
+
+          <AdminProductColorsSection
+            productId={productId}
+            eventTypeIds={form.event_type_ids}
+            onEventTypeIdsChange={(ids) => patch({ event_type_ids: ids })}
+            drafts={form.colorDrafts}
+            onDraftsChange={(colorDrafts) => patch({ colorDrafts })}
+            onEnsureSaved={save}
+            onError={setError}
+          />
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-4">

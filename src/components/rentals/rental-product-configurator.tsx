@@ -138,7 +138,7 @@ export function RentalProductConfigurator({
                     setColorError(false);
                   }}
                   className={cn(
-                    "group relative flex flex-col gap-2 rounded-2xl border p-3 text-left transition-all",
+                    "group relative flex min-w-0 flex-col gap-2 rounded-2xl border p-3 text-left transition-all",
                     "border-border/40 bg-card/40 hover:border-primary/35",
                     selected &&
                       "border-primary/50 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"

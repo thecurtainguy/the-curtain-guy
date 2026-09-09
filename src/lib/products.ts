@@ -346,7 +346,11 @@ export async function uploadProductImage(input: {
         : input.contentType === "image/webp"
           ? ".webp"
           : ".jpg";
-  const folder = input.folder?.replace(/[^a-zA-Z0-9_-]+/g, "") || "";
+  const folder = (input.folder || "")
+    .split("/")
+    .map((segment) => segment.replace(/[^a-zA-Z0-9_-]+/g, ""))
+    .filter(Boolean)
+    .join("/");
   const objectPath = folder
     ? `${input.productId}/${folder}/${Date.now().toString(36)}${ext}`
     : `${input.productId}/${Date.now().toString(36)}${ext}`;

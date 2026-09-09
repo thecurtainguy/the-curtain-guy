@@ -26,12 +26,37 @@ export function resolveProductGallery(input: {
     imageUrl: string | null;
     imageAlt: string | null;
   } | null;
+  /**
+   * When true (color variants), prefer the variant primary `image_url`
+   * over the parent gallery if the variant has no gallery rows yet.
+   */
+  preferFallbackOverParent?: boolean;
 }): ProductImageRow[] {
   const variant = (input.variantImages || []).filter((row) =>
     Boolean(row.image_url?.trim())
   );
   if (variant.length) {
     return [...variant].sort((a, b) => a.sort_order - b.sort_order);
+  }
+
+  const fallbackUrl = input.fallback?.imageUrl?.trim() || null;
+  const fallbackGallery: ProductImageRow[] = fallbackUrl
+    ? [
+        {
+          id: `fallback:${fallbackUrl}`,
+          created_at: "",
+          updated_at: "",
+          product_id: "",
+          color_variant_id: null,
+          image_url: fallbackUrl,
+          image_alt: input.fallback?.imageAlt ?? null,
+          sort_order: 0,
+        },
+      ]
+    : [];
+
+  if (input.preferFallbackOverParent && fallbackGallery.length) {
+    return fallbackGallery;
   }
 
   const parent = (input.parentImages || []).filter((row) =>
@@ -41,21 +66,7 @@ export function resolveProductGallery(input: {
     return [...parent].sort((a, b) => a.sort_order - b.sort_order);
   }
 
-  const fallbackUrl = input.fallback?.imageUrl?.trim() || null;
-  if (!fallbackUrl) return [];
-
-  return [
-    {
-      id: "fallback",
-      created_at: "",
-      updated_at: "",
-      product_id: "",
-      color_variant_id: null,
-      image_url: fallbackUrl,
-      image_alt: input.fallback?.imageAlt ?? null,
-      sort_order: 0,
-    },
-  ];
+  return fallbackGallery;
 }
 
 export function galleryPrimary(

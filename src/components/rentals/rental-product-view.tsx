@@ -55,6 +55,7 @@ export function RentalProductView({ product }: RentalProductViewProps) {
     return resolveProductGallery({
       parentImages: product.images || [],
       variantImages: isBase ? null : selectedColor?.images,
+      preferFallbackOverParent: !isBase,
       fallback: {
         imageUrl: isBase
           ? product.image_url
@@ -68,7 +69,7 @@ export function RentalProductView({ product }: RentalProductViewProps) {
     });
   }, [product.images, product.image_url, product.image_alt, selectedColor]);
 
-  const galleryKey = gallery.map((row) => row.id).join("|");
+  const galleryKey = gallery.map((row) => `${row.id}:${row.image_url}`).join("|");
 
   useEffect(() => {
     setActiveIndex(0);
@@ -97,14 +98,14 @@ export function RentalProductView({ product }: RentalProductViewProps) {
         description={shortDescription || undefined}
       />
 
-      <section className="relative py-12 sm:py-16">
+      <section className="relative overflow-x-clip py-12 sm:py-16">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-2 lg:px-8 lg:gap-14">
-          <Reveal variant="slide-left">
+          <Reveal variant="fade-up" className="min-w-0">
             <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/25">
-              <div className="relative aspect-[4/3]">
+              <div className="relative aspect-[4/3] w-full max-w-full">
                 {hero?.image_url ? (
                   <Image
-                    key={hero.id}
+                    key={`${selectedColor?.id ?? "base"}:${hero.id}:${hero.image_url}`}
                     src={hero.image_url}
                     alt={hero.image_alt || displayTitle}
                     fill
@@ -126,24 +127,24 @@ export function RentalProductView({ product }: RentalProductViewProps) {
                   </div>
                 )}
                 {selectedColor ? (
-                  <span className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/85 px-3 py-1.5 text-xs backdrop-blur-sm">
+                  <span className="absolute bottom-3 left-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-border/60 bg-background/85 px-3 py-1.5 text-xs backdrop-blur-sm">
                     <span
-                      className="size-3 rounded-full border border-border/50"
+                      className="size-3 shrink-0 rounded-full border border-border/50"
                       style={{ backgroundColor: selectedColor.hex }}
                       aria-hidden
                     />
-                    {selectedColor.name}
+                    <span className="truncate">{selectedColor.name}</span>
                   </span>
                 ) : null}
               </div>
 
               {gallery.length > 1 ? (
                 <div className="border-t border-border/40 p-3 sm:p-4">
-                  <ul className="flex gap-2 overflow-x-auto pb-1">
+                  <ul className="flex max-w-full gap-2 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]">
                     {gallery.map((image, index) => {
                       const selected = index === activeIndex;
                       return (
-                        <li key={image.id} className="shrink-0">
+                        <li key={`${image.id}:${image.image_url}`} className="shrink-0">
                           <button
                             type="button"
                             onClick={() => setActiveIndex(index)}
@@ -177,7 +178,7 @@ export function RentalProductView({ product }: RentalProductViewProps) {
                   <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
                     {t("detailsEyebrow")}
                   </p>
-                  <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-3 whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">
                     {longDescription}
                   </p>
                 </div>
@@ -188,7 +189,7 @@ export function RentalProductView({ product }: RentalProductViewProps) {
             </div>
           </Reveal>
 
-          <Reveal variant="slide-right">
+          <Reveal variant="fade-up" delay={0.06} className="min-w-0">
             <RentalProductConfigurator
               product={product}
               selectedColor={selectedColor}

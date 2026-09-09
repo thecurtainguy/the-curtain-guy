@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDown, Filter, Search, X } from "lucide-react";
+import { Filter, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SelectInput } from "@/components/ui/select-input";
 import { cn } from "@/lib/utils";
 import type { PortalStatusOption } from "./types";
 
@@ -84,26 +85,22 @@ export function PortalListActionBar({
 
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
           {hasStatusFilters ? (
-            <label className="relative inline-flex min-w-[9.5rem] items-center">
-              <Filter className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
-              <select
+            <div className="relative inline-flex min-w-[9.5rem] items-center">
+              <Filter className="pointer-events-none absolute left-2.5 z-10 size-3.5 text-muted-foreground" />
+              <SelectInput
                 id="portal-list-status"
                 value={status}
-                onChange={(e) => onStatusChange?.(e.target.value)}
+                onChange={(next) => onStatusChange?.(next)}
                 aria-label={statusLabel}
-                className="h-9 w-full appearance-none rounded-lg border border-border bg-background py-0 pl-8 pr-8 text-sm text-foreground outline-none transition-colors hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-              >
-                <option value="">
-                  {statusLabel}: {allStatusLabel}
-                </option>
-                {statusOptions!.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {statusLabel}: {option.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 size-3.5 text-muted-foreground" />
-            </label>
+                allowClear
+                placeholder={`${statusLabel}: ${allStatusLabel}`}
+                className="h-9 rounded-lg border border-border bg-background pl-8 text-sm hover:bg-muted/40"
+                options={statusOptions!.map((option) => ({
+                  value: option.value,
+                  label: `${statusLabel}: ${option.label}`,
+                }))}
+              />
+            </div>
           ) : null}
 
           {extras}

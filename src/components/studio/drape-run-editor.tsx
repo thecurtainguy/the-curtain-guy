@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DRAPE_COLORS,
@@ -66,29 +67,26 @@ export function DrapeRunEditor({
 
       <div className="space-y-1.5">
         <Label htmlFor={fieldId("type")}>Drape type</Label>
-        <select
+        <SelectInput
           id={fieldId("type")}
           value={run.type}
-          onChange={(event) =>
-            update({ type: event.target.value as StudioDrapeRun["type"] })
+          onChange={(next) =>
+            update({ type: next as StudioDrapeRun["type"] })
           }
-          className="h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-        >
-          {DRAPE_RUN_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {runLabels[type]}
-            </option>
-          ))}
-        </select>
+          options={DRAPE_RUN_TYPES.map((type) => ({
+            value: type,
+            label: runLabels[type],
+          }))}
+        />
       </div>
 
       <div className="space-y-1.5">
         <Label htmlFor={fieldId("wall")}>Wall</Label>
-        <select
+        <SelectInput
           id={fieldId("wall")}
-          value={run.wallIndex}
-          onChange={(event) => {
-            const wallIndex = Number(event.target.value);
+          value={String(run.wallIndex)}
+          onChange={(next) => {
+            const wallIndex = Number(next);
             const wall = walls[wallIndex];
             update({
               wallIndex,
@@ -96,14 +94,11 @@ export function DrapeRunEditor({
               endOffset: Math.max(1, wall?.length ?? 1),
             });
           }}
-          className="h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-        >
-          {walls.map((wall) => (
-            <option key={wall.index} value={wall.index}>
-              Wall {wall.index + 1} · {inchesToFeetLabel(wall.length)}
-            </option>
-          ))}
-        </select>
+          options={walls.map((wall) => ({
+            value: String(wall.index),
+            label: `Wall ${wall.index + 1} · ${inchesToFeetLabel(wall.length)}`,
+          }))}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-2">
@@ -186,39 +181,33 @@ export function DrapeRunEditor({
           <Label htmlFor={fieldId("fabric")} className="text-xs">
             Fabric
           </Label>
-          <select
+          <SelectInput
             id={fieldId("fabric")}
             value={run.fabric}
-            onChange={(event) =>
-              update({ fabric: event.target.value as StudioDrapeRun["fabric"] })
+            onChange={(next) =>
+              update({ fabric: next as StudioDrapeRun["fabric"] })
             }
-            className="h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {DRAPE_FABRICS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={DRAPE_FABRICS.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={fieldId("color")} className="text-xs">
             Color
           </Label>
-          <select
+          <SelectInput
             id={fieldId("color")}
             value={run.color}
-            onChange={(event) =>
-              update({ color: event.target.value as StudioDrapeRun["color"] })
+            onChange={(next) =>
+              update({ color: next as StudioDrapeRun["color"] })
             }
-            className="h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {DRAPE_COLORS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={DRAPE_COLORS.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+          />
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import type { ProductColorVariantRow } from "@/data/product-colors";
+import type { ProductImageRow } from "@/data/product-images";
 import type { ProductKind, ProductRow } from "@/data/products";
 
 export const PRODUCT_CONFIGURATOR_MODES = ["simple", "linear_ft"] as const;
@@ -224,6 +225,8 @@ export type PublicRentalProduct = ProductCatalogRow & {
   fullService: ProductCatalogRow | null;
   transportOnly: ProductCatalogRow | null;
   colors: ProductColorVariantRow[];
+  /** Parent/base gallery (color_variant_id null). */
+  images: ProductImageRow[];
 };
 
 export type RentalCartLineKind = "main" | "include" | "addon" | "service";

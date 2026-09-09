@@ -1,9 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import {
   ProductAvailabilityBadge,
   ProductKindBadge,
@@ -24,6 +23,7 @@ import {
   type ProductKind,
 } from "@/data/products";
 import { cn } from "@/lib/utils";
+import { SelectInput, type SelectOption } from "@/components/ui/select-input";
 
 export type AdminProductListRow = {
   id: string;
@@ -234,32 +234,29 @@ const columns: PortalListColumn<AdminProductListRow>[] = [
   },
 ];
 
-const filterSelectClass =
-  "h-9 w-full min-w-[9.5rem] appearance-none rounded-lg border border-border bg-background py-0 pl-3 pr-8 text-sm text-foreground outline-none transition-colors hover:bg-muted/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40";
-
 function FilterSelect({
   label,
   value,
   onChange,
-  children,
+  options,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  children: ReactNode;
+  options: SelectOption[];
+  placeholder?: string;
 }) {
   return (
-    <label className="relative inline-flex min-w-[9.5rem] items-center">
-      <select
-        aria-label={label}
-        className={filterSelectClass}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 size-3.5 text-muted-foreground" />
-    </label>
+    <SelectInput
+      aria-label={label}
+      className="h-9 min-w-[9.5rem] rounded-lg border border-border bg-background text-sm hover:bg-muted/40"
+      value={value}
+      onChange={onChange}
+      options={options}
+      allowClear
+      placeholder={placeholder}
+    />
   );
 }
 
@@ -334,23 +331,22 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
             label="Availability"
             value={state.extras.availability ?? ""}
             onChange={(value) => setExtra("availability", value || null)}
-          >
-            <option value="">Availability: All</option>
-            {PRODUCT_AVAILABILITY_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                Availability: {PRODUCT_AVAILABILITY_LABELS[status]}
-              </option>
-            ))}
-          </FilterSelect>
+            options={PRODUCT_AVAILABILITY_STATUSES.map((status) => ({
+              value: status,
+              label: `Availability: ${PRODUCT_AVAILABILITY_LABELS[status]}`,
+            }))}
+            placeholder="Availability: All"
+          />
           <FilterSelect
             label="Active"
             value={state.extras.active ?? ""}
             onChange={(value) => setExtra("active", value || null)}
-          >
-            <option value="">Active: All</option>
-            <option value="active">Active: Yes</option>
-            <option value="inactive">Active: No</option>
-          </FilterSelect>
+            options={[
+              { value: "active", label: "Active: Yes" },
+              { value: "inactive", label: "Active: No" },
+            ]}
+            placeholder="Active: All"
+          />
         </>
       )}
       toolbarActions={

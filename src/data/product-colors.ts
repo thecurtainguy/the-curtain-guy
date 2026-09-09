@@ -1,5 +1,13 @@
 import type { ProductAvailabilityStatus } from "@/data/products";
 import { slugifyProductName } from "@/data/products";
+import type { ProductImageRow } from "@/data/product-images";
+import {
+  galleryPrimary,
+  resolveProductGallery,
+} from "@/data/product-images";
+
+export type { ProductImageRow };
+export { resolveProductGallery, galleryPrimary };
 
 /** Curated brand palette — admins can also add custom colors. */
 export const PRODUCT_COLOR_PALETTE = [
@@ -35,6 +43,8 @@ export type ProductColorVariantRow = {
   unit_price_cents: number | null;
   quantity_on_hand: number | null;
   availability_status: ProductAvailabilityStatus | null;
+  /** Ordered gallery for this color (public load). Empty → parent gallery. */
+  images?: ProductImageRow[];
 };
 
 export type ProductColorVariantInput = {

@@ -155,6 +155,41 @@ export function AdminJobDetail({
     };
   }
 
+  const [baseline, setBaseline] = useState(() => JSON.stringify(buildPayload()));
+  const isDirty = useMemo(
+    () => JSON.stringify(buildPayload()) !== baseline,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- compare all form fields
+    [
+      baseline,
+      eventName,
+      eventType,
+      eventDate,
+      eventStart,
+      eventEnd,
+      guestCount,
+      venueName,
+      venueAddress,
+      venueCity,
+      venueRegion,
+      venuePostal,
+      venueCountry,
+      installDate,
+      installStart,
+      installEnd,
+      teardownDate,
+      teardownStart,
+      teardownEnd,
+      accessNotes,
+      loadingNotes,
+      parkingNotes,
+      elevatorNotes,
+      roomNotes,
+      productionNotes,
+      customerNotes,
+      internalNotes,
+    ]
+  );
+
   async function saveJob() {
     setSaving(true);
     flash();
@@ -173,6 +208,7 @@ export function AdminJobDetail({
         flash(undefined, payload.message ?? "Could not save job.");
         return;
       }
+      setBaseline(JSON.stringify(buildPayload()));
       flash("Job saved.");
       router.refresh();
     } catch {
@@ -301,9 +337,18 @@ export function AdminJobDetail({
         }
         actions={
           <>
-            <Button type="button" onClick={() => void saveJob()} disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-              Save
+            <Button
+              type="button"
+              onClick={() => void saveJob()}
+              disabled={saving || !isDirty}
+              variant={isDirty ? "default" : "outline"}
+            >
+              {saving ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : !isDirty ? (
+                <Check className="size-4" aria-hidden />
+              ) : null}
+              {saving ? "Saving…" : isDirty ? "Save changes" : "Saved"}
             </Button>
             {job.quote_id ? (
               <Button asChild variant="outline" size="sm">
@@ -777,9 +822,9 @@ export function AdminJobDetail({
       </div>
 
       <AdminFloatingSaveButton
-        active
+        active={isDirty || saving}
         saving={saving}
-        label="Save job"
+        label="Save changes"
         onSave={() => void saveJob()}
       />
     </div>

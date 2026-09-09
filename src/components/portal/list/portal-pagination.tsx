@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SelectInput } from "@/components/ui/select-input";
 import { cn } from "@/lib/utils";
 import { buildPageList } from "./list-utils";
 import { PORTAL_PAGE_SIZE_OPTIONS } from "./types";
@@ -42,18 +43,17 @@ export function PortalPagination({
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <label className="inline-flex items-center gap-2">
           <span>{itemLabel} per page</span>
-          <select
-            value={itemsPerPage}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="h-8 rounded-lg border border-input bg-background px-2 text-xs text-foreground"
+          <SelectInput
+            value={String(itemsPerPage)}
+            onChange={(next) => onPageSizeChange(Number(next))}
+            className="h-8 w-auto min-w-[4rem] rounded-lg border border-input bg-background px-2 text-xs"
             aria-label={`${itemLabel} per page`}
-          >
-            {pageSizeOptions.map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
-          </select>
+            options={pageSizeOptions.map((size) => ({
+              value: String(size),
+              label: String(size),
+            }))}
+            searchable={false}
+          />
         </label>
         <span aria-live="polite">
           {rangeStart}–{rangeEnd} of {totalItems}

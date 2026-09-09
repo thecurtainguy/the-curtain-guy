@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   StudioObjectType,
@@ -484,23 +485,20 @@ function ObjectEditor({
         </Button>
       </div>
       <Field label="Finish" id={fieldId("finish")}>
-        <select
+        <SelectInput
           id={fieldId("finish")}
           value={
             object.finish ??
             (object.type === "dance_floor" ? "white_gloss" : "natural_wood")
           }
-          onChange={(event) =>
-            update({ finish: event.target.value as StudioObject["finish"] })
+          onChange={(next) =>
+            update({ finish: next as StudioObject["finish"] })
           }
-          className="h-8 w-full rounded-2xl bg-input/50 px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {finishOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          options={finishOptions.map((option) => ({
+            value: option.value,
+            label: option.label,
+          }))}
+        />
       </Field>
       {showsSeating ? (
         <Field label="Seating count" id={fieldId("seating")}>
@@ -575,11 +573,11 @@ function OpeningEditor({
         />
       </Field>
       <Field label="Wall" id={fieldId("wall")}>
-        <select
+        <SelectInput
           id={fieldId("wall")}
-          value={opening.wallIndex}
-          onChange={(event) => {
-            const wallIndex = Number(event.target.value);
+          value={String(opening.wallIndex)}
+          onChange={(next) => {
+            const wallIndex = Number(next);
             const nextWall = walls[wallIndex];
             update({
               wallIndex,
@@ -587,14 +585,11 @@ function OpeningEditor({
               width: Math.min(opening.width, nextWall?.length ?? opening.width),
             });
           }}
-          className="h-8 w-full rounded-2xl bg-input/50 px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {walls.map((item) => (
-            <option key={item.index} value={item.index}>
-              Wall {item.index + 1}
-            </option>
-          ))}
-        </select>
+          options={walls.map((item) => ({
+            value: String(item.index),
+            label: `Wall ${item.index + 1}`,
+          }))}
+        />
       </Field>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Offset (ft)" id={fieldId("offset")}>

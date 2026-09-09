@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { eventTypes } from "@/data/estimate";
-import { formatCadFromCents } from "@/data/rentals";
 import {
   formatLogisticsEstimateLabel,
   getRentalDeliveryZone,
@@ -18,12 +17,13 @@ import {
   type RentalDeliveryZoneId,
 } from "@/data/rentals-logistics";
 import { siteConfig } from "@/data/site";
-import { useLocalizedEventTypes } from "@/lib/i18n/estimate";
 import { Link } from "@/i18n/navigation";
 import { useRentalsCart } from "@/components/rentals/rentals-cart-provider";
+import { RentalsCheckoutSummary } from "@/components/rentals/rentals-checkout-summary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateInput } from "@/components/ui/date-input";
+import { EventTypeInput } from "@/components/ui/event-type-input";
 import { GuardedLink } from "@/components/ui/guarded-link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,7 +61,6 @@ export function RentalsCheckoutForm({
   isAuthenticated = false,
 }: RentalsCheckoutFormProps) {
   const t = useTranslations("rentals.checkout");
-  const eventTypeOptions = useLocalizedEventTypes();
   const {
     lines,
     checkoutLines,
@@ -73,7 +72,6 @@ export function RentalsCheckoutForm({
     setDeliveryZoneId,
     deliveryZones,
     logisticsLine,
-    merchandiseSubtotalCents,
   } = useRentalsCart();
 
   const [form, setForm] = useState<FormState>({
@@ -346,23 +344,11 @@ export function RentalsCheckoutForm({
                   <Label htmlFor="rentals-event-type">
                     {t("fields.eventType")}
                   </Label>
-                  <div className="relative">
-                    <select
-                      id="rentals-event-type"
-                      value={form.eventType}
-                      onChange={(e) => updateField("eventType", e.target.value)}
-                      className={cn(
-                        "flex h-10 w-full appearance-none rounded-xl border border-input bg-background px-3 py-2 pr-8 text-sm outline-none",
-                        "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-                      )}
-                    >
-                      {eventTypeOptions.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <EventTypeInput
+                    id="rentals-event-type"
+                    value={form.eventType}
+                    onChange={(value) => updateField("eventType", value)}
+                  />
                 </div>
               </div>
 
@@ -521,49 +507,13 @@ export function RentalsCheckoutForm({
         </CardContent>
       </Card>
 
-      <aside className="space-y-4">
-        <div className="rounded-2xl border border-border/40 bg-card/30 p-5">
-          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-            {t("summaryEyebrow")}
-          </p>
-          <h3 className="mt-1 font-heading text-lg font-semibold">
-            {t("summaryTitle")}
-          </h3>
-          <p className="mt-3 text-xs text-muted-foreground">
-            {t("summaryPackages", {
-              amount: formatCadFromCents(merchandiseSubtotalCents),
-            })}
-          </p>
-          {logisticsLine ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("summaryLogistics", {
-                label: logisticsLine.name,
-                amount:
-                  logisticsLine.unitPriceCents > 0
-                    ? formatCadFromCents(logisticsLine.unitPriceCents)
-                    : t("zoneQuoteOnly"),
-              })}
-            </p>
-          ) : logisticsMode !== "diy" ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("summaryLogisticsPending")}
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t("summaryLogisticsDiy")}
-            </p>
-          )}
-          <p className="mt-3 font-heading text-2xl font-semibold text-foreground">
-            {formatCadFromCents(subtotalCents)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t("summaryItems", { count: itemCount })}
-          </p>
-          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-            {t("disclaimer")}
-          </p>
-        </div>
-      </aside>
+      <RentalsCheckoutSummary
+        lines={lines}
+        logisticsLine={logisticsLine}
+        logisticsMode={logisticsMode}
+        itemCount={itemCount}
+        className="lg:sticky lg:top-24"
+      />
     </div>
   );
 }

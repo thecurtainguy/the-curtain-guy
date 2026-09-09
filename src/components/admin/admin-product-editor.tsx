@@ -1,13 +1,11 @@
 "use client";
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Check,
   ExternalLink,
-  ImagePlus,
   Loader2,
   Package,
   Ruler,
@@ -20,6 +18,7 @@ import {
   ProductKindBadge,
 } from "@/components/products/product-status-badges";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
+import { AdminCopyTagHelper } from "@/components/admin/admin-copy-tag-helper";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import {
   AdminProductColorsSection,
@@ -28,9 +27,11 @@ import {
   type ColorDraft,
 } from "@/components/admin/admin-product-colors-section";
 import { AdminSectionErrorBoundary } from "@/components/admin/admin-section-error-boundary";
+import { AdminProductGallery } from "@/components/admin/admin-product-gallery";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   PRODUCT_AVAILABILITY_LABELS,
@@ -58,6 +59,7 @@ import {
 } from "@/data/quotes";
 import { centsToDollarInput, dollarsToCents } from "@/lib/quote-tokens";
 import { cn } from "@/lib/utils";
+import { normalizeHexColor } from "@/data/product-colors";
 
 type AdminProductRentalsBundleProp = {
   includes: ProductFormulaIncludeWithProduct[];
@@ -65,9 +67,6 @@ type AdminProductRentalsBundleProp = {
   colors?: import("@/data/product-colors").ProductColorVariantRow[];
   completeness: ProductCompleteness;
 };
-
-const selectClass =
-  "flex h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-70";
 
 function ThemedCheck({
   checked,
@@ -308,6 +307,48 @@ function formFromProduct(
   };
 }
 
+function serializeFormDirty(form: FormState): string {
+  return JSON.stringify({
+    name: form.name,
+    sku: form.sku,
+    kind: form.kind,
+    category: form.category,
+    short_description: form.short_description,
+    description: form.description,
+    unit_label: form.unit_label,
+    priceDollars: form.priceDollars,
+    is_taxable: form.is_taxable,
+    quantity_on_hand: form.quantity_on_hand,
+    low_stock_threshold: form.low_stock_threshold,
+    availability_status: form.availability_status,
+    availability_manual: form.availability_manual,
+    is_active: form.is_active,
+    is_public: form.is_public,
+    configurator_mode: form.configurator_mode,
+    formula_segment_feet: form.formula_segment_feet,
+    full_service_product_id: form.full_service_product_id,
+    transport_only_product_id: form.transport_only_product_id,
+    formulaIncludes: form.formulaIncludes,
+    addons: form.addons,
+    event_type_ids: form.event_type_ids,
+    default_color_name: form.default_color_name,
+    default_color_hex: form.default_color_hex,
+    // Gallery owns image_url / image_alt (parent + variants) via its own API.
+    colorDrafts: form.colorDrafts.map((draft) => ({
+      clientKey: draft.clientKey,
+      id: draft.id,
+      name: draft.name,
+      hex: draft.hex,
+      is_active: draft.is_active,
+      display_title: draft.display_title,
+      has_own_pricing: draft.has_own_pricing,
+      priceDollars: draft.priceDollars,
+      quantity_on_hand: draft.quantity_on_hand,
+      availability_status: draft.availability_status,
+    })),
+  });
+}
+
 function snippetFromProduct(row: ProductRow) {
   return {
     id: row.id,
@@ -474,19 +515,28 @@ export function AdminProductEditor({
   rentalsBundle?: AdminProductRentalsBundleProp | null;
 }) {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const isNew = !product;
+  const shortDescRef = useRef<HTMLInputElement>(null);
+  const fullDescRef = useRef<HTMLTextAreaElement>(null);
   const [form, setForm] = useState<FormState>(() =>
     formFromProduct(product, rentalsBundle)
   );
+  const [baseline, setBaseline] = useState(() =>
+    serializeFormDirty(formFromProduct(product, rentalsBundle))
+  );
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productId, setProductId] = useState<string | null>(product?.id ?? null);
   const [productSlug, setProductSlug] = useState<string | null>(
     product?.slug ?? null
   );
-  const [dragOver, setDragOver] = useState(false);
+
+  const isDirty = useMemo(() => {
+    if (isNew) return true;
+    return serializeFormDirty(form) !== baseline;
+  }, [form, baseline, isNew]);
+
+  const canSave = isNew || isDirty;
 
   const otherProducts = useMemo(
     () => allProducts.filter((row) => row.id !== productId),
@@ -573,7 +623,43 @@ export function AdminProductEditor({
       }
       setProductId(data.product.id);
       setProductSlug(data.product.slug);
-      mergeProductIntoForm(data.product, true);
+
+      let nextColors: ColorDraft[] | null = null;
+      try {
+        const colorsResponse = await fetch(
+          `/api/admin/products/${data.product.id}/colors`
+        );
+        const colorsData = (await colorsResponse.json()) as {
+          ok?: boolean;
+          variants?: import("@/data/product-colors").ProductColorVariantRow[];
+        };
+        if (colorsResponse.ok && colorsData.ok && colorsData.variants) {
+          nextColors = colorDraftsFromRows(colorsData.variants);
+        }
+      } catch {
+        /* keep local color drafts */
+      }
+
+      setForm((prev) => {
+        const base = formFromProduct(data.product!, null);
+        const next: FormState = {
+          ...base,
+          is_public: prev.is_public,
+          configurator_mode: prev.configurator_mode,
+          formula_segment_feet: prev.formula_segment_feet,
+          full_service_product_id: prev.full_service_product_id,
+          transport_only_product_id: prev.transport_only_product_id,
+          formulaIncludes: prev.formulaIncludes,
+          addons: prev.addons,
+          event_type_ids: prev.event_type_ids,
+          default_color_name: prev.default_color_name,
+          default_color_hex: prev.default_color_hex,
+          colorDrafts: nextColors ?? prev.colorDrafts,
+        };
+        setBaseline(serializeFormDirty(next));
+        return next;
+      });
+
       if (!options?.silent) {
         if (isNew) {
           router.replace(`/admin/products/${data.product.id}`);
@@ -587,72 +673,6 @@ export function AdminProductEditor({
       return null;
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function onUpload(file: File | null) {
-    if (!file) return;
-    let id = productId;
-    if (!id) {
-      id = await save();
-      if (!id) return;
-    }
-    setUploading(true);
-    setError(null);
-    try {
-      const body = new FormData();
-      body.append("file", file);
-      const response = await fetch(`/api/admin/products/${id}/image`, {
-        method: "POST",
-        body,
-      });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        message?: string;
-        product?: ProductRow;
-      };
-      if (!response.ok || !data.ok || !data.product) {
-        setError(data.message ?? "Upload failed.");
-        return;
-      }
-      mergeProductIntoForm(data.product, true);
-      router.refresh();
-    } catch {
-      setError("Upload failed.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function removePhoto() {
-    if (!productId || !form.image_url) return;
-    setUploading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/admin/products/${productId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...buildCorePayload(),
-          image_url: null,
-          image_alt: null,
-        }),
-      });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        message?: string;
-        product?: ProductRow;
-      };
-      if (!response.ok || !data.ok || !data.product) {
-        setError(data.message ?? "Could not remove photo.");
-        return;
-      }
-      mergeProductIntoForm(data.product, true);
-      router.refresh();
-    } catch {
-      setError("Could not remove photo.");
-    } finally {
-      setUploading(false);
     }
   }
 
@@ -746,9 +766,26 @@ export function AdminProductEditor({
                 Preview on site
               </a>
             ) : null}
-            <Button type="button" onClick={() => void save()} disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-              {isNew ? "Create item" : "Save changes"}
+            <Button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving || !canSave}
+              variant={canSave ? "default" : "outline"}
+            >
+              {saving ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : !canSave ? (
+                <Check className="size-4" aria-hidden />
+              ) : null}
+              {saving
+                ? isNew
+                  ? "Creating…"
+                  : "Saving…"
+                : isNew
+                  ? "Create item"
+                  : canSave
+                    ? "Save changes"
+                    : "Saved"}
             </Button>
           </div>
         }
@@ -795,141 +832,79 @@ export function AdminProductEditor({
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex size-8 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                  <Upload className="size-4" />
-                </span>
-                <div>
-                  <h2 className="font-heading text-lg font-semibold">Photo</h2>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    Shows on guest proposals, Rentals, and quote PDFs.
-                  </p>
-                </div>
+            <div className="mb-4 flex items-center gap-2">
+              <span className="inline-flex size-8 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <Upload className="size-4" />
+              </span>
+              <div>
+                <h2 className="font-heading text-lg font-semibold">
+                  Parent gallery
+                </h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  Base product photos. First image is primary on cards, proposals,
+                  and PDFs.
+                </p>
               </div>
-              {form.image_url ? (
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={uploading || saving}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {uploading ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <ImagePlus className="size-4" />
-                    )}
-                    Replace
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={uploading || saving}
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => void removePhoto()}
-                  >
-                    <Trash2 className="size-4" />
-                    Delete
-                  </Button>
-                </div>
-              ) : null}
             </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              className="sr-only"
-              disabled={uploading || saving}
-              onChange={(e) => {
-                void onUpload(e.target.files?.[0] ?? null);
-                e.target.value = "";
+            <AdminProductGallery
+              productId={productId}
+              onEnsureSaved={() => save({ silent: true })}
+              onError={setError}
+              onProductRefresh={(next) => {
+                if (next && typeof next === "object" && "id" in next) {
+                  mergeProductIntoForm(next as ProductRow, true);
+                }
               }}
+              title="Photos"
+              description={`Up to 8 photos. First is primary.`}
             />
 
-            <button
-              type="button"
-              disabled={uploading || saving}
-              onClick={() => fileInputRef.current?.click()}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                const file = e.dataTransfer.files?.[0] ?? null;
-                void onUpload(file);
-              }}
-              className={cn(
-                "group relative mt-4 flex w-full max-w-md overflow-hidden rounded-2xl border border-dashed text-left transition-colors",
-                "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
-                "disabled:cursor-not-allowed disabled:opacity-70",
-                dragOver
-                  ? "border-primary bg-primary/10"
-                  : "border-border/50 bg-background/30 hover:border-primary/40 hover:bg-primary/[0.04]"
-              )}
-            >
-              <div className="relative aspect-[4/3] w-full">
-                {form.image_url ? (
-                  <>
-                    <Image
-                      src={form.image_url}
-                      alt={form.image_alt || form.name || "Product photo"}
-                      fill
-                      className="object-cover"
-                      sizes="448px"
-                      unoptimized
+            <div className="mt-6 border-t border-border/40 pt-5">
+              <Label>Main listing color</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The color of this parent listing (e.g. Black for “Black Velvet
+                Drapes”). Variants below are additional options shoppers can
+                switch to.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <div className="space-y-1.5">
+                  <Label htmlFor="default-color-name">Color name</Label>
+                  <Input
+                    id="default-color-name"
+                    value={form.default_color_name}
+                    onChange={(e) =>
+                      patch({ default_color_name: e.target.value })
+                    }
+                    placeholder="Black"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Hex</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={normalizeHexColor(
+                        form.default_color_hex || "#111111"
+                      ).toLowerCase()}
+                      onChange={(e) =>
+                        patch({
+                          default_color_hex: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="size-9 cursor-pointer rounded-lg border border-border/40 bg-transparent p-0.5"
+                      aria-label="Main listing color picker"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-3 opacity-0 transition-opacity group-hover:opacity-100">
-                      <p className="text-xs font-medium text-white sm:text-sm">
-                        Drop or click to replace
-                      </p>
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur">
-                        <ImagePlus className="size-3.5" />
-                        Update
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex h-full flex-col items-center justify-center gap-2.5 px-5 py-8 text-center">
-                    <span className="inline-flex size-11 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
-                      {uploading ? (
-                        <Loader2 className="size-5 animate-spin" />
-                      ) : (
-                        <ImagePlus className="size-5" />
-                      )}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {uploading
-                          ? "Uploading photo…"
-                          : "Drop an image, or click to browse"}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        JPG, PNG, WEBP, or GIF · max 5MB
-                        {isNew ? " · saves first if needed" : ""}
-                      </p>
-                    </div>
-                    <span className="inline-flex min-h-8 items-center justify-center rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground shadow-sm">
-                      Choose photo
-                    </span>
+                    <Input
+                      value={form.default_color_hex}
+                      onChange={(e) =>
+                        patch({ default_color_hex: e.target.value })
+                      }
+                      className="w-28 font-mono text-xs uppercase"
+                    />
                   </div>
-                )}
+                </div>
               </div>
-            </button>
+            </div>
           </section>
 
           <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
@@ -1021,36 +996,30 @@ export function AdminProductEditor({
 
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <select
+                <SelectInput
                   id="category"
-                  className={selectClass}
                   value={form.category}
-                  onChange={(e) =>
-                    patch({ category: e.target.value as QuoteLineCategory })
+                  onChange={(value) =>
+                    patch({ category: value as QuoteLineCategory })
                   }
-                >
-                  {QUOTE_LINE_CATEGORIES.map((category) => (
-                    <option key={category} value={category}>
-                      {QUOTE_CATEGORY_LABELS[category]}
-                    </option>
-                  ))}
-                </select>
+                  options={QUOTE_LINE_CATEGORIES.map((category) => ({
+                    value: category,
+                    label: QUOTE_CATEGORY_LABELS[category],
+                  }))}
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
-                <select
+                <SelectInput
                   id="unit"
-                  className={selectClass}
                   value={form.unit_label}
-                  onChange={(e) => patch({ unit_label: e.target.value })}
-                >
-                  {PRODUCT_UNIT_LABELS.map((unit) => (
-                    <option key={unit} value={unit}>
-                      {unit}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => patch({ unit_label: value })}
+                  options={PRODUCT_UNIT_LABELS.map((unit) => ({
+                    value: unit,
+                    label: unit,
+                  }))}
+                />
               </div>
 
               <div className="space-y-2">
@@ -1064,25 +1033,45 @@ export function AdminProductEditor({
               </div>
 
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="short">Short description</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label htmlFor="short">Short description</Label>
+                  <AdminCopyTagHelper
+                    value={form.short_description}
+                    onChange={(next) => patch({ short_description: next })}
+                    targetRef={shortDescRef}
+                  />
+                </div>
                 <Input
+                  ref={shortDescRef}
                   id="short"
                   value={form.short_description}
                   onChange={(e) =>
                     patch({ short_description: e.target.value })
                   }
-                  placeholder="Shown in pickers and summaries"
+                  placeholder="e.g. Premium {color} velvet drapes for events"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Use Insert tag for {"{color}"} / {"{product}"} — updates when
+                  shoppers pick a color.
+                </p>
               </div>
 
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="description">Full details</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label htmlFor="description">Full details</Label>
+                  <AdminCopyTagHelper
+                    value={form.description}
+                    onChange={(next) => patch({ description: next })}
+                    targetRef={fullDescRef}
+                  />
+                </div>
                 <Textarea
+                  ref={fullDescRef}
                   id="description"
                   rows={5}
                   value={form.description}
                   onChange={(e) => patch({ description: e.target.value })}
-                  placeholder="Fabric, size, install notes, inclusions…"
+                  placeholder="Fabric, size, install notes… Mention {color} where it should change."
                 />
               </div>
             </div>
@@ -1199,42 +1188,38 @@ export function AdminProductEditor({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="full-service">Full service</Label>
-                      <select
+                      <SelectInput
                         id="full-service"
-                        className={selectClass}
                         value={form.full_service_product_id}
-                        onChange={(e) =>
-                          patch({ full_service_product_id: e.target.value })
+                        onChange={(value) =>
+                          patch({ full_service_product_id: value })
                         }
-                      >
-                        <option value="">Select service…</option>
-                        {serviceProducts.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.name}
-                          </option>
-                        ))}
-                      </select>
+                        allowClear
+                        placeholder="Select service…"
+                        options={serviceProducts.map((option) => ({
+                          value: option.id,
+                          label: option.name,
+                        }))}
+                      />
                       <p className="text-xs text-muted-foreground">
                         Transport + install + teardown.
                       </p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="transport-only">Transport only</Label>
-                      <select
+                      <SelectInput
                         id="transport-only"
-                        className={selectClass}
                         value={form.transport_only_product_id}
-                        onChange={(e) =>
-                          patch({ transport_only_product_id: e.target.value })
+                        onChange={(value) =>
+                          patch({ transport_only_product_id: value })
                         }
-                      >
-                        <option value="">Select service…</option>
-                        {serviceProducts.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.name}
-                          </option>
-                        ))}
-                      </select>
+                        allowClear
+                        placeholder="Select service…"
+                        options={serviceProducts.map((option) => ({
+                          value: option.id,
+                          label: option.name,
+                        }))}
+                      />
                       <p className="text-xs text-muted-foreground">
                         Delivery without install crew.
                       </p>
@@ -1279,9 +1264,6 @@ export function AdminProductEditor({
               productId={productId}
               eventTypeIds={form.event_type_ids}
               onEventTypeIdsChange={(ids) => patch({ event_type_ids: ids })}
-              defaultColorName={form.default_color_name}
-              defaultColorHex={form.default_color_hex}
-              onDefaultColorChange={(next) => patch(next)}
               drafts={form.colorDrafts}
               onDraftsChange={(next) =>
                 setForm((prev) => ({
@@ -1336,24 +1318,20 @@ export function AdminProductEditor({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="availability">Availability</Label>
-                  <select
+                  <SelectInput
                     id="availability"
-                    className={selectClass}
                     value={form.availability_status}
-                    onChange={(e) =>
+                    onChange={(value) =>
                       patch({
-                        availability_status: e.target
-                          .value as ProductAvailabilityStatus,
+                        availability_status: value as ProductAvailabilityStatus,
                         availability_manual: true,
                       })
                     }
-                  >
-                    {PRODUCT_AVAILABILITY_STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {PRODUCT_AVAILABILITY_LABELS[status]}
-                      </option>
-                    ))}
-                  </select>
+                    options={PRODUCT_AVAILABILITY_STATUSES.map((status) => ({
+                      value: status,
+                      label: PRODUCT_AVAILABILITY_LABELS[status],
+                    }))}
+                  />
                   <p className="text-xs text-muted-foreground">
                     Changing availability locks a manual override until qty
                     changes again.
@@ -1454,7 +1432,7 @@ export function AdminProductEditor({
         </div>
       </div>
       <AdminFloatingSaveButton
-        active
+        active={canSave || saving}
         saving={saving}
         label={isNew ? "Create item" : "Save changes"}
         onSave={() => void save()}

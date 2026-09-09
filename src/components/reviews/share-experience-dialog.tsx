@@ -6,7 +6,6 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
   MapPin,
   MessageSquareQuote,
   Sparkles,
@@ -32,6 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { ReviewSubmissionData } from "@/lib/review-submission-schema";
@@ -58,12 +58,6 @@ const emptyForm: ReviewSubmissionData = {
 
 const categoryOptions = reviewCategories.filter(
   (category) => category.id !== "all"
-);
-
-const selectClassName = cn(
-  "h-8 w-full min-w-0 appearance-none rounded-2xl border border-transparent bg-input/50 px-2.5 py-1 pr-8 text-base transition-[color,box-shadow] duration-200 outline-none md:text-sm",
-  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30",
-  "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
 );
 
 type ShareExperienceDialogProps = {
@@ -481,29 +475,25 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                   <Label htmlFor="review-recommend">
                     {t("recommend")} <span className="text-primary">*</span>
                   </Label>
-                  <div className="relative">
-                    <select
-                      id="review-recommend"
-                      value={formData.wouldRecommend}
-                      onChange={(e) =>
-                        updateField(
-                          "wouldRecommend",
-                          e.target.value as ReviewSubmissionData["wouldRecommend"]
-                        )
-                      }
-                      disabled={isSubmitting}
-                      className={cn(
-                        selectClassName,
-                        !formData.wouldRecommend && "text-muted-foreground"
-                      )}
-                    >
-                      <option value="">{t("selectOne")}</option>
-                      <option value="yes">{t("recommendYes")}</option>
-                      <option value="maybe">{t("recommendMaybe")}</option>
-                      <option value="no">{t("recommendNo")}</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                  </div>
+                  <SelectInput
+                    id="review-recommend"
+                    value={formData.wouldRecommend}
+                    onChange={(next) =>
+                      updateField(
+                        "wouldRecommend",
+                        next as ReviewSubmissionData["wouldRecommend"]
+                      )
+                    }
+                    disabled={isSubmitting}
+                    allowClear
+                    placeholder={t("selectOne")}
+                    options={[
+                      { value: "yes", label: t("recommendYes") },
+                      { value: "maybe", label: t("recommendMaybe") },
+                      { value: "no", label: t("recommendNo") },
+                    ]}
+                    aria-invalid={fieldErrors.wouldRecommend ? true : undefined}
+                  />
                   <FieldError
                     show={showValidation}
                     message={fieldErrors.wouldRecommend}

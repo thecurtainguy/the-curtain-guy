@@ -1,20 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { Package } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   buildProductColorOptions,
+  isProductBaseColorId,
   resolveColorUnitPriceCents,
-  resolveProductDisplayImage,
   resolveProductDisplayTitle,
+  resolveProductGallery,
   type ProductColorVariantRow,
 } from "@/data/product-colors";
+import { resolveProductCopy } from "@/data/product-copy-templates";
 import { formatCadFromCents, type PublicRentalProduct } from "@/data/rentals";
 import { PageHero } from "@/components/page-hero";
 import { RentalProductConfigurator } from "@/components/rentals/rental-product-configurator";
 import { Reveal } from "@/components/animation/reveal";
+import { cn } from "@/lib/utils";
 
 type RentalProductViewProps = {
   product: PublicRentalProduct;
@@ -25,21 +28,53 @@ export function RentalProductView({ product }: RentalProductViewProps) {
   const colors = useMemo(() => buildProductColorOptions(product), [product]);
   const [selectedColor, setSelectedColor] =
     useState<ProductColorVariantRow | null>(colors[0] ?? null);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const displayTitle = resolveProductDisplayTitle({
     productName: product.name,
     color: selectedColor,
   });
 
-  const display = useMemo(
-    () =>
-      resolveProductDisplayImage({
-        productImageUrl: product.image_url,
-        productImageAlt: product.image_alt,
-        color: selectedColor,
-      }),
-    [product.image_url, product.image_alt, selectedColor]
-  );
+  const shortDescription = resolveProductCopy({
+    text: product.short_description,
+    productName: product.name,
+    color: selectedColor,
+    defaultColorName: product.default_color_name,
+  });
+
+  const longDescription = resolveProductCopy({
+    text: product.description,
+    productName: product.name,
+    color: selectedColor,
+    defaultColorName: product.default_color_name,
+  });
+
+  const gallery = useMemo(() => {
+    const isBase =
+      !selectedColor || isProductBaseColorId(selectedColor.id);
+    return resolveProductGallery({
+      parentImages: product.images || [],
+      variantImages: isBase ? null : selectedColor?.images,
+      fallback: {
+        imageUrl: isBase
+          ? product.image_url
+          : selectedColor?.image_url || product.image_url,
+        imageAlt: isBase
+          ? product.image_alt
+          : selectedColor?.image_alt ||
+            selectedColor?.name ||
+            product.image_alt,
+      },
+    });
+  }, [product.images, product.image_url, product.image_alt, selectedColor]);
+
+  const galleryKey = gallery.map((row) => row.id).join("|");
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [galleryKey]);
+
+  const hero = gallery[Math.min(activeIndex, Math.max(gallery.length - 1, 0))];
 
   const unitPrice = resolveColorUnitPriceCents({
     productPriceCents: product.default_unit_price_cents,
@@ -59,7 +94,7 @@ export function RentalProductView({ product }: RentalProductViewProps) {
       <PageHero
         eyebrow={t("eyebrow")}
         title={displayTitle}
-        description={product.short_description || undefined}
+        description={shortDescription || undefined}
       />
 
       <section className="relative py-12 sm:py-16">
@@ -67,10 +102,11 @@ export function RentalProductView({ product }: RentalProductViewProps) {
           <Reveal variant="slide-left">
             <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/25">
               <div className="relative aspect-[4/3]">
-                {display.imageUrl ? (
+                {hero?.image_url ? (
                   <Image
-                    src={display.imageUrl}
-                    alt={display.imageAlt || displayTitle}
+                    key={hero.id}
+                    src={hero.image_url}
+                    alt={hero.image_alt || displayTitle}
                     fill
                     className="object-cover"
                     sizes="(max-width: 1024px) 100vw, 50vw"
@@ -100,13 +136,49 @@ export function RentalProductView({ product }: RentalProductViewProps) {
                   </span>
                 ) : null}
               </div>
-              {product.description ? (
+
+              {gallery.length > 1 ? (
+                <div className="border-t border-border/40 p-3 sm:p-4">
+                  <ul className="flex gap-2 overflow-x-auto pb-1">
+                    {gallery.map((image, index) => {
+                      const selected = index === activeIndex;
+                      return (
+                        <li key={image.id} className="shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setActiveIndex(index)}
+                            aria-label={`View photo ${index + 1}`}
+                            aria-pressed={selected}
+                            className={cn(
+                              "relative size-16 overflow-hidden rounded-xl border transition-all sm:size-20",
+                              selected
+                                ? "border-primary ring-2 ring-primary/40"
+                                : "border-border/40 opacity-80 hover:opacity-100"
+                            )}
+                          >
+                            <Image
+                              src={image.image_url}
+                              alt={image.image_alt || `Photo ${index + 1}`}
+                              fill
+                              className="object-cover"
+                              sizes="80px"
+                              unoptimized
+                            />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
+
+              {longDescription ? (
                 <div className="border-t border-border/40 p-5 sm:p-6">
                   <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
                     {t("detailsEyebrow")}
                   </p>
                   <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                    {product.description}
+                    {longDescription}
                   </p>
                 </div>
               ) : null}

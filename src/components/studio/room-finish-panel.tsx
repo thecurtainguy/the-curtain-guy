@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/ui/select-input";
 import {
   STUDIO_FLOOR_FINISHES,
   STUDIO_LIGHTING_MOODS,
@@ -19,9 +20,6 @@ type RoomFinishPanelProps = {
   onChange: (design: StudioDesignJson) => void;
   idPrefix: string;
 };
-
-const selectClassName =
-  "h-9 w-full rounded-2xl border border-border/60 bg-background/65 px-3 text-sm outline-none transition focus-visible:border-primary/60 focus-visible:ring-3 focus-visible:ring-primary/15";
 
 export function RoomFinishPanel({
   design,
@@ -65,22 +63,19 @@ export function RoomFinishPanel({
           label="Floor material"
           htmlFor={`${idPrefix}-floor`}
         >
-          <select
+          <SelectInput
             id={`${idPrefix}-floor`}
             value={materials.floor}
-            onChange={(event) =>
+            onChange={(next) =>
               updateMaterials({
-                floor: event.target.value as StudioFloorFinish,
+                floor: next as StudioFloorFinish,
               })
             }
-            className={selectClassName}
-          >
-            {STUDIO_FLOOR_FINISHES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={STUDIO_FLOOR_FINISHES.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+          />
         </FinishField>
 
         <FinishField
@@ -88,22 +83,19 @@ export function RoomFinishPanel({
           label="Wall finish"
           htmlFor={`${idPrefix}-walls`}
         >
-          <select
+          <SelectInput
             id={`${idPrefix}-walls`}
             value={materials.walls}
-            onChange={(event) =>
+            onChange={(next) =>
               updateMaterials({
-                walls: event.target.value as StudioWallFinish,
+                walls: next as StudioWallFinish,
               })
             }
-            className={selectClassName}
-          >
-            {STUDIO_WALL_FINISHES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={STUDIO_WALL_FINISHES.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+          />
         </FinishField>
 
         <FinishField
@@ -111,22 +103,19 @@ export function RoomFinishPanel({
           label="Lighting mood"
           htmlFor={`${idPrefix}-lighting`}
         >
-          <select
+          <SelectInput
             id={`${idPrefix}-lighting`}
             value={materials.lighting}
-            onChange={(event) =>
+            onChange={(next) =>
               updateMaterials({
-                lighting: event.target.value as StudioLightingMood,
+                lighting: next as StudioLightingMood,
               })
             }
-            className={selectClassName}
-          >
-            {STUDIO_LIGHTING_MOODS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={STUDIO_LIGHTING_MOODS.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+          />
         </FinishField>
 
         <Button

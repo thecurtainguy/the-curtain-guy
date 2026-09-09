@@ -3,20 +3,18 @@
 import { useState } from "react";
 import {
   CalendarDays,
-  ChevronDown,
   MapPin,
   MessageSquare,
   Send,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { siteConfig } from "@/data/site";
-import { useLocalizedEventTypes } from "@/lib/i18n/estimate";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { DateInput } from "@/components/ui/date-input";
+import { EventTypeInput } from "@/components/ui/event-type-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { ContactFormSuccess } from "@/components/contact/contact-form-success";
 import type { ContactFormData } from "@/lib/contact-schema";
 
@@ -32,7 +30,6 @@ const emptyForm: ContactFormData = {
 
 export function ContactForm() {
   const t = useTranslations("contact.form");
-  const eventTypeOptions = useLocalizedEventTypes();
   const [formData, setFormData] = useState<ContactFormData>(emptyForm);
   const [honeypot, setHoneypot] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -192,32 +189,14 @@ export function ContactForm() {
             <CalendarDays className="size-3.5 text-primary/80" />
             {t("eventType")}
           </Label>
-          <div className="relative">
-            <select
-              id="contact-event-type"
-              value={formData.eventType}
-              onChange={(e) => updateField("eventType", e.target.value)}
-              disabled={isSubmitting}
-              className={cn(
-                "h-8 w-full min-w-0 appearance-none rounded-2xl border border-transparent bg-input/50 px-2.5 py-1 pr-8 text-base transition-[color,box-shadow] duration-200 outline-none md:text-sm",
-                "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30",
-                "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-                !formData.eventType && "text-muted-foreground"
-              )}
-              aria-invalid={fieldErrors.eventType ? true : undefined}
-            >
-              <option value="">{t("eventTypePlaceholder")}</option>
-              {eventTypeOptions.map((type) => (
-                <option key={type.id} value={type.id} className="text-foreground">
-                  {type.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-primary"
-              aria-hidden
-            />
-          </div>
+          <EventTypeInput
+            id="contact-event-type"
+            value={formData.eventType}
+            onChange={(value) => updateField("eventType", value)}
+            disabled={isSubmitting}
+            placeholder={t("eventTypePlaceholder")}
+            aria-invalid={fieldErrors.eventType ? true : undefined}
+          />
           {showValidation && fieldErrors.eventType ? (
             <p className="text-xs text-destructive">{fieldErrors.eventType}</p>
           ) : null}

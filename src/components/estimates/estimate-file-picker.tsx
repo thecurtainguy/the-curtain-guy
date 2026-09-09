@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import { CheckCircle2, FileUp, Loader2, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,8 @@ export function EstimateFilePicker({
   const t = useTranslations("estimate.filePicker");
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const dragDepth = useRef(0);
 
   const statusLabels: Record<FileUploadProgressStatus, string> = {
     queued: t("uploading"),
@@ -71,6 +73,8 @@ export function EstimateFilePicker({
     uploaded: t("uploaded"),
     failed: t("failed"),
   };
+
+  const canAddMore = !disabled && files.length < ESTIMATE_MAX_FILES;
 
   function handleSelect(list: FileList | null) {
     if (!list || list.length === 0) return;
@@ -118,11 +122,46 @@ export function EstimateFilePicker({
     setError(null);
   }
 
+  function handleDragEnter(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!canAddMore) return;
+    dragDepth.current += 1;
+    setDragOver(true);
+  }
+
+  function handleDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragOver(false);
+  }
+
+  function handleDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (canAddMore) event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current = 0;
+    setDragOver(false);
+    if (!canAddMore) return;
+    handleSelect(event.dataTransfer.files);
+  }
+
   return (
     <div className={cn(compact ? "space-y-2" : "space-y-3", className)}>
       <div
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         className={cn(
-          "rounded-2xl border border-primary/30 bg-card/30 shadow-[0_0_40px_-28px_oklch(0.76_0.15_88/0.8)]",
+          "rounded-2xl border bg-card/30 shadow-[0_0_40px_-28px_oklch(0.76_0.15_88/0.8)] transition-colors",
+          dragOver ? "border-primary bg-primary/10" : "border-primary/30",
           compact ? "p-3" : "p-4 sm:p-5"
         )}
       >
@@ -160,7 +199,9 @@ export function EstimateFilePicker({
                   {t("hint")}
                 </p>
               ) : (
-                <p className="mt-1 text-xs text-muted-foreground">{t("hint")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {dragOver ? "Drop files to attach" : t("hint")}
+                </p>
               )}
             </div>
           </div>

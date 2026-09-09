@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DRAPE_COLORS,
@@ -112,30 +113,27 @@ export function TreatmentEditor({
       </Field>
 
       <Field label="Treatment type" id={fieldId("type")}>
-        <select
+        <SelectInput
           id={fieldId("type")}
           value={treatment.type}
-          onChange={(event) =>
+          onChange={(next) =>
             update({
-              type: event.target.value as StudioTreatment["type"],
+              type: next as StudioTreatment["type"],
             })
           }
-          className="h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-        >
-          {STUDIO_TREATMENT_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {STUDIO_TREATMENT_TYPE_LABELS[type]}
-            </option>
-          ))}
-        </select>
+          options={STUDIO_TREATMENT_TYPES.map((type) => ({
+            value: type,
+            label: STUDIO_TREATMENT_TYPE_LABELS[type],
+          }))}
+        />
       </Field>
 
       <Field label="Wall anchor" id={fieldId("wall")}>
-        <select
+        <SelectInput
           id={fieldId("wall")}
-          value={treatment.anchor.wallIndex}
-          onChange={(event) => {
-            const wallIndex = Number(event.target.value);
+          value={String(treatment.anchor.wallIndex)}
+          onChange={(next) => {
+            const wallIndex = Number(next);
             const nextWall = walls[wallIndex];
             const width = Math.min(span, nextWall?.length ?? span);
             const startOffset = Math.max(
@@ -151,14 +149,11 @@ export function TreatmentEditor({
               },
             });
           }}
-          className="h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-        >
-          {walls.map((item) => (
-            <option key={item.index} value={item.index}>
-              Wall {item.index + 1} · {inchesToFeetLabel(item.length)}
-            </option>
-          ))}
-        </select>
+          options={walls.map((item) => ({
+            value: String(item.index),
+            label: `Wall ${item.index + 1} · ${inchesToFeetLabel(item.length)}`,
+          }))}
+        />
       </Field>
 
       <div className="grid grid-cols-2 gap-2">
@@ -438,18 +433,12 @@ function SelectField({
 }) {
   return (
     <Field label={label} id={id}>
-      <select
+      <SelectInput
         id={id}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-8 w-full rounded-2xl border border-transparent bg-input/50 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+        options={[...options]}
+      />
     </Field>
   );
 }

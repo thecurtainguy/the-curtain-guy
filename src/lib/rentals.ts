@@ -21,12 +21,31 @@ import {
   type RentalCartLine,
 } from "@/data/rentals";
 import {
+  listAllProductImages,
+  listImagesForProducts,
+} from "@/lib/product-images";
+import {
   listColorVariantsForProducts,
   listProductColorVariants,
 } from "@/lib/product-colors";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import type { ProductImageRow } from "@/data/product-images";
 
 export { evaluateProductCompleteness };
+
+function attachColorImages(
+  colors: ProductColorVariantRow[],
+  allImages: ProductImageRow[]
+): ProductColorVariantRow[] {
+  return colors.map((color) => ({
+    ...color,
+    images: allImages.filter((row) => row.color_variant_id === color.id),
+  }));
+}
+
+function parentImagesOnly(allImages: ProductImageRow[]): ProductImageRow[] {
+  return allImages.filter((row) => !row.color_variant_id);
+}
 
 function asCatalog(row: ProductRow): ProductCatalogRow {
   const mode = row.configurator_mode;
@@ -197,9 +216,10 @@ export async function loadPublicRentalProduct(
   const product = await fetchProductCatalogBySlug(slug);
   if (!product || !product.is_active || !product.is_public) return null;
 
-  const [includes, addons] = await Promise.all([
+  const [includes, addons, allImages] = await Promise.all([
     listFormulaIncludes(product.id),
     listProductAddons(product.id),
+    listAllProductImages(product.id),
   ]);
 
   const fullService = product.full_service_product_id
@@ -227,7 +247,8 @@ export async function loadPublicRentalProduct(
     addons: addons.filter((a) => a.is_active && a.addon.is_active),
     fullService,
     transportOnly,
-    colors,
+    colors: attachColorImages(colors, allImages),
+    images: parentImagesOnly(allImages),
   };
 }
 
@@ -245,14 +266,22 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
   if (error || !data?.length) return [];
 
   const productRows = data as ProductRow[];
-  const allColors = await listColorVariantsForProducts(
-    productRows.map((row) => row.id)
-  );
+  const productIds = productRows.map((row) => row.id);
+  const [allColors, allImages] = await Promise.all([
+    listColorVariantsForProducts(productIds),
+    listImagesForProducts(productIds),
+  ]);
   const colorsByProduct = new Map<string, ProductColorVariantRow[]>();
   for (const color of allColors) {
     const list = colorsByProduct.get(color.product_id) || [];
     list.push(color);
     colorsByProduct.set(color.product_id, list);
+  }
+  const imagesByProduct = new Map<string, ProductImageRow[]>();
+  for (const image of allImages) {
+    const list = imagesByProduct.get(image.product_id) || [];
+    list.push(image);
+    imagesByProduct.set(image.product_id, list);
   }
 
   const results: PublicRentalProduct[] = [];
@@ -276,13 +305,18 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
       transportOnly,
     });
     if (!completeness.readyForPublic) continue;
+    const productImages = imagesByProduct.get(product.id) || [];
     results.push({
       ...product,
       includes,
       addons: addons.filter((a) => a.is_active && a.addon.is_active),
       fullService,
       transportOnly,
-      colors: colorsByProduct.get(product.id) || [],
+      colors: attachColorImages(
+        colorsByProduct.get(product.id) || [],
+        productImages
+      ),
+      images: parentImagesOnly(productImages),
     });
   }
   return results;

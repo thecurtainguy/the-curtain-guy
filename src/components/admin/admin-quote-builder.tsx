@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Check,
-  ChevronDown,
   Copy,
   Download,
   ExternalLink,
@@ -67,6 +66,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { EventTypeInput } from "@/components/ui/event-type-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
@@ -74,28 +74,6 @@ import {
   type InventoryPickResult,
 } from "@/components/admin/admin-inventory-picker-dialog";
 import Image from "next/image";
-
-const selectClass =
-  "h-8 w-full min-w-0 appearance-none rounded-2xl border border-transparent bg-input/50 py-1 pl-2.5 pr-8 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-70";
-
-function PrettySelect({
-  className,
-  children,
-  ...props
-}: ComponentProps<"select">) {
-  return (
-    <div className="relative">
-      <select className={cn(selectClass, className)} {...props}>
-        {children}
-      </select>
-      <ChevronDown
-        className="pointer-events-none absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-        strokeWidth={2}
-        aria-hidden
-      />
-    </div>
-  );
-}
 
 type QuoteSourceEventPlan = {
   id: string;
@@ -972,21 +950,19 @@ export function AdminQuoteBuilder({
                     <Label className="text-xs text-muted-foreground">
                       Category
                     </Label>
-                    <PrettySelect
+                    <SelectInput
                       value={line.category}
                       disabled={!isEditing}
-                      onChange={(e) =>
+                      onChange={(next) =>
                         updateLine(line.key, {
-                          category: e.target.value as QuoteLineCategory,
+                          category: next as QuoteLineCategory,
                         })
                       }
-                    >
-                      {QUOTE_LINE_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {QUOTE_CATEGORY_LABELS[cat]}
-                        </option>
-                      ))}
-                    </PrettySelect>
+                      options={QUOTE_LINE_CATEGORIES.map((cat) => ({
+                        value: cat,
+                        label: QUOTE_CATEGORY_LABELS[cat],
+                      }))}
+                    />
                   </div>
                   <div className="min-w-0 space-y-1.5 sm:col-span-2 lg:col-span-1">
                     <Label className="text-xs text-muted-foreground">
@@ -1035,21 +1011,19 @@ export function AdminQuoteBuilder({
                     <Label className="text-xs text-muted-foreground">
                       Status
                     </Label>
-                    <PrettySelect
+                    <SelectInput
                       value={line.status}
                       disabled={!isEditing}
-                      onChange={(e) =>
+                      onChange={(next) =>
                         updateLine(line.key, {
-                          status: e.target.value as QuoteLineStatus,
+                          status: next as QuoteLineStatus,
                         })
                       }
-                    >
-                      {QUOTE_LINE_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {QUOTE_LINE_STATUS_LABELS[status]}
-                        </option>
-                      ))}
-                    </PrettySelect>
+                      options={QUOTE_LINE_STATUSES.map((status) => ({
+                        value: status,
+                        label: QUOTE_LINE_STATUS_LABELS[status],
+                      }))}
+                    />
                   </div>
                   <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">Tax</Label>
@@ -1118,20 +1092,16 @@ export function AdminQuoteBuilder({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="tax_mode">Tax mode</Label>
-              <PrettySelect
+              <SelectInput
                 id="tax_mode"
                 value={taxMode}
                 disabled={!isEditing}
-                onChange={(e) =>
-                  setTaxMode(e.target.value as QuoteTaxMode)
-                }
-              >
-                {QUOTE_TAX_MODES.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {QUOTE_TAX_MODE_LABELS[mode]}
-                  </option>
-                ))}
-              </PrettySelect>
+                onChange={(next) => setTaxMode(next as QuoteTaxMode)}
+                options={QUOTE_TAX_MODES.map((mode) => ({
+                  value: mode,
+                  label: QUOTE_TAX_MODE_LABELS[mode],
+                }))}
+              />
             </div>
 
             {isEditing ? (
@@ -1345,24 +1315,22 @@ export function AdminQuoteBuilder({
                   <div className="mt-3 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Category</Label>
-                      <PrettySelect
+                      <SelectInput
                         value={convertCategory}
-                        onChange={(e) => {
-                          const next = e.target.value as QuoteLineCategory;
-                          setConvertCategory(next);
+                        onChange={(next) => {
+                          const category = next as QuoteLineCategory;
+                          setConvertCategory(category);
                           setConvertDescription((prev) =>
                             shouldAutofillQuoteDescription(prev, convertCategory)
-                              ? getQuoteCategoryDefaultDescription(next)
+                              ? getQuoteCategoryDefaultDescription(category)
                               : prev
                           );
                         }}
-                      >
-                        {QUOTE_LINE_CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {QUOTE_CATEGORY_LABELS[cat]}
-                          </option>
-                        ))}
-                      </PrettySelect>
+                        options={QUOTE_LINE_CATEGORIES.map((cat) => ({
+                          value: cat,
+                          label: QUOTE_CATEGORY_LABELS[cat],
+                        }))}
+                      />
                     </div>
                     <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                       <Label className="text-xs">Description</Label>

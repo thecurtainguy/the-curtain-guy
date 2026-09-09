@@ -16,6 +16,7 @@ import {
   PRODUCT_EVENT_TYPE_LABELS,
   type ProductEventTypeId,
 } from "@/data/product-colors";
+import { resolveProductCopy } from "@/data/product-copy-templates";
 import {
   PRODUCT_AVAILABILITY_LABELS,
   PRODUCT_AVAILABILITY_STATUSES,
@@ -35,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectInput } from "@/components/ui/select-input";
 import {
   Sheet,
   SheetContent,
@@ -91,18 +93,20 @@ function FilterPanel({
 
       <div className="space-y-2">
         <Label htmlFor="rentals-sort">{t("sort")}</Label>
-        <select
+        <SelectInput
           id="rentals-sort"
-          className="flex h-9 w-full rounded-2xl border border-transparent bg-input/50 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+          size="md"
           value={filters.sort}
-          onChange={(e) => patch({ sort: e.target.value as RentalsSortId })}
-        >
-          <option value="featured">{t("sortFeatured")}</option>
-          <option value="price-asc">{t("sortPriceAsc")}</option>
-          <option value="price-desc">{t("sortPriceDesc")}</option>
-          <option value="name-asc">{t("sortName")}</option>
-          <option value="newest">{t("sortNewest")}</option>
-        </select>
+          onChange={(next) => patch({ sort: next as RentalsSortId })}
+          searchable={false}
+          options={[
+            { value: "featured", label: t("sortFeatured") },
+            { value: "price-asc", label: t("sortPriceAsc") },
+            { value: "price-desc", label: t("sortPriceDesc") },
+            { value: "name-asc", label: t("sortName") },
+            { value: "newest", label: t("sortNewest") },
+          ]}
+        />
       </div>
 
       {facets.categories.length > 0 ? (
@@ -481,7 +485,11 @@ export function RentalsCatalog({ products }: RentalsCatalogProps) {
                     </p>
                     {product.short_description ? (
                       <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                        {product.short_description}
+                        {resolveProductCopy({
+                          text: product.short_description,
+                          productName: product.name,
+                          defaultColorName: product.default_color_name,
+                        })}
                       </p>
                     ) : null}
                     <p className="mt-auto pt-2 text-sm font-medium text-primary">

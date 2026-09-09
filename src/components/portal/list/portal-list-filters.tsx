@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { SelectInput } from "@/components/ui/select-input";
 import { cn } from "@/lib/utils";
 import type { PortalStatusOption } from "./types";
 
@@ -39,19 +40,17 @@ export function PortalListFilters({
           <label htmlFor="portal-list-status" className="text-xs text-muted-foreground">
             {statusLabel}
           </label>
-          <select
+          <SelectInput
             id="portal-list-status"
             value={status}
-            onChange={(e) => onStatusChange?.(e.target.value)}
-            className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm"
-          >
-            <option value="">{allLabel}</option>
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => onStatusChange?.(next)}
+            allowClear
+            placeholder={allLabel}
+            options={statusOptions.map((option) => ({
+              value: option.value,
+              label: option.label,
+            }))}
+          />
         </div>
       ) : null}
       {extras}

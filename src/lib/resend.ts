@@ -1,5 +1,12 @@
 import { getOutboundEmailCopyTo } from "@/lib/env";
 
+export type ResendEmailAttachment = {
+  filename: string;
+  /** Base64-encoded file contents (Resend API). */
+  content: string;
+  contentType?: string;
+};
+
 export type ResendEmailPayload = {
   apiKey: string;
   from: string;
@@ -9,6 +16,7 @@ export type ResendEmailPayload = {
   html: string;
   replyTo?: string;
   bcc?: string[];
+  attachments?: ResendEmailAttachment[];
   /** When true (default), BCC admin@ so outbound customer mail is archived. */
   copyOutbound?: boolean;
   logLabel?: string;
@@ -57,6 +65,13 @@ export async function sendResendEmail(
   }
   if (bcc.length > 0) {
     body.bcc = bcc;
+  }
+  if (payload.attachments && payload.attachments.length > 0) {
+    body.attachments = payload.attachments.map((file) => ({
+      filename: file.filename,
+      content: file.content,
+      ...(file.contentType ? { content_type: file.contentType } : {}),
+    }));
   }
 
   const response = await fetch("https://api.resend.com/emails", {

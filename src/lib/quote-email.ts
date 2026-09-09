@@ -1,5 +1,6 @@
 import {
   formatCadFromCents,
+  formatQuoteFilenameStem,
   getQuoteTaxBreakdownRows,
   resolveQuoteDisplayRef,
   type QuoteRow,
@@ -10,6 +11,11 @@ import {
   getSiteUrl,
 } from "@/lib/env";
 import { getDocumentTextsMap } from "@/lib/document-texts";
+import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
+import {
+  toCustomerSafeQuote,
+  type QuoteWithRelations,
+} from "@/lib/quotes";
 import { sendResendEmail } from "@/lib/resend";
 
 function escapeHtml(value: string): string {
@@ -58,7 +64,7 @@ function quoteTaxEmailLines(quote: QuoteRow): {
 
 export async function sendQuoteReadyEmail(input: {
   apiKey: string;
-  quote: QuoteRow;
+  quote: QuoteWithRelations;
   publicQuoteUrl: string;
 }): Promise<void> {
   const { quote, publicQuoteUrl, apiKey } = input;
@@ -75,6 +81,29 @@ export async function sendQuoteReadyEmail(input: {
   const copy = await getDocumentTextsMap();
   const emailNote = copy["quote.email_note"];
   const emailFooter = copy["quote.email_footer"];
+  const siteUrl = getSiteUrl().replace(/\/$/, "");
+  const pdfFilename = `${formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number)}.pdf`;
+
+  let pdfAttachment: {
+    filename: string;
+    content: string;
+    contentType: string;
+  } | null = null;
+  try {
+    const safe = toCustomerSafeQuote(quote, { shareUrl: publicQuoteUrl });
+    const pdfBuffer = await renderQuotePdfBuffer({
+      quote: safe,
+      publicUrl: publicQuoteUrl,
+      siteUrl,
+    });
+    pdfAttachment = {
+      filename: pdfFilename,
+      content: pdfBuffer.toString("base64"),
+      contentType: "application/pdf",
+    };
+  } catch (err) {
+    console.error("[quotes] PDF attach failed; sending email without PDF", err);
+  }
 
   const text = [
     `Your Curtain Guy quote is ready — ${displayRef}`,
@@ -85,6 +114,7 @@ export async function sendQuoteReadyEmail(input: {
     "",
     "Review your proposal, request options, or ask for changes:",
     publicQuoteUrl,
+    pdfAttachment ? `\nA PDF copy is attached (${pdfFilename}).` : "",
     "",
     emailNote,
   ]
@@ -112,6 +142,11 @@ export async function sendQuoteReadyEmail(input: {
         Review your quote
       </a>
     </p>
+    ${
+      pdfAttachment
+        ? `<p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#8b909a;">A PDF copy of this proposal is attached (${escapeHtml(pdfFilename)}).</p>`
+        : ""
+    }
     <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#8b909a;">
       ${escapeHtml(emailNote)}
     </p>
@@ -127,6 +162,7 @@ export async function sendQuoteReadyEmail(input: {
     subject: `Your Curtain Guy quote is ready — ${displayRef}`,
     text,
     html,
+    attachments: pdfAttachment ? [pdfAttachment] : undefined,
     logLabel: "quotes",
   });
 }

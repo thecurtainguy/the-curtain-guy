@@ -15,6 +15,7 @@ export type ResendEmailPayload = {
   text: string;
   html: string;
   replyTo?: string;
+  cc?: string[];
   bcc?: string[];
   attachments?: ResendEmailAttachment[];
   /** When true (default), BCC admin@ so outbound customer mail is archived. */
@@ -43,9 +44,11 @@ export async function sendResendEmail(
 
   if (copyOutbound) {
     const copyTo = getOutboundEmailCopyTo().trim();
+    const cc = payload.cc ?? [];
     if (
       copyTo &&
       !recipientsInclude(payload.to, copyTo) &&
+      !recipientsInclude(cc, copyTo) &&
       !recipientsInclude(bcc, copyTo)
     ) {
       bcc.push(copyTo);
@@ -62,6 +65,9 @@ export async function sendResendEmail(
 
   if (payload.replyTo) {
     body.reply_to = payload.replyTo;
+  }
+  if (payload.cc && payload.cc.length > 0) {
+    body.cc = payload.cc;
   }
   if (bcc.length > 0) {
     body.bcc = bcc;

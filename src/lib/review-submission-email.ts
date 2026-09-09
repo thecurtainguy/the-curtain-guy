@@ -1,4 +1,5 @@
 import { getReviewCategoryLabel } from "@/data/reviews";
+import { emailBannerBrandHeaderHtml } from "@/lib/email-brand";
 import { getContactFrom, getContactNotifyTo } from "@/lib/env";
 import type { ReviewSubmissionData } from "@/lib/review-submission-schema";
 import { sendResendEmail } from "@/lib/resend";
@@ -96,7 +97,7 @@ function buildReviewNotificationHtml(data: ReviewSubmissionData): string {
   <body style="margin:0;padding:0;background:#f4f4f5;font-family:Georgia,'Times New Roman',serif;color:#111827;">
     <div style="max-width:640px;margin:0 auto;padding:24px 16px;">
       <div style="background:#111827;border-radius:16px 16px 0 0;padding:28px 24px;">
-        <p style="margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#d4af37;">The Curtain Guy</p>
+        ${emailBannerBrandHeaderHtml()}
         <h1 style="margin:0;font-size:24px;line-height:1.3;color:#ffffff;">New client review submission</h1>
       </div>
       <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:24px;">

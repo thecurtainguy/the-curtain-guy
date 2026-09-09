@@ -48,6 +48,7 @@ import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
 import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
 import { DocumentTextPreviewButton } from "@/components/admin/document-text-preview";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
+import { AdminQuoteSendDialog } from "@/components/admin/admin-quote-send-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
 import {
@@ -260,7 +261,8 @@ export function AdminQuoteBuilder({
     () => manualTaxLinesFromQuote(quote)
   );
 
-  const [sending, setSending] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendDialogKey, setSendDialogKey] = useState(0);
   const [revising, setRevising] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -504,29 +506,16 @@ export function AdminQuoteBuilder({
     flash("All line items marked non-taxable. Save to persist.");
   }
   async function sendQuote() {
-    setSending(true);
-    flash();
-    try {
-      const response = await fetch(`/api/admin/quotes/${quote.id}/send`, {
-        method: "POST",
-      });
-      const payload = (await response.json()) as {
-        ok?: boolean;
-        message?: string;
-        publicUrl?: string;
-      };
-      if (!response.ok || !payload.ok) {
-        flash(undefined, payload.message ?? "Could not send quote.");
-        return;
-      }
-      if (payload.publicUrl) setPublicUrl(payload.publicUrl);
-      flash(payload.message ?? "Quote sent.");
-      router.refresh();
-    } catch {
-      flash(undefined, "Could not send quote.");
-    } finally {
-      setSending(false);
+    if (isEditing) {
+      flash(undefined, "Save or cancel edits before sending.");
+      return;
     }
+    if (!customerEmail.trim() && !quote.customer_email?.trim()) {
+      flash(undefined, "Customer email is required before sending.");
+      return;
+    }
+    setSendDialogKey((key) => key + 1);
+    setSendDialogOpen(true);
   }
 
   async function createRevision() {
@@ -1528,8 +1517,7 @@ export function AdminQuoteBuilder({
           send.
         </p>
         <div className="mt-4 flex flex-col gap-2">
-          <Button type="button" onClick={() => void sendQuote()} disabled={sending}>
-            {sending ? <Loader2 className="size-4 animate-spin" /> : null}
+          <Button type="button" onClick={() => void sendQuote()}>
             Send quote
           </Button>
           <Button
@@ -1614,6 +1602,21 @@ export function AdminQuoteBuilder({
         label="Save quote"
         onSave={() => void saveAll()}
       />
+      {sendDialogOpen ? (
+        <AdminQuoteSendDialog
+          key={sendDialogKey}
+          open={sendDialogOpen}
+          onOpenChange={setSendDialogOpen}
+          quote={quote}
+          opportunityFiles={opportunityFiles}
+          publicQuoteUrlPreview={publicUrl}
+          onSent={(result) => {
+            if (result.publicUrl) setPublicUrl(result.publicUrl);
+            flash(result.message ?? "Quote sent.");
+            router.refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { formatJobRef, type EventJobRow } from "@/data/jobs";
+import { emailDarkBrandHeaderHtml } from "@/lib/email-brand";
 import {
   getEstimateNotifyTo,
   getQuoteFrom,
@@ -21,7 +22,7 @@ function brandShell(title: string, innerHtml: string): string {
 <body style="margin:0;padding:0;background:#0b0d12;font-family:Georgia,'Times New Roman',serif;">
   <div style="max-width:640px;margin:0 auto;padding:28px 16px;">
     <div style="padding:28px 24px;border-radius:20px;background:linear-gradient(160deg,#151922,#0f1218);border:1px solid rgba(212,175,55,0.28);">
-      <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#d4af37;">The Curtain Guy</p>
+      ${emailDarkBrandHeaderHtml()}
       <h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#f8f5ec;">${escapeHtml(title)}</h1>
       ${innerHtml}
     </div>

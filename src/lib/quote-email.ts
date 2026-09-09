@@ -1,7 +1,5 @@
 import {
   formatCadFromCents,
-  formatQuoteFilenameStem,
-  getQuoteTaxBreakdownRows,
   resolveQuoteDisplayRef,
   type QuoteRow,
 } from "@/data/quotes";
@@ -11,158 +9,106 @@ import {
   getSiteUrl,
 } from "@/lib/env";
 import { getDocumentTextsMap } from "@/lib/document-texts";
+import {
+  brandQuoteEmailShell,
+  buildDefaultQuoteEmailBodyText,
+  buildDefaultQuoteEmailSubject,
+  buildQuoteReadyEmailParts,
+  escapeEmailHtml,
+  quotePdfAttachmentName,
+} from "@/lib/quote-email-compose";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import {
   toCustomerSafeQuote,
   type QuoteWithRelations,
 } from "@/lib/quotes";
-import { sendResendEmail } from "@/lib/resend";
+import {
+  sendResendEmail,
+  type ResendEmailAttachment,
+} from "@/lib/resend";
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function brandShell(title: string, innerHtml: string, footer: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
-<body style="margin:0;padding:0;background:#0b0d12;font-family:Georgia,'Times New Roman',serif;">
-  <div style="max-width:640px;margin:0 auto;padding:28px 16px;">
-    <div style="padding:28px 24px;border-radius:20px;background:linear-gradient(160deg,#151922,#0f1218);border:1px solid rgba(212,175,55,0.28);">
-      <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#d4af37;">The Curtain Guy</p>
-      <h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#f8f5ec;">${escapeHtml(title)}</h1>
-      ${innerHtml}
-    </div>
-    <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#8b909a;">${escapeHtml(footer)}</p>
-  </div>
-</body>
-</html>`;
-}
-
-function quoteTaxEmailLines(quote: QuoteRow): {
-  textLines: string[];
-  htmlBlock: string;
-} {
-  const rows = getQuoteTaxBreakdownRows(quote, { variant: "customer" });
-  const textLines = rows.map(
-    (row) => `${row.label}: ${formatCadFromCents(row.amountCents)}`
-  );
-  const htmlBlock = rows
-    .map((row) => {
-      const isTotal = row.emphasis === "total";
-      return `<p style="margin:${isTotal ? "10px" : "0"} 0 ${isTotal ? "0" : "4px"};font-size:${isTotal ? "18px" : "13px"};color:${isTotal ? "#d4af37" : "#cfc8b8"};">
-        ${escapeHtml(row.label)}: ${escapeHtml(formatCadFromCents(row.amountCents))}
-      </p>`;
-    })
-    .join("");
-  return { textLines, htmlBlock };
-}
+export type QuoteReadyComposeOptions = {
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject: string;
+  bodyText: string;
+  attachPdf?: boolean;
+  extraAttachments?: ResendEmailAttachment[];
+  /** When false, do not auto-BCC admin (compose Bcc field is source of truth). */
+  copyOutbound?: boolean;
+};
 
 export async function sendQuoteReadyEmail(input: {
   apiKey: string;
   quote: QuoteWithRelations;
   publicQuoteUrl: string;
+  compose?: QuoteReadyComposeOptions;
 }): Promise<void> {
-  const { quote, publicQuoteUrl, apiKey } = input;
-  const displayRef = resolveQuoteDisplayRef(quote);
-  const tax = quoteTaxEmailLines(quote);
-  const eventBits = [
-    quote.event_type,
-    quote.event_date,
-    quote.city_area || quote.venue_name,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
+  const { quote, publicQuoteUrl, apiKey, compose } = input;
   const copy = await getDocumentTextsMap();
   const emailNote = copy["quote.email_note"];
   const emailFooter = copy["quote.email_footer"];
   const siteUrl = getSiteUrl().replace(/\/$/, "");
-  const pdfFilename = `${formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number)}.pdf`;
+  const pdfFilename = quotePdfAttachmentName(quote);
+  const attachPdf = compose?.attachPdf !== false;
 
-  let pdfAttachment: {
-    filename: string;
-    content: string;
-    contentType: string;
-  } | null = null;
-  try {
-    const safe = toCustomerSafeQuote(quote, { shareUrl: publicQuoteUrl });
-    const pdfBuffer = await renderQuotePdfBuffer({
-      quote: safe,
-      publicUrl: publicQuoteUrl,
-      siteUrl,
-    });
-    pdfAttachment = {
-      filename: pdfFilename,
-      content: pdfBuffer.toString("base64"),
-      contentType: "application/pdf",
-    };
-  } catch (err) {
-    console.error("[quotes] PDF attach failed; sending email without PDF", err);
+  const bodyText =
+    compose?.bodyText?.trim() ||
+    buildDefaultQuoteEmailBodyText({ quote, emailNote });
+  const subject =
+    compose?.subject?.trim() || buildDefaultQuoteEmailSubject(quote);
+  const to = (compose?.to?.length ? compose.to : [quote.customer_email]).filter(
+    Boolean
+  );
+  if (to.length === 0) {
+    throw new Error("Recipient email is required.");
   }
 
-  const text = [
-    `Your Curtain Guy quote is ready — ${displayRef}`,
-    "",
-    `Opportunity: ${quote.opportunity_ref}`,
-    eventBits ? `Event: ${eventBits}` : "",
-    ...tax.textLines,
-    "",
-    "Review your proposal, request options, or ask for changes:",
-    publicQuoteUrl,
-    pdfAttachment ? `\nA PDF copy is attached (${pdfFilename}).` : "",
-    "",
-    emailNote,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const attachments: ResendEmailAttachment[] = [
+    ...(compose?.extraAttachments ?? []),
+  ];
 
-  const html = brandShell(
-    "Your proposal is ready",
-    `
-    <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#d7d2c6;">
-      ${escapeHtml(quote.customer_name || "Hello")}, your Curtain Guy quote is ready to review.
-    </p>
-    <div style="margin:0 0 18px;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.2);">
-      <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#b8860b;">Quote</p>
-      <p style="margin:0 0 10px;font-size:20px;color:#f8f5ec;">${escapeHtml(displayRef)}</p>
-      <p style="margin:0;font-size:14px;color:#cfc8b8;">Opportunity ${escapeHtml(quote.opportunity_ref)}</p>
-      ${eventBits ? `<p style="margin:8px 0 0;font-size:14px;color:#cfc8b8;">${escapeHtml(eventBits)}</p>` : ""}
-      <div style="margin:12px 0 0;">${tax.htmlBlock}</div>
-    </div>
-    <p style="margin:0 0 18px;font-size:14px;line-height:1.7;color:#d7d2c6;">
-      Open your proposal to accept, request changes, or add options for owner review. No payment is collected on this page.
-    </p>
-    <p style="margin:0 0 8px;">
-      <a href="${escapeHtml(publicQuoteUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
-        Review your quote
-      </a>
-    </p>
-    ${
-      pdfAttachment
-        ? `<p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#8b909a;">A PDF copy of this proposal is attached (${escapeHtml(pdfFilename)}).</p>`
-        : ""
+  let resolvedPdfName: string | null = null;
+  if (attachPdf) {
+    try {
+      const safe = toCustomerSafeQuote(quote, { shareUrl: publicQuoteUrl });
+      const pdfBuffer = await renderQuotePdfBuffer({
+        quote: safe,
+        publicUrl: publicQuoteUrl,
+        siteUrl,
+      });
+      attachments.unshift({
+        filename: pdfFilename,
+        content: pdfBuffer.toString("base64"),
+        contentType: "application/pdf",
+      });
+      resolvedPdfName = pdfFilename;
+    } catch (err) {
+      console.error("[quotes] PDF attach failed; sending email without PDF", err);
     }
-    <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#8b909a;">
-      ${escapeHtml(emailNote)}
-    </p>
-  `,
-    emailFooter
-  );
+  }
+
+  const { text, html } = buildQuoteReadyEmailParts({
+    quote,
+    publicQuoteUrl,
+    bodyText,
+    emailFooter,
+    pdfFilename: resolvedPdfName,
+  });
 
   await sendResendEmail({
     apiKey,
     from: getQuoteFrom(),
-    to: [quote.customer_email],
+    to,
+    cc: compose?.cc?.filter(Boolean),
+    bcc: compose?.bcc?.filter(Boolean),
     replyTo: getEstimateNotifyTo(),
-    subject: `Your Curtain Guy quote is ready — ${displayRef}`,
+    subject,
     text,
     html,
-    attachments: pdfAttachment ? [pdfAttachment] : undefined,
+    attachments: attachments.length > 0 ? attachments : undefined,
+    copyOutbound: compose?.copyOutbound,
     logLabel: "quotes",
   });
 }
@@ -188,24 +134,24 @@ export async function sendQuoteOwnerActionNotification(input: {
     .join("\n");
 
   const copy = await getDocumentTextsMap();
-  const html = brandShell(
+  const html = brandQuoteEmailShell(
     "Quote activity",
     `
     <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#d7d2c6;">
-      ${escapeHtml(input.actionLabel)} on <strong style="color:#f8f5ec;">${escapeHtml(displayRef)}</strong>
+      ${escapeEmailHtml(input.actionLabel)} on <strong style="color:#f8f5ec;">${escapeEmailHtml(displayRef)}</strong>
     </p>
     ${
       input.details
-        ? `<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#cfc8b8;">${escapeHtml(input.details)}</p>`
+        ? `<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#cfc8b8;">${escapeEmailHtml(input.details)}</p>`
         : ""
     }
     <p style="margin:0 0 16px;font-size:14px;color:#cfc8b8;">
-      ${escapeHtml(input.quote.customer_name || "Customer")} · ${escapeHtml(input.quote.customer_email)}
+      ${escapeEmailHtml(input.quote.customer_name || "Customer")} · ${escapeEmailHtml(input.quote.customer_email)}
     </p>
     <p style="margin:0 0 16px;font-size:16px;color:#d4af37;">
-      ${escapeHtml(formatCadFromCents(input.quote.total_cents))}
+      ${escapeEmailHtml(formatCadFromCents(input.quote.total_cents))}
     </p>
-    <a href="${escapeHtml(adminUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
+    <a href="${escapeEmailHtml(adminUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
       Open in admin
     </a>
   `,

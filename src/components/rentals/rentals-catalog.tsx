@@ -45,8 +45,16 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+type CatalogSectionHeading = {
+  eyebrow: string;
+  title: string;
+  description: string;
+};
+
 type RentalsCatalogProps = {
   products: PublicRentalProduct[];
+  packagesHeading: CatalogSectionHeading;
+  itemsHeading: CatalogSectionHeading;
 };
 
 function toggleValue(list: string[], value: string): string[] {
@@ -309,7 +317,11 @@ function FilterPanel({
   );
 }
 
-export function RentalsCatalog({ products }: RentalsCatalogProps) {
+export function RentalsCatalog({
+  products,
+  packagesHeading,
+  itemsHeading,
+}: RentalsCatalogProps) {
   const t = useTranslations("rentals.catalog");
   const tf = useTranslations("rentals.filters");
   const [filters, setFilters] = useState<RentalsCatalogFilters>(
@@ -321,6 +333,14 @@ export function RentalsCatalog({ products }: RentalsCatalogProps) {
   const filtered = useMemo(
     () => filterAndSortRentalsCatalog(products, filters),
     [products, filters]
+  );
+  const packageProducts = useMemo(
+    () => filtered.filter((row) => row.kind === "package"),
+    [filtered]
+  );
+  const itemProducts = useMemo(
+    () => filtered.filter((row) => row.kind !== "package"),
+    [filtered]
   );
   const activeCount = activeFilterCount(filters);
 
@@ -336,6 +356,112 @@ export function RentalsCatalog({ products }: RentalsCatalogProps) {
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
           {t("emptyDescription")}
         </p>
+      </div>
+    );
+  }
+
+  function renderCard(product: PublicRentalProduct) {
+    const priceLabel =
+      product.configurator_mode === "linear_ft"
+        ? t("fromPerFt", {
+            price: formatCadFromCents(product.default_unit_price_cents),
+          })
+        : t("fromEach", {
+            price: formatCadFromCents(product.default_unit_price_cents),
+            unit: product.unit_label,
+          });
+
+    return (
+      <Link
+        key={product.id}
+        href={`/rentals/${product.slug}`}
+        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/25 text-left transition-colors hover:border-primary/35 hover:bg-card/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <div className="relative aspect-[4/3] overflow-hidden">
+          {product.image_url ? (
+            <Image
+              src={product.image_url}
+              alt={product.image_alt || product.name}
+              fill
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none"
+              sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+              unoptimized
+            />
+          ) : (
+            <div className="flex size-full items-center justify-center bg-muted/40 text-muted-foreground">
+              <Package className="size-8" aria-hidden />
+            </div>
+          )}
+          {product.kind === "package" ? (
+            <span className="absolute left-3 top-3 rounded-full border border-primary/30 bg-background/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary backdrop-blur-sm">
+              {t("packageBadge")}
+            </span>
+          ) : null}
+          <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border border-border/70 bg-background/85 text-primary opacity-0 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100">
+            <ArrowUpRight className="size-4" aria-hidden />
+          </span>
+          {product.colors.length > 0 ? (
+            <div className="absolute bottom-3 left-3 flex -space-x-1">
+              {product.colors.slice(0, 5).map((color) => (
+                <span
+                  key={color.id}
+                  className="size-4 rounded-full border border-background/80 shadow-sm"
+                  style={{ backgroundColor: color.hex }}
+                  title={color.name}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          <p className="font-heading text-base font-semibold leading-snug text-foreground">
+            {product.name}
+          </p>
+          {product.short_description ? (
+            <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+              {resolveProductCopy({
+                text: product.short_description,
+                productName: product.name,
+                defaultColorName: product.default_color_name,
+              })}
+            </p>
+          ) : null}
+          <p className="mt-auto pt-2 text-sm font-medium text-primary">
+            {priceLabel}
+          </p>
+        </div>
+      </Link>
+    );
+  }
+
+  function renderSection(
+    id: string,
+    heading: CatalogSectionHeading,
+    rows: PublicRentalProduct[],
+    emptyMessage: string
+  ) {
+    return (
+      <div id={id} className="scroll-mt-28 space-y-4">
+        <div className="max-w-2xl">
+          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
+            {heading.eyebrow}
+          </p>
+          <h3 className="mt-1 font-heading text-xl font-semibold text-foreground sm:text-2xl">
+            {heading.title}
+          </h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {heading.description}
+          </p>
+        </div>
+        {rows.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border/50 bg-card/20 px-4 py-8 text-center text-sm text-muted-foreground">
+            {emptyMessage}
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {rows.map((product) => renderCard(product))}
+          </div>
+        )}
       </div>
     );
   }
@@ -361,7 +487,7 @@ export function RentalsCatalog({ products }: RentalsCatalogProps) {
         </div>
       </aside>
 
-      <div className="space-y-4">
+      <div className="space-y-10">
         <div className="flex flex-wrap items-center justify-between gap-3 lg:hidden">
           <p className="text-sm text-muted-foreground">
             {tf("results", { count: filtered.length })}
@@ -430,76 +556,20 @@ export function RentalsCatalog({ products }: RentalsCatalogProps) {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((product) => {
-              const priceLabel =
-                product.configurator_mode === "linear_ft"
-                  ? t("fromPerFt", {
-                      price: formatCadFromCents(product.default_unit_price_cents),
-                    })
-                  : t("fromEach", {
-                      price: formatCadFromCents(product.default_unit_price_cents),
-                      unit: product.unit_label,
-                    });
-
-              return (
-                <Link
-                  key={product.id}
-                  href={`/rentals/${product.slug}`}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/25 text-left transition-colors hover:border-primary/35 hover:bg-card/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <div className="relative aspect-[4/3] overflow-hidden">
-                    {product.image_url ? (
-                      <Image
-                        src={product.image_url}
-                        alt={product.image_alt || product.name}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none"
-                        sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center bg-muted/40 text-muted-foreground">
-                        <Package className="size-8" aria-hidden />
-                      </div>
-                    )}
-                    <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border border-border/70 bg-background/85 text-primary opacity-0 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                      <ArrowUpRight className="size-4" aria-hidden />
-                    </span>
-                    {product.colors.length > 0 ? (
-                      <div className="absolute bottom-3 left-3 flex -space-x-1">
-                        {product.colors.slice(0, 5).map((color) => (
-                          <span
-                            key={color.id}
-                            className="size-4 rounded-full border border-background/80 shadow-sm"
-                            style={{ backgroundColor: color.hex }}
-                            title={color.name}
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-1 flex-col gap-2 p-4">
-                    <p className="font-heading text-base font-semibold leading-snug text-foreground">
-                      {product.name}
-                    </p>
-                    {product.short_description ? (
-                      <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                        {resolveProductCopy({
-                          text: product.short_description,
-                          productName: product.name,
-                          defaultColorName: product.default_color_name,
-                        })}
-                      </p>
-                    ) : null}
-                    <p className="mt-auto pt-2 text-sm font-medium text-primary">
-                      {priceLabel}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          <>
+            {renderSection(
+              "packages",
+              packagesHeading,
+              packageProducts,
+              t("sectionEmptyPackages")
+            )}
+            {renderSection(
+              "items",
+              itemsHeading,
+              itemProducts,
+              t("sectionEmptyItems")
+            )}
+          </>
         )}
       </div>
     </div>

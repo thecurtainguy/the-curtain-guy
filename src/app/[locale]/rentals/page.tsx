@@ -59,7 +59,19 @@ export default async function RentalsPage({ params }: PageProps) {
             </p>
           </Reveal>
 
-          <RentalsCatalog products={products} />
+          <RentalsCatalog
+            products={products}
+            packagesHeading={{
+              eyebrow: t("packagesEyebrow"),
+              title: t("packagesTitle"),
+              description: t("packagesDescription"),
+            }}
+            itemsHeading={{
+              eyebrow: t("itemsEyebrow"),
+              title: t("itemsTitle"),
+              description: t("itemsDescription"),
+            }}
+          />
         </div>
       </section>
     </>

@@ -11,7 +11,7 @@ type QuantityStepperProps = {
   max?: number;
   step?: number;
   unit?: string;
-  size?: "md" | "sm";
+  size?: "md" | "sm" | "xs";
   className?: string;
   "aria-label"?: string;
 };
@@ -37,14 +37,15 @@ export function QuantityStepper({
     onChange(Math.min(max, Math.max(min, rounded)));
   }
 
-  const compact = size === "sm";
+  const compact = size === "sm" || size === "xs";
+  const tiny = size === "xs";
 
   return (
     <div
       className={cn(
         "inline-flex items-center rounded-full border border-border/50 bg-background/70 shadow-[inset_0_1px_0_oklch(1_0_0/8%)]",
         "ring-1 ring-primary/10",
-        compact ? "h-9" : "h-11",
+        tiny ? "h-8" : compact ? "h-9" : "h-11",
         className
       )}
     >
@@ -57,13 +58,21 @@ export function QuantityStepper({
           "flex shrink-0 items-center justify-center rounded-full text-primary transition-colors",
           "hover:bg-primary/10 active:scale-95 disabled:pointer-events-none disabled:opacity-35",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-          compact ? "size-9" : "size-11"
+          tiny ? "size-8" : compact ? "size-9" : "size-11"
         )}
       >
-        <Minus className={compact ? "size-3.5" : "size-4"} strokeWidth={2.5} />
+        <Minus
+          className={tiny || compact ? "size-3.5" : "size-4"}
+          strokeWidth={2.5}
+        />
       </button>
 
-      <div className="min-w-[3.25rem] px-1 text-center">
+      <div
+        className={cn(
+          "px-0.5 text-center",
+          tiny ? "min-w-[1.75rem]" : "min-w-[3.25rem] px-1"
+        )}
+      >
         <input
           id={id}
           type="text"
@@ -81,7 +90,7 @@ export function QuantityStepper({
           className={cn(
             "w-full bg-transparent text-center font-heading font-semibold text-foreground outline-none",
             "tabular-nums tracking-tight",
-            compact ? "text-sm" : "text-base"
+            tiny ? "text-xs" : compact ? "text-sm" : "text-base"
           )}
         />
       </div>
@@ -96,19 +105,20 @@ export function QuantityStepper({
           "bg-primary hover:bg-primary/90 active:scale-95 disabled:pointer-events-none disabled:opacity-35",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
           "m-0.5 shadow-sm",
-          compact ? "size-8" : "size-10"
+          tiny ? "size-7" : compact ? "size-8" : "size-10"
         )}
       >
-        <Plus className={compact ? "size-3.5" : "size-4"} strokeWidth={2.5} />
+        <Plus
+          className={tiny || compact ? "size-3.5" : "size-4"}
+          strokeWidth={2.5}
+        />
       </button>
 
       {unit ? (
         <span className="pl-1.5 pr-4 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           {unit}
         </span>
-      ) : (
-        <span className="w-1.5" aria-hidden />
-      )}
+      ) : null}
     </div>
   );
 }

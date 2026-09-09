@@ -53,6 +53,7 @@ type RentalsCartContextValue = {
   closeSheet: () => void;
   addLines: (lines: RentalCartLine[]) => void;
   removeByParentKey: (parentKey: string) => void;
+  setMainQuantity: (parentKey: string, quantity: number) => void;
   clear: () => void;
   /** Product lines only (no logistics). */
   merchandiseSubtotalCents: number;
@@ -254,6 +255,40 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setMainQuantity = useCallback((parentKey: string, quantity: number) => {
+    const nextQty = Math.max(0, Math.round(Number(quantity) || 0));
+    if (nextQty <= 0) {
+      const prev = getClientSnapshot();
+      writeStoredCart({
+        ...prev,
+        lines: prev.lines.filter((line) => !isInGroup(line, parentKey)),
+      });
+      return;
+    }
+    const prev = getClientSnapshot();
+    const main = prev.lines.find(
+      (line) => line.key === parentKey && line.lineKind === "main"
+    );
+    if (!main || main.quantity === nextQty) return;
+    const oldQty = main.quantity > 0 ? main.quantity : 1;
+    const ratio = nextQty / oldQty;
+    writeStoredCart({
+      ...prev,
+      lines: prev.lines.map((line) => {
+        if (line.key === parentKey) {
+          return { ...line, quantity: nextQty };
+        }
+        if (line.parentKey === parentKey && line.lineKind === "include") {
+          return {
+            ...line,
+            quantity: Math.max(0, Math.round(line.quantity * ratio)),
+          };
+        }
+        return line;
+      }),
+    });
+  }, []);
+
   const clear = useCallback(() => {
     writeStoredCart({
       lines: EMPTY_LINES,
@@ -309,6 +344,7 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
       closeSheet: () => setSheetOpen(false),
       addLines,
       removeByParentKey,
+      setMainQuantity,
       clear,
       merchandiseSubtotalCents,
       subtotalCents: cartSubtotalCents(checkoutLines),
@@ -323,6 +359,7 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
     sheetOpen,
     addLines,
     removeByParentKey,
+    setMainQuantity,
     clear,
     setLogisticsMode,
     setDeliveryZoneId,

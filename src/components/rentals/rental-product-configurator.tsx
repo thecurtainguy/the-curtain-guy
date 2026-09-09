@@ -11,6 +11,7 @@ import {
   type ProductColorVariantRow,
 } from "@/data/product-colors";
 import {
+  compareProductsBeforeServices,
   formatCadFromCents,
   segmentsForLinearFeet,
   type PublicRentalProduct,
@@ -40,7 +41,8 @@ export function RentalProductConfigurator({
   const t = useTranslations("rentals.configurator");
   const { addLines } = useRentalsCart();
 
-  const isLinear = product.configurator_mode === "linear_ft";
+  const isLinear =
+    product.kind !== "package" && product.configurator_mode === "linear_ft";
   const colors = buildProductColorOptions(product);
   const requiresColor = colors.length > 0;
 
@@ -100,6 +102,28 @@ export function RentalProductConfigurator({
   const segments = isLinear
     ? segmentsForLinearFeet(Math.max(0, linearFeet || 0), segmentFeet)
     : 0;
+
+  const orderedIncludes = useMemo(() => {
+    return [...product.includes].sort((a, b) => {
+      const byKind = compareProductsBeforeServices(
+        a.included.kind,
+        b.included.kind
+      );
+      if (byKind !== 0) return byKind;
+      return a.sort_order - b.sort_order;
+    });
+  }, [product.includes]);
+
+  const orderedPackageComponents = useMemo(() => {
+    return [...product.packageComponents].sort((a, b) => {
+      const byKind = compareProductsBeforeServices(
+        a.component.kind,
+        b.component.kind
+      );
+      if (byKind !== 0) return byKind;
+      return a.sort_order - b.sort_order;
+    });
+  }, [product.packageComponents]);
 
   function handleAddToCart() {
     if (requiresColor && !selectedColor) {
@@ -261,7 +285,7 @@ export function RentalProductConfigurator({
             </h3>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            {product.includes.map((include) => {
+            {orderedIncludes.map((include) => {
               const qty = segments * Number(include.qty_per_segment || 0);
               return (
                 <div
@@ -286,7 +310,7 @@ export function RentalProductConfigurator({
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground">
                       {include.included.name}
                     </p>
@@ -294,6 +318,61 @@ export function RentalProductConfigurator({
                       {t("includeQty", {
                         qty: qty > 0 ? qty : "—",
                         unit: include.included.unit_label,
+                      })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {product.kind === "package" && product.packageComponents.length > 0 ? (
+        <div className="space-y-3">
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
+              {t("includesEyebrow")}
+            </p>
+            <h3 className="mt-1 font-heading text-lg font-semibold">
+              {t("packageIncludesTitle")}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("packageIncludesHint")}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {orderedPackageComponents.map((row) => {
+              const qty = quantity * Number(row.quantity || 0);
+              return (
+                <div
+                  key={row.id}
+                  className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card/25 p-3"
+                >
+                  <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
+                    {row.component.image_url ? (
+                      <Image
+                        src={row.component.image_url}
+                        alt={row.component.image_alt || row.component.name}
+                        fill
+                        className="object-cover"
+                        sizes="56px"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-muted-foreground">
+                        <Package className="size-4" aria-hidden />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-snug text-foreground">
+                      {row.component.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t("includeQty", {
+                        qty: qty > 0 ? qty : "—",
+                        unit: row.component.unit_label,
                       })}
                     </p>
                   </div>
@@ -318,9 +397,9 @@ export function RentalProductConfigurator({
             {product.addons.map((addon) => (
               <div
                 key={addon.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card/25 p-3"
+                className="flex flex-col items-start gap-3 rounded-2xl border border-border/40 bg-card/25 p-3"
               >
-                <div className="flex min-w-0 items-center gap-3">
+                <div className="flex w-full min-w-0 items-center gap-3">
                   <div className="relative size-12 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
                     {addon.addon.image_url ? (
                       <Image
@@ -337,9 +416,11 @@ export function RentalProductConfigurator({
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{addon.addon.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium leading-snug">
+                      {addon.addon.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {formatCadFromCents(addon.addon.default_unit_price_cents)}{" "}
                       / {addon.addon.unit_label}
                     </p>

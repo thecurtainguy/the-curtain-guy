@@ -4,7 +4,7 @@ import {
   isQuoteLineCategory,
 } from "@/data/quotes";
 
-export const PRODUCT_KINDS = ["product", "service"] as const;
+export const PRODUCT_KINDS = ["product", "service", "package"] as const;
 export type ProductKind = (typeof PRODUCT_KINDS)[number];
 
 export const PRODUCT_AVAILABILITY_STATUSES = [
@@ -61,6 +61,7 @@ export type ProductRow = {
 export const PRODUCT_KIND_LABELS: Record<ProductKind, string> = {
   product: "Product",
   service: "Service",
+  package: "Package",
 };
 
 export const PRODUCT_AVAILABILITY_LABELS: Record<

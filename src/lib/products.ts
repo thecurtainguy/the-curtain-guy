@@ -181,12 +181,18 @@ export async function createProduct(
         ? input.default_color_hex.trim()
         : null,
       configurator_mode:
-        input.configurator_mode === "linear_ft" ? "linear_ft" : "simple",
+        input.kind === "package"
+          ? "simple"
+          : input.configurator_mode === "linear_ft"
+            ? "linear_ft"
+            : "simple",
       formula_segment_feet:
-        input.configurator_mode === "linear_ft" &&
-        Number(input.formula_segment_feet) > 0
-          ? Number(input.formula_segment_feet)
-          : null,
+        input.kind === "package"
+          ? null
+          : input.configurator_mode === "linear_ft" &&
+              Number(input.formula_segment_feet) > 0
+            ? Number(input.formula_segment_feet)
+            : null,
       full_service_product_id: input.full_service_product_id || null,
       transport_only_product_id: input.transport_only_product_id || null,
     })
@@ -291,19 +297,23 @@ export async function updateProduct(
           ? existing.default_color_hex ?? null
           : input.default_color_hex?.trim() || null,
       configurator_mode:
-        input.configurator_mode === "linear_ft"
-          ? "linear_ft"
-          : input.configurator_mode === "simple"
-            ? "simple"
-            : existing.configurator_mode === "linear_ft"
-              ? "linear_ft"
-              : "simple",
+        input.kind === "package"
+          ? "simple"
+          : input.configurator_mode === "linear_ft"
+            ? "linear_ft"
+            : input.configurator_mode === "simple"
+              ? "simple"
+              : existing.configurator_mode === "linear_ft"
+                ? "linear_ft"
+                : "simple",
       formula_segment_feet:
-        input.formula_segment_feet === undefined
-          ? existing.formula_segment_feet ?? null
-          : Number(input.formula_segment_feet) > 0
-            ? Number(input.formula_segment_feet)
-            : null,
+        input.kind === "package"
+          ? null
+          : input.formula_segment_feet === undefined
+            ? existing.formula_segment_feet ?? null
+            : Number(input.formula_segment_feet) > 0
+              ? Number(input.formula_segment_feet)
+              : null,
       full_service_product_id:
         input.full_service_product_id === undefined
           ? existing.full_service_product_id ?? null

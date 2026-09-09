@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
@@ -11,6 +12,10 @@ type PageHeroProps = {
   description?: string;
   className?: string;
   children?: React.ReactNode;
+  back?: {
+    href: string;
+    label: string;
+  };
 };
 
 export function PageHero({
@@ -19,6 +24,7 @@ export function PageHero({
   description,
   className,
   children,
+  back,
 }: PageHeroProps) {
   return (
     <SectionShell
@@ -37,12 +43,30 @@ export function PageHero({
 
       <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         <Reveal variant="fade-up" immediate>
+          {back ? (
+            <Link
+              href={back.href}
+              className={cn(
+                "mb-5 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors",
+                "hover:text-primary",
+                "focus-visible:rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              )}
+            >
+              <ArrowLeft className="size-3.5" strokeWidth={1.75} aria-hidden />
+              {back.label}
+            </Link>
+          ) : null}
           {eyebrow && (
             <p className="text-xs font-medium uppercase tracking-[0.25em] text-primary">
               {eyebrow}
             </p>
           )}
-          <h1 className="mt-3 max-w-3xl font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+          <h1
+            className={cn(
+              "max-w-3xl font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl",
+              eyebrow || back ? "mt-3" : "mt-0"
+            )}
+          >
             {title}
           </h1>
           {description && (

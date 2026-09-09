@@ -7,3 +7,6 @@ export const routing = defineRouting({
 });
 
 export type AppLocale = (typeof routing.locales)[number];
+
+/** Montreal / Quebec — keep server + client formatting in sync. */
+export const APP_TIME_ZONE = "America/Toronto";

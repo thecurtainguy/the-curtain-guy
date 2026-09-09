@@ -145,10 +145,16 @@ export async function POST(request: Request) {
     );
   }
 
-  if (Array.isArray(body.formula_includes) || Array.isArray(body.addons)) {
-    const { replaceFormulaIncludes, replaceProductAddons } = await import(
-      "@/lib/rentals"
-    );
+  if (
+    Array.isArray(body.formula_includes) ||
+    Array.isArray(body.addons) ||
+    Array.isArray(body.package_components)
+  ) {
+    const {
+      replaceFormulaIncludes,
+      replaceProductAddons,
+      replacePackageComponents,
+    } = await import("@/lib/rentals");
     if (Array.isArray(body.formula_includes)) {
       const includes = body.formula_includes as Array<Record<string, unknown>>;
       await replaceFormulaIncludes({
@@ -177,6 +183,31 @@ export async function POST(request: Request) {
           }))
           .filter((row) => row.addonProductId),
       });
+    }
+    if (Array.isArray(body.package_components)) {
+      const components = body.package_components as Array<
+        Record<string, unknown>
+      >;
+      const packageResult = await replacePackageComponents({
+        packageProductId: result.product.id,
+        components:
+          result.product.kind === "package"
+            ? components
+                .map((row) => ({
+                  componentProductId: String(
+                    row.componentProductId || row.component_product_id || ""
+                  ),
+                  quantity: Number(row.quantity) || 1,
+                }))
+                .filter((row) => row.componentProductId)
+            : [],
+      });
+      if ("error" in packageResult) {
+        return NextResponse.json(
+          { ok: false, message: packageResult.error },
+          { status: 400 }
+        );
+      }
     }
   }
 

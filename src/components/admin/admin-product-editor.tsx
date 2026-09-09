@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -10,7 +10,6 @@ import {
   Package,
   Ruler,
   ShoppingBag,
-  Trash2,
   Upload,
 } from "lucide-react";
 import {
@@ -28,6 +27,7 @@ import {
 } from "@/components/admin/admin-product-colors-section";
 import { AdminSectionErrorBoundary } from "@/components/admin/admin-section-error-boundary";
 import { AdminProductGallery } from "@/components/admin/admin-product-gallery";
+import { AdminProductPickGrid } from "@/components/admin/admin-product-pick-grid";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +51,7 @@ import {
   type ProductCompleteness,
   type ProductConfiguratorMode,
   type ProductFormulaIncludeWithProduct,
+  type ProductPackageComponentWithProduct,
 } from "@/data/rentals";
 import {
   QUOTE_CATEGORY_LABELS,
@@ -63,6 +64,7 @@ import { normalizeHexColor } from "@/data/product-colors";
 
 type AdminProductRentalsBundleProp = {
   includes: ProductFormulaIncludeWithProduct[];
+  packageComponents?: ProductPackageComponentWithProduct[];
   addons: ProductAddonWithProduct[];
   colors?: import("@/data/product-colors").ProductColorVariantRow[];
   completeness: ProductCompleteness;
@@ -164,67 +166,14 @@ function ModeOptionCard({
   );
 }
 
-function MultiSelectProductCard({
-  selected,
-  title,
-  description,
-  onToggle,
-  children,
-}: {
-  selected: boolean;
-  title: string;
-  description?: string;
-  onToggle: () => void;
-  children?: ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border transition-all duration-200",
-        "border-border/40 bg-card/40",
-        selected &&
-          "border-primary/50 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"
-      )}
-    >
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={selected}
-        onClick={onToggle}
-        className="group flex w-full items-start gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-      >
-        <span className="min-w-0 flex-1 pr-1">
-          <span className="block text-sm font-medium text-foreground">
-            {title}
-          </span>
-          {description ? (
-            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              {description}
-            </span>
-          ) : null}
-        </span>
-        <span
-          className={cn(
-            "flex size-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
-            selected
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border/60 bg-background/50 text-transparent"
-          )}
-          aria-hidden
-        >
-          <Check className="size-3" strokeWidth={3} />
-        </span>
-      </button>
-      {selected && children ? (
-        <div className="border-t border-border/30 px-4 pb-4 pt-3">{children}</div>
-      ) : null}
-    </div>
-  );
-}
-
 type FormulaIncludeForm = {
   includedProductId: string;
   qtyPerSegment: string;
+};
+
+type PackageComponentForm = {
+  componentProductId: string;
+  quantity: string;
 };
 
 type FormState = {
@@ -250,6 +199,7 @@ type FormState = {
   full_service_product_id: string;
   transport_only_product_id: string;
   formulaIncludes: FormulaIncludeForm[];
+  packageComponents: PackageComponentForm[];
   addons: Array<{ addonProductId: string }>;
   event_type_ids: string[];
   default_color_name: string;
@@ -265,6 +215,8 @@ function formFromProduct(
     product?.configurator_mode === "linear_ft" ? "linear_ft" : "simple";
   const includesSource: ProductFormulaIncludeWithProduct[] =
     rentalsBundle?.includes ?? [];
+  const packageSource: ProductPackageComponentWithProduct[] =
+    rentalsBundle?.packageComponents ?? [];
   const addonsSource: ProductAddonWithProduct[] = rentalsBundle?.addons ?? [];
 
   return {
@@ -285,7 +237,7 @@ function formFromProduct(
     image_url: product?.image_url ?? null,
     image_alt: product?.image_alt ?? "",
     is_public: product?.is_public ?? false,
-    configurator_mode: mode,
+    configurator_mode: product?.kind === "package" ? "simple" : mode,
     formula_segment_feet:
       product?.formula_segment_feet != null &&
       Number(product.formula_segment_feet) > 0
@@ -296,6 +248,10 @@ function formFromProduct(
     formulaIncludes: includesSource.map((row) => ({
       includedProductId: row.included_product_id,
       qtyPerSegment: String(row.qty_per_segment ?? 1),
+    })),
+    packageComponents: packageSource.map((row) => ({
+      componentProductId: row.component_product_id,
+      quantity: String(row.quantity ?? 1),
     })),
     addons: addonsSource.map((row) => ({
       addonProductId: row.addon_product_id,
@@ -329,6 +285,7 @@ function serializeFormDirty(form: FormState): string {
     full_service_product_id: form.full_service_product_id,
     transport_only_product_id: form.transport_only_product_id,
     formulaIncludes: form.formulaIncludes,
+    packageComponents: form.packageComponents,
     addons: form.addons,
     event_type_ids: form.event_type_ids,
     default_color_name: form.default_color_name,
@@ -418,6 +375,22 @@ function computeLiveCompleteness(
     })
     .filter(Boolean) as ProductFormulaIncludeWithProduct[];
 
+  const packageComponents = form.packageComponents
+    .map((row, index) => {
+      const component = byId.get(row.componentProductId);
+      if (!component) return null;
+      return {
+        id: `live-package-${index}`,
+        created_at: "",
+        package_product_id: selfId || "new",
+        component_product_id: row.componentProductId,
+        quantity: Number(row.quantity) || 1,
+        sort_order: index,
+        component: snippetFromProduct(component),
+      };
+    })
+    .filter(Boolean) as ProductPackageComponentWithProduct[];
+
   const addons = form.addons
     .map((row, index) => {
       const addon = byId.get(row.addonProductId);
@@ -444,6 +417,7 @@ function computeLiveCompleteness(
   return evaluateProductCompleteness({
     product,
     includes,
+    packageComponents,
     addons,
     fullService: fullServiceRow
       ? {
@@ -477,22 +451,38 @@ function computeLiveCompleteness(
 }
 
 function rentalsPayload(form: FormState) {
+  const isPackage = form.kind === "package";
   return {
     is_public: form.is_public,
-    configurator_mode: form.configurator_mode,
+    configurator_mode: isPackage ? "simple" : form.configurator_mode,
     formula_segment_feet:
+      !isPackage &&
       form.configurator_mode === "linear_ft" &&
       Number(form.formula_segment_feet) > 0
         ? Number(form.formula_segment_feet)
         : null,
-    full_service_product_id: form.full_service_product_id || null,
-    transport_only_product_id: form.transport_only_product_id || null,
-    formula_includes: form.formulaIncludes
-      .filter((row) => row.includedProductId)
-      .map((row) => ({
-        includedProductId: row.includedProductId,
-        qtyPerSegment: Number(row.qtyPerSegment) || 1,
-      })),
+    full_service_product_id: isPackage
+      ? null
+      : form.full_service_product_id || null,
+    transport_only_product_id: isPackage
+      ? null
+      : form.transport_only_product_id || null,
+    formula_includes: isPackage
+      ? []
+      : form.formulaIncludes
+          .filter((row) => row.includedProductId)
+          .map((row) => ({
+            includedProductId: row.includedProductId,
+            qtyPerSegment: Number(row.qtyPerSegment) || 1,
+          })),
+    package_components: isPackage
+      ? form.packageComponents
+          .filter((row) => row.componentProductId)
+          .map((row) => ({
+            componentProductId: row.componentProductId,
+            quantity: Number(row.quantity) || 1,
+          }))
+      : [],
     addons: form.addons
       .filter((row) => row.addonProductId)
       .map((row) => ({
@@ -547,6 +537,14 @@ export function AdminProductEditor({
     [otherProducts]
   );
 
+  const packageComponentOptions = useMemo(
+    () =>
+      otherProducts.filter(
+        (row) => row.kind === "product" || row.kind === "service"
+      ),
+    [otherProducts]
+  );
+
   const completeness = useMemo(
     () => computeLiveCompleteness(form, allProducts, productId),
     [form, allProducts, productId]
@@ -568,6 +566,7 @@ export function AdminProductEditor({
         full_service_product_id: prev.full_service_product_id,
         transport_only_product_id: prev.transport_only_product_id,
         formulaIncludes: prev.formulaIncludes,
+        packageComponents: prev.packageComponents,
         addons: prev.addons,
         event_type_ids: prev.event_type_ids,
         default_color_name: prev.default_color_name,
@@ -650,6 +649,7 @@ export function AdminProductEditor({
           full_service_product_id: prev.full_service_product_id,
           transport_only_product_id: prev.transport_only_product_id,
           formulaIncludes: prev.formulaIncludes,
+          packageComponents: prev.packageComponents,
           addons: prev.addons,
           event_type_ids: prev.event_type_ids,
           default_color_name: prev.default_color_name,
@@ -710,6 +710,40 @@ export function AdminProductEditor({
     }));
   }
 
+  function togglePackageComponent(productOptionId: string) {
+    setForm((prev) => {
+      const exists = prev.packageComponents.some(
+        (row) => row.componentProductId === productOptionId
+      );
+      if (exists) {
+        return {
+          ...prev,
+          packageComponents: prev.packageComponents.filter(
+            (row) => row.componentProductId !== productOptionId
+          ),
+        };
+      }
+      return {
+        ...prev,
+        packageComponents: [
+          ...prev.packageComponents,
+          { componentProductId: productOptionId, quantity: "1" },
+        ],
+      };
+    });
+  }
+
+  function setPackageComponentQty(productOptionId: string, qty: string) {
+    setForm((prev) => ({
+      ...prev,
+      packageComponents: prev.packageComponents.map((row) =>
+        row.componentProductId === productOptionId
+          ? { ...row, quantity: qty }
+          : row
+      ),
+    }));
+  }
+
   function toggleAddon(productOptionId: string) {
     setForm((prev) => {
       const exists = prev.addons.some(
@@ -748,7 +782,7 @@ export function AdminProductEditor({
         meta={
           <>
             <ProductKindBadge kind={form.kind} />
-            {form.kind === "product" ? (
+            {form.kind === "product" || form.kind === "package" ? (
               <ProductAvailabilityBadge status={form.availability_status} />
             ) : null}
           </>
@@ -918,7 +952,7 @@ export function AdminProductEditor({
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
                 <Label>Kind</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2 sm:grid-cols-3">
                   {PRODUCT_KINDS.map((kind) => {
                     const selected = form.kind === kind;
                     return (
@@ -937,6 +971,15 @@ export function AdminProductEditor({
                                   availability_manual: false,
                                 }
                               : {}),
+                            ...(kind === "package"
+                              ? {
+                                  configurator_mode: "simple",
+                                  formula_segment_feet: "",
+                                  formulaIncludes: [],
+                                  full_service_product_id: "",
+                                  transport_only_product_id: "",
+                                }
+                              : {}),
                           })
                         }
                         className={cn(
@@ -953,8 +996,10 @@ export function AdminProductEditor({
                           </span>
                           <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                             {kind === "product"
-                              ? "Stock tracked"
-                              : "No stock tracking"}
+                              ? "Single inventory item"
+                              : kind === "package"
+                                ? "Curated kit with contents"
+                                : "No stock tracking"}
                           </span>
                         </span>
                         <span
@@ -1093,74 +1138,125 @@ export function AdminProductEditor({
             </div>
 
             <div className="mt-5 space-y-5">
-              <div className="space-y-2">
-                <Label>Mode</Label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {PRODUCT_CONFIGURATOR_MODES.map((mode) => (
-                    <ModeOptionCard
-                      key={mode}
-                      selected={form.configurator_mode === mode}
-                      title={
-                        mode === "simple"
-                          ? "Simple"
-                          : "Wall-to-wall linear ft"
-                      }
-                      description={
-                        mode === "simple"
-                          ? PRODUCT_CONFIGURATOR_MODE_LABELS.simple
-                          : "Formula segments, includes, and service links"
-                      }
-                      onSelect={() => patch({ configurator_mode: mode })}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {form.configurator_mode === "linear_ft" ? (
-                <>
-                  <div className="space-y-2 max-w-xs">
-                    <Label htmlFor="segment-feet">Segment length (feet)</Label>
-                    <Input
-                      id="segment-feet"
-                      inputMode="decimal"
-                      value={form.formula_segment_feet}
-                      onChange={(e) =>
-                        patch({ formula_segment_feet: e.target.value })
-                      }
-                      placeholder="e.g. 10"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Included components scale by ceil(linear ft ÷ segment).
+              {form.kind === "package" ? (
+                <div className="space-y-2">
+                  <Label>Package contents</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Fixed recipe per package. Customer sees the all-in package
+                    price; quantities multiply by how many packages they rent.
+                  </p>
+                  {packageComponentOptions.length === 0 ? (
+                    <p className="rounded-2xl border border-border/40 bg-background/40 px-3 py-3 text-sm text-muted-foreground">
+                      Add inventory products or services first to build a
+                      package.
                     </p>
+                  ) : (
+                    <AdminProductPickGrid
+                      options={packageComponentOptions}
+                      selectedIds={form.packageComponents.map(
+                        (row) => row.componentProductId
+                      )}
+                      onToggle={togglePackageComponent}
+                      kindFilters={["product", "service"]}
+                      emptyMessage="Add inventory products or services first to build a package."
+                      renderSelectedExtra={(option) => {
+                        const qty =
+                          form.packageComponents.find(
+                            (row) => row.componentProductId === option.id
+                          )?.quantity ?? "1";
+                        return (
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor={`pkg-qty-${option.id}`}
+                              className="text-xs"
+                            >
+                              Qty per package
+                            </Label>
+                            <Input
+                              id={`pkg-qty-${option.id}`}
+                              inputMode="decimal"
+                              value={qty}
+                              onChange={(e) =>
+                                setPackageComponentQty(option.id, e.target.value)
+                              }
+                              className="h-8"
+                            />
+                          </div>
+                        );
+                      }}
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Packages always use simple quantity on Rentals (no linear
+                    ft formula).
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>Mode</Label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {PRODUCT_CONFIGURATOR_MODES.map((mode) => (
+                        <ModeOptionCard
+                          key={mode}
+                          selected={form.configurator_mode === mode}
+                          title={
+                            mode === "simple"
+                              ? "Simple"
+                              : "Wall-to-wall linear ft"
+                          }
+                          description={
+                            mode === "simple"
+                              ? PRODUCT_CONFIGURATOR_MODE_LABELS.simple
+                              : "Formula segments, includes, and service links"
+                          }
+                          onSelect={() => patch({ configurator_mode: mode })}
+                        />
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Formula includes</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Bases, poles, and other components included per segment.
-                    </p>
-                    {otherProducts.length === 0 ? (
-                      <p className="rounded-2xl border border-border/40 bg-background/40 px-3 py-3 text-sm text-muted-foreground">
-                        Add other inventory items first to link includes.
-                      </p>
-                    ) : (
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {otherProducts.map((option) => {
-                          const selected = form.formulaIncludes.some(
-                            (row) => row.includedProductId === option.id
-                          );
-                          const qty =
-                            form.formulaIncludes.find(
-                              (row) => row.includedProductId === option.id
-                            )?.qtyPerSegment ?? "1";
-                          return (
-                            <MultiSelectProductCard
-                              key={option.id}
-                              selected={selected}
-                              title={option.name}
-                              description={`${PRODUCT_KIND_LABELS[option.kind]} · ${option.unit_label}`}
-                              onToggle={() => toggleInclude(option.id)}
-                            >
+                  {form.configurator_mode === "linear_ft" ? (
+                    <>
+                      <div className="space-y-2 max-w-xs">
+                        <Label htmlFor="segment-feet">
+                          Segment length (feet)
+                        </Label>
+                        <Input
+                          id="segment-feet"
+                          inputMode="decimal"
+                          value={form.formula_segment_feet}
+                          onChange={(e) =>
+                            patch({ formula_segment_feet: e.target.value })
+                          }
+                          placeholder="e.g. 10"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Included components scale by ceil(linear ft ÷
+                          segment).
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Formula includes</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Bases, poles, and other components included per
+                          segment.
+                        </p>
+                        <AdminProductPickGrid
+                          options={otherProducts}
+                          selectedIds={form.formulaIncludes.map(
+                            (row) => row.includedProductId
+                          )}
+                          onToggle={toggleInclude}
+                          kindFilters={["product", "service", "package"]}
+                          emptyMessage="Add other inventory items first to link includes."
+                          renderSelectedExtra={(option) => {
+                            const qty =
+                              form.formulaIncludes.find(
+                                (row) => row.includedProductId === option.id
+                              )?.qtyPerSegment ?? "1";
+                            return (
                               <div className="space-y-1.5">
                                 <Label
                                   htmlFor={`qty-${option.id}`}
@@ -1178,83 +1274,68 @@ export function AdminProductEditor({
                                   className="h-8"
                                 />
                               </div>
-                            </MultiSelectProductCard>
-                          );
-                        })}
+                            );
+                          }}
+                        />
                       </div>
-                    )}
-                  </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="full-service">Full service</Label>
-                      <SelectInput
-                        id="full-service"
-                        value={form.full_service_product_id}
-                        onChange={(value) =>
-                          patch({ full_service_product_id: value })
-                        }
-                        allowClear
-                        placeholder="Select service…"
-                        options={serviceProducts.map((option) => ({
-                          value: option.id,
-                          label: option.name,
-                        }))}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Transport + install + teardown.
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="transport-only">Transport only</Label>
-                      <SelectInput
-                        id="transport-only"
-                        value={form.transport_only_product_id}
-                        onChange={(value) =>
-                          patch({ transport_only_product_id: value })
-                        }
-                        allowClear
-                        placeholder="Select service…"
-                        options={serviceProducts.map((option) => ({
-                          value: option.id,
-                          label: option.name,
-                        }))}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Delivery without install crew.
-                      </p>
-                    </div>
-                  </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="full-service">Full service</Label>
+                          <SelectInput
+                            id="full-service"
+                            value={form.full_service_product_id}
+                            onChange={(value) =>
+                              patch({ full_service_product_id: value })
+                            }
+                            allowClear
+                            placeholder="Select service…"
+                            options={serviceProducts.map((option) => ({
+                              value: option.id,
+                              label: option.name,
+                            }))}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Transport + install + teardown.
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="transport-only">Transport only</Label>
+                          <SelectInput
+                            id="transport-only"
+                            value={form.transport_only_product_id}
+                            onChange={(value) =>
+                              patch({ transport_only_product_id: value })
+                            }
+                            allowClear
+                            placeholder="Select service…"
+                            options={serviceProducts.map((option) => ({
+                              value: option.id,
+                              label: option.name,
+                            }))}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Delivery without install crew.
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
                 </>
-              ) : null}
+              )}
 
               <div className="space-y-2">
                 <Label>Add-ons</Label>
                 <p className="text-xs text-muted-foreground">
                   Optional extras guests can add on Rentals (any mode).
                 </p>
-                {otherProducts.length === 0 ? (
-                  <p className="rounded-2xl border border-border/40 bg-background/40 px-3 py-3 text-sm text-muted-foreground">
-                    Add other inventory items first to offer add-ons.
-                  </p>
-                ) : (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {otherProducts.map((option) => {
-                      const selected = form.addons.some(
-                        (row) => row.addonProductId === option.id
-                      );
-                      return (
-                        <MultiSelectProductCard
-                          key={option.id}
-                          selected={selected}
-                          title={option.name}
-                          description={`${PRODUCT_KIND_LABELS[option.kind]} · ${option.unit_label}`}
-                          onToggle={() => toggleAddon(option.id)}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
+                <AdminProductPickGrid
+                  options={otherProducts}
+                  selectedIds={form.addons.map((row) => row.addonProductId)}
+                  onToggle={toggleAddon}
+                  kindFilters={["product", "service", "package"]}
+                  emptyMessage="Add other inventory items first to offer add-ons."
+                />
               </div>
             </div>
           </section>

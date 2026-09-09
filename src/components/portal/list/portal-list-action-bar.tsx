@@ -94,7 +94,7 @@ export function PortalListActionBar({
                 aria-label={statusLabel}
                 allowClear
                 placeholder={`${statusLabel}: ${allStatusLabel}`}
-                className="h-9 rounded-lg border border-border bg-background pl-8 text-sm hover:bg-muted/40"
+                className="h-9 !w-auto min-w-[10.5rem] max-w-[14rem] rounded-lg border border-border bg-background pl-8 text-sm hover:bg-muted/40"
                 options={statusOptions!.map((option) => ({
                   value: option.value,
                   label: `${statusLabel}: ${option.label}`,

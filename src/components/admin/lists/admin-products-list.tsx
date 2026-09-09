@@ -47,6 +47,7 @@ export type AdminProductListRow = {
 
 const KIND_OPTIONS: PortalStatusOption[] = [
   { value: "product", label: PRODUCT_KIND_LABELS.product },
+  { value: "package", label: PRODUCT_KIND_LABELS.package },
   { value: "service", label: PRODUCT_KIND_LABELS.service },
 ];
 
@@ -250,7 +251,7 @@ function FilterSelect({
   return (
     <SelectInput
       aria-label={label}
-      className="h-9 min-w-[9.5rem] rounded-lg border border-border bg-background text-sm hover:bg-muted/40"
+      className="h-9 !w-auto min-w-[10.5rem] max-w-[15rem] shrink-0 rounded-lg border border-border bg-background text-sm hover:bg-muted/40"
       value={value}
       onChange={onChange}
       options={options}
@@ -307,7 +308,7 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
       }}
       renderFiltersExtras={({ state, setExtra }) => (
         <>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             {RENTALS_FILTERS.map((filter) => {
               const selected = (state.extras.rentals ?? "") === filter.value;
               return (
@@ -316,7 +317,7 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
                   type="button"
                   onClick={() => setExtra("rentals", filter.value || null)}
                   className={cn(
-                    "inline-flex h-8 items-center rounded-lg border px-2.5 text-xs font-medium transition-colors",
+                    "inline-flex h-9 items-center rounded-lg border px-2.5 text-xs font-medium transition-colors",
                     selected
                       ? "border-primary/50 bg-primary/15 text-primary"
                       : "border-border/50 bg-background/50 text-muted-foreground hover:border-primary/30 hover:text-foreground"
@@ -349,14 +350,6 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
           />
         </>
       )}
-      toolbarActions={
-        <Link
-          href="/admin/products/new"
-          className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Add item
-        </Link>
-      }
       empty={
         rows.length === 0 ? (
           <>

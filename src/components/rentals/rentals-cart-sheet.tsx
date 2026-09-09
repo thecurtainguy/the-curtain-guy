@@ -3,7 +3,10 @@
 import Image from "next/image";
 import { AlertTriangle, Check, ShoppingBag, Trash2, Truck, Wrench } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { formatCadFromCents, type RentalCartLine } from "@/data/rentals";
+import {
+  formatCadFromCents,
+  groupRentalCartLines,
+} from "@/data/rentals";
 import {
   formatLogisticsEstimateLabel,
   RENTAL_LOGISTICS_MODES,
@@ -21,14 +24,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-
-function groupLines(lines: RentalCartLine[]) {
-  const mains = lines.filter((line) => line.lineKind === "main");
-  return mains.map((main) => ({
-    main,
-    children: lines.filter((line) => line.parentKey === main.key),
-  }));
-}
 
 function LogisticsModeCard({
   selected,
@@ -106,7 +101,7 @@ export function RentalsCartSheet() {
     deliveryZones,
     logisticsLine,
   } = useRentalsCart();
-  const groups = groupLines(lines);
+  const groups = groupRentalCartLines(lines);
 
   function modePrice(mode: RentalLogisticsMode) {
     if (mode === "diy") return t("logisticsDiyPrice");

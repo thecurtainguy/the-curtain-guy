@@ -3,7 +3,7 @@
 import { NextIntlClientProvider } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import type { AppLocale } from "@/i18n/routing";
+import { APP_TIME_ZONE, type AppLocale } from "@/i18n/routing";
 import { resolveAppLocale } from "@/lib/i18n/locale-preference";
 
 type LocaleProviderProps = {
@@ -22,6 +22,7 @@ export function LocaleProvider({
     <NextIntlClientProvider
       key={locale}
       locale={locale}
+      timeZone={APP_TIME_ZONE}
       messages={messagesByLocale[locale]}
     >
       {children}

@@ -7,6 +7,7 @@ import {
   type ProductColorVariantRow,
 } from "@/data/product-colors";
 import {
+  compareProductsBeforeServices,
   evaluateProductCompleteness,
   isProductConfiguratorMode,
   segmentsForLinearFeet,
@@ -17,6 +18,8 @@ import {
   type ProductConfiguratorMode,
   type ProductFormulaIncludeRow,
   type ProductFormulaIncludeWithProduct,
+  type ProductPackageComponentRow,
+  type ProductPackageComponentWithProduct,
   type PublicRentalProduct,
   type RentalCartLine,
 } from "@/data/rentals";
@@ -139,6 +142,89 @@ export async function listProductAddons(
     .filter(Boolean) as ProductAddonWithProduct[];
 }
 
+export async function listPackageComponents(
+  packageProductId: string
+): Promise<ProductPackageComponentWithProduct[]> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
+    .from("product_package_components")
+    .select("*")
+    .eq("package_product_id", packageProductId)
+    .order("sort_order", { ascending: true });
+  if (error || !data?.length) return [];
+
+  const ids = data.map((row) => row.component_product_id as string);
+  const { data: products } = await admin
+    .from("products")
+    .select("*")
+    .in("id", ids);
+  const byId = new Map(
+    ((products || []) as ProductRow[]).map((p) => [p.id, p])
+  );
+
+  return (data as ProductPackageComponentRow[])
+    .map((row) => {
+      const component = byId.get(row.component_product_id);
+      if (!component) return null;
+      return { ...row, component: productSnippet(component) };
+    })
+    .filter(Boolean) as ProductPackageComponentWithProduct[];
+}
+
+export async function replacePackageComponents(input: {
+  packageProductId: string;
+  components: Array<{ componentProductId: string; quantity: number }>;
+}): Promise<{ ok: true } | { error: string }> {
+  const admin = createAdminSupabaseClient();
+
+  const componentIds = input.components.map((row) => row.componentProductId);
+  if (componentIds.includes(input.packageProductId)) {
+    return { error: "A package cannot include itself." };
+  }
+
+  if (componentIds.length > 0) {
+    const { data: components, error: lookupError } = await admin
+      .from("products")
+      .select("id, kind")
+      .in("id", componentIds);
+    if (lookupError) return { error: lookupError.message };
+    const byId = new Map(
+      ((components || []) as Array<{ id: string; kind: string }>).map((row) => [
+        row.id,
+        row.kind,
+      ])
+    );
+    for (const id of componentIds) {
+      const kind = byId.get(id);
+      if (!kind) return { error: "One or more package components were not found." };
+      if (kind === "package") {
+        return { error: "Packages cannot include other packages." };
+      }
+      if (kind !== "product" && kind !== "service") {
+        return { error: "Package components must be products or services." };
+      }
+    }
+  }
+
+  await admin
+    .from("product_package_components")
+    .delete()
+    .eq("package_product_id", input.packageProductId);
+
+  if (input.components.length === 0) return { ok: true };
+
+  const { error } = await admin.from("product_package_components").insert(
+    input.components.map((row, index) => ({
+      package_product_id: input.packageProductId,
+      component_product_id: row.componentProductId,
+      quantity: Math.max(0.01, Number(row.quantity) || 1),
+      sort_order: index,
+    }))
+  );
+  if (error) return { error: error.message };
+  return { ok: true };
+}
+
 export async function replaceFormulaIncludes(input: {
   productId: string;
   includes: Array<{ includedProductId: string; qtyPerSegment: number }>;
@@ -216,8 +302,9 @@ export async function loadPublicRentalProduct(
   const product = await fetchProductCatalogBySlug(slug);
   if (!product || !product.is_active || !product.is_public) return null;
 
-  const [includes, addons, allImages] = await Promise.all([
+  const [includes, packageComponents, addons, allImages] = await Promise.all([
     listFormulaIncludes(product.id),
+    listPackageComponents(product.id),
     listProductAddons(product.id),
     listAllProductImages(product.id),
   ]);
@@ -232,6 +319,7 @@ export async function loadPublicRentalProduct(
   const completeness = evaluateProductCompleteness({
     product,
     includes,
+    packageComponents,
     addons: addons.filter((a) => a.is_active),
     fullService,
     transportOnly,
@@ -244,6 +332,7 @@ export async function loadPublicRentalProduct(
   return {
     ...product,
     includes,
+    packageComponents,
     addons: addons.filter((a) => a.is_active && a.addon.is_active),
     fullService,
     transportOnly,
@@ -286,9 +375,12 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
 
   const results: PublicRentalProduct[] = [];
   for (const row of productRows) {
+    // Services are logistics SKUs — not catalog listings.
+    if (row.kind === "service") continue;
     const product = asCatalog(row);
-    const [includes, addons] = await Promise.all([
+    const [includes, packageComponents, addons] = await Promise.all([
       listFormulaIncludes(product.id),
+      listPackageComponents(product.id),
       listProductAddons(product.id),
     ]);
     const fullService = product.full_service_product_id
@@ -300,6 +392,7 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
     const completeness = evaluateProductCompleteness({
       product,
       includes,
+      packageComponents,
       addons,
       fullService,
       transportOnly,
@@ -309,6 +402,7 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
     results.push({
       ...product,
       includes,
+      packageComponents,
       addons: addons.filter((a) => a.is_active && a.addon.is_active),
       fullService,
       transportOnly,
@@ -325,8 +419,9 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
 export async function getAdminProductRentalsBundle(productId: string) {
   const product = await fetchProductCatalogById(productId);
   if (!product) return null;
-  const [includes, addons, colors] = await Promise.all([
+  const [includes, packageComponents, addons, colors] = await Promise.all([
     listFormulaIncludes(productId),
+    listPackageComponents(productId),
     listProductAddons(productId),
     listProductColorVariants(productId),
   ]);
@@ -339,6 +434,7 @@ export async function getAdminProductRentalsBundle(productId: string) {
   const completeness = evaluateProductCompleteness({
     product,
     includes,
+    packageComponents,
     addons,
     fullService,
     transportOnly,
@@ -346,6 +442,7 @@ export async function getAdminProductRentalsBundle(productId: string) {
   return {
     product,
     includes,
+    packageComponents,
     addons,
     colors,
     fullService,
@@ -369,13 +466,22 @@ export async function mapProductsCompleteness(
   const ids = products.map((p) => p.id);
   const byId = new Map(products.map((p) => [p.id, asCatalog(p)]));
 
-  const [{ data: includesData }, { data: addonsData }] = await Promise.all([
-    admin.from("product_formula_includes").select("*").in("product_id", ids),
-    admin.from("product_addons").select("*").in("product_id", ids),
-  ]);
+  const [{ data: includesData }, { data: addonsData }, { data: packageData }] =
+    await Promise.all([
+      admin.from("product_formula_includes").select("*").in("product_id", ids),
+      admin.from("product_addons").select("*").in("product_id", ids),
+      admin
+        .from("product_package_components")
+        .select("*")
+        .in("package_product_id", ids),
+    ]);
 
   const includesByProduct = new Map<string, ProductFormulaIncludeWithProduct[]>();
   const addonsByProduct = new Map<string, ProductAddonWithProduct[]>();
+  const packageByProduct = new Map<
+    string,
+    ProductPackageComponentWithProduct[]
+  >();
 
   for (const raw of (includesData || []) as ProductFormulaIncludeRow[]) {
     const included = byId.get(raw.included_product_id);
@@ -393,12 +499,23 @@ export async function mapProductsCompleteness(
     addonsByProduct.set(raw.product_id, list);
   }
 
+  for (const raw of (packageData || []) as ProductPackageComponentRow[]) {
+    const component = byId.get(raw.component_product_id);
+    if (!component) continue;
+    const list = packageByProduct.get(raw.package_product_id) || [];
+    list.push({ ...raw, component: productSnippet(component) });
+    packageByProduct.set(raw.package_product_id, list);
+  }
+
   for (const row of products) {
     const product = byId.get(row.id)!;
     const includes = (includesByProduct.get(row.id) || []).sort(
       (a, b) => a.sort_order - b.sort_order
     );
     const addons = (addonsByProduct.get(row.id) || []).sort(
+      (a, b) => a.sort_order - b.sort_order
+    );
+    const packageComponents = (packageByProduct.get(row.id) || []).sort(
       (a, b) => a.sort_order - b.sort_order
     );
     const fullService = product.full_service_product_id
@@ -412,6 +529,7 @@ export async function mapProductsCompleteness(
       evaluateProductCompleteness({
         product,
         includes,
+        packageComponents,
         addons,
         fullService,
         transportOnly,
@@ -476,7 +594,15 @@ export function buildLinearFtCartLines(input: {
     },
   ];
 
-  for (const include of input.product.includes) {
+  const orderedIncludes = [...input.product.includes].sort((a, b) => {
+    const byKind = compareProductsBeforeServices(
+      a.included.kind,
+      b.included.kind
+    );
+    if (byKind !== 0) return byKind;
+    return a.sort_order - b.sort_order;
+  });
+  for (const include of orderedIncludes) {
     const qty = segments * Number(include.qty_per_segment || 0);
     if (!(qty > 0)) continue;
     lines.push({
@@ -614,6 +740,40 @@ export function buildSimpleCartLines(input: {
       colorHex: color?.hex ?? null,
     },
   ];
+
+  if (input.product.kind === "package") {
+    const orderedComponents = [...input.product.packageComponents].sort(
+      (a, b) => {
+        const byKind = compareProductsBeforeServices(
+          a.component.kind,
+          b.component.kind
+        );
+        if (byKind !== 0) return byKind;
+        return a.sort_order - b.sort_order;
+      }
+    );
+    for (const row of orderedComponents) {
+      const componentQty = qty * Number(row.quantity || 0);
+      if (!(componentQty > 0)) continue;
+      lines.push({
+        key: `include:${parentKey}:${row.component_product_id}`,
+        productId: row.component_product_id,
+        slug: row.component.slug,
+        name: row.component.name,
+        description: `Included · ${row.component.name}`,
+        category: String(row.component.category),
+        kind: row.component.kind,
+        lineKind: "include",
+        imageUrl: row.component.image_url,
+        imageAlt: row.component.image_alt,
+        quantity: componentQty,
+        unitPriceCents: 0,
+        unitLabel: row.component.unit_label,
+        isTaxable: false,
+        parentKey,
+      });
+    }
+  }
 
   for (const selection of input.addonSelections) {
     if (!(selection.quantity > 0)) continue;

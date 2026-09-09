@@ -96,6 +96,7 @@ export function RentalProductView({ product }: RentalProductViewProps) {
         eyebrow={t("eyebrow")}
         title={displayTitle}
         description={shortDescription || undefined}
+        back={{ href: "/rentals", label: t("backToRentals") }}
       />
 
       <section className="relative overflow-x-clip py-12 sm:py-16">

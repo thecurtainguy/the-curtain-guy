@@ -194,7 +194,7 @@ export function AdminInventoryPickerDialog({
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-medium text-foreground">{row.name}</p>
                     <ProductKindBadge kind={row.kind} />
-                    {row.kind === "product" ? (
+                    {row.kind === "product" || row.kind === "package" ? (
                       <ProductAvailabilityBadge
                         status={row.availability_status}
                       />
@@ -203,7 +203,7 @@ export function AdminInventoryPickerDialog({
                   <p className="mt-1 text-xs text-muted-foreground">
                     {getProductCategoryLabel(row.category)}
                     {row.sku ? ` · SKU ${row.sku}` : ""}
-                    {row.kind === "product"
+                    {row.kind === "product" || row.kind === "package"
                       ? ` · Qty ${row.quantity_on_hand}`
                       : ""}
                   </p>

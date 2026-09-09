@@ -72,6 +72,32 @@ export type ProductAddonWithProduct = ProductAddonRow & {
   >;
 };
 
+export type ProductPackageComponentRow = {
+  id: string;
+  created_at: string;
+  package_product_id: string;
+  component_product_id: string;
+  quantity: number;
+  sort_order: number;
+};
+
+export type ProductPackageComponentWithProduct = ProductPackageComponentRow & {
+  component: Pick<
+    ProductRow,
+    | "id"
+    | "name"
+    | "slug"
+    | "kind"
+    | "category"
+    | "unit_label"
+    | "default_unit_price_cents"
+    | "is_taxable"
+    | "image_url"
+    | "image_alt"
+    | "is_active"
+  >;
+};
+
 /** Product row extended with rentals configurator columns. */
 export type ProductCatalogRow = ProductRow & {
   configurator_mode: ProductConfiguratorMode;
@@ -87,11 +113,13 @@ export type ProductCompletenessIssue = {
     | "missing_price"
     | "missing_segment"
     | "missing_includes"
+    | "missing_package_components"
     | "missing_full_service"
     | "missing_transport_only"
     | "broken_full_service"
     | "broken_transport_only"
     | "inactive_include"
+    | "inactive_package_component"
     | "inactive_addon";
   message: string;
   severity: "error" | "warning";
@@ -105,6 +133,7 @@ export type ProductCompleteness = {
 export function evaluateProductCompleteness(input: {
   product: ProductCatalogRow;
   includes: ProductFormulaIncludeWithProduct[];
+  packageComponents?: ProductPackageComponentWithProduct[];
   addons?: ProductAddonWithProduct[];
   fullService: ProductCatalogRow | null;
   transportOnly: ProductCatalogRow | null;
@@ -135,7 +164,25 @@ export function evaluateProductCompleteness(input: {
     });
   }
 
-  if (input.product.configurator_mode === "linear_ft") {
+  if (input.product.kind === "package") {
+    const components = input.packageComponents || [];
+    if (components.length === 0) {
+      issues.push({
+        code: "missing_package_components",
+        message: "Add at least one package component from inventory.",
+        severity: "error",
+      });
+    }
+    for (const row of components) {
+      if (!row.component.is_active) {
+        issues.push({
+          code: "inactive_package_component",
+          message: `Package component “${row.component.name}” is inactive.`,
+          severity: "warning",
+        });
+      }
+    }
+  } else if (input.product.configurator_mode === "linear_ft") {
     if (!(Number(input.product.formula_segment_feet) > 0)) {
       issues.push({
         code: "missing_segment",
@@ -221,6 +268,7 @@ export function evaluateProductCompleteness(input: {
 
 export type PublicRentalProduct = ProductCatalogRow & {
   includes: ProductFormulaIncludeWithProduct[];
+  packageComponents: ProductPackageComponentWithProduct[];
   addons: ProductAddonWithProduct[];
   fullService: ProductCatalogRow | null;
   transportOnly: ProductCatalogRow | null;
@@ -260,6 +308,26 @@ export type RentalCartSnapshot = {
   transportOnlyEnabled: boolean;
   updatedAt: string;
 };
+
+/** Products first; transport/install services last. */
+export function compareProductsBeforeServices(
+  aKind: string,
+  bKind: string
+): number {
+  const aService = aKind === "service" ? 1 : 0;
+  const bService = bKind === "service" ? 1 : 0;
+  return aService - bService;
+}
+
+export function groupRentalCartLines(lines: RentalCartLine[]) {
+  const mains = lines.filter((line) => line.lineKind === "main");
+  return mains.map((main) => ({
+    main,
+    children: lines
+      .filter((line) => line.parentKey === main.key)
+      .sort((a, b) => compareProductsBeforeServices(a.kind, b.kind)),
+  }));
+}
 
 export function segmentsForLinearFeet(
   linearFeet: number,

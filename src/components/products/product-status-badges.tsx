@@ -22,6 +22,8 @@ const KIND_STYLES: Record<ProductKind, string> = {
     "bg-primary/10 text-primary ring-primary/25",
   service:
     "bg-sky-100 text-sky-900 ring-sky-700/25 dark:bg-sky-500/15 dark:text-sky-300 dark:ring-sky-500/30",
+  package:
+    "bg-amber-100 text-amber-950 ring-amber-700/25 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-500/30",
 };
 
 export function ProductAvailabilityBadge({

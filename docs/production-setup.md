@@ -12,6 +12,8 @@ SUPABASE_SERVICE_ROLE_KEY=
 RESEND_API_KEY=
 TCG_ESTIMATE_NOTIFY_TO=admin@thecurtainguy.com
 TCG_ESTIMATE_FROM=The Curtain Guy <estimates@thecurtainguy.com>
+# Optional override — BCC copy of outbound customer emails (default admin@)
+# TCG_OUTBOUND_EMAIL_BCC=admin@thecurtainguy.com
 TCG_SEND_CUSTOMER_CONFIRMATION=true
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=

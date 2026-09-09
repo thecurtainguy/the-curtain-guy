@@ -47,6 +47,7 @@ import {
 import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
 import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
 import { DocumentTextPreviewButton } from "@/components/admin/document-text-preview";
+import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
 import {
@@ -1607,6 +1608,12 @@ export function AdminQuoteBuilder({
       </section>
       </aside>
       </div>
+      <AdminFloatingSaveButton
+        active={isEditing}
+        saving={saving}
+        label="Save quote"
+        onSave={() => void saveAll()}
+      />
     </div>
   );
 }

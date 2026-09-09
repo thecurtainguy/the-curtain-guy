@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   useSyncExternalStore,
@@ -11,10 +12,12 @@ import {
 } from "react";
 import type { RentalCartLine } from "@/data/rentals";
 import {
+  DEFAULT_RENTAL_DELIVERY_ZONES,
   buildCartLogisticsLine,
   isRentalDeliveryZoneId,
   isRentalLogisticsMode,
   stripServiceLines,
+  type RentalDeliveryZone,
   type RentalDeliveryZoneId,
   type RentalLogisticsMode,
 } from "@/data/rentals-logistics";
@@ -40,6 +43,7 @@ type RentalsCartContextValue = {
   lines: RentalCartLine[];
   logisticsMode: RentalLogisticsMode;
   deliveryZoneId: RentalDeliveryZoneId | null;
+  deliveryZones: RentalDeliveryZone[];
   setLogisticsMode: (mode: RentalLogisticsMode) => void;
   setDeliveryZoneId: (zoneId: RentalDeliveryZoneId | null) => void;
   hydrated: boolean;
@@ -76,7 +80,7 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
-function parseStoredCart(): CartSnapshot {
+function parseStoredCart(zones: RentalDeliveryZone[]): CartSnapshot {
   if (typeof window === "undefined") return DEFAULT_SNAPSHOT;
   try {
     const rawV2 = window.localStorage.getItem(STORAGE_KEY);
@@ -92,7 +96,7 @@ function parseStoredCart(): CartSnapshot {
             : "full_service",
           deliveryZoneId:
             parsed.deliveryZoneId &&
-            isRentalDeliveryZoneId(parsed.deliveryZoneId)
+            isRentalDeliveryZoneId(parsed.deliveryZoneId, zones)
               ? parsed.deliveryZoneId
               : null,
         };
@@ -123,7 +127,7 @@ function parseStoredCart(): CartSnapshot {
 function ensureHydratedFromStorage() {
   if (didHydrateFromStorage || typeof window === "undefined") return;
   didHydrateFromStorage = true;
-  cachedSnapshot = parseStoredCart();
+  cachedSnapshot = parseStoredCart(DEFAULT_RENTAL_DELIVERY_ZONES);
 }
 
 function writeStoredCart(next: CartSnapshot) {
@@ -193,6 +197,38 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
     getHydratedServerSnapshot
   );
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [deliveryZones, setDeliveryZones] = useState<RentalDeliveryZone[]>(
+    DEFAULT_RENTAL_DELIVERY_ZONES
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/rentals/delivery-zones");
+        const json = (await response.json()) as {
+          ok?: boolean;
+          zones?: RentalDeliveryZone[];
+        };
+        if (cancelled || !response.ok || !json.ok || !json.zones?.length) {
+          return;
+        }
+        setDeliveryZones(json.zones);
+        const prev = getClientSnapshot();
+        if (
+          prev.deliveryZoneId &&
+          !isRentalDeliveryZoneId(prev.deliveryZoneId, json.zones)
+        ) {
+          writeStoredCart({ ...prev, deliveryZoneId: null });
+        }
+      } catch {
+        /* keep defaults */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const addLines = useCallback((incoming: RentalCartLine[]) => {
     const cleaned = stripServiceLines(incoming);
@@ -244,6 +280,7 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
     const logisticsLine = buildCartLogisticsLine({
       mode: snapshot.logisticsMode,
       zoneId: snapshot.deliveryZoneId,
+      zones: deliveryZones,
     });
     // Only attach a priced or quote-only logistics line once a zone is chosen
     // (or DIY which returns null). Mode alone without zone = no line yet.
@@ -262,6 +299,7 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
       lines,
       logisticsMode: snapshot.logisticsMode,
       deliveryZoneId: snapshot.deliveryZoneId,
+      deliveryZones,
       setLogisticsMode,
       setDeliveryZoneId,
       hydrated,
@@ -280,6 +318,7 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
     };
   }, [
     snapshot,
+    deliveryZones,
     hydrated,
     sheetOpen,
     addLines,

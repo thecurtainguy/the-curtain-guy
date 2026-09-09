@@ -12,7 +12,6 @@ import { useTranslations } from "next-intl";
 import { eventTypes } from "@/data/estimate";
 import { formatCadFromCents } from "@/data/rentals";
 import {
-  RENTAL_DELIVERY_ZONES,
   formatLogisticsEstimateLabel,
   getRentalDeliveryZone,
   isRentalDeliveryZoneId,
@@ -72,6 +71,7 @@ export function RentalsCheckoutForm({
     logisticsMode,
     deliveryZoneId,
     setDeliveryZoneId,
+    deliveryZones,
     logisticsLine,
     merchandiseSubtotalCents,
   } = useRentalsCart();
@@ -133,7 +133,7 @@ export function RentalsCheckoutForm({
     setIsSubmitting(true);
     setSubmitError(null);
 
-    const zone = getRentalDeliveryZone(deliveryZoneId);
+    const zone = getRentalDeliveryZone(deliveryZoneId, deliveryZones);
 
     try {
       const response = await fetch("/api/rentals/checkout", {
@@ -408,7 +408,7 @@ export function RentalsCheckoutForm({
                   </p>
                 </div>
                 <div className="grid gap-2" role="radiogroup">
-                  {RENTAL_DELIVERY_ZONES.map((zone) => {
+                  {deliveryZones.map((zone) => {
                     const selected = deliveryZoneId === zone.id;
                     const priceLabel =
                       logisticsMode === "diy"
@@ -418,6 +418,7 @@ export function RentalsCheckoutForm({
                           : formatLogisticsEstimateLabel({
                               mode: logisticsMode,
                               zoneId: zone.id,
+                              zones: deliveryZones,
                             });
                     return (
                       <button
@@ -426,7 +427,7 @@ export function RentalsCheckoutForm({
                         role="radio"
                         aria-checked={selected}
                         onClick={() => {
-                          if (isRentalDeliveryZoneId(zone.id)) {
+                          if (isRentalDeliveryZoneId(zone.id, deliveryZones)) {
                             setDeliveryZoneId(zone.id as RentalDeliveryZoneId);
                           }
                           if (fieldErrors.deliveryZoneId) {

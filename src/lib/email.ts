@@ -24,6 +24,7 @@ import {
 import type { StudioDesignJson } from "@/data/studio";
 import { getDocumentText } from "@/lib/document-texts";
 import type { EventPlanContact } from "@/lib/event-builder/event-plan-server";
+import { sendResendEmail } from "@/lib/resend";
 
 export type SendEstimateNotificationInput = {
   requestId: string;
@@ -51,16 +52,6 @@ type EstimateEmailContext = {
 type EmailSection = {
   title: string;
   rows: Array<{ label: string; value: string }>;
-};
-
-type ResendEmailPayload = {
-  apiKey: string;
-  from: string;
-  to: string[];
-  subject: string;
-  text: string;
-  html: string;
-  replyTo?: string;
 };
 
 function escapeHtml(value: string): string {
@@ -364,35 +355,6 @@ function buildCustomerConfirmationHtml(
 </html>`;
 }
 
-async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
-  const body: Record<string, unknown> = {
-    from: payload.from,
-    to: payload.to,
-    subject: payload.subject,
-    text: payload.text,
-    html: payload.html,
-  };
-
-  if (payload.replyTo) {
-    body.reply_to = payload.replyTo;
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${payload.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    console.error("[estimate] Resend send failed:", response.status, errorBody);
-    throw new Error("Failed to send email via Resend");
-  }
-}
-
 export async function sendEstimateNotificationEmail(
   input: SendEstimateNotificationInput
 ): Promise<void> {
@@ -414,6 +376,7 @@ export async function sendEstimateNotificationEmail(
     subject: buildNotificationSubject(data, ctx.reference),
     text: buildNotificationText(ctx, disclaimer),
     html: buildNotificationHtml(ctx, disclaimer),
+    logLabel: "estimate",
   });
 }
 
@@ -448,6 +411,7 @@ export async function sendEstimateCustomerConfirmationEmail(
     subject: buildCustomerConfirmationSubject(ctx.reference),
     text: buildCustomerConfirmationText(ctx, disclaimer),
     html: buildCustomerConfirmationHtml(ctx, disclaimer),
+    logLabel: "estimate",
   });
 }
 
@@ -538,6 +502,7 @@ export async function sendEventPlanNotificationEmail(
       "A new event plan was submitted from the Studio Event Builder.",
       disclaimer
     ),
+    logLabel: "estimate",
   });
 }
 
@@ -580,5 +545,6 @@ export async function sendEventPlanCustomerConfirmationEmail(
       "Thank you for submitting your event drape plan. Our team has it on file and will review the details below.",
       disclaimer
     ),
+    logLabel: "estimate",
   });
 }

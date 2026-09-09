@@ -1,16 +1,7 @@
 import { getReviewCategoryLabel } from "@/data/reviews";
 import { getContactFrom, getContactNotifyTo } from "@/lib/env";
 import type { ReviewSubmissionData } from "@/lib/review-submission-schema";
-
-type ResendEmailPayload = {
-  apiKey: string;
-  from: string;
-  to: string[];
-  subject: string;
-  text: string;
-  html: string;
-  replyTo?: string;
-};
+import { sendResendEmail } from "@/lib/resend";
 
 function escapeHtml(value: string): string {
   return value
@@ -26,35 +17,6 @@ function displayValue(value: string): string {
 
 function yesNo(value: boolean): string {
   return value ? "Yes" : "No";
-}
-
-async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
-  const body: Record<string, unknown> = {
-    from: payload.from,
-    to: payload.to,
-    subject: payload.subject,
-    text: payload.text,
-    html: payload.html,
-  };
-
-  if (payload.replyTo) {
-    body.reply_to = payload.replyTo;
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${payload.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    console.error("[reviews] Resend send failed:", response.status, errorBody);
-    throw new Error("Failed to send email via Resend");
-  }
 }
 
 function buildReviewNotificationText(data: ReviewSubmissionData): string {
@@ -161,5 +123,6 @@ export async function sendReviewSubmissionEmail(input: {
     subject: `New review submission (${data.rating}/5) — The Curtain Guy`,
     text: buildReviewNotificationText(data),
     html: buildReviewNotificationHtml(data),
+    logLabel: "reviews",
   });
 }

@@ -27,6 +27,7 @@ import { QUOTE_CATEGORY_LABELS, formatCadFromCents, resolveQuoteDisplayRef } fro
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
+import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import type { JobWithRelations } from "@/lib/jobs";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
@@ -775,6 +776,12 @@ export function AdminJobDetail({
       </aside>
       </div>
 
+      <AdminFloatingSaveButton
+        active
+        saving={saving}
+        label="Save job"
+        onSave={() => void saveJob()}
+      />
     </div>
   );
 }

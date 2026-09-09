@@ -124,8 +124,8 @@ export function AdminCreateQuoteForm() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-border/40 bg-card/25">
-        <div className="border-b border-border/40 bg-gradient-to-br from-primary/8 via-transparent to-transparent px-5 py-4">
+      <section className="rounded-2xl border border-border/40 bg-card/25">
+        <div className="overflow-hidden rounded-t-2xl border-b border-border/40 bg-gradient-to-br from-primary/8 via-transparent to-transparent px-5 py-4">
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
               <UserRound className="size-4" />
@@ -183,8 +183,8 @@ export function AdminCreateQuoteForm() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-border/40 bg-card/25">
-        <div className="border-b border-border/40 bg-gradient-to-br from-primary/8 via-transparent to-transparent px-5 py-4">
+      <section className="rounded-2xl border border-border/40 bg-card/25">
+        <div className="overflow-hidden rounded-t-2xl border-b border-border/40 bg-gradient-to-br from-primary/8 via-transparent to-transparent px-5 py-4">
           <div className="flex items-start gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
               <CalendarDays className="size-4" />

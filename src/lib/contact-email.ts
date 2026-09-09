@@ -1,16 +1,7 @@
 import { getEnglishOptionLabel } from "@/data/estimate";
 import { getContactFrom, getContactNotifyTo } from "@/lib/env";
 import type { ContactFormData } from "@/lib/contact-schema";
-
-type ResendEmailPayload = {
-  apiKey: string;
-  from: string;
-  to: string[];
-  subject: string;
-  text: string;
-  html: string;
-  replyTo?: string;
-};
+import { sendResendEmail } from "@/lib/resend";
 
 function escapeHtml(value: string): string {
   return value
@@ -28,35 +19,6 @@ function formatEventType(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "—";
   return getEnglishOptionLabel("eventTypes", trimmed) ?? trimmed;
-}
-
-async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
-  const body: Record<string, unknown> = {
-    from: payload.from,
-    to: payload.to,
-    subject: payload.subject,
-    text: payload.text,
-    html: payload.html,
-  };
-
-  if (payload.replyTo) {
-    body.reply_to = payload.replyTo;
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${payload.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    console.error("[contact] Resend send failed:", response.status, errorBody);
-    throw new Error("Failed to send email via Resend");
-  }
 }
 
 function buildContactNotificationText(data: ContactFormData): string {
@@ -133,5 +95,6 @@ export async function sendContactNotificationEmail(input: {
     subject: "New contact request — The Curtain Guy",
     text: buildContactNotificationText(data),
     html: buildContactNotificationHtml(data),
+    logLabel: "contact",
   });
 }

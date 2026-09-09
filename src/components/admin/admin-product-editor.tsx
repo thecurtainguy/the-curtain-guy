@@ -19,6 +19,7 @@ import {
   ProductKindBadge,
 } from "@/components/products/product-status-badges";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
+import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1387,6 +1388,12 @@ export function AdminProductEditor({
           </section>
         </div>
       </div>
+      <AdminFloatingSaveButton
+        active
+        saving={saving}
+        label={isNew ? "Create item" : "Save changes"}
+        onSave={() => void save()}
+      />
     </div>
   );
 }

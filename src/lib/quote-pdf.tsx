@@ -47,9 +47,10 @@ const LOGO_PATH = path.join(
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 28,
-    paddingBottom: 56,
-    paddingHorizontal: 32,
+    flexDirection: "column",
+    paddingTop: 22,
+    paddingBottom: 48,
+    paddingHorizontal: 30,
     fontFamily: "Helvetica",
     fontSize: 9.5,
     color: COLORS.ink,
@@ -58,25 +59,25 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     backgroundColor: COLORS.navy,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 14,
+    borderRadius: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    marginBottom: 10,
   },
   logoWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     backgroundColor: COLORS.white,
-    padding: 4,
+    padding: 3,
     justifyContent: "center",
     alignItems: "center",
   },
   logo: {
-    width: 44,
-    height: 44,
+    width: 38,
+    height: 38,
     objectFit: "contain",
   },
   headerCopy: {
@@ -92,51 +93,51 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: COLORS.white,
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: "Helvetica-Bold",
   },
   headerMeta: {
     color: "#c8c2b8",
-    fontSize: 8.5,
-    marginTop: 3,
+    fontSize: 8,
+    marginTop: 2,
   },
   headerTag: {
     color: "#a39e95",
-    fontSize: 7.5,
-    marginTop: 2,
+    fontSize: 7,
+    marginTop: 1,
     letterSpacing: 0.4,
   },
   actionsCard: {
     borderWidth: 1,
     borderColor: COLORS.line,
     backgroundColor: COLORS.cream,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
+    borderRadius: 8,
+    padding: 9,
+    marginBottom: 10,
   },
   actionsTitle: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontFamily: "Helvetica-Bold",
     letterSpacing: 1.4,
     textTransform: "uppercase",
     color: COLORS.goldDeep,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   actionsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
+    gap: 5,
   },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
     borderWidth: 1,
     borderColor: "#d9cdb8",
     backgroundColor: COLORS.white,
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    borderRadius: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
   },
   actionBtnPrimary: {
     backgroundColor: COLORS.navy,
@@ -153,31 +154,31 @@ const styles = StyleSheet.create({
     color: COLORS.white,
   },
   actionUrl: {
-    marginTop: 8,
-    fontSize: 7.5,
+    marginTop: 6,
+    fontSize: 7,
     color: COLORS.muted,
   },
   grid: {
     flexDirection: "row",
-    gap: 10,
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 10,
   },
   panel: {
     flex: 1,
     borderWidth: 1,
     borderColor: COLORS.line,
-    borderRadius: 10,
-    padding: 11,
+    borderRadius: 8,
+    padding: 9,
     backgroundColor: COLORS.white,
   },
   panelTitle: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontFamily: "Helvetica-Bold",
     letterSpacing: 1.3,
     textTransform: "uppercase",
     color: COLORS.goldDeep,
-    marginBottom: 8,
-    paddingBottom: 5,
+    marginBottom: 6,
+    paddingBottom: 4,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.line,
   },
@@ -185,35 +186,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 8,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   metaLabel: {
-    fontSize: 8,
+    fontSize: 7.5,
     color: COLORS.soft,
     width: "38%",
   },
   metaValue: {
-    fontSize: 8.5,
+    fontSize: 8,
     color: COLORS.ink,
     textAlign: "right",
     flex: 1,
   },
   sectionTitle: {
-    fontSize: 8.5,
+    fontSize: 8,
     fontFamily: "Helvetica-Bold",
     letterSpacing: 1.3,
     textTransform: "uppercase",
     color: COLORS.ink,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   tableHeader: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.navySoft,
-    borderRadius: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    marginBottom: 2,
+    borderRadius: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 7,
+    marginBottom: 1,
   },
   tableHeaderText: {
     color: COLORS.gold,
@@ -225,8 +226,8 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 7,
     borderBottomWidth: 0.75,
     borderBottomColor: COLORS.line,
   },
@@ -235,15 +236,15 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   lineThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 3,
     objectFit: "cover",
   },
   lineThumbPlaceholder: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 3,
     backgroundColor: COLORS.goldWash,
   },
   colDesc: {
@@ -266,14 +267,14 @@ const styles = StyleSheet.create({
     width: "14%",
   },
   cell: {
-    fontSize: 8.5,
+    fontSize: 8,
     color: COLORS.ink,
-    lineHeight: 1.35,
+    lineHeight: 1.3,
   },
   cellMuted: {
-    fontSize: 8,
+    fontSize: 7.5,
     color: COLORS.muted,
-    lineHeight: 1.35,
+    lineHeight: 1.3,
   },
   cellRight: {
     textAlign: "right",
@@ -282,98 +283,103 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   totalsWrap: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: "row",
     justifyContent: "flex-end",
   },
   totalsBox: {
-    width: 220,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    width: 200,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     backgroundColor: COLORS.goldWash,
-    borderRadius: 8,
+    borderRadius: 7,
     borderWidth: 1,
     borderColor: "#e2d4b0",
   },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 3,
+    marginBottom: 2,
   },
-  totalLabel: { fontSize: 8.5, color: COLORS.muted },
-  totalValue: { fontSize: 8.5, color: COLORS.ink },
+  totalLabel: { fontSize: 8, color: COLORS.muted },
+  totalValue: { fontSize: 8, color: COLORS.ink },
   totalFinalLabel: {
     fontFamily: "Helvetica-Bold",
-    fontSize: 10,
+    fontSize: 9.5,
     color: COLORS.ink,
-    marginTop: 5,
-    paddingTop: 5,
+    marginTop: 4,
+    paddingTop: 4,
     borderTopWidth: 1,
     borderTopColor: "#e2d4b0",
   },
   totalFinalValue: {
     fontFamily: "Helvetica-Bold",
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.goldDeep,
-    marginTop: 3,
+    marginTop: 2,
   },
   notesCard: {
-    marginTop: 12,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: COLORS.line,
-    borderRadius: 10,
-    padding: 11,
+    borderRadius: 8,
+    padding: 9,
     backgroundColor: COLORS.cream,
   },
   notesBody: {
-    fontSize: 8.5,
-    lineHeight: 1.35,
+    fontSize: 8,
+    lineHeight: 1.3,
     color: COLORS.ink,
   },
+  termsDock: {
+    marginTop: "auto",
+    justifyContent: "flex-end",
+    paddingTop: 10,
+  },
   termsCard: {
-    marginTop: 12,
     borderWidth: 1,
     borderColor: COLORS.line,
-    borderRadius: 10,
-    padding: 11,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 9,
     backgroundColor: COLORS.white,
   },
   termRow: {
     flexDirection: "row",
-    gap: 7,
-    marginBottom: 4,
+    gap: 6,
+    marginBottom: 3,
   },
   termIndex: {
-    width: 12,
-    fontSize: 8,
+    width: 11,
+    fontSize: 7.5,
     fontFamily: "Helvetica-Bold",
     color: COLORS.goldDeep,
   },
   termText: {
     flex: 1,
-    fontSize: 8,
-    lineHeight: 1.3,
+    fontSize: 7.5,
+    lineHeight: 1.28,
     color: COLORS.muted,
   },
   footer: {
     position: "absolute",
-    bottom: 18,
-    left: 32,
-    right: 32,
+    bottom: 14,
+    left: 30,
+    right: 30,
     borderTopWidth: 0.75,
     borderTopColor: COLORS.line,
-    paddingTop: 7,
+    paddingTop: 6,
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 10,
   },
   footerText: {
-    fontSize: 7,
+    fontSize: 6.5,
     color: COLORS.soft,
     maxWidth: "70%",
   },
   footerRight: {
-    fontSize: 7,
+    fontSize: 6.5,
     color: COLORS.soft,
     textAlign: "right",
   },
@@ -707,14 +713,20 @@ function QuotePdfDocument({
           </View>
         ) : null}
 
-        <View style={styles.termsCard} wrap={false} minPresenceAhead={80}>
-          <Text style={styles.sectionTitle}>Terms & conditions</Text>
-          {terms.map((line, index) => (
-            <View key={`${index}-${line.slice(0, 16)}`} style={styles.termRow}>
-              <Text style={styles.termIndex}>{index + 1}.</Text>
-              <Text style={styles.termText}>{line}</Text>
-            </View>
-          ))}
+        <View style={styles.termsDock} wrap={false}>
+          <View style={styles.termsCard}>
+            <Text style={styles.sectionTitle}>Terms & conditions</Text>
+            {terms.map((line, index) => (
+              <View
+                key={`${index}-${line.slice(0, 16)}`}
+                style={styles.termRow}
+                wrap={false}
+              >
+                <Text style={styles.termIndex}>{index + 1}.</Text>
+                <Text style={styles.termText}>{line}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.footer} fixed>

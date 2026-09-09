@@ -46,6 +46,13 @@ export function getEstimateNotifyTo(): string {
   );
 }
 
+/** BCC inbox for outbound mail (exact copy of what the recipient receives). */
+export function getOutboundEmailCopyTo(): string {
+  return (
+    process.env.TCG_OUTBOUND_EMAIL_BCC?.trim() || "admin@thecurtainguy.com"
+  );
+}
+
 export function getEstimateFrom(): string {
   return (
     process.env.TCG_ESTIMATE_FROM?.trim() ||

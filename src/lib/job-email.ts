@@ -4,16 +4,7 @@ import {
   getQuoteFrom,
   getSiteUrl,
 } from "@/lib/env";
-
-type ResendEmailPayload = {
-  apiKey: string;
-  from: string;
-  to: string[];
-  subject: string;
-  text: string;
-  html: string;
-  replyTo?: string;
-};
+import { sendResendEmail } from "@/lib/resend";
 
 function escapeHtml(value: string): string {
   return value
@@ -21,34 +12,6 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
-  const body: Record<string, unknown> = {
-    from: payload.from,
-    to: payload.to,
-    subject: payload.subject,
-    text: payload.text,
-    html: payload.html,
-  };
-  if (payload.replyTo) {
-    body.reply_to = payload.replyTo;
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${payload.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    console.error("[jobs] Resend send failed:", response.status, errorBody);
-    throw new Error("Failed to send email via Resend");
-  }
 }
 
 function brandShell(title: string, innerHtml: string): string {
@@ -116,6 +79,7 @@ export async function sendJobConfirmedEmail(input: {
     subject: `Your Curtain Guy event is confirmed — ${job.opportunity_ref}`,
     text,
     html,
+    logLabel: "jobs",
   });
 }
 
@@ -156,5 +120,6 @@ export async function sendJobMessageNotifyOwner(input: {
     text,
     html,
     replyTo: input.job.customer_email ?? undefined,
+    logLabel: "jobs",
   });
 }

@@ -35,6 +35,7 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
     const [focused, setFocused] = React.useState(false);
     const [draft, setDraft] = React.useState(() => toDisplay(value, suggestions));
     const [activeIndex, setActiveIndex] = React.useState(-1);
+    const [openUpward, setOpenUpward] = React.useState(false);
 
     React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
@@ -43,6 +44,28 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
         setDraft(toDisplay(value, suggestions));
       }
     }, [value, focused, suggestions]);
+
+    React.useLayoutEffect(() => {
+      if (!open || !rootRef.current) return;
+
+      function updatePlacement() {
+        const root = rootRef.current;
+        if (!root) return;
+        const rect = root.getBoundingClientRect();
+        const menuHeight = 280;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        setOpenUpward(spaceBelow < menuHeight && spaceAbove > spaceBelow);
+      }
+
+      updatePlacement();
+      window.addEventListener("resize", updatePlacement);
+      window.addEventListener("scroll", updatePlacement, true);
+      return () => {
+        window.removeEventListener("resize", updatePlacement);
+        window.removeEventListener("scroll", updatePlacement, true);
+      };
+    }, [open]);
 
     React.useEffect(() => {
       if (!open) return;
@@ -189,7 +212,10 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
           <div
             id={id ? `${id}-listbox` : undefined}
             role="listbox"
-            className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-border/50 bg-card p-1.5 text-card-foreground shadow-xl ring-1 ring-primary/10"
+            className={cn(
+              "absolute z-[80] w-full overflow-hidden rounded-2xl border border-border/50 bg-card p-1.5 text-card-foreground shadow-xl ring-1 ring-primary/10",
+              openUpward ? "bottom-full mb-2" : "top-full mt-2"
+            )}
           >
             <p className="px-2.5 py-1.5 text-[10px] font-medium tracking-[0.16em] text-primary uppercase">
               Event types

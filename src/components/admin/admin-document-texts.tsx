@@ -18,6 +18,7 @@ import {
   type DocumentType,
 } from "@/data/document-texts";
 import { DocumentTextPreviewButton } from "@/components/admin/document-text-preview";
+import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,17 @@ export function AdminDocumentTextsEditor({
     [selectedType]
   );
 
-  async function save(slug: DocumentTextSlug, restoreDefault = false) {
+  const dirtySlugs = useMemo(() => {
+    return fields
+      .map((def) => def.slug)
+      .filter((slug) => {
+        const stored = texts.find((item) => item.slug === slug);
+        const draft = drafts[slug] ?? stored?.body ?? "";
+        return draft !== (stored?.body ?? DOCUMENT_TEXT_DEFS.find((d) => d.slug === slug)?.defaultBody ?? "");
+      });
+  }, [drafts, fields, texts]);
+
+  async function save(slug: DocumentTextSlug, restoreDefault = false): Promise<boolean> {
     setSavingSlug(slug);
     setError(null);
     setMessage(null);
@@ -80,7 +91,7 @@ export function AdminDocumentTextsEditor({
       };
       if (!response.ok || !json.ok || !json.text) {
         setError(json.message || "Could not save.");
-        return;
+        return false;
       }
       setDrafts((prev) => ({ ...prev, [slug]: json.text!.body }));
       setTexts((prev) =>
@@ -98,11 +109,27 @@ export function AdminDocumentTextsEditor({
       setMessage(
         restoreDefault ? "Restored factory default." : "Saved. New documents will use this copy."
       );
+      return true;
     } catch {
       setError("Could not save.");
+      return false;
     } finally {
       setSavingSlug(null);
     }
+  }
+
+  async function saveAllDirty() {
+    const slugs = dirtySlugs;
+    if (slugs.length === 0) return;
+    for (const slug of slugs) {
+      const ok = await save(slug);
+      if (!ok) return;
+    }
+    setMessage(
+      slugs.length === 1
+        ? "Saved. New documents will use this copy."
+        : `Saved ${slugs.length} fields. New documents will use this copy.`
+    );
   }
 
   return (
@@ -329,6 +356,16 @@ export function AdminDocumentTextsEditor({
           );
         })}
       </div>
+      <AdminFloatingSaveButton
+        active={dirtySlugs.length > 0}
+        saving={savingSlug !== null}
+        label={
+          dirtySlugs.length > 1
+            ? `Save ${dirtySlugs.length} changes`
+            : "Save changes"
+        }
+        onSave={() => void saveAllDirty()}
+      />
     </div>
   );
 }

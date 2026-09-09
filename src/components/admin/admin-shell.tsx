@@ -14,6 +14,7 @@ import {
   ScrollText,
   Sparkles,
   Star,
+  Truck,
 } from "lucide-react";
 import type { UserProfile } from "@/lib/auth";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -38,6 +39,7 @@ const links: PortalNavItem[] = [
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
   { href: "/admin/products", label: "Inventory", icon: Package },
+  { href: "/admin/logistics", label: "Logistics", icon: Truck },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/event-plans", label: "Event plans", icon: Sparkles },

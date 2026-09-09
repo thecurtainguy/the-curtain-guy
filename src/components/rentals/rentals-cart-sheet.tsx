@@ -103,6 +103,7 @@ export function RentalsCartSheet() {
     logisticsMode,
     setLogisticsMode,
     deliveryZoneId,
+    deliveryZones,
     logisticsLine,
   } = useRentalsCart();
   const groups = groupLines(lines);
@@ -110,7 +111,11 @@ export function RentalsCartSheet() {
   function modePrice(mode: RentalLogisticsMode) {
     if (mode === "diy") return t("logisticsDiyPrice");
     if (!deliveryZoneId) return t("logisticsNeedZone");
-    return formatLogisticsEstimateLabel({ mode, zoneId: deliveryZoneId });
+    return formatLogisticsEstimateLabel({
+      mode,
+      zoneId: deliveryZoneId,
+      zones: deliveryZones,
+    });
   }
 
   return (

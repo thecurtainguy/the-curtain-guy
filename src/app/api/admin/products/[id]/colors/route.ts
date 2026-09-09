@@ -33,6 +33,12 @@ function parseVariants(raw: unknown): ProductColorVariantInput[] {
         hex: String(item.hex || "#8B909A"),
         sort_order: Math.round(Number(item.sort_order) || 0),
         is_active: item.is_active !== false,
+        display_title:
+          item.display_title === null
+            ? null
+            : typeof item.display_title === "string"
+              ? item.display_title
+              : null,
         image_url:
           item.image_url === null
             ? null

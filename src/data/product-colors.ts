@@ -27,6 +27,8 @@ export type ProductColorVariantRow = {
   hex: string;
   sort_order: number;
   is_active: boolean;
+  /** Optional public listing title when this color is selected (e.g. "Navy drapes"). */
+  display_title: string | null;
   image_url: string | null;
   image_alt: string | null;
   has_own_pricing: boolean;
@@ -41,6 +43,7 @@ export type ProductColorVariantInput = {
   hex: string;
   sort_order?: number;
   is_active?: boolean;
+  display_title?: string | null;
   image_url?: string | null;
   image_alt?: string | null;
   has_own_pricing?: boolean;
@@ -62,6 +65,89 @@ export function normalizeHexColor(value: string): string {
 
 export function slugifyColorName(name: string): string {
   return slugifyProductName(name) || "color";
+}
+
+export const PRODUCT_BASE_COLOR_ID = "__base__";
+
+export function isProductBaseColorId(
+  id: string | null | undefined
+): boolean {
+  return id === PRODUCT_BASE_COLOR_ID;
+}
+
+/**
+ * When a product has color variants, the parent listing is also a selectable
+ * color (e.g. Black) using the main product photo/price/title.
+ */
+export function inferBaseColorName(
+  productName: string,
+  explicit?: string | null
+): string {
+  const named = explicit?.trim();
+  if (named) return named;
+  const firstWord = productName.trim().split(/\s+/)[0] || "";
+  const known = PRODUCT_COLOR_PALETTE.find(
+    (swatch) => swatch.name.toLowerCase() === firstWord.toLowerCase()
+  );
+  if (known) return known.name;
+  return firstWord || "Standard";
+}
+
+export function buildProductColorOptions(product: {
+  id: string;
+  name: string;
+  image_url: string | null;
+  image_alt: string | null;
+  default_color_name?: string | null;
+  default_color_hex?: string | null;
+  colors: ProductColorVariantRow[];
+}): ProductColorVariantRow[] {
+  const variants = product.colors.filter((color) => color.is_active !== false);
+  if (!variants.length) return [];
+
+  const baseName = inferBaseColorName(
+    product.name,
+    product.default_color_name
+  );
+  const paletteMatch = PRODUCT_COLOR_PALETTE.find(
+    (swatch) => swatch.name.toLowerCase() === baseName.toLowerCase()
+  );
+  const baseHex = normalizeHexColor(
+    product.default_color_hex || paletteMatch?.hex || "#111111"
+  );
+  const base: ProductColorVariantRow = {
+    id: PRODUCT_BASE_COLOR_ID,
+    created_at: "",
+    updated_at: "",
+    product_id: product.id,
+    name: baseName,
+    slug: "base",
+    hex: baseHex,
+    sort_order: -1,
+    is_active: true,
+    display_title: product.name,
+    image_url: product.image_url,
+    image_alt: product.image_alt,
+    has_own_pricing: false,
+    unit_price_cents: null,
+    quantity_on_hand: null,
+    availability_status: null,
+  };
+
+  const filtered = variants.filter(
+    (variant) =>
+      variant.name.trim().toLowerCase() !== baseName.toLowerCase()
+  );
+  return [base, ...filtered];
+}
+
+export function resolveProductDisplayTitle(input: {
+  productName: string;
+  color?: Pick<ProductColorVariantRow, "display_title" | "name"> | null;
+}): string {
+  const override = input.color?.display_title?.trim();
+  if (override) return override;
+  return input.productName;
 }
 
 export function resolveProductDisplayImage(input: {

@@ -116,6 +116,18 @@ export async function PATCH(request: Request, context: RouteContext) {
           .map((id) => String(id || "").trim())
           .filter(Boolean)
       : undefined,
+    default_color_name:
+      body.default_color_name === null
+        ? null
+        : typeof body.default_color_name === "string"
+          ? body.default_color_name
+          : undefined,
+    default_color_hex:
+      body.default_color_hex === null
+        ? null
+        : typeof body.default_color_hex === "string"
+          ? body.default_color_hex
+          : undefined,
     configurator_mode:
       body.configurator_mode === "linear_ft" || body.configurator_mode === "simple"
         ? body.configurator_mode
@@ -192,6 +204,8 @@ export async function PATCH(request: Request, context: RouteContext) {
             hex: String(row.hex || "#8B909A"),
             sort_order: Math.round(Number(row.sort_order) || 0),
             is_active: row.is_active !== false,
+            display_title:
+              typeof row.display_title === "string" ? row.display_title : null,
             image_url:
               typeof row.image_url === "string" ? row.image_url : null,
             image_alt:
@@ -217,6 +231,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         hex: string;
         sort_order: number;
         is_active: boolean;
+        display_title: string | null;
         image_url: string | null;
         image_alt: string | null;
         has_own_pricing: boolean;

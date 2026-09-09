@@ -34,6 +34,8 @@ export type ProductWriteInput = {
   is_public?: boolean;
   sort_order?: number;
   event_type_ids?: string[];
+  default_color_name?: string | null;
+  default_color_hex?: string | null;
   configurator_mode?: "simple" | "linear_ft";
   formula_segment_feet?: number | null;
   full_service_product_id?: string | null;
@@ -174,6 +176,10 @@ export async function createProduct(
       event_type_ids: Array.isArray(input.event_type_ids)
         ? input.event_type_ids.filter((id) => typeof id === "string" && id.trim())
         : [],
+      default_color_name: input.default_color_name?.trim() || null,
+      default_color_hex: input.default_color_hex
+        ? input.default_color_hex.trim()
+        : null,
       configurator_mode:
         input.configurator_mode === "linear_ft" ? "linear_ft" : "simple",
       formula_segment_feet:
@@ -276,6 +282,14 @@ export async function updateProduct(
           : input.event_type_ids.filter(
               (id) => typeof id === "string" && id.trim()
             ),
+      default_color_name:
+        input.default_color_name === undefined
+          ? existing.default_color_name ?? null
+          : input.default_color_name?.trim() || null,
+      default_color_hex:
+        input.default_color_hex === undefined
+          ? existing.default_color_hex ?? null
+          : input.default_color_hex?.trim() || null,
       configurator_mode:
         input.configurator_mode === "linear_ft"
           ? "linear_ft"
@@ -339,7 +353,7 @@ export async function uploadProductImage(input: {
 
   const { error: uploadError } = await admin.storage
     .from(PRODUCT_IMAGES_BUCKET)
-    .upload(objectPath, input.bytes, {
+    .upload(objectPath, new Uint8Array(input.bytes), {
       contentType: input.contentType,
       upsert: true,
     });

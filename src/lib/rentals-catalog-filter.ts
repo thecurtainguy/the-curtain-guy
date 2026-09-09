@@ -60,6 +60,16 @@ export function collectCatalogFacets(products: PublicRentalProduct[]) {
         eventSet.add(id);
       }
     }
+    const baseName = product.default_color_name?.trim();
+    if (baseName && product.colors.length > 0) {
+      const key = baseName.toLowerCase();
+      if (!colorMap.has(key)) {
+        colorMap.set(key, {
+          name: baseName,
+          hex: product.default_color_hex || "#111111",
+        });
+      }
+    }
     for (const color of product.colors) {
       const key = color.name.trim().toLowerCase();
       if (!key) continue;

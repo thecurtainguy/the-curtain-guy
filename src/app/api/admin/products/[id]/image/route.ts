@@ -58,9 +58,10 @@ export async function POST(request: Request, context: RouteContext) {
 
   const bindRaw = String(form.get("bind") || "product");
   const bindToProduct = bindRaw !== "none" && bindRaw !== "0";
+  const folderRaw = form.get("folder");
   const folder =
-    typeof form.get("folder") === "string"
-      ? String(form.get("folder"))
+    typeof folderRaw === "string" && folderRaw.trim()
+      ? folderRaw.trim()
       : bindToProduct
         ? undefined
         : "colors";

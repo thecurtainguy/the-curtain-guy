@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
+import { useRef, useState } from "react";
 import {
+  Check,
   ImagePlus,
   Loader2,
   Palette,
@@ -20,6 +21,7 @@ import {
 import {
   PRODUCT_AVAILABILITY_LABELS,
   PRODUCT_AVAILABILITY_STATUSES,
+  isProductAvailabilityStatus,
   type ProductAvailabilityStatus,
 } from "@/data/products";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,7 @@ export type ColorDraft = {
   name: string;
   hex: string;
   is_active: boolean;
+  display_title: string;
   image_url: string | null;
   image_alt: string;
   has_own_pricing: boolean;
@@ -43,20 +46,33 @@ export type ColorDraft = {
 };
 
 export function colorDraftsFromRows(
-  rows: ProductColorVariantRow[] | undefined
+  rows: ProductColorVariantRow[] | ProductColorVariantRow | null | undefined
 ): ColorDraft[] {
-  return (rows || []).map((row, index) => ({
-    clientKey: row.id || `existing-${index}`,
+  const list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+  return list.map((row, index) => ({
+    clientKey: String(row.id || `existing-${index}`),
     id: row.id,
-    name: row.name,
-    hex: row.hex,
-    is_active: row.is_active,
-    image_url: row.image_url,
-    image_alt: row.image_alt || "",
-    has_own_pricing: row.has_own_pricing,
-    priceDollars: centsToDollarInput(row.unit_price_cents ?? 0),
-    quantity_on_hand: String(row.quantity_on_hand ?? 0),
-    availability_status: row.availability_status || "available",
+    name: String(row.name || ""),
+    hex: String(row.hex || "#8B909A"),
+    is_active: row.is_active !== false,
+    display_title: String(row.display_title || ""),
+    image_url:
+      typeof row.image_url === "string" && row.image_url.trim()
+        ? row.image_url.trim()
+        : null,
+    image_alt: String(row.image_alt || ""),
+    has_own_pricing: Boolean(row.has_own_pricing),
+    priceDollars: centsToDollarInput(
+      typeof row.unit_price_cents === "number" ? row.unit_price_cents : 0
+    ),
+    quantity_on_hand: String(
+      typeof row.quantity_on_hand === "number" ? row.quantity_on_hand : 0
+    ),
+    availability_status: isProductAvailabilityStatus(
+      String(row.availability_status || "")
+    )
+      ? row.availability_status!
+      : "available",
   }));
 }
 
@@ -71,7 +87,11 @@ export function colorDraftsToPayload(
       hex: normalizeHexColor(draft.hex),
       sort_order: index,
       is_active: draft.is_active,
-      image_url: draft.image_url,
+      display_title: draft.display_title.trim() || null,
+      image_url:
+        draft.image_url && !draft.image_url.startsWith("blob:")
+          ? draft.image_url
+          : null,
       image_alt: draft.image_alt.trim() || null,
       has_own_pricing: draft.has_own_pricing,
       unit_price_cents: draft.has_own_pricing
@@ -92,6 +112,7 @@ function emptyDraft(partial?: Partial<ColorDraft>): ColorDraft {
     name: "",
     hex: "#8B909A",
     is_active: true,
+    display_title: "",
     image_url: null,
     image_alt: "",
     has_own_pricing: false,
@@ -106,8 +127,16 @@ type AdminProductColorsSectionProps = {
   productId: string | null;
   eventTypeIds: string[];
   onEventTypeIdsChange: (ids: string[]) => void;
+  defaultColorName: string;
+  defaultColorHex: string;
+  onDefaultColorChange: (next: {
+    default_color_name?: string;
+    default_color_hex?: string;
+  }) => void;
   drafts: ColorDraft[];
-  onDraftsChange: (drafts: ColorDraft[]) => void;
+  onDraftsChange: (
+    next: ColorDraft[] | ((prev: ColorDraft[]) => ColorDraft[])
+  ) => void;
   onEnsureSaved: () => Promise<string | null>;
   onError: (message: string | null) => void;
 };
@@ -116,32 +145,41 @@ export function AdminProductColorsSection({
   productId,
   eventTypeIds,
   onEventTypeIdsChange,
+  defaultColorName,
+  defaultColorHex,
+  onDefaultColorChange,
   drafts,
   onDraftsChange,
   onEnsureSaved,
   onError,
 }: AdminProductColorsSectionProps) {
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+
   function patchDraft(clientKey: string, partial: Partial<ColorDraft>) {
-    onDraftsChange(
-      drafts.map((draft) =>
+    onDraftsChange((prev) =>
+      prev.map((draft) =>
         draft.clientKey === clientKey ? { ...draft, ...partial } : draft
       )
     );
   }
 
   function removeDraft(clientKey: string) {
-    onDraftsChange(drafts.filter((draft) => draft.clientKey !== clientKey));
+    onDraftsChange((prev) =>
+      prev.filter((draft) => draft.clientKey !== clientKey)
+    );
   }
 
   function addFromPalette(name: string, hex: string) {
     if (
-      drafts.some(
+      draftsRef.current.some(
         (draft) => draft.name.toLowerCase() === name.toLowerCase()
       )
     ) {
       return;
     }
-    onDraftsChange([...drafts, emptyDraft({ name, hex })]);
+    onDraftsChange((prev) => [...prev, emptyDraft({ name, hex })]);
   }
 
   function toggleEventType(id: string) {
@@ -152,15 +190,80 @@ export function AdminProductColorsSection({
     }
   }
 
+  async function persistColors(id: string, nextDrafts: ColorDraft[]) {
+    const response = await fetch(`/api/admin/products/${id}/colors`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        variants: colorDraftsToPayload(nextDrafts),
+      }),
+    });
+    const data = (await response.json()) as {
+      ok?: boolean;
+      message?: string;
+      variants?: ProductColorVariantRow[] | ProductColorVariantRow | null;
+    };
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || "Could not save color photos.");
+    }
+    // Merge server ids back onto matching drafts by name/hex — do not wipe UI.
+    const serverRows = Array.isArray(data.variants)
+      ? data.variants
+      : data.variants
+        ? [data.variants]
+        : [];
+    if (!serverRows.length) return;
+
+    onDraftsChange((prev) =>
+      prev.map((draft) => {
+        const match =
+          serverRows.find(
+            (row) =>
+              draft.id && row.id === draft.id
+          ) ||
+          serverRows.find(
+            (row) =>
+              row.name.trim().toLowerCase() === draft.name.trim().toLowerCase()
+          );
+        if (!match) return draft;
+        return {
+          ...draft,
+          id: match.id,
+          clientKey: draft.clientKey,
+          image_url:
+            typeof match.image_url === "string" && match.image_url.trim()
+              ? match.image_url.trim()
+              : draft.image_url,
+          hex: String(match.hex || draft.hex || "#8B909A"),
+          display_title: String(
+            match.display_title || draft.display_title || ""
+          ),
+        };
+      })
+    );
+  }
+
   async function uploadColorPhoto(clientKey: string, file: File | null) {
     if (!file) return;
-    let id = productId;
-    if (!id) {
-      id = await onEnsureSaved();
-      if (!id) return;
+
+    const current = draftsRef.current.find(
+      (draft) => draft.clientKey === clientKey
+    );
+    if (!current?.name.trim()) {
+      onError("Name the color before uploading a photo.");
+      return;
     }
+
+    setUploadingKey(clientKey);
     onError(null);
+
     try {
+      let id = productId;
+      if (!id) {
+        id = await onEnsureSaved();
+        if (!id) return;
+      }
+
       const body = new FormData();
       body.append("file", file);
       body.append("bind", "none");
@@ -178,12 +281,24 @@ export function AdminProductColorsSection({
         onError(data.message ?? "Color photo upload failed.");
         return;
       }
-      patchDraft(clientKey, {
-        image_url: data.imageUrl,
-        image_alt: file.name.replace(/\.[^.]+$/, "") || "Color photo",
-      });
-    } catch {
-      onError("Color photo upload failed.");
+
+      const imageUrl = data.imageUrl;
+      const imageAlt = file.name.replace(/\.[^.]+$/, "") || "Color photo";
+      const nextDrafts = draftsRef.current.map((draft) =>
+        draft.clientKey === clientKey
+          ? { ...draft, image_url: imageUrl, image_alt: imageAlt }
+          : draft
+      );
+      draftsRef.current = nextDrafts;
+      onDraftsChange(nextDrafts);
+
+      await persistColors(id, nextDrafts);
+    } catch (error) {
+      onError(
+        error instanceof Error ? error.message : "Color photo upload failed."
+      );
+    } finally {
+      setUploadingKey(null);
     }
   }
 
@@ -205,6 +320,53 @@ export function AdminProductColorsSection({
       </div>
 
       <div className="mt-6 space-y-3">
+        <Label>Base color (parent listing)</Label>
+        <p className="text-xs text-muted-foreground">
+          This is the parent product’s own color (not “Original”). Example: for
+          “Black Velvet Drapes”, set this to Black so shoppers can pick Black or
+          Navy. Uses the main product photo, price, and title.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div className="space-y-1.5">
+            <Label htmlFor="default-color-name">Color name</Label>
+            <Input
+              id="default-color-name"
+              value={defaultColorName}
+              onChange={(e) =>
+                onDefaultColorChange({ default_color_name: e.target.value })
+              }
+              placeholder="Black"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Hex</Label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={normalizeHexColor(
+                  defaultColorHex || "#111111"
+                ).toLowerCase()}
+                onChange={(e) =>
+                  onDefaultColorChange({
+                    default_color_hex: e.target.value.toUpperCase(),
+                  })
+                }
+                className="size-9 cursor-pointer rounded-lg border border-border/40 bg-transparent p-0.5"
+                aria-label="Base color picker"
+              />
+              <Input
+                value={defaultColorHex}
+                onChange={(e) =>
+                  onDefaultColorChange({ default_color_hex: e.target.value })
+                }
+                className="w-28 font-mono text-xs uppercase"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3">
         <Label>Event type tags</Label>
         <div className="grid gap-2 sm:grid-cols-2">
           {PRODUCT_EVENT_TYPE_IDS.map((id) => {
@@ -213,15 +375,33 @@ export function AdminProductColorsSection({
               <button
                 key={id}
                 type="button"
+                role="checkbox"
+                aria-checked={selected}
                 onClick={() => toggleEventType(id)}
                 className={cn(
-                  "rounded-2xl border px-3 py-3 text-left text-sm transition-colors",
-                  selected
-                    ? "border-primary/50 bg-primary/10 text-foreground"
-                    : "border-border/40 bg-background/40 text-muted-foreground hover:border-primary/30"
+                  "group relative flex w-full items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-200",
+                  "border-border/40 bg-card/40 hover:border-primary/30 hover:bg-card/60",
+                  "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+                  selected &&
+                    "border-primary/50 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"
                 )}
               >
-                {PRODUCT_EVENT_TYPE_LABELS[id]}
+                <span className="min-w-0 flex-1 pr-1">
+                  <span className="block text-sm font-medium text-foreground">
+                    {PRODUCT_EVENT_TYPE_LABELS[id]}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "flex size-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border/60 bg-background/50 text-transparent"
+                  )}
+                  aria-hidden
+                >
+                  <Check className="size-3" strokeWidth={3} />
+                </span>
               </button>
             );
           })}
@@ -247,13 +427,15 @@ export function AdminProductColorsSection({
               {swatch.name}
             </button>
           ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={() => onDraftsChange([...drafts, emptyDraft()])}
-          >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() =>
+                          onDraftsChange((prev) => [...prev, emptyDraft()])
+                        }
+                      >
             <Plus className="size-3.5" aria-hidden />
             Custom color
           </Button>
@@ -275,32 +457,40 @@ export function AdminProductColorsSection({
               <div className="flex flex-wrap items-start gap-4">
                 <div className="relative size-20 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
                   {draft.image_url ? (
-                    <Image
+                    // Native img: Next/Image crashes on blob: previews during upload.
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={draft.image_url}
                       src={draft.image_url}
                       alt={draft.image_alt || draft.name || "Color"}
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                      unoptimized
+                      className="size-full object-cover"
                     />
                   ) : (
                     <div
                       className="size-full"
-                      style={{ backgroundColor: draft.hex }}
+                      style={{ backgroundColor: draft.hex || "#8B909A" }}
                       aria-hidden
                     />
                   )}
+                  {uploadingKey === draft.clientKey ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+                      <Loader2
+                        className="size-5 animate-spin text-primary"
+                        aria-hidden
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 <div className="min-w-0 flex-1 space-y-3">
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
                     <div className="space-y-1.5">
-                      <Label>Name</Label>
+                      <Label>Color name</Label>
                       <Input
                         value={draft.name}
                         onChange={(e) =>
                           patchDraft(draft.clientKey, { name: e.target.value })
                         }
-                        placeholder="Ivory"
+                        placeholder="Navy"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -308,7 +498,7 @@ export function AdminProductColorsSection({
                       <div className="flex items-center gap-2">
                         <input
                           type="color"
-                          value={normalizeHexColor(draft.hex).toLowerCase()}
+                          value={normalizeHexColor(draft.hex || "#8B909A").toLowerCase()}
                           onChange={(e) =>
                             patchDraft(draft.clientKey, {
                               hex: e.target.value.toUpperCase(),
@@ -354,14 +544,50 @@ export function AdminProductColorsSection({
                     </div>
                   </div>
 
+                  <div className="space-y-1.5">
+                    <Label>Listing title</Label>
+                    <Input
+                      value={draft.display_title}
+                      onChange={(e) =>
+                        patchDraft(draft.clientKey, {
+                          display_title: e.target.value,
+                        })
+                      }
+                      placeholder="Navy drapes (optional — overrides product title)"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      When shoppers select this color, the product page and cart
+                      use this title. Leave blank to keep the parent product
+                      name.
+                    </p>
+                  </div>
+
                   <div className="flex flex-wrap gap-2">
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-border/40 bg-card/40 px-3 py-2 text-xs hover:border-primary/35">
-                      <Upload className="size-3.5 text-primary" aria-hidden />
-                      {draft.image_url ? "Replace photo" : "Upload photo"}
+                    <label
+                      className={cn(
+                        "inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-border/40 bg-card/40 px-3 py-2 text-xs hover:border-primary/35",
+                        uploadingKey === draft.clientKey &&
+                          "pointer-events-none opacity-70"
+                      )}
+                    >
+                      {uploadingKey === draft.clientKey ? (
+                        <Loader2
+                          className="size-3.5 animate-spin text-primary"
+                          aria-hidden
+                        />
+                      ) : (
+                        <Upload className="size-3.5 text-primary" aria-hidden />
+                      )}
+                      {uploadingKey === draft.clientKey
+                        ? "Uploading…"
+                        : draft.image_url
+                          ? "Replace photo"
+                          : "Upload photo"}
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif"
                         className="sr-only"
+                        disabled={uploadingKey === draft.clientKey}
                         onChange={(e) => {
                           void uploadColorPhoto(
                             draft.clientKey,
@@ -377,6 +603,7 @@ export function AdminProductColorsSection({
                         variant="outline"
                         size="sm"
                         className="rounded-2xl"
+                        disabled={uploadingKey === draft.clientKey}
                         onClick={() =>
                           patchDraft(draft.clientKey, {
                             image_url: null,

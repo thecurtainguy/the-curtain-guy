@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import {
   ProductAvailabilityBadge,
   ProductKindBadge,
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 export type AdminProductListRow = {
   id: string;
   name: string;
+  slug: string;
   sku: string | null;
   kind: ProductKind;
   category: string;
@@ -77,12 +78,24 @@ const columns: PortalListColumn<AdminProductListRow>[] = [
           ) : null}
         </div>
         <div className="min-w-0">
-          <Link
-            href={`/admin/products/${row.id}`}
-            className="font-medium text-primary hover:underline"
-          >
-            {row.name}
-          </Link>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Link
+              href={`/admin/products/${row.id}`}
+              className="font-medium text-primary hover:underline"
+            >
+              {row.name}
+            </Link>
+            <a
+              href={`/rentals/${row.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+              title="Preview on site"
+            >
+              <ExternalLink className="size-3" aria-hidden />
+              Preview
+            </a>
+          </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
             {row.sku ? `SKU ${row.sku}` : "No SKU"}
           </div>

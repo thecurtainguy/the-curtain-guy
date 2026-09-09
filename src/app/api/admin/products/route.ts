@@ -106,6 +106,14 @@ export async function POST(request: Request) {
           .map((id) => String(id || "").trim())
           .filter(Boolean)
       : [],
+    default_color_name:
+      typeof body.default_color_name === "string"
+        ? body.default_color_name
+        : null,
+    default_color_hex:
+      typeof body.default_color_hex === "string"
+        ? body.default_color_hex
+        : null,
     configurator_mode:
       body.configurator_mode === "linear_ft" || body.configurator_mode === "simple"
         ? body.configurator_mode
@@ -187,6 +195,8 @@ export async function POST(request: Request) {
             hex: String(row.hex || "#8B909A"),
             sort_order: Math.round(Number(row.sort_order) || 0),
             is_active: row.is_active !== false,
+            display_title:
+              typeof row.display_title === "string" ? row.display_title : null,
             image_url:
               typeof row.image_url === "string" ? row.image_url : null,
             image_alt:
@@ -212,6 +222,7 @@ export async function POST(request: Request) {
         hex: string;
         sort_order: number;
         is_active: boolean;
+        display_title: string | null;
         image_url: string | null;
         image_alt: string | null;
         has_own_pricing: boolean;

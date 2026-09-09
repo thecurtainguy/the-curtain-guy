@@ -2,6 +2,8 @@ import type { ProductRow } from "@/data/products";
 import {
   resolveColorUnitPriceCents,
   resolveProductDisplayImage,
+  resolveProductDisplayTitle,
+  isProductBaseColorId,
   type ProductColorVariantRow,
 } from "@/data/product-colors";
 import {
@@ -407,6 +409,10 @@ export function buildLinearFtCartLines(input: {
     productPriceCents: input.product.default_unit_price_cents,
     color,
   });
+  const displayTitle = resolveProductDisplayTitle({
+    productName: input.product.name,
+    color,
+  });
   const parentKey = color
     ? `main:${input.product.id}:${color.id}:${feet}`
     : `main:${input.product.id}:${feet}`;
@@ -415,10 +421,10 @@ export function buildLinearFtCartLines(input: {
       key: parentKey,
       productId: input.product.id,
       slug: input.product.slug,
-      name: input.product.name,
+      name: displayTitle,
       description: color
-        ? `${feet} linear ft · ${input.product.name} · ${color.name}`
-        : `${feet} linear ft · ${input.product.name}`,
+        ? `${feet} linear ft · ${displayTitle}`
+        : `${feet} linear ft · ${displayTitle}`,
       category: String(input.product.category),
       kind: input.product.kind,
       lineKind: "main",
@@ -429,7 +435,8 @@ export function buildLinearFtCartLines(input: {
       unitLabel: "linear ft",
       isTaxable: input.product.is_taxable,
       linearFeet: feet,
-      colorId: color?.id ?? null,
+      colorId:
+        color && !isProductBaseColorId(color.id) ? color.id : null,
       colorName: color?.name ?? null,
       colorHex: color?.hex ?? null,
     },
@@ -544,6 +551,10 @@ export function buildSimpleCartLines(input: {
     productPriceCents: input.product.default_unit_price_cents,
     color,
   });
+  const displayTitle = resolveProductDisplayTitle({
+    productName: input.product.name,
+    color,
+  });
   const parentKey = color
     ? `main:${input.product.id}:${color.id}:qty:${qty}:${Date.now().toString(36)}`
     : `main:${input.product.id}:qty:${qty}:${Date.now().toString(36)}`;
@@ -552,10 +563,8 @@ export function buildSimpleCartLines(input: {
       key: parentKey,
       productId: input.product.id,
       slug: input.product.slug,
-      name: input.product.name,
-      description: color
-        ? `${input.product.name} · ${color.name}`
-        : input.product.name,
+      name: displayTitle,
+      description: displayTitle,
       category: String(input.product.category),
       kind: input.product.kind,
       lineKind: "main",
@@ -565,7 +574,8 @@ export function buildSimpleCartLines(input: {
       unitPriceCents,
       unitLabel: input.product.unit_label,
       isTaxable: input.product.is_taxable,
-      colorId: color?.id ?? null,
+      colorId:
+        color && !isProductBaseColorId(color.id) ? color.id : null,
       colorName: color?.name ?? null,
       colorHex: color?.hex ?? null,
     },

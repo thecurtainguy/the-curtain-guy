@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Check, Package, ShoppingBag } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  buildProductColorOptions,
   resolveColorUnitPriceCents,
   resolveProductDisplayImage,
   type ProductColorVariantRow,
@@ -40,7 +41,7 @@ export function RentalProductConfigurator({
   const { addLines } = useRentalsCart();
 
   const isLinear = product.configurator_mode === "linear_ft";
-  const colors = product.colors.filter((color) => color.is_active !== false);
+  const colors = buildProductColorOptions(product);
   const requiresColor = colors.length > 0;
 
   const [linearFeet, setLinearFeet] = useState(40);
@@ -189,6 +190,11 @@ export function RentalProductConfigurator({
                       <span className="block text-sm font-medium text-foreground">
                         {color.name}
                       </span>
+                      {color.display_title?.trim() ? (
+                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          {color.display_title.trim()}
+                        </span>
+                      ) : null}
                       {color.has_own_pricing ? (
                         <span className="mt-0.5 block text-[11px] text-primary">
                           {t("colorOwnPrice", {

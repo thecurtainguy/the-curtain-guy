@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Check,
+  ExternalLink,
   ImagePlus,
   Loader2,
   Package,
@@ -26,7 +27,8 @@ import {
   colorDraftsToPayload,
   type ColorDraft,
 } from "@/components/admin/admin-product-colors-section";
-import { Button } from "@/components/ui/button";
+import { AdminSectionErrorBoundary } from "@/components/admin/admin-section-error-boundary";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -251,6 +253,8 @@ type FormState = {
   formulaIncludes: FormulaIncludeForm[];
   addons: Array<{ addonProductId: string }>;
   event_type_ids: string[];
+  default_color_name: string;
+  default_color_hex: string;
   colorDrafts: ColorDraft[];
 };
 
@@ -298,6 +302,8 @@ function formFromProduct(
       addonProductId: row.addon_product_id,
     })),
     event_type_ids: product?.event_type_ids ?? [],
+    default_color_name: product?.default_color_name ?? "",
+    default_color_hex: product?.default_color_hex ?? "#111111",
     colorDrafts: colorDraftsFromRows(rentalsBundle?.colors),
   };
 }
@@ -452,6 +458,8 @@ function rentalsPayload(form: FormState) {
         addonProductId: row.addonProductId,
       })),
     event_type_ids: form.event_type_ids,
+    default_color_name: form.default_color_name.trim() || null,
+    default_color_hex: form.default_color_hex.trim() || null,
     color_variants: colorDraftsToPayload(form.colorDrafts),
   };
 }
@@ -475,6 +483,9 @@ export function AdminProductEditor({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productId, setProductId] = useState<string | null>(product?.id ?? null);
+  const [productSlug, setProductSlug] = useState<string | null>(
+    product?.slug ?? null
+  );
   const [dragOver, setDragOver] = useState(false);
 
   const otherProducts = useMemo(
@@ -509,6 +520,8 @@ export function AdminProductEditor({
         formulaIncludes: prev.formulaIncludes,
         addons: prev.addons,
         event_type_ids: prev.event_type_ids,
+        default_color_name: prev.default_color_name,
+        default_color_hex: prev.default_color_hex,
         colorDrafts: prev.colorDrafts,
       };
     });
@@ -536,7 +549,7 @@ export function AdminProductEditor({
     };
   }
 
-  async function save(): Promise<string | null> {
+  async function save(options?: { silent?: boolean }): Promise<string | null> {
     setSaving(true);
     setError(null);
     try {
@@ -559,11 +572,14 @@ export function AdminProductEditor({
         return null;
       }
       setProductId(data.product.id);
+      setProductSlug(data.product.slug);
       mergeProductIntoForm(data.product, true);
-      if (isNew) {
-        router.replace(`/admin/products/${data.product.id}`);
-      } else {
-        router.refresh();
+      if (!options?.silent) {
+        if (isNew) {
+          router.replace(`/admin/products/${data.product.id}`);
+        } else {
+          router.refresh();
+        }
       }
       return data.product.id;
     } catch {
@@ -718,10 +734,23 @@ export function AdminProductEditor({
           </>
         }
         actions={
-          <Button type="button" onClick={() => void save()} disabled={saving}>
-            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-            {isNew ? "Create item" : "Save changes"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {productSlug ? (
+              <a
+                href={`/rentals/${productSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                <ExternalLink className="size-4" aria-hidden />
+                Preview on site
+              </a>
+            ) : null}
+            <Button type="button" onClick={() => void save()} disabled={saving}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isNew ? "Create item" : "Save changes"}
+            </Button>
+          </div>
         }
       />
 
@@ -1245,15 +1274,26 @@ export function AdminProductEditor({
             </div>
           </section>
 
-          <AdminProductColorsSection
-            productId={productId}
-            eventTypeIds={form.event_type_ids}
-            onEventTypeIdsChange={(ids) => patch({ event_type_ids: ids })}
-            drafts={form.colorDrafts}
-            onDraftsChange={(colorDrafts) => patch({ colorDrafts })}
-            onEnsureSaved={save}
-            onError={setError}
-          />
+          <AdminSectionErrorBoundary label="Colors & event tags">
+            <AdminProductColorsSection
+              productId={productId}
+              eventTypeIds={form.event_type_ids}
+              onEventTypeIdsChange={(ids) => patch({ event_type_ids: ids })}
+              defaultColorName={form.default_color_name}
+              defaultColorHex={form.default_color_hex}
+              onDefaultColorChange={(next) => patch(next)}
+              drafts={form.colorDrafts}
+              onDraftsChange={(next) =>
+                setForm((prev) => ({
+                  ...prev,
+                  colorDrafts:
+                    typeof next === "function" ? next(prev.colorDrafts) : next,
+                }))
+              }
+              onEnsureSaved={() => save({ silent: true })}
+              onError={setError}
+            />
+          </AdminSectionErrorBoundary>
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-4">

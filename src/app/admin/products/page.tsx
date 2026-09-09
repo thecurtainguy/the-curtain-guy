@@ -32,6 +32,7 @@ export default async function AdminProductsPage() {
     return {
       id: row.id,
       name: row.name,
+      slug: row.slug,
       sku: row.sku,
       kind: row.kind,
       category: row.category,

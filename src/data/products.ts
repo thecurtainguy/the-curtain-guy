@@ -49,6 +49,9 @@ export type ProductRow = {
   is_public: boolean;
   sort_order: number;
   event_type_ids?: string[];
+  /** Parent listing color shown alongside variants (e.g. "Black"). */
+  default_color_name?: string | null;
+  default_color_hex?: string | null;
   configurator_mode?: "simple" | "linear_ft";
   formula_segment_feet?: number | null;
   full_service_product_id?: string | null;

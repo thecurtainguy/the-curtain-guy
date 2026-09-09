@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { PageHero } from "@/components/page-hero";
 import { RentalProductView } from "@/components/rentals/rental-product-view";
 import { loadPublicRentalProduct } from "@/lib/rentals";
 import { createPageMetadata } from "@/lib/seo";
@@ -45,16 +44,5 @@ export default async function RentalProductPage({ params }: PageProps) {
   const product = await loadPublicRentalProduct(slug);
   if (!product) notFound();
 
-  const t = await getTranslations("rentals.product");
-
-  return (
-    <>
-      <PageHero
-        eyebrow={t("eyebrow")}
-        title={product.name}
-        description={product.short_description || undefined}
-      />
-      <RentalProductView product={product} />
-    </>
-  );
+  return <RentalProductView product={product} />;
 }

@@ -90,6 +90,7 @@ export async function replaceProductColorVariants(input: {
         hex: normalizeHexColor(variant.hex || "#8B909A"),
         sort_order: variant.sort_order ?? index,
         is_active: variant.is_active !== false,
+        display_title: variant.display_title?.trim() || null,
         image_url: variant.image_url?.trim() || null,
         image_alt: variant.image_alt?.trim() || null,
         has_own_pricing: hasOwn,
@@ -121,12 +122,15 @@ export async function replaceProductColorVariants(input: {
   const { data, error } = await admin
     .from("product_color_variants")
     .insert(rows)
-    .select("*")
-    .order("sort_order", { ascending: true });
+    .select("*");
 
   if (error) {
     return { error: error.message };
   }
 
-  return { ok: true, variants: (data || []) as ProductColorVariantRow[] };
+  const variants = ((data || []) as ProductColorVariantRow[]).slice().sort(
+    (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name)
+  );
+
+  return { ok: true, variants };
 }

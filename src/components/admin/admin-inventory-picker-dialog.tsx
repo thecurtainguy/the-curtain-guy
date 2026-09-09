@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Loader2, Package, Search } from "lucide-react";
 import {
@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useNestedScrollPassthrough } from "@/hooks/use-nested-scroll-passthrough";
 import {
   formatProductPriceCents,
   getProductCategoryLabel,
@@ -48,6 +49,8 @@ export function AdminInventoryPickerDialog({
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | ProductKind>("all");
+  const listRef = useRef<HTMLDivElement>(null);
+  useNestedScrollPassthrough(listRef);
 
   useEffect(() => {
     if (!open) return;
@@ -154,7 +157,10 @@ export function AdminInventoryPickerDialog({
           />
         </div>
 
-        <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+        <div
+          ref={listRef}
+          className="max-h-[50vh] space-y-2 overflow-y-auto overscroll-y-contain pr-1"
+        >
           {loading ? (
             <p className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />

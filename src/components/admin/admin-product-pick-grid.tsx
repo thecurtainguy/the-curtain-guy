@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Check, Package, Search } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   type ProductRow,
 } from "@/data/products";
 import { Input } from "@/components/ui/input";
+import { useNestedScrollPassthrough } from "@/hooks/use-nested-scroll-passthrough";
 import { cn } from "@/lib/utils";
 
 export type ProductPickOption = Pick<
@@ -51,6 +52,8 @@ export function AdminProductPickGrid({
 }: AdminProductPickGridProps) {
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState<KindFilter>("all");
+  const listRef = useRef<HTMLDivElement>(null);
+  useNestedScrollPassthrough(listRef);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const filtered = useMemo(() => {
@@ -139,7 +142,10 @@ export function AdminProductPickGrid({
           No items match this search.
         </p>
       ) : (
-        <div className="max-h-[28rem] space-y-2 overflow-y-auto overscroll-contain pr-1">
+        <div
+          ref={listRef}
+          className="max-h-[28rem] space-y-2 overflow-y-auto overscroll-y-contain pr-1"
+        >
           <div className="grid gap-2 sm:grid-cols-2">
             {filtered.map((option) => {
               const selected = selectedSet.has(option.id);

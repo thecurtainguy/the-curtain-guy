@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, PanelLeft } from "lucide-react";
 import {
   Sheet,
@@ -12,6 +12,7 @@ import { BackToTop } from "@/components/layout/back-to-top";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
+import { useNestedScrollPassthrough } from "@/hooks/use-nested-scroll-passthrough";
 import { cn } from "@/lib/utils";
 import {
   PORTAL_SIDEBAR_WIDTH_COLLAPSED,
@@ -25,6 +26,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 function DesktopAside({ children }: { children: React.ReactNode }) {
   const { isRail, toggleCollapsed } = usePortalSidebar();
   const collapseLabel = isRail ? "Expand sidebar" : "Collapse sidebar";
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+  useNestedScrollPassthrough(sidebarScrollRef);
 
   return (
     <aside
@@ -43,7 +46,10 @@ function DesktopAside({ children }: { children: React.ReactNode }) {
       data-collapsed={isRail ? "true" : "false"}
       aria-label="Portal navigation"
     >
-      <div className="flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-contain">
+      <div
+        ref={sidebarScrollRef}
+        className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-y-contain"
+      >
         {children}
         <div
           className={cn(
@@ -182,8 +188,8 @@ export function PortalShell({
               ref={setMainScrollEl}
               data-portal-scroll-root=""
               className={cn(
-                "min-h-0 min-w-0 flex-1 overscroll-contain",
-                fillViewport ? "overflow-hidden" : "overflow-x-hidden overflow-y-auto"
+                "min-h-0 min-w-0 flex-1 overscroll-y-contain",
+                fillViewport ? "overflow-hidden" : "overflow-y-auto"
               )}
             >
               <div

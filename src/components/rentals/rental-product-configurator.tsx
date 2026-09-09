@@ -112,18 +112,6 @@ export function RentalProductConfigurator({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
-        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-          {t("estimateEyebrow")}
-        </p>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {t("disclaimer")}
-        </p>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {t("logisticsNote")}
-        </p>
-      </div>
-
       {colors.length > 0 ? (
         <div className="space-y-3">
           <div>

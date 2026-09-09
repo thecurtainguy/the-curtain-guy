@@ -56,7 +56,7 @@
   "configurator": {
     "estimateEyebrow": "Estimate only",
     "disclaimer": "Prices and quantities are planning estimates — not a final quote. The Curtain Guy reviews measurements, labor, delivery, installation, teardown, and availability before confirming rental pricing.",
-    "disclaimerShort": "Estimate only. Final quote after team review.",
+    "disclaimerShort": "Estimate only — final quote after review. Full service or transport is chosen once in the cart or at checkout.",
     "linearFeet": "Linear feet of draping",
     "segmentsHint": "About {segments} segment(s) at {feet} ft each (rounded up).",
     "quantity": "Quantity",

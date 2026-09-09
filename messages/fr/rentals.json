@@ -56,7 +56,7 @@
   "configurator": {
     "estimateEyebrow": "Estimation seulement",
     "disclaimer": "Les prix et quantités sont des estimations de planification — pas un devis final. The Curtain Guy révise les mesures, la main-d’œuvre, la livraison, l’installation, le démontage et la disponibilité avant de confirmer le tarif.",
-    "disclaimerShort": "Estimation seulement. Devis final après révision.",
+    "disclaimerShort": "Estimation seulement — devis final après révision. Le service complet ou le transport se choisit une fois dans le panier ou au paiement.",
     "linearFeet": "Pieds linéaires de drapé",
     "segmentsHint": "Environ {segments} segment(s) de {feet} pi chacun (arrondi vers le haut).",
     "quantity": "Quantité",

@@ -164,17 +164,31 @@ export function RentalProductConfigurator({
                 <button
                   key={color.id}
                   type="button"
+                  role="radio"
+                  aria-checked={selected}
                   onClick={() => {
                     onSelectedColorChange(color);
                     setColorError(false);
                   }}
                   className={cn(
-                    "group relative flex min-w-0 flex-col gap-2 rounded-2xl border p-3 text-left transition-all",
+                    "group relative flex min-w-0 flex-col gap-2 rounded-2xl border p-3 pr-10 text-left transition-all",
                     "border-border/40 bg-card/40 hover:border-primary/35",
+                    "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
                     selected &&
                       "border-primary/50 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"
                   )}
                 >
+                  <span
+                    className={cn(
+                      "absolute right-3 top-3 flex size-5 items-center justify-center rounded-full border transition-all duration-200",
+                      selected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border/60 bg-background/50 text-transparent"
+                    )}
+                    aria-hidden
+                  >
+                    <Check className="size-3" strokeWidth={3} />
+                  </span>
                   <span className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border border-border/40 bg-muted/30">
                     {color.image_url || product.image_url ? (
                       <Image
@@ -204,35 +218,22 @@ export function RentalProductConfigurator({
                       aria-hidden
                     />
                   </span>
-                  <span className="flex items-start justify-between gap-2">
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium text-foreground">
-                        {color.name}
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">
+                      {color.name}
+                    </span>
+                    {color.display_title?.trim() ? (
+                      <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                        {color.display_title.trim()}
                       </span>
-                      {color.display_title?.trim() ? (
-                        <span className="mt-0.5 block text-[11px] text-muted-foreground">
-                          {color.display_title.trim()}
-                        </span>
-                      ) : null}
-                      {color.has_own_pricing ? (
-                        <span className="mt-0.5 block text-[11px] text-primary">
-                          {t("colorOwnPrice", {
-                            price: formatCadFromCents(ownPrice),
-                          })}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span
-                      className={cn(
-                        "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border",
-                        selected
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border/60 text-transparent"
-                      )}
-                      aria-hidden
-                    >
-                      <Check className="size-3" strokeWidth={3} />
-                    </span>
+                    ) : null}
+                    {color.has_own_pricing ? (
+                      <span className="mt-0.5 block text-[11px] text-primary">
+                        {t("colorOwnPrice", {
+                          price: formatCadFromCents(ownPrice),
+                        })}
+                      </span>
+                    ) : null}
                   </span>
                 </button>
               );

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { RentalsCatalog } from "@/components/rentals/rentals-catalog";
 import { RentalsHero } from "@/components/rentals/rentals-hero";
 import { Reveal } from "@/components/animation/reveal";
+import { RentalsCatalogSkeleton } from "@/components/layout/route-loading-fallback";
 import { listPublicRentalProducts } from "@/lib/rentals";
 import { createPageMetadata } from "@/lib/seo";
 import type { AppLocale } from "@/i18n/routing";
@@ -30,12 +32,33 @@ export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
 
+async function RentalsCatalogSection({ locale }: { locale: string }) {
+  setRequestLocale(locale);
+  const t = await getTranslations("rentals.page");
+  const products = await listPublicRentalProducts();
+
+  return (
+    <RentalsCatalog
+      products={products}
+      packagesHeading={{
+        eyebrow: t("packagesEyebrow"),
+        title: t("packagesTitle"),
+        description: t("packagesDescription"),
+      }}
+      itemsHeading={{
+        eyebrow: t("itemsEyebrow"),
+        title: t("itemsTitle"),
+        description: t("itemsDescription"),
+      }}
+    />
+  );
+}
+
 export default async function RentalsPage({ params }: PageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
 
   const t = await getTranslations("rentals.page");
-  const products = await listPublicRentalProducts();
 
   return (
     <>
@@ -59,19 +82,9 @@ export default async function RentalsPage({ params }: PageProps) {
             </p>
           </Reveal>
 
-          <RentalsCatalog
-            products={products}
-            packagesHeading={{
-              eyebrow: t("packagesEyebrow"),
-              title: t("packagesTitle"),
-              description: t("packagesDescription"),
-            }}
-            itemsHeading={{
-              eyebrow: t("itemsEyebrow"),
-              title: t("itemsTitle"),
-              description: t("itemsDescription"),
-            }}
-          />
+          <Suspense fallback={<RentalsCatalogSkeleton />}>
+            <RentalsCatalogSection locale={locale} />
+          </Suspense>
         </div>
       </section>
     </>

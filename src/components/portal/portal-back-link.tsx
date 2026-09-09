@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared portal/list back control — pill with icon badge.
- * Use for “All quotes”, “Your estimates”, etc. across admin + account.
+ * Shared back control — pill with icon badge.
+ * Used across admin, account, and public product pages.
  */
 export function PortalBackLink({
   href,

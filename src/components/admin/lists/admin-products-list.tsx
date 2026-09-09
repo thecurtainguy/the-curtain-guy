@@ -24,6 +24,17 @@ import {
 } from "@/data/products";
 import { cn } from "@/lib/utils";
 import { SelectInput, type SelectOption } from "@/components/ui/select-input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+export type AdminProductListColor = {
+  id: string;
+  name: string;
+  hex: string;
+};
 
 export type AdminProductListRow = {
   id: string;
@@ -43,6 +54,8 @@ export type AdminProductListRow = {
   image_alt: string | null;
   unit_label: string;
   created_at: string;
+  /** Listing color + variants when the product has multi-color options. */
+  colors: AdminProductListColor[];
 };
 
 const KIND_OPTIONS: PortalStatusOption[] = [
@@ -100,6 +113,41 @@ const columns: PortalListColumn<AdminProductListRow>[] = [
           <div className="mt-0.5 text-xs text-muted-foreground">
             {row.sku ? `SKU ${row.sku}` : "No SKU"}
           </div>
+          {row.colors.length > 0 ? (
+            <div className="mt-1.5 flex min-w-0 items-center gap-2">
+              <div className="flex -space-x-1">
+                {row.colors.slice(0, 5).map((color) => (
+                  <Tooltip key={color.id} delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        className="relative size-3.5 shrink-0 rounded-full border border-border/70 shadow-sm outline-none transition hover:z-10 hover:scale-110 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring"
+                        style={{ backgroundColor: color.hex }}
+                        aria-label={color.name}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      sideOffset={8}
+                      tone="card"
+                      className="gap-2.5 px-3 py-2.5"
+                    >
+                      <span
+                        className="size-7 shrink-0 rounded-full border border-border/50 shadow-inner"
+                        style={{ backgroundColor: color.hex }}
+                        aria-hidden
+                      />
+                      <span className="pr-0.5">{color.name}</span>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+              <span className="truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {row.colors.length}{" "}
+                {row.colors.length === 1 ? "color" : "colors"}
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
     ),
@@ -275,6 +323,7 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
           row.kind,
           row.unit_label,
           ...row.missing_setup,
+          ...row.colors.map((color) => color.name),
         ]
           .filter(Boolean)
           .join(" ")

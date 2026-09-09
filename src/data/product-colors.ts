@@ -153,11 +153,31 @@ export function buildProductColorOptions(product: {
 
 export function resolveProductDisplayTitle(input: {
   productName: string;
-  color?: Pick<ProductColorVariantRow, "display_title" | "name"> | null;
+  color?: Pick<ProductColorVariantRow, "display_title" | "name" | "id"> | null;
+  /** Used to swap the leading base color word (e.g. Black → White). */
+  defaultColorName?: string | null;
 }): string {
   const override = input.color?.display_title?.trim();
   if (override) return override;
-  return input.productName;
+  if (!input.color || isProductBaseColorId(input.color.id)) {
+    return input.productName;
+  }
+
+  const baseName = inferBaseColorName(
+    input.productName,
+    input.defaultColorName
+  );
+  const productName = input.productName.trim();
+  const base = baseName.trim();
+  if (
+    base &&
+    productName.toLowerCase().startsWith(base.toLowerCase())
+  ) {
+    const rest = productName.slice(base.length).replace(/^\s+/, "");
+    return rest ? `${input.color.name} ${rest}` : input.color.name;
+  }
+
+  return `${input.color.name} ${productName}`;
 }
 
 export function resolveProductDisplayImage(input: {

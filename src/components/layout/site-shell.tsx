@@ -1,9 +1,11 @@
 "use client";
 
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { BackToTop } from "@/components/layout/back-to-top";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { isAuthEntryPath } from "@/lib/i18n/path-locale";
 import { cn } from "@/lib/utils";
 
@@ -33,9 +35,16 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
   const studioWorkspace = isStudioWorkspace(pathname);
 
+  const progress = (
+    <Suspense fallback={null}>
+      <NavigationProgress />
+    </Suspense>
+  );
+
   if (builderFlow) {
     return (
       <>
+        {progress}
         <Header />
         <BackToTop />
         <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
@@ -58,6 +67,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           studioWorkspace && "h-svh min-h-0 overflow-hidden"
         )}
       >
+        {progress}
         {children}
       </div>
     );
@@ -65,6 +75,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {progress}
       <Header />
       <BackToTop />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
@@ -73,7 +84,9 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           style={{ height: "calc(4rem + env(safe-area-inset-top, 0px))" }}
           aria-hidden
         />
-        <main className={cn("flex-1", authPage && "flex min-h-0 flex-col")}>{children}</main>
+        <main className={cn("flex-1", authPage && "flex min-h-0 flex-col")}>
+          {children}
+        </main>
         {!authPage && <Footer />}
       </div>
     </>

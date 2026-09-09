@@ -1,5 +1,10 @@
 import {
   PRODUCT_EVENT_TYPE_IDS,
+  buildProductColorOptions,
+  galleryPrimary,
+  isProductBaseColorId,
+  resolveColorUnitPriceCents,
+  resolveProductDisplayTitle,
   type ProductColorVariantRow,
   type ProductEventTypeId,
 } from "@/data/product-colors";
@@ -36,6 +41,20 @@ export const DEFAULT_RENTALS_FILTERS: RentalsCatalogFilters = {
   sort: "featured",
 };
 
+/** One shoppable catalog card — parent product, or one color of a multi-color product. */
+export type RentalsCatalogEntry = {
+  key: string;
+  product: PublicRentalProduct;
+  color: ProductColorVariantRow | null;
+  href: string;
+  title: string;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  unitPriceCents: number;
+  colorName: string | null;
+  colorHex: string | null;
+};
+
 export function productDisplayPriceCents(product: PublicRentalProduct): number {
   if (!product.colors.length) return product.default_unit_price_cents;
   const prices = product.colors.map((color) =>
@@ -44,6 +63,90 @@ export function productDisplayPriceCents(product: PublicRentalProduct): number {
       : product.default_unit_price_cents
   );
   return Math.min(...prices, product.default_unit_price_cents);
+}
+
+function entryImage(input: {
+  product: PublicRentalProduct;
+  color: ProductColorVariantRow | null;
+}): { imageUrl: string | null; imageAlt: string | null } {
+  if (input.color && !isProductBaseColorId(input.color.id)) {
+    const fromGallery = galleryPrimary(input.color.images || []);
+    if (fromGallery.imageUrl) return fromGallery;
+    if (input.color.image_url?.trim()) {
+      return {
+        imageUrl: input.color.image_url.trim(),
+        imageAlt:
+          input.color.image_alt?.trim() ||
+          input.color.name ||
+          input.product.image_alt,
+      };
+    }
+  }
+
+  const parentGallery = galleryPrimary(input.product.images || []);
+  if (parentGallery.imageUrl) return parentGallery;
+
+  return {
+    imageUrl: input.product.image_url,
+    imageAlt: input.product.image_alt,
+  };
+}
+
+export function expandRentalsCatalogEntries(
+  products: PublicRentalProduct[]
+): RentalsCatalogEntry[] {
+  const entries: RentalsCatalogEntry[] = [];
+
+  for (const product of products) {
+    const options = buildProductColorOptions(product);
+
+    if (!options.length) {
+      const image = entryImage({ product, color: null });
+      entries.push({
+        key: product.id,
+        product,
+        color: null,
+        href: `/rentals/${product.slug}`,
+        title: product.name,
+        imageUrl: image.imageUrl,
+        imageAlt: image.imageAlt,
+        unitPriceCents: product.default_unit_price_cents,
+        colorName: null,
+        colorHex: null,
+      });
+      continue;
+    }
+
+    for (const color of options) {
+      const image = entryImage({ product, color });
+      const title = resolveProductDisplayTitle({
+        productName: product.name,
+        color,
+        defaultColorName: product.default_color_name,
+      });
+      const href = isProductBaseColorId(color.id)
+        ? `/rentals/${product.slug}`
+        : `/rentals/${product.slug}?color=${encodeURIComponent(color.slug)}`;
+
+      entries.push({
+        key: `${product.id}:${color.id}`,
+        product,
+        color,
+        href,
+        title,
+        imageUrl: image.imageUrl,
+        imageAlt: image.imageAlt || title,
+        unitPriceCents: resolveColorUnitPriceCents({
+          productPriceCents: product.default_unit_price_cents,
+          color,
+        }),
+        colorName: color.name,
+        colorHex: color.hex,
+      });
+    }
+  }
+
+  return entries;
 }
 
 export function collectCatalogFacets(products: PublicRentalProduct[]) {
@@ -60,26 +163,27 @@ export function collectCatalogFacets(products: PublicRentalProduct[]) {
         eventSet.add(id);
       }
     }
-    const baseName = product.default_color_name?.trim();
-    if (baseName && product.colors.length > 0) {
-      const key = baseName.toLowerCase();
-      if (!colorMap.has(key)) {
-        colorMap.set(key, {
-          name: baseName,
-          hex: product.default_color_hex || "#111111",
+
+    const options = buildProductColorOptions(product);
+    if (options.length) {
+      for (const color of options) {
+        const key = color.name.trim().toLowerCase();
+        if (!key) continue;
+        if (!colorMap.has(key)) {
+          colorMap.set(key, { name: color.name, hex: color.hex });
+        }
+        const price = resolveColorUnitPriceCents({
+          productPriceCents: product.default_unit_price_cents,
+          color,
         });
+        minPrice = Math.min(minPrice, price);
+        maxPrice = Math.max(maxPrice, price);
       }
+    } else {
+      const price = product.default_unit_price_cents;
+      minPrice = Math.min(minPrice, price);
+      maxPrice = Math.max(maxPrice, price);
     }
-    for (const color of product.colors) {
-      const key = color.name.trim().toLowerCase();
-      if (!key) continue;
-      if (!colorMap.has(key)) {
-        colorMap.set(key, { name: color.name, hex: color.hex });
-      }
-    }
-    const price = productDisplayPriceCents(product);
-    minPrice = Math.min(minPrice, price);
-    maxPrice = Math.max(maxPrice, price);
   }
 
   const categories = QUOTE_LINE_CATEGORIES.filter((id) =>
@@ -103,79 +207,78 @@ export function collectCatalogFacets(products: PublicRentalProduct[]) {
   };
 }
 
-function productMatchesAvailability(
-  product: PublicRentalProduct,
+function entryMatchesAvailability(
+  entry: RentalsCatalogEntry,
   selected: ProductAvailabilityStatus[]
 ): boolean {
   if (!selected.length) return true;
-  if (selected.includes(product.availability_status)) return true;
-  return product.colors.some(
-    (color) =>
-      color.availability_status &&
-      selected.includes(color.availability_status)
-  );
+  if (entry.color?.availability_status) {
+    return selected.includes(entry.color.availability_status);
+  }
+  return selected.includes(entry.product.availability_status);
 }
 
-function productMatchesColors(
-  product: PublicRentalProduct,
+function entryMatchesColors(
+  entry: RentalsCatalogEntry,
   selected: string[]
 ): boolean {
   if (!selected.length) return true;
-  const keys = new Set(
-    product.colors.map((color) => color.name.trim().toLowerCase())
-  );
-  return selected.some((name) => keys.has(name.toLowerCase()));
+  if (!entry.colorName) return false;
+  const key = entry.colorName.trim().toLowerCase();
+  return selected.some((name) => name.toLowerCase() === key);
 }
 
-function productMatchesEventTypes(
-  product: PublicRentalProduct,
+function entryMatchesEventTypes(
+  entry: RentalsCatalogEntry,
   selected: string[]
 ): boolean {
   if (!selected.length) return true;
-  const ids = new Set(product.event_type_ids || []);
+  const ids = new Set(entry.product.event_type_ids || []);
   return selected.some((id) => ids.has(id));
 }
 
 export function filterAndSortRentalsCatalog(
   products: PublicRentalProduct[],
   filters: RentalsCatalogFilters
-): PublicRentalProduct[] {
+): RentalsCatalogEntry[] {
   const search = filters.search.trim().toLowerCase();
-  let list = products.filter((product) => {
+  let list = expandRentalsCatalogEntries(products).filter((entry) => {
+    const product = entry.product;
+
     if (
       filters.categories.length &&
       !filters.categories.includes(String(product.category))
     ) {
       return false;
     }
-    if (!productMatchesColors(product, filters.colors)) return false;
-    if (!productMatchesEventTypes(product, filters.eventTypes)) return false;
-    if (!productMatchesAvailability(product, filters.availability)) {
+    if (!entryMatchesColors(entry, filters.colors)) return false;
+    if (!entryMatchesEventTypes(entry, filters.eventTypes)) return false;
+    if (!entryMatchesAvailability(entry, filters.availability)) {
       return false;
     }
 
-    const price = productDisplayPriceCents(product);
     if (
       filters.priceMinCents != null &&
-      price < filters.priceMinCents
+      entry.unitPriceCents < filters.priceMinCents
     ) {
       return false;
     }
     if (
       filters.priceMaxCents != null &&
-      price > filters.priceMaxCents
+      entry.unitPriceCents > filters.priceMaxCents
     ) {
       return false;
     }
 
     if (search) {
       const haystack = [
+        entry.title,
         product.name,
         product.short_description,
         product.description,
         product.sku,
+        entry.colorName,
         ...(product.event_type_ids || []),
-        ...product.colors.map((c) => c.name),
       ]
         .filter(Boolean)
         .join(" ")
@@ -189,29 +292,28 @@ export function filterAndSortRentalsCatalog(
   list = [...list];
   switch (filters.sort) {
     case "price-asc":
-      list.sort(
-        (a, b) => productDisplayPriceCents(a) - productDisplayPriceCents(b)
-      );
+      list.sort((a, b) => a.unitPriceCents - b.unitPriceCents);
       break;
     case "price-desc":
-      list.sort(
-        (a, b) => productDisplayPriceCents(b) - productDisplayPriceCents(a)
-      );
+      list.sort((a, b) => b.unitPriceCents - a.unitPriceCents);
       break;
     case "name-asc":
-      list.sort((a, b) => a.name.localeCompare(b.name));
+      list.sort((a, b) => a.title.localeCompare(b.title));
       break;
     case "newest":
       list.sort(
         (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          new Date(b.product.created_at).getTime() -
+          new Date(a.product.created_at).getTime()
       );
       break;
     case "featured":
     default:
       list.sort(
         (a, b) =>
-          a.sort_order - b.sort_order || a.name.localeCompare(b.name)
+          a.product.sort_order - b.product.sort_order ||
+          (a.color?.sort_order ?? -1) - (b.color?.sort_order ?? -1) ||
+          a.title.localeCompare(b.title)
       );
       break;
   }
@@ -235,4 +337,26 @@ export function colorSwatchesForProduct(
   product: PublicRentalProduct
 ): ProductColorVariantRow[] {
   return product.colors.filter((color) => color.is_active !== false);
+}
+
+export function findCatalogColorOption(
+  product: PublicRentalProduct,
+  colorParam: string | null | undefined
+): ProductColorVariantRow | null {
+  const options = buildProductColorOptions(product);
+  if (!options.length) return null;
+  const raw = colorParam?.trim();
+  if (!raw) return options[0] ?? null;
+
+  const needle = raw.toLowerCase();
+  return (
+    options.find(
+      (color) =>
+        color.slug.toLowerCase() === needle ||
+        color.name.toLowerCase() === needle ||
+        color.id.toLowerCase() === needle
+    ) ??
+    options[0] ??
+    null
+  );
 }

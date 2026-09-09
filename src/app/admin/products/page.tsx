@@ -9,6 +9,8 @@ import {
 } from "@/components/admin/lists/admin-products-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { Button } from "@/components/ui/button";
+import { buildProductColorOptions } from "@/data/product-colors";
+import { listColorVariantsForProducts } from "@/lib/product-colors";
 import { listProducts } from "@/lib/products";
 import { mapProductsCompleteness } from "@/lib/rentals";
 
@@ -20,7 +22,20 @@ export const metadata: Metadata = {
 export default async function AdminProductsPage() {
   const owner = await requireAdminPage();
   const products = await listProducts({ limit: 500 });
-  const completenessById = await mapProductsCompleteness(products);
+  const [completenessById, allColors] = await Promise.all([
+    mapProductsCompleteness(products),
+    listColorVariantsForProducts(
+      products.map((row) => row.id),
+      { activeOnly: false }
+    ),
+  ]);
+
+  const colorsByProduct = new Map<string, typeof allColors>();
+  for (const color of allColors) {
+    const list = colorsByProduct.get(color.product_id) || [];
+    list.push(color);
+    colorsByProduct.set(color.product_id, list);
+  }
 
   const listRows: AdminProductListRow[] = products.map((row) => {
     const completeness = completenessById.get(row.id);
@@ -28,6 +43,16 @@ export default async function AdminProductsPage() {
     const missingSetup = (completeness?.issues || [])
       .filter((issue) => issue.severity === "error")
       .map((issue) => issue.message);
+
+    const colorOptions = buildProductColorOptions({
+      id: row.id,
+      name: row.name,
+      image_url: row.image_url,
+      image_alt: row.image_alt,
+      default_color_name: row.default_color_name,
+      default_color_hex: row.default_color_hex,
+      colors: colorsByProduct.get(row.id) || [],
+    });
 
     return {
       id: row.id,
@@ -47,6 +72,11 @@ export default async function AdminProductsPage() {
       image_alt: row.image_alt,
       unit_label: row.unit_label,
       created_at: row.created_at,
+      colors: colorOptions.map((color) => ({
+        id: color.id,
+        name: color.name,
+        hex: color.hex,
+      })),
     };
   });
 

@@ -364,18 +364,66 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
 
   if (error || !data?.length) return [];
 
-  const productRows = data as ProductRow[];
+  const productRows = (data as ProductRow[]).filter(
+    (row) => row.kind !== "service"
+  );
+  if (!productRows.length) return [];
+
   const productIds = productRows.map((row) => row.id);
-  const [allColors, allImages] = await Promise.all([
+  const catalogById = new Map(
+    productRows.map((row) => [row.id, asCatalog(row)])
+  );
+
+  const [
+    allColors,
+    allImages,
+    { data: includesData },
+    { data: addonsData },
+    { data: packageData },
+  ] = await Promise.all([
     listColorVariantsForProducts(productIds),
     listImagesForProducts(productIds),
+    admin.from("product_formula_includes").select("*").in("product_id", productIds),
+    admin.from("product_addons").select("*").in("product_id", productIds),
+    admin
+      .from("product_package_components")
+      .select("*")
+      .in("package_product_id", productIds),
   ]);
+
+  const includeRows = (includesData || []) as ProductFormulaIncludeRow[];
+  const addonRows = (addonsData || []) as ProductAddonRow[];
+  const packageRows = (packageData || []) as ProductPackageComponentRow[];
+
+  const relatedIds = new Set<string>();
+  for (const row of productRows) {
+    if (row.full_service_product_id) relatedIds.add(row.full_service_product_id);
+    if (row.transport_only_product_id) {
+      relatedIds.add(row.transport_only_product_id);
+    }
+  }
+  for (const row of includeRows) relatedIds.add(row.included_product_id);
+  for (const row of addonRows) relatedIds.add(row.addon_product_id);
+  for (const row of packageRows) relatedIds.add(row.component_product_id);
+
+  const missingRelatedIds = [...relatedIds].filter((id) => !catalogById.has(id));
+  if (missingRelatedIds.length) {
+    const { data: relatedProducts } = await admin
+      .from("products")
+      .select("*")
+      .in("id", missingRelatedIds);
+    for (const row of (relatedProducts || []) as ProductRow[]) {
+      catalogById.set(row.id, asCatalog(row));
+    }
+  }
+
   const colorsByProduct = new Map<string, ProductColorVariantRow[]>();
   for (const color of allColors) {
     const list = colorsByProduct.get(color.product_id) || [];
     list.push(color);
     colorsByProduct.set(color.product_id, list);
   }
+
   const imagesByProduct = new Map<string, ProductImageRow[]>();
   for (const image of allImages) {
     const list = imagesByProduct.get(image.product_id) || [];
@@ -383,22 +431,55 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
     imagesByProduct.set(image.product_id, list);
   }
 
+  const includesByProduct = new Map<string, ProductFormulaIncludeWithProduct[]>();
+  for (const raw of includeRows) {
+    const included = catalogById.get(raw.included_product_id);
+    if (!included) continue;
+    const list = includesByProduct.get(raw.product_id) || [];
+    list.push({ ...raw, included: productSnippet(included) });
+    includesByProduct.set(raw.product_id, list);
+  }
+
+  const addonsByProduct = new Map<string, ProductAddonWithProduct[]>();
+  for (const raw of addonRows) {
+    const addon = catalogById.get(raw.addon_product_id);
+    if (!addon) continue;
+    const list = addonsByProduct.get(raw.product_id) || [];
+    list.push({ ...raw, addon: productSnippet(addon) });
+    addonsByProduct.set(raw.product_id, list);
+  }
+
+  const packageByProduct = new Map<
+    string,
+    ProductPackageComponentWithProduct[]
+  >();
+  for (const raw of packageRows) {
+    const component = catalogById.get(raw.component_product_id);
+    if (!component) continue;
+    const list = packageByProduct.get(raw.package_product_id) || [];
+    list.push({ ...raw, component: productSnippet(component) });
+    packageByProduct.set(raw.package_product_id, list);
+  }
+
   const results: PublicRentalProduct[] = [];
   for (const row of productRows) {
-    // Services are logistics SKUs — not catalog listings.
-    if (row.kind === "service") continue;
-    const product = asCatalog(row);
-    const [includes, packageComponents, addons] = await Promise.all([
-      listFormulaIncludes(product.id),
-      listPackageComponents(product.id),
-      listProductAddons(product.id),
-    ]);
+    const product = catalogById.get(row.id)!;
+    const includes = (includesByProduct.get(product.id) || []).sort(
+      (a, b) => a.sort_order - b.sort_order
+    );
+    const packageComponents = (packageByProduct.get(product.id) || []).sort(
+      (a, b) => a.sort_order - b.sort_order
+    );
+    const addons = (addonsByProduct.get(product.id) || []).sort(
+      (a, b) => a.sort_order - b.sort_order
+    );
     const fullService = product.full_service_product_id
-      ? await fetchProductCatalogById(product.full_service_product_id)
+      ? catalogById.get(product.full_service_product_id) || null
       : null;
     const transportOnly = product.transport_only_product_id
-      ? await fetchProductCatalogById(product.transport_only_product_id)
+      ? catalogById.get(product.transport_only_product_id) || null
       : null;
+
     const completeness = evaluateProductCompleteness({
       product,
       includes,
@@ -408,6 +489,7 @@ export async function listPublicRentalProducts(): Promise<PublicRentalProduct[]>
       transportOnly,
     });
     if (!completeness.readyForPublic) continue;
+
     const productImages = imagesByProduct.get(product.id) || [];
     results.push({
       ...product,

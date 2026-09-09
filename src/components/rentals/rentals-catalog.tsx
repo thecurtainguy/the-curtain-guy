@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import {
   ArrowUpRight,
+  Check,
   Filter,
   Package,
   Search,
@@ -29,6 +30,7 @@ import {
   activeFilterCount,
   collectCatalogFacets,
   filterAndSortRentalsCatalog,
+  type RentalsCatalogEntry,
   type RentalsCatalogFilters,
   type RentalsSortId,
 } from "@/lib/rentals-catalog-filter";
@@ -61,6 +63,48 @@ function toggleValue(list: string[], value: string): string[] {
   return list.includes(value)
     ? list.filter((item) => item !== value)
     : [...list, value];
+}
+
+function FilterOptionButton({
+  selected,
+  onSelect,
+  children,
+  className,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={cn(
+        "group relative flex w-full items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-left text-sm transition-all duration-200 motion-reduce:transition-none",
+        "border-border/40 bg-card/30 text-muted-foreground hover:border-primary/30 hover:bg-card/50",
+        "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+        selected &&
+          "border-primary/50 bg-primary/10 text-foreground shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]",
+        className
+      )}
+    >
+      <span className="min-w-0 flex-1">{children}</span>
+      <span
+        className={cn(
+          "flex size-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200",
+          selected
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-border/60 bg-background/50 text-transparent"
+        )}
+        aria-hidden
+      >
+        <Check className="size-3" strokeWidth={3} />
+      </span>
+    </button>
+  );
 }
 
 function FilterPanel({
@@ -124,23 +168,17 @@ function FilterPanel({
             {facets.categories.map((category) => {
               const selected = filters.categories.includes(category);
               return (
-                <button
+                <FilterOptionButton
                   key={category}
-                  type="button"
-                  onClick={() =>
+                  selected={selected}
+                  onSelect={() =>
                     patch({
                       categories: toggleValue(filters.categories, category),
                     })
                   }
-                  className={cn(
-                    "rounded-2xl border px-3 py-2.5 text-left text-sm transition-colors",
-                    selected
-                      ? "border-primary/50 bg-primary/10 text-foreground"
-                      : "border-border/40 bg-card/30 text-muted-foreground hover:border-primary/30"
-                  )}
                 >
                   {QUOTE_CATEGORY_LABELS[category]}
-                </button>
+                </FilterOptionButton>
               );
             })}
           </div>
@@ -155,26 +193,23 @@ function FilterPanel({
               const key = color.name.toLowerCase();
               const selected = filters.colors.includes(key);
               return (
-                <button
+                <FilterOptionButton
                   key={key}
-                  type="button"
-                  onClick={() =>
+                  selected={selected}
+                  onSelect={() =>
                     patch({ colors: toggleValue(filters.colors, key) })
                   }
-                  className={cn(
-                    "flex items-center gap-2 rounded-2xl border px-2.5 py-2 text-left text-xs transition-colors",
-                    selected
-                      ? "border-primary/50 bg-primary/10"
-                      : "border-border/40 bg-card/30 hover:border-primary/30"
-                  )}
+                  className="px-2.5 py-2 text-xs"
                 >
-                  <span
-                    className="size-4 shrink-0 rounded-full border border-border/50"
-                    style={{ backgroundColor: color.hex }}
-                    aria-hidden
-                  />
-                  <span className="truncate">{color.name}</span>
-                </button>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="size-4 shrink-0 rounded-full border border-border/50"
+                      style={{ backgroundColor: color.hex }}
+                      aria-hidden
+                    />
+                    <span className="truncate">{color.name}</span>
+                  </span>
+                </FilterOptionButton>
               );
             })}
           </div>
@@ -188,23 +223,17 @@ function FilterPanel({
             {facets.eventTypes.map((id) => {
               const selected = filters.eventTypes.includes(id);
               return (
-                <button
+                <FilterOptionButton
                   key={id}
-                  type="button"
-                  onClick={() =>
+                  selected={selected}
+                  onSelect={() =>
                     patch({
                       eventTypes: toggleValue(filters.eventTypes, id),
                     })
                   }
-                  className={cn(
-                    "rounded-2xl border px-3 py-2.5 text-left text-sm transition-colors",
-                    selected
-                      ? "border-primary/50 bg-primary/10 text-foreground"
-                      : "border-border/40 bg-card/30 text-muted-foreground hover:border-primary/30"
-                  )}
                 >
                   {PRODUCT_EVENT_TYPE_LABELS[id as ProductEventTypeId]}
-                </button>
+                </FilterOptionButton>
               );
             })}
           </div>
@@ -217,10 +246,10 @@ function FilterPanel({
           {PRODUCT_AVAILABILITY_STATUSES.map((status) => {
             const selected = filters.availability.includes(status);
             return (
-              <button
+              <FilterOptionButton
                 key={status}
-                type="button"
-                onClick={() =>
+                selected={selected}
+                onSelect={() =>
                   patch({
                     availability: toggleValue(
                       filters.availability,
@@ -228,15 +257,9 @@ function FilterPanel({
                     ) as ProductAvailabilityStatus[],
                   })
                 }
-                className={cn(
-                  "rounded-2xl border px-3 py-2.5 text-left text-sm transition-colors",
-                  selected
-                    ? "border-primary/50 bg-primary/10 text-foreground"
-                    : "border-border/40 bg-card/30 text-muted-foreground hover:border-primary/30"
-                )}
               >
                 {PRODUCT_AVAILABILITY_LABELS[status]}
-              </button>
+              </FilterOptionButton>
             );
           })}
         </div>
@@ -335,11 +358,11 @@ export function RentalsCatalog({
     [products, filters]
   );
   const packageProducts = useMemo(
-    () => filtered.filter((row) => row.kind === "package"),
+    () => filtered.filter((row) => row.product.kind === "package"),
     [filtered]
   );
   const itemProducts = useMemo(
-    () => filtered.filter((row) => row.kind !== "package"),
+    () => filtered.filter((row) => row.product.kind !== "package"),
     [filtered]
   );
   const activeCount = activeFilterCount(filters);
@@ -360,35 +383,43 @@ export function RentalsCatalog({
     );
   }
 
-  function renderCard(product: PublicRentalProduct) {
+  function renderCard(entry: RentalsCatalogEntry) {
+    const { product } = entry;
     const priceLabel =
       product.configurator_mode === "linear_ft"
         ? t("fromPerFt", {
-            price: formatCadFromCents(product.default_unit_price_cents),
+            price: formatCadFromCents(entry.unitPriceCents),
           })
         : t("fromEach", {
-            price: formatCadFromCents(product.default_unit_price_cents),
+            price: formatCadFromCents(entry.unitPriceCents),
             unit: product.unit_label,
           });
 
     return (
       <Link
-        key={product.id}
-        href={`/rentals/${product.slug}`}
+        key={entry.key}
+        href={entry.href}
         className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/40 bg-card/25 text-left transition-colors hover:border-primary/35 hover:bg-card/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="relative aspect-[4/3] overflow-hidden">
-          {product.image_url ? (
+          {entry.imageUrl ? (
             <Image
-              src={product.image_url}
-              alt={product.image_alt || product.name}
+              src={entry.imageUrl}
+              alt={entry.imageAlt || entry.title}
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none"
               sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
               unoptimized
             />
           ) : (
-            <div className="flex size-full items-center justify-center bg-muted/40 text-muted-foreground">
+            <div
+              className="flex size-full items-center justify-center bg-muted/40 text-muted-foreground"
+              style={
+                entry.colorHex
+                  ? { backgroundColor: entry.colorHex }
+                  : undefined
+              }
+            >
               <Package className="size-8" aria-hidden />
             </div>
           )}
@@ -400,28 +431,24 @@ export function RentalsCatalog({
           <span className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full border border-border/70 bg-background/85 text-primary opacity-0 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100">
             <ArrowUpRight className="size-4" aria-hidden />
           </span>
-          {product.colors.length > 0 ? (
-            <div className="absolute bottom-3 left-3 flex -space-x-1">
-              {product.colors.slice(0, 5).map((color) => (
-                <span
-                  key={color.id}
-                  className="size-4 rounded-full border border-background/80 shadow-sm"
-                  style={{ backgroundColor: color.hex }}
-                  title={color.name}
-                />
-              ))}
-            </div>
+          {entry.colorHex ? (
+            <span
+              className="absolute bottom-3 left-3 size-4 rounded-full border border-background/80 shadow-sm"
+              style={{ backgroundColor: entry.colorHex }}
+              title={entry.colorName || undefined}
+            />
           ) : null}
         </div>
         <div className="flex flex-1 flex-col gap-2 p-4">
           <p className="font-heading text-base font-semibold leading-snug text-foreground">
-            {product.name}
+            {entry.title}
           </p>
           {product.short_description ? (
             <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
               {resolveProductCopy({
                 text: product.short_description,
                 productName: product.name,
+                color: entry.color,
                 defaultColorName: product.default_color_name,
               })}
             </p>
@@ -437,7 +464,7 @@ export function RentalsCatalog({
   function renderSection(
     id: string,
     heading: CatalogSectionHeading,
-    rows: PublicRentalProduct[],
+    rows: RentalsCatalogEntry[],
     emptyMessage: string
   ) {
     return (
@@ -459,7 +486,7 @@ export function RentalsCatalog({
           </p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {rows.map((product) => renderCard(product))}
+            {rows.map((entry) => renderCard(entry))}
           </div>
         )}
       </div>

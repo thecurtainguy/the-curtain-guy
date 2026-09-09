@@ -190,6 +190,18 @@
   h6 {
     font-family: var(--font-heading), var(--font-sans), serif;
   }
+
+  a[href],
+  button:enabled,
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  label[for],
+  select:enabled,
+  input[type="button"]:enabled,
+  input[type="submit"]:enabled,
+  input[type="reset"]:enabled {
+    cursor: pointer;
+  }
 }
 
 @layer utilities {

@@ -45,17 +45,21 @@ export async function listProductColorVariants(
 }
 
 export async function listColorVariantsForProducts(
-  productIds: string[]
+  productIds: string[],
+  options?: { activeOnly?: boolean }
 ): Promise<ProductColorVariantRow[]> {
   if (productIds.length === 0) return [];
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
+  let query = admin
     .from("product_color_variants")
     .select("*")
     .in("product_id", productIds)
-    .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
+  if (options?.activeOnly !== false) {
+    query = query.eq("is_active", true);
+  }
+  const { data, error } = await query;
   if (error) {
     console.error("[product-colors] listForProducts", error.message);
     return [];

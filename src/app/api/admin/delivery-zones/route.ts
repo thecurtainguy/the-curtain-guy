@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import {
+  deleteRentalDeliveryZone,
   listRentalDeliveryZones,
   restoreDefaultRentalDeliveryZones,
   upsertRentalDeliveryZone,
@@ -14,6 +15,45 @@ export async function GET() {
     return NextResponse.json(
       { ok: false, message: "Owner access required." },
       { status: 403 }
+    );
+  }
+
+  const zones = await listRentalDeliveryZones({ includeInactive: true });
+  return NextResponse.json({ ok: true, zones });
+}
+
+export async function DELETE(request: Request) {
+  const owner = await requireOwner();
+  if (!owner) {
+    return NextResponse.json(
+      { ok: false, message: "Owner access required." },
+      { status: 403 }
+    );
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json(
+      { ok: false, message: "Invalid JSON body." },
+      { status: 400 }
+    );
+  }
+
+  const id = String(body.id || "").trim();
+  if (!id) {
+    return NextResponse.json(
+      { ok: false, message: "Zone id is required." },
+      { status: 400 }
+    );
+  }
+
+  const result = await deleteRentalDeliveryZone({ id });
+  if ("error" in result) {
+    return NextResponse.json(
+      { ok: false, message: result.error },
+      { status: 400 }
     );
   }
 

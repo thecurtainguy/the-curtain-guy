@@ -153,6 +153,51 @@ export async function upsertRentalDeliveryZone(input: {
   }
 }
 
+export async function deleteRentalDeliveryZone(input: {
+  id: string;
+}): Promise<{ ok: true } | { error: string }> {
+  const id = input.id.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+  if (!id || id.length < 2) {
+    return { error: "Zone id is required." };
+  }
+
+  try {
+    const admin = createAdminSupabaseClient();
+
+    const { count, error: countError } = await admin
+      .from("products")
+      .select("id", { count: "exact", head: true })
+      .eq("included_logistics_zone_id", id)
+      .eq("kind", "package");
+
+    if (countError) {
+      console.error("[rental-delivery-zones] delete package check", countError);
+      return { error: countError.message || "Could not check package usage." };
+    }
+
+    if ((count ?? 0) > 0) {
+      return {
+        error: `Cannot delete “${id}” — ${count} package(s) still use it as included logistics home zone. Change those packages first, or deactivate the zone instead.`,
+      };
+    }
+
+    const { error } = await admin
+      .from("rental_delivery_zones")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("[rental-delivery-zones] delete", error);
+      return { error: error.message || "Failed to delete zone." };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.error("[rental-delivery-zones] delete failed", error);
+    return { error: "Failed to delete zone." };
+  }
+}
+
 export async function restoreDefaultRentalDeliveryZones(input?: {
   updatedBy?: string | null;
 }): Promise<{ zones: RentalDeliveryZone[] } | { error: string }> {

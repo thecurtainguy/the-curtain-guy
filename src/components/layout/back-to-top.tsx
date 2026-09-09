@@ -10,6 +10,10 @@ import {
 import { createPortal } from "react-dom";
 import { ArrowUp } from "lucide-react";
 import { usePathname } from "@/i18n/navigation";
+import {
+  getRentalsCartSheetOpen,
+  subscribeRentalsCartSheetOpen,
+} from "@/components/rentals/rentals-cart-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -87,6 +91,11 @@ type BackToTopProps = {
 export function BackToTop({ scrollElement }: BackToTopProps = {}) {
   const pathname = usePathname();
   const clearRentalsCart = isRentalsPath(pathname);
+  const cartSheetOpen = useSyncExternalStore(
+    subscribeRentalsCartSheetOpen,
+    getRentalsCartSheetOpen,
+    () => false
+  );
   const [visible, setVisible] = useState(false);
   const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
   const portalMode = scrollElement !== undefined;
@@ -184,6 +193,8 @@ export function BackToTop({ scrollElement }: BackToTopProps = {}) {
 
   if (!mounted) return null;
 
+  const showButton = visible && !cartSheetOpen;
+
   return createPortal(
     <div
       className={cn(
@@ -194,18 +205,18 @@ export function BackToTop({ scrollElement }: BackToTopProps = {}) {
           : "bottom-[max(1rem,env(safe-area-inset-bottom,0px))] sm:bottom-[max(1.5rem,env(safe-area-inset-bottom,0px))]",
         "transition-[opacity,transform,visibility] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         "motion-reduce:transition-none",
-        visible
+        showButton
           ? "visible translate-y-0 opacity-100"
           : "invisible translate-y-3 opacity-0 pointer-events-none"
       )}
-      aria-hidden={!visible}
+      aria-hidden={!showButton}
     >
       <Button
         type="button"
         size="icon"
         variant="outline"
         aria-label="Back to top"
-        tabIndex={visible ? 0 : -1}
+        tabIndex={showButton ? 0 : -1}
         onClick={handleActivate}
         className={cn(
           "size-11 touch-manipulation rounded-2xl border-primary/30 bg-background text-primary shadow-[0_10px_28px_-12px_rgba(0,0,0,0.45)]",

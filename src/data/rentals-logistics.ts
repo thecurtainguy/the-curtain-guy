@@ -356,6 +356,10 @@ export function formatLogisticsEstimateLabel(input: {
   if (!resolved.zone) return "Choose delivery area for estimate";
   if (resolved.quoteOnly) return "Subject to quote";
   if (resolved.fullyIncluded) return "Included in package";
+  if (resolved.isSurcharge) {
+    const home = resolved.creditZone?.shortLabel || "Montreal Island";
+    return `+${formatCadFromCents(resolved.chargeCents)} beyond ${home}`;
+  }
   return formatCadFromCents(resolved.chargeCents);
 }
 

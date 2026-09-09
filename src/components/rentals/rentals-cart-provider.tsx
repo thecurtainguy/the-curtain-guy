@@ -77,6 +77,29 @@ let cachedSnapshot: CartSnapshot = DEFAULT_SNAPSHOT;
 let didHydrateFromStorage = false;
 const listeners = new Set<() => void>();
 
+/** Outside RentalsCartProvider (e.g. BackToTop) can subscribe without context. */
+let cartSheetOpen = false;
+const sheetListeners = new Set<() => void>();
+
+function emitCartSheet() {
+  for (const listener of sheetListeners) listener();
+}
+
+export function subscribeRentalsCartSheetOpen(listener: () => void) {
+  sheetListeners.add(listener);
+  return () => sheetListeners.delete(listener);
+}
+
+export function getRentalsCartSheetOpen() {
+  return cartSheetOpen;
+}
+
+function setCartSheetOpenFlag(open: boolean) {
+  if (cartSheetOpen === open) return;
+  cartSheetOpen = open;
+  emitCartSheet();
+}
+
 function emit() {
   for (const listener of listeners) listener();
 }
@@ -197,10 +220,18 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
     getHydratedClientSnapshot,
     getHydratedServerSnapshot
   );
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpen, setSheetOpenState] = useState(false);
+  const setSheetOpen = useCallback((open: boolean) => {
+    setCartSheetOpenFlag(open);
+    setSheetOpenState(open);
+  }, []);
   const [deliveryZones, setDeliveryZones] = useState<RentalDeliveryZone[]>(
     DEFAULT_RENTAL_DELIVERY_ZONES
   );
+
+  useEffect(() => {
+    setCartSheetOpenFlag(sheetOpen);
+  }, [sheetOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -312,16 +343,20 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<RentalsCartContextValue>(() => {
     const lines = snapshot.lines;
-    const logisticsLine = buildCartLogisticsLine({
-      mode: snapshot.logisticsMode,
-      zoneId: snapshot.deliveryZoneId,
-      zones: deliveryZones,
-      lines,
-    });
-    // Only attach a priced or quote-only logistics line once a zone is chosen
-    // (or DIY which returns null). Mode alone without zone = no line yet.
+    const mains = lines.filter((line) => line.lineKind === "main");
+    const hasMerchandise = mains.length > 0;
+    const logisticsLine = hasMerchandise
+      ? buildCartLogisticsLine({
+          mode: snapshot.logisticsMode,
+          zoneId: snapshot.deliveryZoneId,
+          zones: deliveryZones,
+          lines,
+        })
+      : null;
+    // Only attach logistics once merchandise exists and a zone is chosen
+    // (or DIY which returns null). Empty cart never shows a lone logistics fee.
     const resolvedLogistics =
-      snapshot.logisticsMode === "diy"
+      !hasMerchandise || snapshot.logisticsMode === "diy"
         ? null
         : snapshot.deliveryZoneId
           ? logisticsLine
@@ -329,7 +364,6 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
     const checkoutLines = resolvedLogistics
       ? [...lines, resolvedLogistics]
       : lines;
-    const mains = lines.filter((line) => line.lineKind === "main");
     const merchandiseSubtotalCents = cartSubtotalCents(lines);
     return {
       lines,

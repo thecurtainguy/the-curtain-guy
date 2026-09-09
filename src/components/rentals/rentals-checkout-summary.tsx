@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Image from "next/image";
-import { Package, Trash2, Truck } from "lucide-react";
+import { Package, ShoppingBag, Trash2, Truck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   formatCadFromCents,
@@ -223,77 +223,96 @@ export function RentalsCheckoutSummary({
             </ul>
           )}
 
-          {logisticsLine ? (
-            <div className="flex items-start gap-3 rounded-2xl border border-border/40 bg-background/35 p-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
-                <Truck className="size-4" aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  {logisticsLine.name}
+          {groups.length > 0 ? (
+            <>
+              {logisticsLine ? (
+                <div className="flex items-start gap-3 rounded-2xl border border-border/40 bg-background/35 p-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+                    <Truck className="size-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {logisticsLine.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {logisticsLine.description}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-medium text-primary">
+                    {logisticsLine.unitPriceCents > 0
+                      ? formatCadFromCents(logisticsLine.unitPriceCents)
+                      : /included/i.test(logisticsLine.name) ||
+                          /included/i.test(logisticsLine.description)
+                        ? t("summaryLogisticsIncluded")
+                        : t("zoneQuoteOnly")}
+                  </p>
+                </div>
+              ) : logisticsMode !== "diy" ? (
+                <p className="rounded-2xl border border-dashed border-border/40 px-3 py-2.5 text-xs text-muted-foreground">
+                  {t("summaryLogisticsPending")}
                 </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {logisticsLine.description}
+              ) : (
+                <div className="flex items-start gap-3 rounded-2xl border border-amber-500/35 bg-amber-500/10 p-3">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-950 dark:text-amber-100">
+                    <ShoppingBag className="size-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {t("summaryLogisticsDiyTitle")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t("summaryLogisticsDiyBody")}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-medium text-primary">
+                    {t("zoneDiy")}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2 border-t border-border/40 pt-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {t("summarySubtotal")}
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {formatCadFromCents(tax.subtotal_cents)}
+                  </span>
+                </div>
+                {tax.taxable_subtotal_cents > 0 ? (
+                  <>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{gstLabel}</span>
+                      <span className="text-foreground">
+                        {formatCadFromCents(tax.gst_cents)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{qstLabel}</span>
+                      <span className="text-foreground">
+                        {formatCadFromCents(tax.qst_cents)}
+                      </span>
+                    </div>
+                  </>
+                ) : null}
+                <div className="flex items-center justify-between border-t border-border/30 pt-3">
+                  <span className="font-heading text-base font-semibold">
+                    {t("summaryEstimatedTotal")}
+                  </span>
+                  <span className="font-heading text-xl font-semibold text-primary">
+                    {formatCadFromCents(tax.total_cents)}
+                  </span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  {t("summaryTaxNote")}
                 </p>
               </div>
-              <p className="shrink-0 text-sm font-medium text-primary">
-                {logisticsLine.unitPriceCents > 0
-                  ? formatCadFromCents(logisticsLine.unitPriceCents)
-                  : /included/i.test(logisticsLine.name) ||
-                      /included/i.test(logisticsLine.description)
-                    ? t("summaryLogisticsIncluded")
-                    : t("zoneQuoteOnly")}
+
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {t("disclaimer")}
               </p>
-            </div>
-          ) : logisticsMode !== "diy" ? (
-            <p className="rounded-2xl border border-dashed border-border/40 px-3 py-2.5 text-xs text-muted-foreground">
-              {t("summaryLogisticsPending")}
-            </p>
-          ) : (
-            <p className="rounded-2xl border border-border/30 bg-background/25 px-3 py-2.5 text-xs text-muted-foreground">
-              {t("summaryLogisticsDiy")}
-            </p>
-          )}
-
-          <div className="space-y-2 border-t border-border/40 pt-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{t("summarySubtotal")}</span>
-              <span className="font-medium text-foreground">
-                {formatCadFromCents(tax.subtotal_cents)}
-              </span>
-            </div>
-            {tax.taxable_subtotal_cents > 0 ? (
-              <>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{gstLabel}</span>
-                  <span className="text-foreground">
-                    {formatCadFromCents(tax.gst_cents)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{qstLabel}</span>
-                  <span className="text-foreground">
-                    {formatCadFromCents(tax.qst_cents)}
-                  </span>
-                </div>
-              </>
-            ) : null}
-            <div className="flex items-center justify-between border-t border-border/30 pt-3">
-              <span className="font-heading text-base font-semibold">
-                {t("summaryEstimatedTotal")}
-              </span>
-              <span className="font-heading text-xl font-semibold text-primary">
-                {formatCadFromCents(tax.total_cents)}
-              </span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              {t("summaryTaxNote")}
-            </p>
-          </div>
-
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {t("disclaimer")}
-          </p>
+            </>
+          ) : null}
         </div>
       </div>
     </aside>

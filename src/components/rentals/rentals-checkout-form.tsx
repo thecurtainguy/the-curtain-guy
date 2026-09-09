@@ -20,6 +20,7 @@ import { siteConfig } from "@/data/site";
 import { Link } from "@/i18n/navigation";
 import { useRentalsCart } from "@/components/rentals/rentals-cart-provider";
 import { RentalsCheckoutSummary } from "@/components/rentals/rentals-checkout-summary";
+import { RentalsLogisticsModePicker } from "@/components/rentals/rentals-logistics-mode-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DateInput } from "@/components/ui/date-input";
@@ -70,6 +71,7 @@ export function RentalsCheckoutForm({
     logisticsMode,
     deliveryZoneId,
     setDeliveryZoneId,
+    setLogisticsMode,
     deliveryZones,
     logisticsLine,
   } = useRentalsCart();
@@ -111,7 +113,7 @@ export function RentalsCheckoutForm({
       setSubmitError(t("emptyCart"));
       return;
     }
-    if (!deliveryZoneId) {
+    if (logisticsMode !== "diy" && !deliveryZoneId) {
       setFieldErrors((prev) => ({
         ...prev,
         deliveryZoneId: t("errors.zoneRequired"),
@@ -383,6 +385,17 @@ export function RentalsCheckoutForm({
                 </p>
               </div>
 
+              <div className="space-y-3 rounded-2xl border border-border/40 bg-background/35 p-3">
+                <RentalsLogisticsModePicker
+                  logisticsMode={logisticsMode}
+                  onLogisticsModeChange={setLogisticsMode}
+                  deliveryZoneId={deliveryZoneId}
+                  deliveryZones={deliveryZones}
+                  lines={lines}
+                />
+              </div>
+
+              {logisticsMode !== "diy" ? (
               <div className="space-y-3">
                 <div>
                   <Label>
@@ -396,17 +409,14 @@ export function RentalsCheckoutForm({
                 <div className="grid gap-2" role="radiogroup">
                   {deliveryZones.map((zone) => {
                     const selected = deliveryZoneId === zone.id;
-                    const priceLabel =
-                      logisticsMode === "diy"
-                        ? t("zoneDiy")
-                        : !zone.priced
-                          ? t("zoneQuoteOnly")
-                          : formatLogisticsEstimateLabel({
-                              mode: logisticsMode,
-                              zoneId: zone.id,
-                              zones: deliveryZones,
-                              lines,
-                            });
+                    const priceLabel = !zone.priced
+                      ? t("zoneQuoteOnly")
+                      : formatLogisticsEstimateLabel({
+                          mode: logisticsMode,
+                          zoneId: zone.id,
+                          zones: deliveryZones,
+                          lines,
+                        });
                     return (
                       <button
                         key={zone.id}
@@ -462,6 +472,7 @@ export function RentalsCheckoutForm({
                   </p>
                 ) : null}
               </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label htmlFor="rentals-message">{t("fields.message")}</Label>

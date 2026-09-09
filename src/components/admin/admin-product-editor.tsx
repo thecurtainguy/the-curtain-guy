@@ -54,6 +54,11 @@ import {
   type ProductPackageComponentWithProduct,
 } from "@/data/rentals";
 import {
+  DEFAULT_PACKAGE_LOGISTICS_ZONE_ID,
+  DEFAULT_RENTAL_DELIVERY_ZONES,
+  type PackageIncludedLogisticsMode,
+} from "@/data/rentals-logistics";
+import {
   QUOTE_CATEGORY_LABELS,
   QUOTE_LINE_CATEGORIES,
   type QuoteLineCategory,
@@ -198,6 +203,8 @@ type FormState = {
   formula_segment_feet: string;
   full_service_product_id: string;
   transport_only_product_id: string;
+  included_logistics_mode: PackageIncludedLogisticsMode | "";
+  included_logistics_zone_id: string;
   formulaIncludes: FormulaIncludeForm[];
   packageComponents: PackageComponentForm[];
   addons: Array<{ addonProductId: string }>;
@@ -245,14 +252,25 @@ function formFromProduct(
         : "",
     full_service_product_id: product?.full_service_product_id ?? "",
     transport_only_product_id: product?.transport_only_product_id ?? "",
+    included_logistics_mode:
+      product?.kind === "package" &&
+      (product.included_logistics_mode === "full_service" ||
+        product.included_logistics_mode === "transport_only")
+        ? product.included_logistics_mode
+        : "",
+    included_logistics_zone_id:
+      product?.included_logistics_zone_id?.trim() ||
+      DEFAULT_PACKAGE_LOGISTICS_ZONE_ID,
     formulaIncludes: includesSource.map((row) => ({
       includedProductId: row.included_product_id,
       qtyPerSegment: String(row.qty_per_segment ?? 1),
     })),
-    packageComponents: packageSource.map((row) => ({
-      componentProductId: row.component_product_id,
-      quantity: String(row.quantity ?? 1),
-    })),
+    packageComponents: packageSource
+      .filter((row) => row.component.kind !== "service")
+      .map((row) => ({
+        componentProductId: row.component_product_id,
+        quantity: String(row.quantity ?? 1),
+      })),
     addons: addonsSource.map((row) => ({
       addonProductId: row.addon_product_id,
     })),
@@ -284,6 +302,8 @@ function serializeFormDirty(form: FormState): string {
     formula_segment_feet: form.formula_segment_feet,
     full_service_product_id: form.full_service_product_id,
     transport_only_product_id: form.transport_only_product_id,
+    included_logistics_mode: form.included_logistics_mode,
+    included_logistics_zone_id: form.included_logistics_zone_id,
     formulaIncludes: form.formulaIncludes,
     packageComponents: form.packageComponents,
     addons: form.addons,
@@ -357,6 +377,19 @@ function computeLiveCompleteness(
         : null,
     full_service_product_id: form.full_service_product_id || null,
     transport_only_product_id: form.transport_only_product_id || null,
+    included_logistics_mode:
+      form.kind === "package" &&
+      (form.included_logistics_mode === "full_service" ||
+        form.included_logistics_mode === "transport_only")
+        ? form.included_logistics_mode
+        : null,
+    included_logistics_zone_id:
+      form.kind === "package" &&
+      (form.included_logistics_mode === "full_service" ||
+        form.included_logistics_mode === "transport_only")
+        ? form.included_logistics_zone_id.trim() ||
+          DEFAULT_PACKAGE_LOGISTICS_ZONE_ID
+        : null,
   };
 
   const includes = form.formulaIncludes
@@ -431,6 +464,8 @@ function computeLiveCompleteness(
             fullServiceRow.full_service_product_id ?? null,
           transport_only_product_id:
             fullServiceRow.transport_only_product_id ?? null,
+          included_logistics_mode: null,
+          included_logistics_zone_id: null,
         }
       : null,
     transportOnly: transportOnlyRow
@@ -445,13 +480,21 @@ function computeLiveCompleteness(
             transportOnlyRow.full_service_product_id ?? null,
           transport_only_product_id:
             transportOnlyRow.transport_only_product_id ?? null,
+          included_logistics_mode: null,
+          included_logistics_zone_id: null,
         }
       : null,
   });
 }
 
-function rentalsPayload(form: FormState) {
+function rentalsPayload(
+  form: FormState,
+  allProducts: ProductRow[] = []
+) {
   const isPackage = form.kind === "package";
+  const productIds = new Set(
+    allProducts.filter((row) => row.kind === "product").map((row) => row.id)
+  );
   return {
     is_public: form.is_public,
     configurator_mode: isPackage ? "simple" : form.configurator_mode,
@@ -467,6 +510,19 @@ function rentalsPayload(form: FormState) {
     transport_only_product_id: isPackage
       ? null
       : form.transport_only_product_id || null,
+    included_logistics_mode: isPackage
+      ? form.included_logistics_mode === "full_service" ||
+        form.included_logistics_mode === "transport_only"
+        ? form.included_logistics_mode
+        : null
+      : null,
+    included_logistics_zone_id: isPackage
+      ? form.included_logistics_mode === "full_service" ||
+        form.included_logistics_mode === "transport_only"
+        ? form.included_logistics_zone_id.trim() ||
+          DEFAULT_PACKAGE_LOGISTICS_ZONE_ID
+        : null
+      : null,
     formula_includes: isPackage
       ? []
       : form.formulaIncludes
@@ -477,7 +533,11 @@ function rentalsPayload(form: FormState) {
           })),
     package_components: isPackage
       ? form.packageComponents
-          .filter((row) => row.componentProductId)
+          .filter(
+            (row) =>
+              row.componentProductId &&
+              productIds.has(row.componentProductId)
+          )
           .map((row) => ({
             componentProductId: row.componentProductId,
             quantity: Number(row.quantity) || 1,
@@ -565,6 +625,8 @@ export function AdminProductEditor({
         formula_segment_feet: prev.formula_segment_feet,
         full_service_product_id: prev.full_service_product_id,
         transport_only_product_id: prev.transport_only_product_id,
+        included_logistics_mode: prev.included_logistics_mode,
+        included_logistics_zone_id: prev.included_logistics_zone_id,
         formulaIncludes: prev.formulaIncludes,
         packageComponents: prev.packageComponents,
         addons: prev.addons,
@@ -594,7 +656,7 @@ export function AdminProductEditor({
       is_active: form.is_active,
       image_url: form.image_url,
       image_alt: form.image_alt,
-      ...rentalsPayload(form),
+      ...rentalsPayload(form, allProducts),
     };
   }
 
@@ -648,6 +710,8 @@ export function AdminProductEditor({
           formula_segment_feet: prev.formula_segment_feet,
           full_service_product_id: prev.full_service_product_id,
           transport_only_product_id: prev.transport_only_product_id,
+          included_logistics_mode: prev.included_logistics_mode,
+          included_logistics_zone_id: prev.included_logistics_zone_id,
           formulaIncludes: prev.formulaIncludes,
           packageComponents: prev.packageComponents,
           addons: prev.addons,
@@ -978,8 +1042,15 @@ export function AdminProductEditor({
                                   formulaIncludes: [],
                                   full_service_product_id: "",
                                   transport_only_product_id: "",
+                                  included_logistics_mode: "",
+                                  included_logistics_zone_id:
+                                    DEFAULT_PACKAGE_LOGISTICS_ZONE_ID,
                                 }
-                              : {}),
+                              : {
+                                  included_logistics_mode: "",
+                                  included_logistics_zone_id:
+                                    DEFAULT_PACKAGE_LOGISTICS_ZONE_ID,
+                                }),
                           })
                         }
                         className={cn(
@@ -1139,57 +1210,117 @@ export function AdminProductEditor({
 
             <div className="mt-5 space-y-5">
               {form.kind === "package" ? (
-                <div className="space-y-2">
-                  <Label>Package contents</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Fixed recipe per package. Customer sees the all-in package
-                    price; quantities multiply by how many packages they rent.
-                  </p>
-                  {packageComponentOptions.length === 0 ? (
-                    <p className="rounded-2xl border border-border/40 bg-background/40 px-3 py-3 text-sm text-muted-foreground">
-                      Add inventory products or services first to build a
-                      package.
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <Label>Logistics included in package price</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Prepaid base logistics (usually Montreal Island). Farther
+                      zones only charge the surcharge at checkout — no double
+                      dipping.
                     </p>
-                  ) : (
-                    <AdminProductPickGrid
-                      options={packageComponentOptions}
-                      selectedIds={form.packageComponents.map(
-                        (row) => row.componentProductId
-                      )}
-                      onToggle={togglePackageComponent}
-                      kindFilters={["product", "service"]}
-                      emptyMessage="Add inventory products or services first to build a package."
-                      renderSelectedExtra={(option) => {
-                        const qty =
-                          form.packageComponents.find(
-                            (row) => row.componentProductId === option.id
-                          )?.quantity ?? "1";
-                        return (
-                          <div className="space-y-1.5">
-                            <Label
-                              htmlFor={`pkg-qty-${option.id}`}
-                              className="text-xs"
-                            >
-                              Qty per package
-                            </Label>
-                            <Input
-                              id={`pkg-qty-${option.id}`}
-                              inputMode="decimal"
-                              value={qty}
-                              onChange={(e) =>
-                                setPackageComponentQty(option.id, e.target.value)
-                              }
-                              className="h-8"
-                            />
-                          </div>
-                        );
-                      }}
+                    <SelectInput
+                      value={form.included_logistics_mode || "none"}
+                      onChange={(value) =>
+                        patch({
+                          included_logistics_mode:
+                            value === "full_service" ||
+                            value === "transport_only"
+                              ? value
+                              : "",
+                          included_logistics_zone_id:
+                            DEFAULT_PACKAGE_LOGISTICS_ZONE_ID,
+                        })
+                      }
+                      options={[
+                        { value: "none", label: "None — logistics priced at cart" },
+                        {
+                          value: "full_service",
+                          label: "Full service (Montreal Island)",
+                        },
+                        {
+                          value: "transport_only",
+                          label: "Transport only (Montreal Island)",
+                        },
+                      ]}
                     />
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Packages always use simple quantity on Rentals (no linear
-                    ft formula).
-                  </p>
+                    {form.included_logistics_mode ? (
+                      <div className="max-w-sm space-y-1.5">
+                        <Label htmlFor="pkg-logistics-zone">Home zone</Label>
+                        <SelectInput
+                          id="pkg-logistics-zone"
+                          value={
+                            form.included_logistics_zone_id ||
+                            DEFAULT_PACKAGE_LOGISTICS_ZONE_ID
+                          }
+                          onChange={(value) =>
+                            patch({ included_logistics_zone_id: value })
+                          }
+                          options={DEFAULT_RENTAL_DELIVERY_ZONES.filter(
+                            (zone) => zone.priced && zone.isActive
+                          ).map((zone) => ({
+                            value: zone.id,
+                            label: zone.shortLabel,
+                          }))}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Package contents</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Products in the kit (hardware, drapes, etc.). Do not add
+                      transport/install services here — use Logistics included
+                      above so cart pricing stays correct.
+                    </p>
+                    {packageComponentOptions.length === 0 ? (
+                      <p className="rounded-2xl border border-border/40 bg-background/40 px-3 py-3 text-sm text-muted-foreground">
+                        Add inventory products first to build a package.
+                      </p>
+                    ) : (
+                      <AdminProductPickGrid
+                        options={packageComponentOptions}
+                        selectedIds={form.packageComponents.map(
+                          (row) => row.componentProductId
+                        )}
+                        onToggle={togglePackageComponent}
+                        kindFilters={["product"]}
+                        emptyMessage="Add inventory products first to build a package."
+                        renderSelectedExtra={(option) => {
+                          const qty =
+                            form.packageComponents.find(
+                              (row) => row.componentProductId === option.id
+                            )?.quantity ?? "1";
+                          return (
+                            <div className="space-y-1.5">
+                              <Label
+                                htmlFor={`pkg-qty-${option.id}`}
+                                className="text-xs"
+                              >
+                                Qty per package
+                              </Label>
+                              <Input
+                                id={`pkg-qty-${option.id}`}
+                                inputMode="decimal"
+                                value={qty}
+                                onChange={(e) =>
+                                  setPackageComponentQty(
+                                    option.id,
+                                    e.target.value
+                                  )
+                                }
+                                className="h-8"
+                              />
+                            </div>
+                          );
+                        }}
+                      />
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Packages always use simple quantity on Rentals (no linear
+                      ft formula).
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <>

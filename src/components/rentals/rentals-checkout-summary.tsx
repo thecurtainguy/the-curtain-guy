@@ -239,7 +239,10 @@ export function RentalsCheckoutSummary({
               <p className="shrink-0 text-sm font-medium text-primary">
                 {logisticsLine.unitPriceCents > 0
                   ? formatCadFromCents(logisticsLine.unitPriceCents)
-                  : t("zoneQuoteOnly")}
+                  : /included/i.test(logisticsLine.name) ||
+                      /included/i.test(logisticsLine.description)
+                    ? t("summaryLogisticsIncluded")
+                    : t("zoneQuoteOnly")}
               </p>
             </div>
           ) : logisticsMode !== "diy" ? (

@@ -8,6 +8,17 @@ export const RENTAL_LOGISTICS_MODES = [
 
 export type RentalLogisticsMode = (typeof RENTAL_LOGISTICS_MODES)[number];
 
+export const PACKAGE_INCLUDED_LOGISTICS_MODES = [
+  "full_service",
+  "transport_only",
+] as const;
+
+export type PackageIncludedLogisticsMode =
+  (typeof PACKAGE_INCLUDED_LOGISTICS_MODES)[number];
+
+/** Default home zone prepaid when a package includes logistics. */
+export const DEFAULT_PACKAGE_LOGISTICS_ZONE_ID = "montreal-island";
+
 export const RENTAL_LOGISTICS_MODE_LABELS: Record<RentalLogisticsMode, string> =
   {
     full_service: "Full service",
@@ -85,6 +96,15 @@ export function isRentalLogisticsMode(
   return (RENTAL_LOGISTICS_MODES as readonly string[]).includes(value);
 }
 
+export function isPackageIncludedLogisticsMode(
+  value: string | null | undefined
+): value is PackageIncludedLogisticsMode {
+  return (
+    !!value &&
+    (PACKAGE_INCLUDED_LOGISTICS_MODES as readonly string[]).includes(value)
+  );
+}
+
 export function resolveDeliveryZones(
   zones?: RentalDeliveryZone[] | null
 ): RentalDeliveryZone[] {
@@ -109,6 +129,17 @@ export function getRentalDeliveryZone(
   return resolveDeliveryZones(zones).find((zone) => zone.id === id) ?? null;
 }
 
+export function packageLogisticsCoversMode(
+  included: PackageIncludedLogisticsMode | null | undefined,
+  selected: RentalLogisticsMode
+): boolean {
+  if (!included || selected === "diy") return false;
+  if (included === "full_service") {
+    return selected === "full_service" || selected === "transport_only";
+  }
+  return selected === "transport_only";
+}
+
 export function logisticsPriceCents(input: {
   mode: RentalLogisticsMode;
   zoneId: string | null | undefined;
@@ -131,36 +162,163 @@ export function logisticsPriceCents(input: {
   return { cents, quoteOnly: false, zone };
 }
 
+/** Max prepaid logistics credit from package main lines for the selected mode. */
+export function cartLogisticsCreditCents(input: {
+  lines: RentalCartLine[];
+  mode: RentalLogisticsMode;
+  zones?: RentalDeliveryZone[] | null;
+}): number {
+  if (input.mode === "diy") return 0;
+  let credit = 0;
+  for (const line of input.lines) {
+    if (line.lineKind !== "main") continue;
+    const includedMode = line.includedLogisticsMode;
+    const includedZoneId = line.includedLogisticsZoneId;
+    if (
+      !isPackageIncludedLogisticsMode(includedMode) ||
+      !includedZoneId ||
+      !packageLogisticsCoversMode(includedMode, input.mode)
+    ) {
+      continue;
+    }
+    const base = logisticsPriceCents({
+      mode: input.mode,
+      zoneId: includedZoneId,
+      zones: input.zones,
+    });
+    if (!base.quoteOnly && base.cents > 0) {
+      credit = Math.max(credit, base.cents);
+    }
+  }
+  return credit;
+}
+
+export type ResolvedCartLogistics = {
+  zone: RentalDeliveryZone | null;
+  zoneCents: number;
+  creditCents: number;
+  chargeCents: number;
+  quoteOnly: boolean;
+  /** Selected zone fee fully covered by package prepaid logistics. */
+  fullyIncluded: boolean;
+  /** Customer pays only the delta beyond the package home zone. */
+  isSurcharge: boolean;
+  creditZone: RentalDeliveryZone | null;
+};
+
+export function resolveCartLogistics(input: {
+  mode: RentalLogisticsMode;
+  zoneId: string | null | undefined;
+  zones?: RentalDeliveryZone[] | null;
+  lines?: RentalCartLine[] | null;
+}): ResolvedCartLogistics {
+  const priced = logisticsPriceCents(input);
+  const creditCents = cartLogisticsCreditCents({
+    lines: input.lines || [],
+    mode: input.mode,
+    zones: input.zones,
+  });
+  const creditZoneId =
+    (input.lines || []).find(
+      (line) =>
+        line.lineKind === "main" &&
+        isPackageIncludedLogisticsMode(line.includedLogisticsMode) &&
+        line.includedLogisticsZoneId &&
+        packageLogisticsCoversMode(line.includedLogisticsMode, input.mode)
+    )?.includedLogisticsZoneId ?? null;
+  const creditZone = getRentalDeliveryZone(creditZoneId, input.zones);
+
+  if (input.mode === "diy") {
+    return {
+      zone: priced.zone,
+      zoneCents: 0,
+      creditCents: 0,
+      chargeCents: 0,
+      quoteOnly: false,
+      fullyIncluded: false,
+      isSurcharge: false,
+      creditZone: null,
+    };
+  }
+
+  if (priced.quoteOnly) {
+    return {
+      zone: priced.zone,
+      zoneCents: 0,
+      creditCents,
+      chargeCents: 0,
+      quoteOnly: true,
+      fullyIncluded: false,
+      isSurcharge: false,
+      creditZone,
+    };
+  }
+
+  const chargeCents = Math.max(0, priced.cents - creditCents);
+  return {
+    zone: priced.zone,
+    zoneCents: priced.cents,
+    creditCents,
+    chargeCents,
+    quoteOnly: false,
+    fullyIncluded: creditCents > 0 && chargeCents === 0,
+    isSurcharge: creditCents > 0 && chargeCents > 0,
+    creditZone,
+  };
+}
+
 export const LOGISTICS_LINE_KEY = "logistics:cart";
 
 export function buildCartLogisticsLine(input: {
   mode: RentalLogisticsMode;
   zoneId: string | null | undefined;
   zones?: RentalDeliveryZone[] | null;
+  lines?: RentalCartLine[] | null;
 }): RentalCartLine | null {
   if (input.mode === "diy") return null;
 
-  const priced = logisticsPriceCents(input);
-  const zoneLabel = priced.zone?.shortLabel || "Delivery area TBD";
+  const resolved = resolveCartLogistics(input);
+  const zoneLabel = resolved.zone?.shortLabel || "Delivery area TBD";
+  const creditLabel =
+    resolved.creditZone?.shortLabel || "Montreal Island";
+
+  const description =
+    input.mode === "full_service"
+      ? resolved.fullyIncluded
+        ? `Full service included in package · ${creditLabel}`
+        : resolved.isSurcharge
+          ? `Full service zone surcharge beyond ${creditLabel} · ${zoneLabel}`
+          : resolved.quoteOnly
+            ? `Full service (transport + install + teardown) · ${zoneLabel} · priced in final quote`
+            : `Full service (transport + install + teardown) · ${zoneLabel}`
+      : resolved.fullyIncluded
+        ? `Transport included in package · ${creditLabel}`
+        : resolved.isSurcharge
+          ? `Transport zone surcharge beyond ${creditLabel} · ${zoneLabel}`
+          : resolved.quoteOnly
+            ? `Transport / delivery only · ${zoneLabel} · priced in final quote`
+            : `Transport / delivery only · ${zoneLabel}`;
 
   if (input.mode === "full_service") {
     return {
       key: LOGISTICS_LINE_KEY,
       productId: "logistics-full-service",
       slug: "full-service",
-      name: "TCG full service",
-      description: priced.quoteOnly
-        ? `Full service (transport + install + teardown) · ${zoneLabel} · priced in final quote`
-        : `Full service (transport + install + teardown) · ${zoneLabel}`,
+      name: resolved.isSurcharge
+        ? "TCG full service surcharge"
+        : resolved.fullyIncluded
+          ? "TCG full service (included)"
+          : "TCG full service",
+      description,
       category: "labor",
       kind: "service",
       lineKind: "service",
       imageUrl: null,
       imageAlt: null,
       quantity: 1,
-      unitPriceCents: priced.quoteOnly ? 0 : priced.cents,
+      unitPriceCents: resolved.quoteOnly ? 0 : resolved.chargeCents,
       unitLabel: "event",
-      isTaxable: !priced.quoteOnly && priced.cents > 0,
+      isTaxable: !resolved.quoteOnly && resolved.chargeCents > 0,
     };
   }
 
@@ -168,19 +326,21 @@ export function buildCartLogisticsLine(input: {
     key: LOGISTICS_LINE_KEY,
     productId: "logistics-transport-only",
     slug: "transport-only",
-    name: "Transport only",
-    description: priced.quoteOnly
-      ? `Transport / delivery only · ${zoneLabel} · priced in final quote`
-      : `Transport / delivery only · ${zoneLabel}`,
+    name: resolved.isSurcharge
+      ? "Transport only surcharge"
+      : resolved.fullyIncluded
+        ? "Transport only (included)"
+        : "Transport only",
+    description,
     category: "labor",
     kind: "service",
     lineKind: "service",
     imageUrl: null,
     imageAlt: null,
     quantity: 1,
-    unitPriceCents: priced.quoteOnly ? 0 : priced.cents,
+    unitPriceCents: resolved.quoteOnly ? 0 : resolved.chargeCents,
     unitLabel: "event",
-    isTaxable: !priced.quoteOnly && priced.cents > 0,
+    isTaxable: !resolved.quoteOnly && resolved.chargeCents > 0,
   };
 }
 
@@ -188,12 +348,15 @@ export function formatLogisticsEstimateLabel(input: {
   mode: RentalLogisticsMode;
   zoneId: string | null | undefined;
   zones?: RentalDeliveryZone[] | null;
+  lines?: RentalCartLine[] | null;
 }): string {
   if (input.mode === "diy") return "No TCG logistics";
-  const priced = logisticsPriceCents(input);
-  if (!priced.zone) return "Choose delivery area for estimate";
-  if (priced.quoteOnly) return "Subject to quote";
-  return formatCadFromCents(priced.cents);
+  if (!input.zoneId) return "Choose delivery area for estimate";
+  const resolved = resolveCartLogistics(input);
+  if (!resolved.zone) return "Choose delivery area for estimate";
+  if (resolved.quoteOnly) return "Subject to quote";
+  if (resolved.fullyIncluded) return "Included in package";
+  return formatCadFromCents(resolved.chargeCents);
 }
 
 export function stripServiceLines(lines: RentalCartLine[]): RentalCartLine[] {

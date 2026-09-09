@@ -40,6 +40,8 @@ export type ProductWriteInput = {
   formula_segment_feet?: number | null;
   full_service_product_id?: string | null;
   transport_only_product_id?: string | null;
+  included_logistics_mode?: "full_service" | "transport_only" | null;
+  included_logistics_zone_id?: string | null;
 };
 
 function normalizeSku(sku: string | null | undefined): string | null {
@@ -195,6 +197,18 @@ export async function createProduct(
             : null,
       full_service_product_id: input.full_service_product_id || null,
       transport_only_product_id: input.transport_only_product_id || null,
+      included_logistics_mode:
+        input.kind === "package" &&
+        (input.included_logistics_mode === "full_service" ||
+          input.included_logistics_mode === "transport_only")
+          ? input.included_logistics_mode
+          : null,
+      included_logistics_zone_id:
+        input.kind === "package" &&
+        (input.included_logistics_mode === "full_service" ||
+          input.included_logistics_mode === "transport_only")
+          ? input.included_logistics_zone_id?.trim() || "montreal-island"
+          : null,
     })
     .select("*")
     .single();
@@ -322,6 +336,43 @@ export async function updateProduct(
         input.transport_only_product_id === undefined
           ? existing.transport_only_product_id ?? null
           : input.transport_only_product_id || null,
+      included_logistics_mode:
+        input.kind !== "package"
+          ? null
+          : input.included_logistics_mode === undefined
+            ? existing.included_logistics_mode === "full_service" ||
+              existing.included_logistics_mode === "transport_only"
+              ? existing.included_logistics_mode
+              : null
+            : input.included_logistics_mode === "full_service" ||
+                input.included_logistics_mode === "transport_only"
+              ? input.included_logistics_mode
+              : null,
+      included_logistics_zone_id:
+        input.kind !== "package"
+          ? null
+          : (() => {
+              const mode =
+                input.included_logistics_mode === undefined
+                  ? existing.included_logistics_mode === "full_service" ||
+                    existing.included_logistics_mode === "transport_only"
+                    ? existing.included_logistics_mode
+                    : null
+                  : input.included_logistics_mode === "full_service" ||
+                      input.included_logistics_mode === "transport_only"
+                    ? input.included_logistics_mode
+                    : null;
+              if (!mode) return null;
+              if (input.included_logistics_zone_id === undefined) {
+                return (
+                  existing.included_logistics_zone_id?.trim() ||
+                  "montreal-island"
+                );
+              }
+              return (
+                input.included_logistics_zone_id?.trim() || "montreal-island"
+              );
+            })(),
     })
     .eq("id", id)
     .select("*")

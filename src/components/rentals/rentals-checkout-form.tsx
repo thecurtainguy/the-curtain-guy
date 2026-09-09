@@ -405,6 +405,7 @@ export function RentalsCheckoutForm({
                               mode: logisticsMode,
                               zoneId: zone.id,
                               zones: deliveryZones,
+                              lines,
                             });
                     return (
                       <button

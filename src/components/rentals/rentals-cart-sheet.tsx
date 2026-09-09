@@ -110,6 +110,7 @@ export function RentalsCartSheet() {
       mode,
       zoneId: deliveryZoneId,
       zones: deliveryZones,
+      lines,
     });
   }
 
@@ -302,7 +303,10 @@ export function RentalsCartSheet() {
                     <span className="font-medium text-foreground">
                       {logisticsLine.unitPriceCents > 0
                         ? formatCadFromCents(logisticsLine.unitPriceCents)
-                        : t("logisticsQuoteOnly")}
+                        : /included/i.test(logisticsLine.name) ||
+                            /included/i.test(logisticsLine.description)
+                          ? t("logisticsIncluded")
+                          : t("logisticsQuoteOnly")}
                     </span>
                   </div>
                 ) : null}

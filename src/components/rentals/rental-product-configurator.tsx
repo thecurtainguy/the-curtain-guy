@@ -115,15 +115,22 @@ export function RentalProductConfigurator({
   }, [product.includes]);
 
   const orderedPackageComponents = useMemo(() => {
-    return [...product.packageComponents].sort((a, b) => {
-      const byKind = compareProductsBeforeServices(
-        a.component.kind,
-        b.component.kind
-      );
-      if (byKind !== 0) return byKind;
-      return a.sort_order - b.sort_order;
-    });
+    return [...product.packageComponents]
+      .filter((row) => row.component.kind !== "service")
+      .sort((a, b) => {
+        const byKind = compareProductsBeforeServices(
+          a.component.kind,
+          b.component.kind
+        );
+        if (byKind !== 0) return byKind;
+        return a.sort_order - b.sort_order;
+      });
   }, [product.packageComponents]);
+
+  const packageLogisticsIncluded =
+    product.kind === "package" &&
+    (product.included_logistics_mode === "full_service" ||
+      product.included_logistics_mode === "transport_only");
 
   function handleAddToCart() {
     if (requiresColor && !selectedColor) {
@@ -328,7 +335,8 @@ export function RentalProductConfigurator({
         </div>
       ) : null}
 
-      {product.kind === "package" && product.packageComponents.length > 0 ? (
+      {product.kind === "package" &&
+      (orderedPackageComponents.length > 0 || packageLogisticsIncluded) ? (
         <div className="space-y-3">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
@@ -341,45 +349,59 @@ export function RentalProductConfigurator({
               {t("packageIncludesHint")}
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {orderedPackageComponents.map((row) => {
-              const qty = quantity * Number(row.quantity || 0);
-              return (
-                <div
-                  key={row.id}
-                  className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card/25 p-3"
-                >
-                  <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
-                    {row.component.image_url ? (
-                      <Image
-                        src={row.component.image_url}
-                        alt={row.component.image_alt || row.component.name}
-                        fill
-                        className="object-cover"
-                        sizes="56px"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center text-muted-foreground">
-                        <Package className="size-4" aria-hidden />
-                      </div>
-                    )}
+          {packageLogisticsIncluded ? (
+            <div className="rounded-2xl border border-primary/30 bg-primary/10 px-3 py-3 text-sm text-foreground">
+              <p className="font-medium">
+                {product.included_logistics_mode === "transport_only"
+                  ? t("packageLogisticsTransportTitle")
+                  : t("packageLogisticsFullTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("packageLogisticsHint")}
+              </p>
+            </div>
+          ) : null}
+          {orderedPackageComponents.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {orderedPackageComponents.map((row) => {
+                const qty = quantity * Number(row.quantity || 0);
+                return (
+                  <div
+                    key={row.id}
+                    className="flex items-center gap-3 rounded-2xl border border-border/40 bg-card/25 p-3"
+                  >
+                    <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
+                      {row.component.image_url ? (
+                        <Image
+                          src={row.component.image_url}
+                          alt={row.component.image_alt || row.component.name}
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="flex size-full items-center justify-center text-muted-foreground">
+                          <Package className="size-4" aria-hidden />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-snug text-foreground">
+                        {row.component.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t("includeQty", {
+                          qty: qty > 0 ? qty : "—",
+                          unit: row.component.unit_label,
+                        })}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-snug text-foreground">
-                      {row.component.name}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {t("includeQty", {
-                        qty: qty > 0 ? qty : "—",
-                        unit: row.component.unit_label,
-                      })}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

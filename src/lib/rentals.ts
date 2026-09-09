@@ -33,6 +33,10 @@ import {
 } from "@/lib/product-colors";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import type { ProductImageRow } from "@/data/product-images";
+import {
+  DEFAULT_PACKAGE_LOGISTICS_ZONE_ID,
+  isPackageIncludedLogisticsMode,
+} from "@/data/rentals-logistics";
 
 export { evaluateProductCompleteness };
 
@@ -65,6 +69,12 @@ function asCatalog(row: ProductRow): ProductCatalogRow {
           : null,
     full_service_product_id: row.full_service_product_id ?? null,
     transport_only_product_id: row.transport_only_product_id ?? null,
+    included_logistics_mode:
+      row.included_logistics_mode === "full_service" ||
+      row.included_logistics_mode === "transport_only"
+        ? row.included_logistics_mode
+        : null,
+    included_logistics_zone_id: row.included_logistics_zone_id ?? null,
   };
 }
 
@@ -718,6 +728,15 @@ export function buildSimpleCartLines(input: {
   const parentKey = color
     ? `main:${input.product.id}:${color.id}:qty:${qty}:${Date.now().toString(36)}`
     : `main:${input.product.id}:qty:${qty}:${Date.now().toString(36)}`;
+  const includedLogisticsMode =
+    input.product.kind === "package" &&
+    isPackageIncludedLogisticsMode(input.product.included_logistics_mode)
+      ? input.product.included_logistics_mode
+      : null;
+  const includedLogisticsZoneId = includedLogisticsMode
+    ? input.product.included_logistics_zone_id?.trim() ||
+      DEFAULT_PACKAGE_LOGISTICS_ZONE_ID
+    : null;
   const lines: RentalCartLine[] = [
     {
       key: parentKey,
@@ -738,20 +757,22 @@ export function buildSimpleCartLines(input: {
         color && !isProductBaseColorId(color.id) ? color.id : null,
       colorName: color?.name ?? null,
       colorHex: color?.hex ?? null,
+      includedLogisticsMode,
+      includedLogisticsZoneId,
     },
   ];
 
   if (input.product.kind === "package") {
-    const orderedComponents = [...input.product.packageComponents].sort(
-      (a, b) => {
+    const orderedComponents = [...input.product.packageComponents]
+      .filter((row) => row.component.kind !== "service")
+      .sort((a, b) => {
         const byKind = compareProductsBeforeServices(
           a.component.kind,
           b.component.kind
         );
         if (byKind !== 0) return byKind;
         return a.sort_order - b.sort_order;
-      }
-    );
+      });
     for (const row of orderedComponents) {
       const componentQty = qty * Number(row.quantity || 0);
       if (!(componentQty > 0)) continue;

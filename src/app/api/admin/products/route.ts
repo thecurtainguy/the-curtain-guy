@@ -136,6 +136,19 @@ export async function POST(request: Request) {
         : typeof body.transport_only_product_id === "string"
           ? body.transport_only_product_id
           : null,
+    included_logistics_mode:
+      body.included_logistics_mode === null
+        ? null
+        : body.included_logistics_mode === "full_service" ||
+            body.included_logistics_mode === "transport_only"
+          ? body.included_logistics_mode
+          : null,
+    included_logistics_zone_id:
+      body.included_logistics_zone_id === null
+        ? null
+        : typeof body.included_logistics_zone_id === "string"
+          ? body.included_logistics_zone_id
+          : null,
   });
 
   if ("error" in result) {

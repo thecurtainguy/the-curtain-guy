@@ -104,6 +104,8 @@ export type ProductCatalogRow = ProductRow & {
   formula_segment_feet: number | null;
   full_service_product_id: string | null;
   transport_only_product_id: string | null;
+  included_logistics_mode: "full_service" | "transport_only" | null;
+  included_logistics_zone_id: string | null;
 };
 
 export type ProductCompletenessIssue = {
@@ -299,6 +301,9 @@ export type RentalCartLine = {
   colorId?: string | null;
   colorName?: string | null;
   colorHex?: string | null;
+  /** Package main lines: logistics mode prepaid in package price. */
+  includedLogisticsMode?: "full_service" | "transport_only" | null;
+  includedLogisticsZoneId?: string | null;
 };
 
 export type RentalCartSnapshot = {

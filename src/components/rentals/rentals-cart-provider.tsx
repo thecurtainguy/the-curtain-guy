@@ -316,6 +316,7 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
       mode: snapshot.logisticsMode,
       zoneId: snapshot.deliveryZoneId,
       zones: deliveryZones,
+      lines,
     });
     // Only attach a priced or quote-only logistics line once a zone is chosen
     // (or DIY which returns null). Mode alone without zone = no line yet.

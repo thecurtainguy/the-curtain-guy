@@ -56,6 +56,10 @@ export type ProductRow = {
   formula_segment_feet?: number | null;
   full_service_product_id?: string | null;
   transport_only_product_id?: string | null;
+  /** Package: logistics mode prepaid in package price. */
+  included_logistics_mode?: "full_service" | "transport_only" | null;
+  /** Package: zone id prepaid in package price (usually montreal-island). */
+  included_logistics_zone_id?: string | null;
 };
 
 export const PRODUCT_KIND_LABELS: Record<ProductKind, string> = {

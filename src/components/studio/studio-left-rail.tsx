@@ -1,43 +1,40 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import type { StudioDesignJson } from "@/data/studio";
+import { findStudioItem } from "@/lib/studio-commands";
+import { cn } from "@/lib/utils";
 import {
-  STUDIO_OBJECT_OPTIONS,
-  createStudioItemId,
-  createStudioObject,
-  type DrapeRunType,
-  type StudioDesignJson,
-  type StudioObjectType,
-} from "@/data/studio";
-import {
-  getStudioBounds,
-  getWallSegments,
-} from "@/lib/studio-geometry";
-import {
-  STUDIO_TREATMENT_TOOLS,
-  createStudioTreatment,
-} from "@/lib/studio-treatments";
-import {
-  AppWindow,
-  Columns3,
-  Circle,
-  Disc3,
-  DoorOpen,
-  Flower2,
-  GalleryHorizontalEnd,
-  Grid2X2,
-  Lightbulb,
-  Martini,
-  Music2,
-  PanelsTopLeft,
-  RectangleHorizontal,
-  Sofa,
-  Sparkles,
-  SplitSquareHorizontal,
-  Table2,
-  Warehouse,
-  Waves,
+  Armchair,
+  Building2,
+  GalleryVerticalEnd,
+  LayoutGrid,
+  Ruler,
+  Search,
+  SearchX,
+  X,
+  type LucideIcon,
 } from "lucide-react";
+import { useOptionalStudioEditor } from "./editor/studio-editor-context";
+import {
+  DEFAULT_DRAPE_STYLE,
+  LibraryDraperyTab,
+  countDraperyMatches,
+  type StudioDrapeStyle,
+} from "./library/library-drapery-tab";
+import {
+  LibraryFurnitureTab,
+  countFurnitureMatches,
+} from "./library/library-furniture-tab";
+import {
+  LibraryLayoutsTab,
+  countLayoutMatches,
+} from "./library/library-layouts-tab";
+import { LibraryCard, LibrarySectionHeading } from "./library/studio-library-ui";
+import {
+  VenuePresetGrid,
+  filterVenuePresets,
+} from "./library/venue-preset-grid";
 import { RoomSetupPanel } from "./room-setup-panel";
 import type { StudioSelection } from "./studio-types";
 
@@ -49,43 +46,36 @@ type StudioLeftRailProps = {
   idPrefix: string;
 };
 
-const objectIcons: Partial<Record<StudioObjectType, typeof AppWindow>> = {
-  stage: Warehouse,
-  dance_floor: Disc3,
-  entrance_marker: DoorOpen,
-  round_table: Circle,
-  rectangle_table: Table2,
-  cocktail_table: Martini,
-  table_area: Grid2X2,
-  dj_booth: Music2,
-  bar: AppWindow,
-  lounge_area: Sofa,
-};
+type LibraryTab = "room" | "drapery" | "furniture" | "layouts";
 
-const objectDescriptions: Partial<Record<StudioObjectType, string>> = {
-  stage: "Raised platform",
-  dance_floor: "Nine finish presets",
-  entrance_marker: "Upright wayfinding",
-  round_table: "Circular guest table",
-  rectangle_table: "Banquet table",
-  cocktail_table: "High-top table",
-  table_area: "Flexible seating zone",
-  dj_booth: "Music station",
-  bar: "Service counter",
-  lounge_area: "Soft seating zone",
-};
+const TABS: Array<{ value: LibraryTab; label: string; icon: LucideIcon }> = [
+  { value: "room", label: "Room", icon: Ruler },
+  { value: "drapery", label: "Drapery", icon: GalleryVerticalEnd },
+  { value: "furniture", label: "Furniture", icon: Armchair },
+  { value: "layouts", label: "Layouts", icon: LayoutGrid },
+];
 
-const treatmentIcons: Record<string, typeof AppWindow> = {
-  full_backdrop: PanelsTopLeft,
-  side_tiebacks: Columns3,
-  entrance_reveal: DoorOpen,
-  top_swag: Waves,
-  ceremony_arch: Sparkles,
-  door_window_surround: AppWindow,
-  layered_swag: GalleryHorizontalEnd,
-  floral_header: Flower2,
-  uplights: Lightbulb,
-};
+function SearchGroup({
+  label,
+  count,
+  children,
+}: {
+  label: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  if (count === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="flex items-center gap-2 px-1 text-[0.6rem] font-semibold tracking-[0.2em] text-primary uppercase">
+        {label}
+        <span className="h-px flex-1 bg-border/50" />
+        <span className="text-muted-foreground tabular-nums">{count}</span>
+      </p>
+      {children}
+    </div>
+  );
+}
 
 export function StudioLeftRail({
   design,
@@ -94,259 +84,217 @@ export function StudioLeftRail({
   onSelect,
   idPrefix,
 }: StudioLeftRailProps) {
-  const walls = getWallSegments(design.room.floor);
-  const selectedWall =
-    selection?.kind === "wall" && walls[selection.index]
-      ? selection.index
-      : 0;
+  const editor = useOptionalStudioEditor();
+  const [tab, setTab] = useState<LibraryTab>("room");
+  const [query, setQuery] = useState("");
+  const [drapeStyle, setDrapeStyle] = useState<StudioDrapeStyle>(DEFAULT_DRAPE_STYLE);
+  const searching = query.trim().length > 0;
 
-  function addDrape(type: DrapeRunType) {
-    const wall = walls[selectedWall] ?? walls[0];
-    if (!wall) return;
-    const partial = type === "partial_drape" || type === "backdrop";
-    const startOffset = partial ? wall.length * 0.25 : 0;
-    const endOffset = partial ? wall.length * 0.75 : wall.length;
-    const id = createStudioItemId("drape");
-    onChange({
-      ...design,
-      drapeRuns: [
-        ...design.drapeRuns,
-        {
-          id,
-          type,
-          wallIndex: wall.index,
-          startOffset,
-          endOffset,
-          height: Math.min(design.room.wallHeight, 144),
-          fabric: "velvet",
-          color: "ivory",
-          fullness: 2,
-          label:
-            type === "wall_drape"
-              ? `Wall ${wall.index + 1} drape`
-              : type === "partial_drape"
-                ? "Partial wall drape"
-                : type === "backdrop"
-                  ? "Backdrop"
-                  : "Room divider",
-        },
-      ],
-    });
-    onSelect({ kind: "drape", id });
+  function selectMany(ids: string[]) {
+    if (ids.length === 0) return;
+    if (editor) {
+      editor.selectIds(ids);
+      return;
+    }
+    const last = ids[ids.length - 1];
+    const found = findStudioItem(design, last);
+    onSelect(found ? ({ kind: found.kind, id: last } as StudioSelection) : null);
   }
 
-  function addOpening() {
-    const wall = walls[selectedWall] ?? walls[0];
-    if (!wall) return;
-    const id = createStudioItemId("opening");
-    onChange({
-      ...design,
-      openings: [
-        ...design.openings,
-        {
-          id,
-          type: "door",
-          wallIndex: wall.index,
-          offset: Math.max(0, wall.length / 2 - 18),
-          width: Math.min(36, wall.length),
-          label: "Door",
-        },
-      ],
-    });
-    onSelect({ kind: "opening", id });
-  }
+  const fit = editor ? () => editor.sendCanvasCommand({ type: "fit" }) : undefined;
 
-  function addTreatment(preset: NonNullable<(typeof STUDIO_TREATMENT_TOOLS)[number]["preset"]>) {
-    const treatment = createStudioTreatment(design, selectedWall, preset);
-    if (!treatment) return;
-    onChange({
-      ...design,
-      treatments: [...design.treatments, treatment],
-    });
-    onSelect({ kind: "treatment", id: treatment.id });
-  }
-
-  function addObject(type: StudioObjectType) {
-    const bounds = getStudioBounds(design.room.floor);
-    const nextObject = createStudioObject(type, {
-      x: bounds.centerX,
-      z: bounds.centerZ,
-    });
-    onChange({
-      ...design,
-      objects: [...design.objects, nextObject],
-    });
-    onSelect({ kind: "object", id: nextObject.id });
-  }
-
-  return (
-    <aside className="h-full overflow-y-auto bg-card/35 p-4">
-      <RoomSetupPanel
-        design={design}
-        onChange={onChange}
-        idPrefix={`${idPrefix}-room`}
-      />
-
-      <div className="my-5 h-px bg-border/60" />
-
-      <section
-        className="space-y-3"
-        aria-labelledby={`${idPrefix}-draping-heading`}
-      >
-        <div>
-          <p className="text-[0.65rem] font-semibold tracking-[0.22em] text-primary uppercase">
-            Draping
-          </p>
-          <h2
-            id={`${idPrefix}-draping-heading`}
-            className="font-heading text-lg"
-          >
-            Add a treatment
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Select a wall first, or items will begin on Wall 1.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <ToolButton
-            icon={PanelsTopLeft}
-            label="Full wall"
-            onClick={() => addDrape("wall_drape")}
-          />
-          <ToolButton
-            icon={GalleryHorizontalEnd}
-            label="Partial wall"
-            onClick={() => addDrape("partial_drape")}
-          />
-          <ToolButton
-            icon={RectangleHorizontal}
-            label="Backdrop"
-            onClick={() => addDrape("backdrop")}
-          />
-          <ToolButton
-            icon={SplitSquareHorizontal}
-            label="Divider"
-            onClick={() => addDrape("divider")}
-          />
-          <ToolButton icon={DoorOpen} label="Door marker" onClick={addOpening} />
-        </div>
-      </section>
-
-      <div className="my-5 h-px bg-border/60" />
-
-      <section
-        className="space-y-3"
-        aria-labelledby={`${idPrefix}-treatments-heading`}
-      >
-        <div>
-          <p className="text-[0.65rem] font-semibold tracking-[0.22em] text-primary uppercase">
-            Drape Treatments
-          </p>
-          <h2
-            id={`${idPrefix}-treatments-heading`}
-            className="font-heading text-lg"
-          >
-            Classic arrangements
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Build a composed luxury look on the selected wall.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          {STUDIO_TREATMENT_TOOLS.map((tool) => (
-            <ToolButton
-              key={tool.key}
-              icon={treatmentIcons[tool.key] ?? Sparkles}
-              label={tool.label}
-              description={tool.description}
-              layout="row"
-              disabled={!tool.preset}
-              onClick={() => {
-                if (tool.preset) addTreatment(tool.preset);
-              }}
-            />
-          ))}
-        </div>
-      </section>
-
-      <div className="my-5 h-px bg-border/60" />
-
-      <section
-        className="space-y-3"
-        aria-labelledby={`${idPrefix}-objects-heading`}
-      >
-        <div>
-          <p className="text-[0.65rem] font-semibold tracking-[0.22em] text-primary uppercase">
-            Layout
-          </p>
-          <h2
-            id={`${idPrefix}-objects-heading`}
-            className="font-heading text-lg"
-          >
-            Event object library
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Place furniture, production, and guest-flow zones, then refine them
-            in the inspector.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          {STUDIO_OBJECT_OPTIONS.map((option) => (
-            <ToolButton
-              key={option.type}
-              icon={objectIcons[option.type] ?? Sparkles}
-              label={option.label}
-              description={objectDescriptions[option.type] ?? option.description}
-              layout="row"
-              onClick={() => addObject(option.type)}
-            />
-          ))}
-        </div>
-      </section>
-    </aside>
-  );
-}
-
-function ToolButton({
-  icon: Icon,
-  label,
-  description,
-  layout = "tile",
-  disabled = false,
-  onClick,
-}: {
-  icon: typeof AppWindow;
-  label: string;
-  description?: string;
-  layout?: "tile" | "row";
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={onClick}
-      disabled={disabled}
-      className={
-        layout === "row"
-          ? "group h-auto w-full min-w-0 items-center justify-start gap-3 rounded-2xl border-border/50 bg-background/35 px-3 py-2.5 text-left text-xs hover:border-primary/35 hover:bg-primary/5 disabled:border-border/30 disabled:bg-background/20 disabled:opacity-55"
-          : "group h-auto min-w-0 items-start justify-start gap-2 rounded-2xl border-border/50 bg-background/35 px-3 py-3 text-left text-xs hover:border-primary/35 hover:bg-primary/5"
+  const counts = searching
+    ? {
+        room: filterVenuePresets(query).length,
+        drapery: countDraperyMatches(query),
+        furniture: countFurnitureMatches(query),
+        layouts: countLayoutMatches(query),
       }
-    >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
-        <Icon className="size-4" aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold whitespace-normal text-foreground">
-          {label}
-        </span>
-        {description ? (
-          <span className="mt-0.5 block text-[0.62rem] leading-tight font-normal text-muted-foreground">
-            {description}
-          </span>
-        ) : null}
-      </span>
-    </Button>
+    : null;
+  const total = counts
+    ? counts.room + counts.drapery + counts.furniture + counts.layouts
+    : 0;
+
+  const drapery = (
+    <LibraryDraperyTab
+      design={design}
+      onChange={onChange}
+      selection={selection}
+      onSelect={onSelect}
+      onSelectMany={selectMany}
+      style={drapeStyle}
+      onStyleChange={setDrapeStyle}
+      query={query}
+      idPrefix={`${idPrefix}-drapery`}
+    />
+  );
+  const furniture = (
+    <LibraryFurnitureTab
+      design={design}
+      onChange={onChange}
+      onSelect={onSelect}
+      query={query}
+      idPrefix={`${idPrefix}-furniture`}
+    />
+  );
+  const layouts = (
+    <LibraryLayoutsTab
+      design={design}
+      onChange={onChange}
+      onSelectMany={selectMany}
+      onFit={fit}
+      query={query}
+      idPrefix={`${idPrefix}-layouts`}
+    />
+  );
+
+  return (
+    <aside className="flex h-full min-h-0 flex-col bg-card/35">
+      <div className="relative shrink-0 overflow-hidden border-b border-border/40 bg-gradient-to-br from-primary/10 via-card/60 to-card/30 px-3 pt-3 pb-2.5 backdrop-blur-sm">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_0%_0%,color-mix(in_oklch,var(--primary)_16%,transparent),transparent_60%)]"
+          aria-hidden
+        />
+        <div className="relative space-y-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-xl border border-primary/25 bg-primary/15 text-primary">
+              <Building2 className="size-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[0.58rem] font-semibold tracking-[0.22em] text-primary uppercase">
+                Studio library
+              </p>
+              <h2 className="font-heading text-base leading-tight">
+                Build the room
+              </h2>
+            </div>
+          </div>
+
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setQuery("");
+              }}
+              placeholder="Search tables, drapes, venues…"
+              aria-label="Search the studio library"
+              className="h-8 w-full rounded-xl border border-border/50 bg-background/55 pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring/30 [&::-webkit-search-cancel-button]:hidden"
+            />
+            {searching ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              >
+                <X className="size-3" aria-hidden />
+              </button>
+            ) : null}
+          </div>
+
+          {!searching ? (
+            <div
+              className="grid grid-cols-4 gap-1 rounded-xl border border-border/40 bg-background/40 p-1"
+              role="tablist"
+              aria-label="Library sections"
+            >
+              {TABS.map((item) => {
+                const active = tab === item.value;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    role="tab"
+                    id={`${idPrefix}-tab-${item.value}`}
+                    aria-selected={active}
+                    aria-controls={`${idPrefix}-panel`}
+                    onClick={() => setTab(item.value)}
+                    className={cn(
+                      "flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[0.6rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                      active
+                        ? "bg-primary/15 text-foreground shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/30%)]"
+                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                    )}
+                  >
+                    <Icon
+                      className={cn("size-3.5", active ? "text-primary" : "")}
+                      aria-hidden
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[0.62rem] text-muted-foreground" role="status">
+              {total} result{total === 1 ? "" : "s"} for “{query.trim()}”
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div
+        id={`${idPrefix}-panel`}
+        role={searching ? "region" : "tabpanel"}
+        aria-labelledby={searching ? undefined : `${idPrefix}-tab-${tab}`}
+        aria-label={searching ? "Search results" : undefined}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3"
+      >
+        {searching && counts ? (
+          total === 0 ? (
+            <LibraryCard className="text-center">
+              <span className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <SearchX className="size-5" aria-hidden />
+              </span>
+              <p className="font-heading text-sm">Nothing matches</p>
+              <p className="text-[0.66rem] text-muted-foreground">
+                Try “round”, “velvet”, “stage” or “ballroom”.
+              </p>
+            </LibraryCard>
+          ) : (
+            <div className="space-y-4">
+              <SearchGroup label="Venues" count={counts.room}>
+                <LibraryCard>
+                  <LibrarySectionHeading
+                    icon={Building2}
+                    eyebrow="Room"
+                    title="Venue presets"
+                  />
+                  <VenuePresetGrid design={design} onChange={onChange} query={query} />
+                </LibraryCard>
+              </SearchGroup>
+              <SearchGroup label="Drapery" count={counts.drapery}>
+                {drapery}
+              </SearchGroup>
+              <SearchGroup label="Furniture" count={counts.furniture}>
+                {furniture}
+              </SearchGroup>
+              <SearchGroup label="Layouts" count={counts.layouts}>
+                {layouts}
+              </SearchGroup>
+            </div>
+          )
+        ) : tab === "room" ? (
+          <RoomSetupPanel
+            design={design}
+            onChange={onChange}
+            idPrefix={`${idPrefix}-room`}
+          />
+        ) : tab === "drapery" ? (
+          drapery
+        ) : tab === "furniture" ? (
+          furniture
+        ) : (
+          layouts
+        )}
+      </div>
+    </aside>
   );
 }

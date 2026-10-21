@@ -2,50 +2,110 @@
 
 import type {
   StudioDesignJson,
+  StudioLightingMood,
+  StudioWallDisplay,
   StudioWallFinish,
 } from "@/data/studio";
-import {
-  clampOpeningToWall,
-  getPointAlongWall,
-  getWallSegments,
-  type StudioBounds,
-  type StudioWallSegment,
-} from "@/lib/studio-geometry";
+import type { StudioBounds } from "@/lib/studio-geometry";
 import { Edges } from "@react-three/drei";
-import { Fragment, useMemo } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { StudioSelection } from "../studio-types";
-import { WALL_FINISHES } from "./scene-finishes";
+import {
+  WALL_FINISHES,
+  getWallTextures,
+  type VenueQuality,
+} from "./scene-finishes";
+import {
+  CUTAWAY_WALL_HEIGHT_IN,
+  LOW_WALL_HEIGHT_IN,
+  getCutawayWalls,
+  setCutawayWalls,
+  useCutawayWalls,
+} from "./venue/cutaway-store";
+import { getVenueEnvironment } from "./venue/environment";
+import {
+  VenueOpening,
+  daylightToneFor,
+  useOpeningMaterials,
+} from "./venue/openings";
+import { VenueTrim, type TrimWall } from "./venue/trim";
+import { applyWallShading } from "./venue/wall-shading";
+import {
+  SCALE,
+  WALL_THICKNESS_IN,
+  buildWallGeometry,
+  computeWallPieces,
+  getOpeningSpan,
+  getWallFrames,
+  type OpeningSpan,
+} from "./venue/wall-geometry";
 
-const SCALE = 1 / 12;
-const WALL_THICKNESS = 0.16;
+const SELF_FINISHED: StudioWallFinish[] = ["exposed_brick", "wood_panel", "tent_canvas", "black_box"];
 
-type WallPiece = {
-  start: number;
-  end: number;
-};
-
-function getSolidPieces(
-  wall: StudioWallSegment,
-  design: StudioDesignJson
-): WallPiece[] {
-  const openings = design.openings
-    .filter((opening) => opening.wallIndex === wall.index)
-    .map((opening) => clampOpeningToWall(opening, design.room.floor))
-    .map((opening) => ({
-      start: opening.offset,
-      end: opening.offset + opening.width,
-    }))
-    .sort((a, b) => a.start - b.start);
-
-  const pieces: WallPiece[] = [];
-  let cursor = 0;
-  for (const opening of openings) {
-    if (opening.start > cursor) pieces.push({ start: cursor, end: opening.start });
-    cursor = Math.max(cursor, opening.end);
-  }
-  if (cursor < wall.length) pieces.push({ start: cursor, end: wall.length });
-  return pieces;
+function useWallMaterials(
+  finish: StudioWallFinish,
+  quality: VenueQuality,
+  glass: boolean,
+  envMap: THREE.Texture,
+  topFt: number
+): THREE.Material[] {
+  const materials = useMemo(() => {
+    const appearance = WALL_FINISHES[finish];
+    if (glass) {
+      const pane = new THREE.MeshPhysicalMaterial({
+        color: "#e3ecef",
+        roughness: 0.05,
+        metalness: 0,
+        transparent: true,
+        opacity: 0.13,
+        envMap,
+        envMapIntensity: 1,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const cap = new THREE.MeshStandardMaterial({
+        color: appearance.cap,
+        roughness: 0.5,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+      });
+      return [pane, pane, cap];
+    }
+    const textures = getWallTextures(finish, quality);
+    const normalScale = new THREE.Vector2(appearance.normalScale, appearance.normalScale);
+    const interior = applyWallShading(
+      appearance.sheen
+        ? new THREE.MeshPhysicalMaterial({
+            ...textures,
+            normalScale,
+            roughness: 1,
+            sheen: appearance.sheen,
+            sheenColor: new THREE.Color("#fff7e8"),
+            sheenRoughness: 0.7,
+          })
+        : new THREE.MeshStandardMaterial({ ...textures, normalScale, roughness: 1 }),
+      { topFt, strength: 1 }
+    );
+    const exterior = applyWallShading(
+      new THREE.MeshStandardMaterial({
+        ...textures,
+        normalScale,
+        roughness: 1,
+        color: SELF_FINISHED.includes(finish) ? "#e6e2dc" : "#d6d0c6",
+      }),
+      { topFt, strength: 0.35 }
+    );
+    const cap = new THREE.MeshStandardMaterial({ color: appearance.cap, roughness: 0.75 });
+    return [interior, exterior, cap];
+  }, [finish, quality, glass, envMap, topFt]);
+  useEffect(
+    () => () => new Set(materials).forEach((m) => m.dispose()),
+    [materials]
+  );
+  return materials;
 }
 
 export function StudioWalls({
@@ -53,171 +113,203 @@ export function StudioWalls({
   bounds,
   selection,
   onSelect,
-  transparent,
+  display,
   finish,
+  lighting,
+  quality = "high",
+  showOpenings = true,
+  selectedIds,
+  hoveredId,
+  onHoverOpening,
+  cameraInside = false,
 }: {
   design: StudioDesignJson;
   bounds: StudioBounds;
   selection: StudioSelection;
   onSelect: (selection: StudioSelection) => void;
-  transparent: boolean;
+  display: StudioWallDisplay;
   finish: StudioWallFinish;
+  lighting: StudioLightingMood;
+  quality?: VenueQuality;
+  showOpenings?: boolean;
+  selectedIds?: string[];
+  hoveredId?: string | null;
+  onHoverOpening?: (id: string | null) => void;
+  /** Camera stands inside the room (see `useCameraInsideRoom`). */
+  cameraInside?: boolean;
 }) {
-  const walls = useMemo(
-    () => getWallSegments(design.room.floor),
-    [design.room.floor]
-  );
-  const height = design.room.wallHeight * SCALE;
+  const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+  const envMap = useMemo(() => getVenueEnvironment(gl), [gl]);
+  const floor = design.room.floor;
+  const fullTop = design.room.wallHeight;
+  const glass = display === "glass";
   const appearance = WALL_FINISHES[finish];
-  const seamColor = finish === "black_box" ? "#5f5548" : "#8d7d69";
+
+  const frames = useMemo(() => getWallFrames(floor), [floor]);
+
+  const spansByWall = useMemo(() => {
+    const map = new Map<number, OpeningSpan[]>();
+    if (!showOpenings) return map;
+    for (const opening of design.openings) {
+      if (opening.hidden || !frames[opening.wallIndex]) continue;
+      const list = map.get(opening.wallIndex) ?? [];
+      list.push(getOpeningSpan(opening, floor, fullTop));
+      map.set(opening.wallIndex, list);
+    }
+    return map;
+  }, [design.openings, frames, floor, fullTop, showOpenings]);
+
+  const storeCut = useCutawayWalls();
+  const cutKey = display === "cutaway" ? storeCut.join(",") : "";
+
+  useFrame(({ camera }) => {
+    if (display !== "cutaway") return;
+    const previous = getCutawayWalls();
+    const next: number[] = [];
+    for (const frame of frames) {
+      const cx = (frame.center.x - bounds.centerX) * SCALE;
+      const cz = (frame.center.z - bounds.centerZ) * SCALE;
+      const facing =
+        (camera.position.x - cx) * -frame.inward.x +
+        (camera.position.z - cz) * -frame.inward.z;
+      const wasCut = previous.includes(frame.index);
+      if (wasCut ? facing > -0.25 : facing > 0.5) next.push(frame.index);
+    }
+    setCutawayWalls(next);
+  });
+
+  useEffect(() => {
+    if (display !== "cutaway") return;
+    return () => setCutawayWalls([]);
+  }, [display]);
+
+  useEffect(() => {
+    invalidate();
+  }, [cutKey, invalidate]);
+
+  const walls = useMemo(() => {
+    const cut = new Set(cutKey ? cutKey.split(",").map(Number) : []);
+    return frames.map((frame) => {
+      const top =
+        display === "low"
+          ? Math.min(fullTop, LOW_WALL_HEIGHT_IN)
+          : cut.has(frame.index)
+            ? Math.min(fullTop, CUTAWAY_WALL_HEIGHT_IN)
+            : fullTop;
+      const spans = spansByWall.get(frame.index) ?? [];
+      const pieces = computeWallPieces(frame.length, top, spans);
+      const geometry = buildWallGeometry(frame, pieces, bounds);
+      return {
+        frame,
+        top,
+        spans,
+        pieces,
+        lowered: top < fullTop - 0.01,
+        geometry,
+        edges: display === "glass" ? new THREE.EdgesGeometry(geometry, 25) : null,
+      };
+    });
+  }, [frames, display, cutKey, fullTop, spansByWall, bounds]);
+
+  useEffect(
+    () => () =>
+      walls.forEach((wall) => {
+        wall.geometry.dispose();
+        wall.edges?.dispose();
+      }),
+    [walls]
+  );
+
+  const trimWalls = useMemo<TrimWall[]>(
+    () =>
+      walls.map(({ frame, pieces, top, lowered }) => ({ frame, pieces, top, lowered })),
+    [walls]
+  );
+
+  const wallMaterials = useWallMaterials(finish, quality, glass, envMap, fullTop * SCALE);
+  const openingMaterials = useOpeningMaterials(appearance, envMap, daylightToneFor(lighting));
+  const selectedOpenings = useMemo(() => {
+    const ids = new Set(selectedIds ?? []);
+    if (selection?.kind === "opening") ids.add(selection.id);
+    return ids;
+  }, [selectedIds, selection]);
 
   return (
-    <group key={transparent ? "glass-walls" : "solid-walls"}>
-      {walls.map((wall) => {
-        const selected =
-          selection?.kind === "wall" && selection.index === wall.index;
-        const pieces = getSolidPieces(wall, design);
+    <group>
+      {walls.map(({ frame, geometry, edges }) => {
+        const selected = selection?.kind === "wall" && selection.index === frame.index;
         return (
-          <Fragment key={wall.index}>
-            {pieces.map((piece, pieceIndex) => {
-              const length = Math.max(0.02, (piece.end - piece.start) * SCALE);
-              const center = getPointAlongWall(
-                wall,
-                (piece.start + piece.end) / 2
-              );
-              return (
-                <Fragment key={`${wall.index}-${pieceIndex}`}>
-                  <mesh
-                    position={[
-                      (center.x - bounds.centerX) * SCALE,
-                      height / 2,
-                      (center.z - bounds.centerZ) * SCALE,
-                    ]}
-                    rotation={[0, -wall.angle, 0]}
-                    receiveShadow
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onSelect({ kind: "wall", index: wall.index });
-                    }}
-                  >
-                    <boxGeometry args={[length, height, WALL_THICKNESS]} />
-                    {selected ? (
-                      <>
-                        <mesh
-                          scale={[1.008, 1.006, 1.08]}
-                          renderOrder={20}
-                        >
-                          <boxGeometry
-                            args={[length, height, WALL_THICKNESS]}
-                          />
-                          <meshBasicMaterial
-                            color="#e8bd55"
-                            side={THREE.DoubleSide}
-                            transparent
-                            opacity={transparent ? 0.32 : 0.2}
-                            depthTest={false}
-                            depthWrite={false}
-                            toneMapped={false}
-                          />
-                          <Edges
-                            threshold={15}
-                            color="#ffe09a"
-                            lineWidth={2.2}
-                            depthTest={false}
-                            renderOrder={21}
-                          />
-                        </mesh>
-                      </>
-                    ) : null}
-                    <meshStandardMaterial
-                      color={appearance.color}
-                      roughness={appearance.roughness}
-                      metalness={0}
-                      emissive={selected ? "#3c2b0b" : "#000000"}
-                      emissiveIntensity={selected ? 0.08 : 0}
-                      transparent={transparent}
-                      opacity={transparent ? 0.18 : 0.94}
-                      depthWrite={!transparent}
-                    />
-                  </mesh>
-                  <mesh
-                    position={[
-                      (center.x - bounds.centerX) * SCALE,
-                      0.045,
-                      (center.z - bounds.centerZ) * SCALE,
-                    ]}
-                    rotation={[0, -wall.angle, 0]}
-                    receiveShadow
-                  >
-                    <boxGeometry
-                      args={[length, 0.09, WALL_THICKNESS + 0.075]}
-                    />
-                    <meshStandardMaterial
-                      color={seamColor}
-                      roughness={0.72}
-                      metalness={0.04}
-                      transparent={transparent}
-                      opacity={transparent ? 0.42 : 0.72}
-                    />
-                  </mesh>
-                </Fragment>
-              );
-            })}
-            {design.openings
-              .filter((opening) => opening.wallIndex === wall.index)
-              .map((opening) => {
-                const safeOpening = clampOpeningToWall(
-                  opening,
-                  design.room.floor
-                );
-                const center = getPointAlongWall(
-                  wall,
-                  safeOpening.offset + safeOpening.width / 2
-                );
-                const openingWidth = safeOpening.width * SCALE;
-                const markerHeight = Math.min(7, height);
-                const lintelHeight = Math.max(0.08, height - markerHeight);
-                return (
-                  <group
-                    key={opening.id}
-                    position={[
-                      (center.x - bounds.centerX) * SCALE,
-                      0,
-                      (center.z - bounds.centerZ) * SCALE,
-                    ]}
-                    rotation={[0, -wall.angle, 0]}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onSelect({ kind: "opening", id: opening.id });
-                    }}
-                  >
-                    <mesh
-                      position={[0, markerHeight + lintelHeight / 2, 0]}
-                    >
-                      <boxGeometry
-                        args={[
-                          openingWidth,
-                          lintelHeight,
-                          WALL_THICKNESS,
-                        ]}
-                      />
-                      <meshStandardMaterial
-                        color={appearance.color}
-                        roughness={appearance.roughness}
-                        transparent={transparent}
-                        opacity={transparent ? 0.25 : 0.94}
-                      />
-                    </mesh>
-                    <mesh position={[0, 0.06, 0]}>
-                      <boxGeometry args={[openingWidth, 0.12, 0.34]} />
-                      <meshStandardMaterial color="#d4af55" roughness={0.65} />
-                    </mesh>
-                  </group>
-                );
-              })}
-          </Fragment>
+          <mesh
+            key={frame.index}
+            geometry={geometry}
+            material={wallMaterials}
+            receiveShadow
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect({ kind: "wall", index: frame.index });
+            }}
+          >
+            {edges ? (
+              <lineSegments geometry={edges} raycast={() => null}>
+                <lineBasicMaterial color="#f1e2bb" transparent opacity={0.55} />
+              </lineSegments>
+            ) : null}
+            {selected ? (
+              <mesh geometry={geometry} renderOrder={20} raycast={() => null}>
+                <meshBasicMaterial
+                  color="#e8bd55"
+                  side={THREE.DoubleSide}
+                  transparent
+                  opacity={glass ? 0.3 : 0.18}
+                  depthTest={false}
+                  depthWrite={false}
+                  toneMapped={false}
+                />
+                <Edges
+                  threshold={20}
+                  color="#ffe09a"
+                  lineWidth={2.2}
+                  depthTest={false}
+                  renderOrder={21}
+                />
+              </mesh>
+            ) : null}
+          </mesh>
         );
       })}
+      <VenueTrim
+        walls={trimWalls}
+        fullTop={fullTop}
+        appearance={appearance}
+        bounds={bounds}
+        glass={glass}
+      />
+      {walls.map(({ frame, spans, top }) =>
+        spans.map((span) => (
+          <VenueOpening
+            key={span.opening.id}
+            span={span}
+            frame={frame}
+            bounds={bounds}
+            wallTopIn={top}
+            thicknessIn={WALL_THICKNESS_IN}
+            detailed={quality !== "draft"}
+            materials={openingMaterials}
+            wallMaterials={wallMaterials}
+            highlight={
+              selectedOpenings.has(span.opening.id)
+                ? "selected"
+                : hoveredId === span.opening.id
+                  ? "hovered"
+                  : null
+            }
+            inside={cameraInside}
+            onSelect={onSelect}
+            onHover={onHoverOpening}
+          />
+        ))
+      )}
     </group>
   );
 }

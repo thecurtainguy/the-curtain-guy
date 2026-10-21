@@ -1,10 +1,11 @@
 "use client";
 
-import {
-  getDrapeColorHex,
-  type DrapeFabric,
-  type StudioDesignJson,
-  type StudioTreatment,
+import type {
+  DrapeColor,
+  DrapeFabric,
+  DrapeHardware,
+  StudioDesignJson,
+  StudioTreatment,
 } from "@/data/studio";
 import {
   getPointAlongWall,
@@ -12,272 +13,800 @@ import {
   type StudioBounds,
   type StudioWallSegment,
 } from "@/lib/studio-geometry";
-import { useEffect, useMemo } from "react";
-import * as THREE from "three";
+import { useMemo } from "react";
 import type { StudioSelection } from "../studio-types";
+import {
+  assemblyFrontZ,
+  DrapeAssembly,
+  FabricMesh,
+  interiorSign,
+  SelectionFloorLine,
+  useFabricEditorState,
+  useFabricLayerVisible,
+  wallStandoff,
+  type FabricHighlight,
+} from "./fabric/drape-assembly";
+import { FloralArrangement } from "./fabric/florals";
+import {
+  bayBreaks,
+  clampTieY,
+  createJabotGeometry,
+  createPleatedPanelGeometry,
+  createSwagGeometry,
+  foldDepth,
+  pocketFrontZ,
+  pocketTopY,
+  tieBundleDepth,
+  tieBundleWidth,
+  tiebackAnchorX,
+  type JabotOptions,
+  type PleatedPanelOptions,
+  type SwagOptions,
+} from "./fabric/geometry";
+import {
+  ArchFrame,
+  CeilingTrack,
+  CROSSBAR_RADIUS,
+  DecorativeRod,
+  PipeAndDrapeHardware,
+  UplightRow,
+  uplightPositions,
+  useDisposeGeometry,
+} from "./fabric/hardware";
+import {
+  getFabricMaterial,
+  type FabricQuality,
+} from "./fabric/materials";
+import { hashSeed } from "./texture-utils";
 
 const SCALE = 1 / 12;
-const PANEL_DEPTH = 0.52;
+const ARCH_TUBE_RADIUS = 0.075;
 
-function createPanelGeometry({
-  width,
-  height,
-  fullness,
-  pinchSide = 0,
-  tiebackHeight = 0,
-  depth = PANEL_DEPTH,
-}: {
-  width: number;
-  height: number;
-  fullness: number;
-  pinchSide?: -1 | 0 | 1;
-  tiebackHeight?: number;
-  depth?: number;
-}) {
-  const horizontalSteps = Math.min(
-    48,
-    Math.max(8, Math.round(width * fullness * 2.2))
-  );
-  const verticalSteps = pinchSide === 0 ? 8 : 12;
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  const foldCount = Math.min(18, Math.max(3, Math.round(width * fullness)));
-  const tieY = Math.min(height, Math.max(0, tiebackHeight));
-
-  for (let row = 0; row <= verticalSteps; row += 1) {
-    const yProgress = row / verticalSteps;
-    const y = yProgress * height;
-    const tieDistance = height > 0 ? Math.abs(y - tieY) / height : 1;
-    const pinch = pinchSide === 0 ? 0 : Math.exp(-tieDistance * tieDistance * 42);
-    const widthScale = 1 - pinch * 0.48;
-    const centerShift = pinchSide * pinch * width * 0.24;
-    for (let column = 0; column <= horizontalSteps; column += 1) {
-      const progress = column / horizontalSteps;
-      const phase = progress * Math.PI * 2 * foldCount;
-      const x =
-        (progress - 0.5) * width * widthScale +
-        centerShift;
-      const fold =
-        Math.sin(phase) *
-        Math.min(0.2, 0.075 + fullness * 0.035) *
-        (0.82 + yProgress * 0.18);
-      positions.push(x, 0.018 + y, depth + fold);
-      uvs.push(progress, yProgress);
-    }
-  }
-
-  const rowLength = horizontalSteps + 1;
-  for (let row = 0; row < verticalSteps; row += 1) {
-    for (let column = 0; column < horizontalSteps; column += 1) {
-      const a = row * rowLength + column;
-      const b = a + 1;
-      const c = a + rowLength;
-      const d = c + 1;
-      indices.push(a, b, c, b, d, c);
-    }
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3)
-  );
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingSphere();
-  return geometry;
-}
-
-function createSwagGeometry(width: number, drop: number, depth = 0.82) {
-  const steps = 28;
-  const verticalSteps = 5;
-  const fabricDepth = Math.min(1.85, Math.max(0.95, drop * 0.82));
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-  for (let index = 0; index <= steps; index += 1) {
-    const progress = index / steps;
-    const x = -width / 2 + progress * width;
-    const hang = Math.sin(progress * Math.PI);
-    const topCurve = hang * drop * 0.12;
-    const edgeTaper = 0.14 + hang * 0.86;
-    for (let row = 0; row <= verticalSteps; row += 1) {
-      const verticalProgress = row / verticalSteps;
-      const pleat =
-        Math.sin(progress * Math.PI * 12) *
-        0.085 *
-        hang *
-        (0.25 + verticalProgress * 0.75);
-      positions.push(
-        x,
-        -topCurve -
-          fabricDepth * edgeTaper * verticalProgress -
-          Math.sin(progress * Math.PI * 8) *
-            0.025 *
-            hang *
-            verticalProgress,
-        depth +
-          pleat +
-          Math.sin(verticalProgress * Math.PI) * 0.075 +
-          verticalProgress * 0.035
-      );
-      uvs.push(progress, 1 - verticalProgress);
-    }
-  }
-  const rowLength = verticalSteps + 1;
-  for (let index = 0; index < steps; index += 1) {
-    for (let row = 0; row < verticalSteps; row += 1) {
-      const a = index * rowLength + row;
-      const b = a + 1;
-      const c = a + rowLength;
-      const d = c + 1;
-      indices.push(a, b, c, b, d, c);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(positions, 3)
-  );
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingSphere();
-  return geometry;
-}
-
-function FabricMaterial({
-  color,
-  fabric,
-}: {
-  color: string;
+type Look = {
   fabric: DrapeFabric;
+  glow: DrapeColor | null;
+  highlight: FabricHighlight;
+  quality: FabricQuality;
+};
+
+function PanelMesh({
+  options,
+  color,
+  look,
+}: {
+  options: Omit<PleatedPanelOptions, "quality">;
+  color: DrapeColor;
+  look: Look;
 }) {
-  const sheer = fabric === "sheer";
-  const velvet = fabric === "velvet" || fabric === "velour";
+  const key = JSON.stringify(options);
+  const geometry = useMemo(
+    () =>
+      createPleatedPanelGeometry({
+        ...(JSON.parse(key) as PleatedPanelOptions),
+        quality: look.quality,
+      }),
+    [key, look.quality]
+  );
+  useDisposeGeometry(geometry);
   return (
-    <meshPhysicalMaterial
-      color={color}
-      roughness={velvet ? 0.88 : sheer ? 0.62 : 0.74}
-      metalness={0}
-      sheen={velvet ? 0.76 : 0.5}
-      sheenRoughness={0.76}
-      sheenColor={color}
-      transparent={sheer}
-      opacity={sheer ? 0.48 : 1}
-      depthWrite={!sheer}
-      side={THREE.DoubleSide}
-      forceSinglePass={sheer}
+    <FabricMesh
+      geometry={geometry}
+      material={getFabricMaterial(look.fabric, color, look.glow)}
+      highlight={look.highlight}
     />
   );
 }
 
-function FabricPanel({
-  width,
-  height,
-  fullness,
+function SwagMesh({
+  options,
   color,
-  fabric,
+  look,
   position,
-  pinchSide = 0,
-  tiebackHeight = 0,
-  depth,
 }: {
-  width: number;
-  height: number;
-  fullness: number;
-  color: string;
-  fabric: DrapeFabric;
-  position?: [number, number, number];
-  pinchSide?: -1 | 0 | 1;
-  tiebackHeight?: number;
-  depth?: number;
+  options: Omit<SwagOptions, "quality">;
+  color: DrapeColor;
+  look: Look;
+  position: [number, number, number];
 }) {
+  const key = JSON.stringify(options);
   const geometry = useMemo(
     () =>
-      createPanelGeometry({
-        width,
-        height,
-        fullness,
-        pinchSide,
-        tiebackHeight,
-        depth,
+      createSwagGeometry({
+        ...(JSON.parse(key) as SwagOptions),
+        quality: look.quality,
       }),
-    [depth, fullness, height, pinchSide, tiebackHeight, width]
+    [key, look.quality]
   );
-  useEffect(() => () => geometry.dispose(), [geometry]);
+  useDisposeGeometry(geometry);
   return (
-    <mesh geometry={geometry} position={position} castShadow receiveShadow>
-      <FabricMaterial color={color} fabric={fabric} />
-    </mesh>
+    <FabricMesh
+      geometry={geometry}
+      material={getFabricMaterial(look.fabric, color, look.glow)}
+      highlight={look.highlight}
+      position={position}
+    />
   );
 }
 
-function SwagBand({
-  width,
-  drop,
-  height,
+function JabotMesh({
+  options,
   color,
-  fabric,
+  look,
+  position,
+}: {
+  options: Omit<JabotOptions, "quality">;
+  color: DrapeColor;
+  look: Look;
+  position: [number, number, number];
+}) {
+  const key = JSON.stringify(options);
+  const geometry = useMemo(
+    () =>
+      createJabotGeometry({
+        ...(JSON.parse(key) as JabotOptions),
+        quality: look.quality,
+      }),
+    [key, look.quality]
+  );
+  useDisposeGeometry(geometry);
+  return (
+    <FabricMesh
+      geometry={geometry}
+      material={getFabricMaterial(look.fabric, color, look.glow)}
+      highlight={look.highlight}
+      position={position}
+    />
+  );
+}
+
+/** Row of overlapping swag scallops with rosettes at each gather point. */
+function SwagRow({
+  width,
+  count,
+  drop,
+  y,
+  z,
+  color,
+  rosetteColor,
+  look,
+  seed,
+  overlap = 1.06,
+  topSag = 0.06,
 }: {
   width: number;
+  count: number;
   drop: number;
-  height: number;
-  color: string;
-  fabric: DrapeFabric;
+  y: number;
+  z: number;
+  color: DrapeColor;
+  rosetteColor: DrapeColor;
+  look: Look;
+  seed: number;
+  overlap?: number;
+  topSag?: number;
 }) {
-  const geometry = useMemo(
-    () => createSwagGeometry(width, drop),
-    [drop, width]
-  );
-  useEffect(() => () => geometry.dispose(), [geometry]);
+  const n = Math.max(1, Math.min(8, Math.round(count)));
+  const scallop = width / n;
+  const rosette = getFabricMaterial("satin", rosetteColor);
   return (
-    <mesh geometry={geometry} position={[0, height, 0]} castShadow>
-      <FabricMaterial color={color} fabric={fabric} />
-    </mesh>
+    <group>
+      {Array.from({ length: n }, (_, index) => (
+        <SwagMesh
+          key={index}
+          options={{
+            width: scallop * overlap,
+            drop,
+            seed: seed + index * 131,
+            topSag,
+          }}
+          color={color}
+          look={look}
+          position={[-width / 2 + (index + 0.5) * scallop, y, z + (index % 2) * 0.012]}
+        />
+      ))}
+      {Array.from({ length: n + 1 }, (_, index) => (
+        <mesh
+          key={`rosette-${index}`}
+          position={[-width / 2 + index * scallop, y - 0.04, z + 0.12]}
+          scale={[1, 1, 0.6]}
+          material={rosette}
+          castShadow
+        >
+          <torusKnotGeometry args={[0.1, 0.045, 48, 8, 2, 5]} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
-function frameColor(finish: StudioTreatment["frameFinish"]) {
-  if (finish === "gold") return "#b98b3d";
-  if (finish === "black") return "#211f1c";
-  if (finish === "white") return "#ece8df";
-  return "#7d5534";
+/** Fabric band cinched around a tieback bundle, with a hanging tassel. */
+function TieBand({
+  x,
+  y,
+  z,
+  bundle,
+  depth,
+  color,
+}: {
+  x: number;
+  y: number;
+  z: number;
+  bundle: number;
+  depth: number;
+  color: DrapeColor;
+}) {
+  const radius = bundle * 0.56 + 0.03;
+  const material = getFabricMaterial("satin", color);
+  return (
+    <group position={[x, y, z]}>
+      <mesh
+        rotation={[Math.PI / 2, 0, 0]}
+        scale={[1, Math.max(0.5, (depth + 0.05) / radius), 1]}
+        material={material}
+        castShadow
+      >
+        <torusGeometry args={[radius, 0.042, 10, 28]} />
+      </mesh>
+      <group position={[0, -0.05, depth + 0.07]}>
+        <mesh material={material} castShadow>
+          <sphereGeometry args={[0.06, 14, 10]} />
+        </mesh>
+        <mesh position={[0, -0.24, 0]} material={material} castShadow>
+          <coneGeometry args={[0.075, 0.38, 14, 1, true]} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+type HeaderHardware = DrapeHardware | "rod";
+
+/** Top hardware for treatments that hang from a single header line. */
+function HeaderHardware({
+  kind,
+  width,
+  y,
+  z,
+}: {
+  kind: HeaderHardware;
+  width: number;
+  y: number;
+  z: number;
+}) {
+  if (kind === "pipe_and_drape") {
+    return (
+      <PipeAndDrapeHardware
+        breaks={bayBreaks(width, 10)}
+        crossbarY={y}
+        crossbarZs={[z]}
+        uprightZ={z}
+      />
+    );
+  }
+  if (kind === "ceiling_track") {
+    return <CeilingTrack length={width} y={y + 0.03} z={z} />;
+  }
+  if (kind === "rod") return <DecorativeRod length={width} y={y} z={z} />;
+  return null;
+}
+
+type AssemblyProps = {
+  treatment: StudioTreatment;
+  width: number;
+  height: number;
+  look: Look;
+  seed: number;
+};
+
+function FullBackdrop({ treatment, width, height, look, seed }: AssemblyProps) {
+  const hardware =
+    treatment.hardware ?? (treatment.hasTopPipe ? "pipe_and_drape" : "wall_mount");
+  const baseZ = wallStandoff(hardware);
+  const front = assemblyFrontZ(hardware, baseZ);
+  const amplitude = foldDepth(treatment.fullness);
+  return (
+    <group>
+      <DrapeAssembly
+        length={width}
+        height={height}
+        fabric={treatment.fabric}
+        color={treatment.color}
+        fullness={treatment.fullness}
+        hardware={hardware}
+        seed={seed}
+        quality={look.quality}
+        baseZ={baseZ}
+        uplightColor={treatment.uplightColor}
+        highlight={look.highlight}
+      />
+      {treatment.hasTopSwag ? (
+        <SwagRow
+          width={width}
+          count={treatment.swagCount ?? Math.max(1, Math.round(width / 8))}
+          drop={Math.max(0.4, treatment.swagDrop * SCALE)}
+          y={height}
+          z={front + amplitude * 0.6 + 0.05}
+          color={treatment.secondaryColor}
+          rosetteColor={treatment.secondaryColor}
+          look={look}
+          seed={seed + 17}
+        />
+      ) : null}
+      {treatment.hasFloralHeader ? (
+        <FloralArrangement
+          spec={{
+            kind: "band",
+            x0: -width / 2 + 0.2,
+            x1: width / 2 - 0.2,
+            y: height - 0.3,
+            z: front + amplitude * 0.8,
+          }}
+          color={treatment.secondaryColor}
+          seed={seed + 3}
+          quality={look.quality}
+        />
+      ) : null}
+    </group>
+  );
+}
+
+function SideTiebacks({ treatment, width, height, look, seed }: AssemblyProps) {
+  const hardware = treatment.hardware ?? "pipe_and_drape";
+  const pipe = hardware === "pipe_and_drape";
+  const baseZ = treatment.hasBackdrop ? (pipe ? 0.9 : 0.55) : wallStandoff(hardware);
+  const front = assemblyFrontZ(hardware, baseZ);
+  const crossbarY = pipe ? height - CROSSBAR_RADIUS - 0.012 : height;
+  const opening = Math.min(width * 0.9, Math.max(0.6, treatment.openingWidth * SCALE));
+  const panelWidth = Math.max(0.6, (width - opening) / 2);
+  const tieY = clampTieY(treatment.tiebackHeight * SCALE, height);
+  const amplitude = foldDepth(treatment.fullness);
+  const bundle = tieBundleWidth(panelWidth);
+  const bundleDepth = tieBundleDepth(panelWidth, treatment.fullness);
+
+  const panel = (side: -1 | 1) => {
+    const x0 = side < 0 ? -width / 2 : width / 2 - panelWidth;
+    return {
+      x0,
+      options: {
+        width: panelWidth,
+        x0,
+        height: pipe ? pocketTopY(crossbarY, CROSSBAR_RADIUS) : height,
+        fullness: treatment.fullness,
+        seed: seed + (side < 0 ? 11 : 29),
+        z: front,
+        pipeRadius: pipe ? CROSSBAR_RADIUS : undefined,
+        tieback: treatment.hasTiebacks ? { y: tieY, side } : undefined,
+      } satisfies Omit<PleatedPanelOptions, "quality">,
+    };
+  };
+  const left = panel(-1);
+  const right = panel(1);
+
+  return (
+    <group>
+      {treatment.hasBackdrop ? (
+        <DrapeAssembly
+          length={width}
+          height={height}
+          fabric={treatment.fabric}
+          color={treatment.secondaryColor}
+          fullness={treatment.fullness}
+          hardware="wall_mount"
+          seed={seed + 5}
+          quality={look.quality}
+          baseZ={0.28}
+          highlight={look.highlight}
+        />
+      ) : null}
+      <PanelMesh options={left.options} color={treatment.color} look={look} />
+      <PanelMesh options={right.options} color={treatment.color} look={look} />
+      <HeaderHardware kind={hardware} width={width} y={crossbarY} z={baseZ} />
+      {treatment.hasTiebacks
+        ? ([left, right] as const).map((item, index) => (
+            <TieBand
+              key={index}
+              x={tiebackAnchorX(item.x0, panelWidth, index === 0 ? -1 : 1, bundle)}
+              y={tieY}
+              z={front + amplitude * 0.55 + 0.14}
+              bundle={bundle}
+              depth={bundleDepth}
+              color={treatment.secondaryColor}
+            />
+          ))
+        : null}
+      {treatment.hasTopSwag ? (
+        <SwagRow
+          width={width}
+          count={treatment.swagCount ?? 1}
+          drop={Math.max(0.4, treatment.swagDrop * SCALE)}
+          y={height}
+          z={front + amplitude * 0.5 + 0.06}
+          color={treatment.secondaryColor}
+          rosetteColor={treatment.secondaryColor}
+          look={look}
+          seed={seed + 41}
+        />
+      ) : null}
+      {treatment.hasFloralHeader ? (
+        <FloralArrangement
+          spec={{
+            kind: "band",
+            x0: -width / 2 + 0.2,
+            x1: width / 2 - 0.2,
+            y: height - 0.25,
+            z: front + amplitude,
+          }}
+          color={treatment.secondaryColor}
+          seed={seed + 3}
+          quality={look.quality}
+        />
+      ) : null}
+      {treatment.uplightColor ? (
+        <UplightRow
+          positions={[
+            -width / 2 + panelWidth / 2,
+            width / 2 - panelWidth / 2,
+          ]}
+          color={treatment.uplightColor}
+          z={front + amplitude + 0.8}
+          fabricZ={front + amplitude + 0.06}
+          washHeight={Math.min(height, 9)}
+        />
+      ) : null}
+      <SelectionFloorLine
+        length={width}
+        z={front + amplitude + 0.35}
+        highlight={look.highlight}
+      />
+    </group>
+  );
+}
+
+function headerKind(treatment: StudioTreatment): HeaderHardware {
+  return treatment.hardware ?? "rod";
+}
+
+function TopSwagValance({ treatment, width, height, look, seed }: AssemblyProps) {
+  const kind = headerKind(treatment);
+  const z = kind === "pipe_and_drape" ? 0.66 : 0.42;
+  const count = treatment.swagCount ?? 1;
+  const drop = Math.max(0.4, treatment.swagDrop * SCALE);
+  const cascade = count >= 2;
+  return (
+    <group>
+      {treatment.hasBackdrop ? (
+        <DrapeAssembly
+          length={width}
+          height={height}
+          fabric={treatment.fabric}
+          color={treatment.secondaryColor}
+          fullness={treatment.fullness}
+          hardware="wall_mount"
+          seed={seed + 5}
+          quality={look.quality}
+          baseZ={0.24}
+          highlight={look.highlight}
+        />
+      ) : null}
+      <HeaderHardware kind={kind} width={width} y={height} z={z} />
+      <SwagRow
+        width={cascade ? width - 0.9 : width}
+        count={count}
+        drop={drop}
+        y={height - 0.02}
+        z={z + 0.08}
+        color={treatment.color}
+        rosetteColor={treatment.secondaryColor}
+        look={look}
+        seed={seed}
+      />
+      {cascade
+        ? ([-1, 1] as const).map((side) => (
+            <JabotMesh
+              key={side}
+              options={{
+                width: 0.8,
+                longLength: drop * 1.9,
+                shortLength: drop * 0.7,
+                side,
+                seed: seed + side * 7,
+              }}
+              color={treatment.color}
+              look={look}
+              position={[side * (width / 2 - 0.4), height - 0.02, z + 0.06]}
+            />
+          ))
+        : null}
+      {treatment.hasFloralHeader ? (
+        <FloralArrangement
+          spec={{
+            kind: "band",
+            x0: -width / 2,
+            x1: width / 2,
+            y: height + 0.05,
+            z: z + 0.05,
+            thickness: 0.6,
+          }}
+          color={treatment.secondaryColor}
+          seed={seed + 3}
+          quality={look.quality}
+        />
+      ) : null}
+      {treatment.uplightColor ? (
+        <UplightRow
+          positions={uplightPositions(width)}
+          color={treatment.uplightColor}
+          z={z + 1.1}
+          fabricZ={z + 0.3}
+          washHeight={Math.min(height, 9)}
+        />
+      ) : null}
+      <SelectionFloorLine length={width} z={z + 0.5} highlight={look.highlight} />
+    </group>
+  );
+}
+
+function LayeredSwag({ treatment, width, height, look, seed }: AssemblyProps) {
+  const kind = headerKind(treatment);
+  const z = kind === "pipe_and_drape" ? 0.66 : 0.42;
+  const count = Math.max(1, Math.min(8, treatment.swagCount ?? 3));
+  const drop = Math.max(0.5, treatment.swagDrop * SCALE);
+  const tailWidth = Math.min(1.6, Math.max(0.9, width * 0.1));
+  const swagWidth = Math.max(1, width - tailWidth * 1.2);
+  const scallop = swagWidth / count;
+  const backCount = Math.max(1, count - 1);
+  const backWidth = count === 1 ? swagWidth * 1.04 : scallop * backCount;
+  return (
+    <group>
+      {treatment.hasBackdrop ? (
+        <DrapeAssembly
+          length={width}
+          height={height}
+          fabric={treatment.fabric}
+          color={treatment.secondaryColor}
+          fullness={treatment.fullness}
+          hardware="wall_mount"
+          seed={seed + 5}
+          quality={look.quality}
+          baseZ={0.24}
+          highlight={look.highlight}
+        />
+      ) : null}
+      <HeaderHardware kind={kind} width={width} y={height} z={z} />
+      {/* Back layer: accent colour, offset half a scallop, deeper drop. */}
+      <SwagRow
+        width={backWidth}
+        count={backCount}
+        drop={drop * 1.22}
+        y={height - 0.03}
+        z={z + 0.02}
+        color={treatment.secondaryColor}
+        rosetteColor={treatment.secondaryColor}
+        look={look}
+        seed={seed + 61}
+        overlap={1.12}
+        topSag={0.04}
+      />
+      <SwagRow
+        width={swagWidth}
+        count={count}
+        drop={drop}
+        y={height - 0.01}
+        z={z + 0.16}
+        color={treatment.color}
+        rosetteColor={treatment.secondaryColor}
+        look={look}
+        seed={seed}
+      />
+      {([-1, 1] as const).map((side) => (
+        <group key={side}>
+          <JabotMesh
+            options={{
+              width: tailWidth,
+              longLength: Math.min(height * 0.85, drop * 2.8),
+              shortLength: drop * 0.9,
+              side,
+              seed: seed + side * 13,
+            }}
+            color={treatment.color}
+            look={look}
+            position={[side * (width / 2 - tailWidth / 2), height - 0.02, z + 0.22]}
+          />
+          <JabotMesh
+            options={{
+              width: tailWidth * 0.7,
+              longLength: Math.min(height * 0.85, drop * 2.2),
+              shortLength: drop * 0.7,
+              side,
+              seed: seed + side * 29,
+            }}
+            color={treatment.secondaryColor}
+            look={look}
+            position={[side * (width / 2 - tailWidth * 0.75), height - 0.02, z + 0.1]}
+          />
+        </group>
+      ))}
+      {treatment.hasFloralHeader ? (
+        <FloralArrangement
+          spec={{
+            kind: "band",
+            x0: -width / 2,
+            x1: width / 2,
+            y: height + 0.05,
+            z: z + 0.1,
+            thickness: 0.6,
+          }}
+          color={treatment.secondaryColor}
+          seed={seed + 3}
+          quality={look.quality}
+        />
+      ) : null}
+      {treatment.uplightColor ? (
+        <UplightRow
+          positions={uplightPositions(width)}
+          color={treatment.uplightColor}
+          z={z + 1.2}
+          fabricZ={z + 0.35}
+          washHeight={Math.min(height, 9)}
+        />
+      ) : null}
+      <SelectionFloorLine length={width} z={z + 0.6} highlight={look.highlight} />
+    </group>
+  );
+}
+
+function CeremonyArch({ treatment, width, height, look, seed }: AssemblyProps) {
+  const wood = treatment.frameFinish === "wood";
+  const frameWidth = Math.max(2, width - 0.4);
+  const archZ = 1.6;
+  const tubeRadius = wood ? 0.2 : ARCH_TUBE_RADIUS;
+  const headerY = wood ? height + 0.12 : height;
+  const front = pocketFrontZ(0, tubeRadius);
+  const panelWidth = Math.min(3.5, Math.max(1, frameWidth * 0.34));
+  const tieY = clampTieY(treatment.tiebackHeight * SCALE, height);
+  const amplitude = foldDepth(treatment.fullness);
+  const bundle = tieBundleWidth(panelWidth);
+  const bundleDepth = tieBundleDepth(panelWidth, treatment.fullness);
+  const drop = Math.max(0.5, treatment.swagDrop * SCALE);
+
+  const panelFor = (side: -1 | 1) => {
+    const x0 = side < 0 ? -frameWidth / 2 - 0.25 : frameWidth / 2 + 0.25 - panelWidth;
+    return {
+      x0,
+      options: {
+        width: panelWidth,
+        x0,
+        height: pocketTopY(headerY, tubeRadius),
+        fullness: treatment.fullness,
+        seed: seed + (side < 0 ? 3 : 19),
+        z: front,
+        pipeRadius: tubeRadius,
+        tieback: treatment.hasTiebacks ? { y: tieY, side } : undefined,
+      } satisfies Omit<PleatedPanelOptions, "quality">,
+    };
+  };
+  const left = panelFor(-1);
+  const right = panelFor(1);
+
+  return (
+    <group position={[0, 0, archZ]}>
+      <ArchFrame width={frameWidth} height={height} finish={treatment.frameFinish} />
+      {treatment.hasBackdrop ? (
+        <PanelMesh
+          options={{
+            width: frameWidth - 0.2,
+            height: height - 0.05,
+            fullness: treatment.fullness,
+            seed: seed + 51,
+            z: -0.3,
+          }}
+          color={treatment.secondaryColor}
+          look={look}
+        />
+      ) : null}
+      <PanelMesh options={left.options} color={treatment.color} look={look} />
+      <PanelMesh options={right.options} color={treatment.color} look={look} />
+      {treatment.hasTiebacks
+        ? ([left, right] as const).map((item, index) => (
+            <TieBand
+              key={index}
+              x={tiebackAnchorX(item.x0, panelWidth, index === 0 ? -1 : 1, bundle)}
+              y={tieY}
+              z={front + amplitude * 0.55 + 0.14}
+              bundle={bundle}
+              depth={bundleDepth}
+              color={treatment.secondaryColor}
+            />
+          ))
+        : null}
+      {treatment.hasTopSwag ? (
+        <SwagMesh
+          options={{
+            width: frameWidth * 0.94,
+            drop,
+            seed: seed + 7,
+            topSag: 0.03,
+          }}
+          color={treatment.color}
+          look={look}
+          position={[0, headerY + tubeRadius, front + 0.02]}
+        />
+      ) : null}
+      {treatment.hasFloralHeader ? (
+        <>
+          <FloralArrangement
+            spec={{
+              kind: "cluster",
+              x: -frameWidth / 2 + 0.35,
+              y: headerY,
+              z: front + 0.1,
+              radius: 1.15,
+            }}
+            color={treatment.secondaryColor}
+            seed={seed + 3}
+            quality={look.quality}
+          />
+          <FloralArrangement
+            spec={{
+              kind: "cluster",
+              x: frameWidth / 2,
+              y: height * 0.62,
+              z: front + 0.12,
+              radius: 0.6,
+            }}
+            color={treatment.secondaryColor}
+            seed={seed + 9}
+            quality={look.quality}
+          />
+        </>
+      ) : null}
+      {treatment.uplightColor ? (
+        <UplightRow
+          positions={[-frameWidth / 2, frameWidth / 2]}
+          color={treatment.uplightColor}
+          z={front + 0.9}
+          fabricZ={front + amplitude + 0.08}
+          washHeight={Math.min(height, 9)}
+        />
+      ) : null}
+      <SelectionFloorLine
+        length={frameWidth + 1}
+        z={front + 0.7}
+        highlight={look.highlight}
+      />
+    </group>
+  );
 }
 
 function TreatmentAssembly({
   treatment,
   wall,
   bounds,
+  inward,
   selected,
-  onSelect,
 }: {
   treatment: StudioTreatment;
   wall: StudioWallSegment;
   bounds: StudioBounds;
+  inward: 1 | -1;
   selected: boolean;
-  onSelect: () => void;
 }) {
+  const { highlight, quality } = useFabricEditorState(treatment.id, selected);
+  const seed = useMemo(() => hashSeed(treatment.id), [treatment.id]);
   const center = getPointAlongWall(
     wall,
     (treatment.anchor.startOffset + treatment.anchor.endOffset) / 2
   );
   const width =
-    Math.max(1, treatment.anchor.endOffset - treatment.anchor.startOffset) *
-    SCALE;
-  const height = Math.max(0.1, treatment.height * SCALE);
-  const opening = Math.min(
-    width * 0.82,
-    Math.max(0.6, treatment.openingWidth * SCALE)
-  );
-  const panelWidth = Math.max(0.45, (width - opening) / 2);
-  const primary = getDrapeColorHex(treatment.color);
-  const accent = getDrapeColorHex(treatment.secondaryColor);
-  const tiebackHeight = Math.min(height, treatment.tiebackHeight * SCALE);
-  const swagDrop = Math.min(height * 0.55, treatment.swagDrop * SCALE);
-  const archPost = 0.16;
+    Math.max(1, treatment.anchor.endOffset - treatment.anchor.startOffset) * SCALE;
+  const height = Math.max(1, treatment.height * SCALE);
+  const look: Look = {
+    fabric: treatment.fabric,
+    glow: treatment.uplightColor,
+    highlight,
+    quality,
+  };
+  const props: AssemblyProps = { treatment, width, height, look, seed };
 
   return (
     <group
@@ -287,194 +816,14 @@ function TreatmentAssembly({
         (center.z - bounds.centerZ) * SCALE,
       ]}
       rotation={[0, -wall.angle, 0]}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelect();
-      }}
+      scale={[1, 1, inward]}
     >
-      {treatment.type === "full_pleated_backdrop" ? (
-        <>
-          <FabricPanel
-            width={width}
-            height={height}
-            fullness={treatment.fullness}
-            color={primary}
-            fabric={treatment.fabric}
-          />
-          {treatment.hasTopPipe ? (
-            <mesh
-              position={[0, height + 0.08, PANEL_DEPTH - 0.04]}
-              rotation={[0, 0, Math.PI / 2]}
-              castShadow
-            >
-              <cylinderGeometry args={[0.055, 0.055, width + 0.18, 10]} />
-              <meshStandardMaterial
-                color="#4a4035"
-                roughness={0.36}
-                metalness={0.58}
-              />
-            </mesh>
-          ) : null}
-        </>
-      ) : null}
-
-      {treatment.type === "side_tieback_panels" ? (
-        <>
-          {treatment.hasBackdrop ? (
-            <FabricPanel
-              width={width}
-              height={height}
-              fullness={treatment.fullness}
-              color={accent}
-              fabric={treatment.fabric}
-              depth={0.32}
-            />
-          ) : null}
-          <FabricPanel
-            width={panelWidth}
-            height={height}
-            fullness={treatment.fullness}
-            color={primary}
-            fabric={treatment.fabric}
-            position={[-width / 2 + panelWidth / 2, 0, 0]}
-            pinchSide={treatment.hasTiebacks ? 1 : 0}
-            tiebackHeight={tiebackHeight}
-          />
-          <FabricPanel
-            width={panelWidth}
-            height={height}
-            fullness={treatment.fullness}
-            color={primary}
-            fabric={treatment.fabric}
-            position={[width / 2 - panelWidth / 2, 0, 0]}
-            pinchSide={treatment.hasTiebacks ? -1 : 0}
-            tiebackHeight={tiebackHeight}
-          />
-          {treatment.hasTiebacks ? (
-            <>
-              <TieBand
-                x={-opening / 2}
-                y={tiebackHeight}
-                color={accent}
-              />
-              <TieBand x={opening / 2} y={tiebackHeight} color={accent} />
-            </>
-          ) : null}
-          {treatment.hasTopSwag ? (
-            <SwagBand
-              width={width}
-              drop={swagDrop}
-              height={height}
-              color={accent}
-              fabric={treatment.fabric}
-            />
-          ) : null}
-        </>
-      ) : null}
-
-      {treatment.type === "top_swag_valance" ? (
-        <SwagBand
-          width={width}
-          drop={swagDrop}
-          height={height}
-          color={primary}
-          fabric={treatment.fabric}
-        />
-      ) : null}
-
-      {treatment.type === "ceremony_arch" ? (
-        <>
-          <FramePiece
-            position={[-width / 2, height / 2, 0.36]}
-            size={[archPost, height, archPost]}
-            color={frameColor(treatment.frameFinish)}
-          />
-          <FramePiece
-            position={[width / 2, height / 2, 0.36]}
-            size={[archPost, height, archPost]}
-            color={frameColor(treatment.frameFinish)}
-          />
-          <FramePiece
-            position={[0, height, 0.36]}
-            size={[width + archPost, archPost, archPost]}
-            color={frameColor(treatment.frameFinish)}
-          />
-          <FabricPanel
-            width={Math.min(2.2, width * 0.24)}
-            height={height * 0.96}
-            fullness={treatment.fullness}
-            color={primary}
-            fabric={treatment.fabric}
-            position={[-width / 2 + Math.min(1.1, width * 0.12), 0, 0]}
-            pinchSide={treatment.hasTiebacks ? 1 : 0}
-            tiebackHeight={tiebackHeight}
-          />
-          <FabricPanel
-            width={Math.min(2.2, width * 0.24)}
-            height={height * 0.96}
-            fullness={treatment.fullness}
-            color={primary}
-            fabric={treatment.fabric}
-            position={[width / 2 - Math.min(1.1, width * 0.12), 0, 0]}
-            pinchSide={treatment.hasTiebacks ? -1 : 0}
-            tiebackHeight={tiebackHeight}
-          />
-          {treatment.hasTopSwag ? (
-            <SwagBand
-              width={width * 0.92}
-              drop={swagDrop}
-              height={height}
-              color={primary}
-              fabric={treatment.fabric}
-            />
-          ) : null}
-        </>
-      ) : null}
-
-      {selected ? (
-        <mesh position={[0, height / 2, 0.48]}>
-          <boxGeometry args={[width + 0.32, height + 0.28, 0.34]} />
-          <meshBasicMaterial
-            color="#d4af55"
-            wireframe
-            transparent
-            opacity={0.68}
-            depthWrite={false}
-            toneMapped={false}
-          />
-        </mesh>
-      ) : null}
+      {treatment.type === "full_pleated_backdrop" ? <FullBackdrop {...props} /> : null}
+      {treatment.type === "side_tieback_panels" ? <SideTiebacks {...props} /> : null}
+      {treatment.type === "top_swag_valance" ? <TopSwagValance {...props} /> : null}
+      {treatment.type === "layered_swag" ? <LayeredSwag {...props} /> : null}
+      {treatment.type === "ceremony_arch" ? <CeremonyArch {...props} /> : null}
     </group>
-  );
-}
-
-function TieBand({ x, y, color }: { x: number; y: number; color: string }) {
-  return (
-    <mesh position={[x, y, PANEL_DEPTH + 0.14]} castShadow>
-      <boxGeometry args={[0.28, 0.18, 0.18]} />
-      <meshStandardMaterial color={color} roughness={0.52} metalness={0.06} />
-    </mesh>
-  );
-}
-
-function FramePiece({
-  position,
-  size,
-  color,
-}: {
-  position: [number, number, number];
-  size: [number, number, number];
-  color: string;
-}) {
-  return (
-    <mesh position={position} castShadow>
-      <boxGeometry args={size} />
-      <meshStandardMaterial
-        color={color}
-        roughness={0.42}
-        metalness={color === "#b98b3d" ? 0.42 : 0.08}
-      />
-    </mesh>
   );
 }
 
@@ -482,34 +831,36 @@ export function StudioTreatments({
   design,
   bounds,
   selection,
-  onSelect,
 }: {
   design: StudioDesignJson;
   bounds: StudioBounds;
   selection: StudioSelection;
   onSelect: (selection: StudioSelection) => void;
 }) {
+  const visible = useFabricLayerVisible("treatments");
   const walls = useMemo(
     () => getWallSegments(design.room.floor),
     [design.room.floor]
   );
+  const inward = useMemo(
+    () => interiorSign(design.room.floor),
+    [design.room.floor]
+  );
+  if (!visible) return null;
   return (
     <group>
       {design.treatments.map((treatment) => {
         const wall = walls[treatment.anchor.wallIndex];
-        if (!wall) return null;
+        if (!wall || treatment.hidden) return null;
         return (
           <TreatmentAssembly
             key={treatment.id}
             treatment={treatment}
             wall={wall}
             bounds={bounds}
+            inward={inward}
             selected={
-              selection?.kind === "treatment" &&
-              selection.id === treatment.id
-            }
-            onSelect={() =>
-              onSelect({ kind: "treatment", id: treatment.id })
+              selection?.kind === "treatment" && selection.id === treatment.id
             }
           />
         );

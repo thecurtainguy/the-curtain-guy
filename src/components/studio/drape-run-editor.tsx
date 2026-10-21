@@ -1,12 +1,10 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  DRAPE_COLORS,
-  DRAPE_FABRICS,
+  DRAPE_HARDWARE,
   DRAPE_RUN_TYPES,
   type StudioDesignJson,
   type StudioDrapeRun,
@@ -16,7 +14,30 @@ import {
   getWallSegments,
   inchesToFeetLabel,
 } from "@/lib/studio-geometry";
-import { feetInput, feetValue, parseNumber } from "./studio-types";
+import {
+  Columns3,
+  GalleryHorizontalEnd,
+  Lightbulb,
+  PanelsTopLeft,
+  Ruler,
+  Scissors,
+  RectangleHorizontal,
+  SquareSplitHorizontal,
+  WavesHorizontal,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  ColorSwatchGrid,
+  FabricPicker,
+  FieldLabel,
+  FullnessField,
+  HARDWARE_META,
+  InspectorSection,
+  OptionTile,
+  RangeField,
+  StatTile,
+} from "./three/fabric/fabric-controls";
+import { feetInput, feetValue } from "./studio-types";
 
 type DrapeRunEditorProps = {
   design: StudioDesignJson;
@@ -32,6 +53,16 @@ const runLabels: Record<StudioDrapeRun["type"], string> = {
   divider: "Divider",
 };
 
+const runTypeMeta: Record<
+  StudioDrapeRun["type"],
+  { icon: LucideIcon; description: string }
+> = {
+  wall_drape: { icon: PanelsTopLeft, description: "Corner to corner" },
+  partial_drape: { icon: GalleryHorizontalEnd, description: "A section of wall" },
+  backdrop: { icon: RectangleHorizontal, description: "Feature focal point" },
+  divider: { icon: SquareSplitHorizontal, description: "Splits the space" },
+};
+
 export function DrapeRunEditor({
   design,
   run,
@@ -39,7 +70,11 @@ export function DrapeRunEditor({
   idPrefix,
 }: DrapeRunEditorProps) {
   const walls = getWallSegments(design.room.floor);
+  const wall = walls[run.wallIndex];
   const fieldId = (name: string) => `${idPrefix}-${name}-${run.id}`;
+  const span = run.endOffset - run.startOffset;
+  const hardware = run.hardware ?? "pipe_and_drape";
+  const wallHeightFt = feetValue(design.room.wallHeight);
 
   function update(patch: Partial<StudioDrapeRun>) {
     const nextRun = clampDrapeRunToWall(
@@ -55,170 +90,180 @@ export function DrapeRunEditor({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor={fieldId("label")}>Label</Label>
+    <div className="space-y-3.5">
+      <div className="overflow-hidden rounded-2xl border border-border/40 bg-[radial-gradient(ellipse_at_top_right,oklch(0.76_0.15_88/16%),transparent_65%)] p-3.5">
+        <p className="text-[0.6rem] font-semibold tracking-[0.2em] text-primary uppercase">
+          {runLabels[run.type]} · Wall {run.wallIndex + 1}
+        </p>
         <Input
           id={fieldId("label")}
+          aria-label="Drape label"
           value={run.label}
-          onChange={(event) => update({ label: event.target.value })}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor={fieldId("type")}>Drape type</Label>
-        <SelectInput
-          id={fieldId("type")}
-          value={run.type}
-          onChange={(next) =>
-            update({ type: next as StudioDrapeRun["type"] })
-          }
-          options={DRAPE_RUN_TYPES.map((type) => ({
-            value: type,
-            label: runLabels[type],
-          }))}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor={fieldId("wall")}>Wall</Label>
-        <SelectInput
-          id={fieldId("wall")}
-          value={String(run.wallIndex)}
-          onChange={(next) => {
-            const wallIndex = Number(next);
-            const wall = walls[wallIndex];
-            update({
-              wallIndex,
-              startOffset: 0,
-              endOffset: Math.max(1, wall?.length ?? 1),
-            });
+          onChange={(event) => {
+            if (event.target.value.trim()) update({ label: event.target.value });
           }}
-          options={walls.map((wall) => ({
-            value: String(wall.index),
-            label: `Wall ${wall.index + 1} · ${inchesToFeetLabel(wall.length)}`,
-          }))}
+          className="mt-2 h-9 rounded-xl border-border/40 bg-background/50 font-heading text-base"
         />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-1.5">
-          <Label htmlFor={fieldId("start")} className="text-xs">
-            Start (ft)
-          </Label>
-          <Input
-            id={fieldId("start")}
-            type="number"
-            min={0}
-            step="0.5"
-            value={feetValue(run.startOffset)}
-            onChange={(event) =>
-              update({
-                startOffset: feetInput(event.target.value, run.startOffset),
-              })
-            }
-            className="input-no-spin"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={fieldId("end")} className="text-xs">
-            End (ft)
-          </Label>
-          <Input
-            id={fieldId("end")}
-            type="number"
-            min={0}
-            step="0.5"
-            value={feetValue(run.endOffset)}
-            onChange={(event) =>
-              update({ endOffset: feetInput(event.target.value, run.endOffset) })
-            }
-            className="input-no-spin"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={fieldId("height")} className="text-xs">
-            Height (ft)
-          </Label>
-          <Input
-            id={fieldId("height")}
-            type="number"
-            min={1}
-            step="0.5"
-            value={feetValue(run.height)}
-            onChange={(event) =>
-              update({ height: feetInput(event.target.value, run.height) })
-            }
-            className="input-no-spin"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={fieldId("fullness")} className="text-xs">
-            Fullness
-          </Label>
-          <Input
-            id={fieldId("fullness")}
-            type="number"
-            min={1}
-            max={4}
-            step="0.25"
-            value={run.fullness}
-            onChange={(event) =>
-              update({
-                fullness: Math.min(
-                  4,
-                  Math.max(1, parseNumber(event.target.value, run.fullness))
-                ),
-              })
-            }
-            className="input-no-spin"
-          />
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <StatTile label="Length" value={inchesToFeetLabel(span)} />
+          <StatTile label="Height" value={inchesToFeetLabel(run.height)} />
+          <StatTile label="Fullness" value={`${run.fullness}×`} />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <InspectorSection icon={Ruler} eyebrow="Placement" title="Run & dimensions">
+        <div role="radiogroup" aria-label="Drape type" className="grid grid-cols-2 gap-2">
+          {DRAPE_RUN_TYPES.map((type) => (
+            <OptionTile
+              key={type}
+              compact
+              icon={runTypeMeta[type].icon}
+              label={runLabels[type]}
+              description={runTypeMeta[type].description}
+              selected={run.type === type}
+              onSelect={() => update({ type })}
+            />
+          ))}
+        </div>
+
         <div className="space-y-1.5">
-          <Label htmlFor={fieldId("fabric")} className="text-xs">
-            Fabric
-          </Label>
+          <FieldLabel htmlFor={fieldId("wall")}>Wall</FieldLabel>
           <SelectInput
-            id={fieldId("fabric")}
-            value={run.fabric}
-            onChange={(next) =>
-              update({ fabric: next as StudioDrapeRun["fabric"] })
-            }
-            options={DRAPE_FABRICS.map((option) => ({
-              value: option.value,
-              label: option.label,
+            id={fieldId("wall")}
+            value={String(run.wallIndex)}
+            onChange={(next) => {
+              const wallIndex = Number(next);
+              const nextWall = walls[wallIndex];
+              update({
+                wallIndex,
+                startOffset: 0,
+                endOffset: Math.max(1, nextWall?.length ?? 1),
+              });
+            }}
+            options={walls.map((item) => ({
+              value: String(item.index),
+              label: `Wall ${item.index + 1} · ${inchesToFeetLabel(item.length)}`,
             }))}
           />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={fieldId("color")} className="text-xs">
-            Color
-          </Label>
-          <SelectInput
-            id={fieldId("color")}
-            value={run.color}
-            onChange={(next) =>
-              update({ color: next as StudioDrapeRun["color"] })
-            }
-            options={DRAPE_COLORS.map((option) => ({
-              value: option.value,
-              label: option.label,
-            }))}
-          />
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <FieldLabel htmlFor={fieldId("start")}>Start (ft)</FieldLabel>
+            <Input
+              id={fieldId("start")}
+              type="number"
+              min={0}
+              step="0.5"
+              value={feetValue(run.startOffset)}
+              onChange={(event) =>
+                update({
+                  startOffset: feetInput(event.target.value, run.startOffset),
+                })
+              }
+              className="input-no-spin h-8 rounded-xl"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel htmlFor={fieldId("end")}>End (ft)</FieldLabel>
+            <Input
+              id={fieldId("end")}
+              type="number"
+              min={0}
+              step="0.5"
+              value={feetValue(run.endOffset)}
+              onChange={(event) =>
+                update({ endOffset: feetInput(event.target.value, run.endOffset) })
+              }
+              className="input-no-spin h-8 rounded-xl"
+            />
+          </div>
         </div>
-      </div>
+
+        <RangeField
+          id={fieldId("span")}
+          label="Span"
+          value={feetValue(span)}
+          min={1}
+          max={feetValue(wall?.length ?? span)}
+          onChange={(feet) =>
+            update({ endOffset: run.startOffset + Math.max(12, feet * 12) })
+          }
+        />
+        <RangeField
+          id={fieldId("height")}
+          label="Height"
+          value={feetValue(run.height)}
+          min={4}
+          max={Math.max(4.5, wallHeightFt)}
+          onChange={(feet) =>
+            update({ height: Math.min(600, Math.max(12, feet * 12)) })
+          }
+        />
+      </InspectorSection>
+
+      <InspectorSection icon={Scissors} eyebrow="Fabric" title="Textile & colour">
+        <FabricPicker
+          value={run.fabric}
+          color={run.color}
+          onChange={(fabric) => update({ fabric })}
+        />
+        <ColorSwatchGrid
+          label="Colour"
+          value={run.color}
+          onChange={(color) => {
+            if (color) update({ color });
+          }}
+        />
+        <FullnessField
+          id={fieldId("fullness")}
+          value={run.fullness}
+          onChange={(fullness) => update({ fullness })}
+        />
+      </InspectorSection>
+
+      <InspectorSection icon={Columns3} eyebrow="Hardware" title="How it hangs">
+        <div role="radiogroup" aria-label="Hardware" className="space-y-2">
+          {DRAPE_HARDWARE.map((option) => (
+            <OptionTile
+              key={option.value}
+              compact
+              icon={HARDWARE_META[option.value].icon}
+              label={option.label}
+              description={HARDWARE_META[option.value].description}
+              selected={hardware === option.value}
+              onSelect={() => update({ hardware: option.value })}
+            />
+          ))}
+        </div>
+        <OptionTile
+          role="switch"
+          icon={WavesHorizontal}
+          label="Floor puddle"
+          description="Extra length pools softly on the floor"
+          selected={Boolean(run.puddle)}
+          onSelect={() => update({ puddle: !run.puddle })}
+        />
+      </InspectorSection>
+
+      <InspectorSection icon={Lightbulb} eyebrow="Lighting" title="Uplight wash">
+        <ColorSwatchGrid
+          label="Uplight colour"
+          value={run.uplightColor ?? null}
+          noneLabel="No uplights"
+          onChange={(uplightColor) => update({ uplightColor })}
+        />
+      </InspectorSection>
 
       <div className="space-y-1.5">
-        <Label htmlFor={fieldId("notes")}>Notes</Label>
+        <FieldLabel htmlFor={fieldId("notes")}>Notes</FieldLabel>
         <Textarea
           id={fieldId("notes")}
           rows={3}
           value={run.notes ?? ""}
           placeholder="Hardware, pleating, access notes…"
           onChange={(event) => update({ notes: event.target.value })}
+          className="rounded-xl"
         />
       </div>
     </div>

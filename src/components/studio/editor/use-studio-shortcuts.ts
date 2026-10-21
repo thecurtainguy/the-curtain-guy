@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isStudioWalkActive } from "../three/camera/camera-view-store";
 import type { StudioEditorContextValue } from "./studio-editor-context";
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -79,6 +80,7 @@ export function useStudioKeyboardShortcuts(
         return;
       }
       if (event.key.startsWith("Arrow")) {
+        if (isStudioWalkActive()) return;
         if (current.selectedIds.length === 0) return;
         event.preventDefault();
         const step = event.shiftKey

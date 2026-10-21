@@ -1,62 +1,31 @@
 "use client";
 
-import { useBrandConfirm } from "@/components/ui/brand-dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SelectInput } from "@/components/ui/select-input";
-import { Textarea } from "@/components/ui/textarea";
-import type {
-  StudioObjectType,
-  StudioDesignJson,
-  StudioObject,
-  StudioOpening,
-} from "@/data/studio";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import type { StudioDesignJson } from "@/data/studio";
+import { getWallSegments, inchesToFeetLabel } from "@/lib/studio-geometry";
+import { cn } from "@/lib/utils";
 import {
-  DANCE_FLOOR_FINISHES,
-  GENERIC_OBJECT_FINISHES,
-  STUDIO_MAX_SEATING_COUNT,
-  STUDIO_OBJECT_OPTIONS,
-  createStudioItemId,
-} from "@/data/studio";
-import {
-  calculateDrapeLength,
-  calculateRoomAreaSquareFeet,
-  getWallSegments,
-  inchesToFeetLabel,
-} from "@/lib/studio-geometry";
-import {
-  STUDIO_OBJECT_MIN_DIMENSIONS,
-  getStudioObjectBoundsResult,
-} from "@/lib/studio-interactions";
-import {
-  Box,
   CheckCircle2,
   Clock3,
-  Copy,
-  DoorOpen,
-  Minus,
-  PanelsTopLeft,
-  Plus,
-  RotateCcw,
+  Layers,
+  LoaderCircle,
   ScissorsLineDashed,
+  SlidersHorizontal,
   Sparkles,
-  Trash2,
   TriangleAlert,
 } from "lucide-react";
+import { useState } from "react";
 import { DrapeRunEditor } from "./drape-run-editor";
-import { RoomFinishPanel } from "./room-finish-panel";
-import { StudioEmptyState } from "./studio-empty-state";
+import { useStudioEditor } from "./editor/studio-editor-context";
+import { DesignBrief } from "./inspector/design-brief";
+import { ItemHeader, StatusChip } from "./inspector/item-header";
+import { MultiInspector } from "./inspector/multi-inspector";
+import { ObjectInspector } from "./inspector/object-inspector";
+import { OpeningInspector } from "./inspector/opening-inspector";
+import { WallInspector } from "./inspector/wall-inspector";
+import { StudioLayersPanel } from "./studio-layers-panel";
 import { TreatmentEditor } from "./treatment-editor";
-import {
-  feetInput,
-  feetValue,
-  parseNumber,
-  signedFeetInput,
-  type StudioSaveState,
-  type StudioSelection,
-  updateOpening,
-} from "./studio-types";
+import type { StudioSaveState, StudioSelection } from "./studio-types";
 
 type StudioRightRailProps = {
   design: StudioDesignJson;
@@ -67,21 +36,15 @@ type StudioRightRailProps = {
   idPrefix: string;
 };
 
+type RailTab = "inspect" | "layers";
+
 const saveCopy: Record<StudioSaveState, string> = {
   idle: "Ready",
-  dirty: "Unsaved changes",
+  dirty: "Unsaved",
   saving: "Saving…",
   saved: "Saved",
-  error: "Save needs attention",
+  error: "Needs attention",
 };
-
-const seatingObjectTypes: StudioObjectType[] = [
-  "round_table",
-  "rectangle_table",
-  "cocktail_table",
-  "table_area",
-  "lounge_area",
-];
 
 export function StudioRightRail({
   design,
@@ -91,585 +54,202 @@ export function StudioRightRail({
   saveState,
   idPrefix,
 }: StudioRightRailProps) {
-  const [confirm, confirmDialog] = useBrandConfirm();
+  const { selectedIds } = useStudioEditor();
+  const [tab, setTab] = useState<RailTab>("inspect");
   const walls = getWallSegments(design.room.floor);
+  const multi = selectedIds.length > 1;
   const selectedDrape =
-    selection?.kind === "drape"
+    !multi && selection?.kind === "drape"
       ? design.drapeRuns.find((run) => run.id === selection.id)
       : undefined;
   const selectedTreatment =
-    selection?.kind === "treatment"
+    !multi && selection?.kind === "treatment"
       ? design.treatments.find((treatment) => treatment.id === selection.id)
       : undefined;
   const selectedObject =
-    selection?.kind === "object"
+    !multi && selection?.kind === "object"
       ? design.objects.find((object) => object.id === selection.id)
       : undefined;
   const selectedOpening =
-    selection?.kind === "opening"
+    !multi && selection?.kind === "opening"
       ? design.openings.find((opening) => opening.id === selection.id)
       : undefined;
   const selectedWall =
-    selection?.kind === "wall" ? walls[selection.index] : undefined;
+    !multi && selection?.kind === "wall" ? walls[selection.index] : undefined;
+  const itemCount =
+    design.objects.length +
+    design.drapeRuns.length +
+    design.treatments.length +
+    design.openings.length;
 
-  async function remove(
-    kind: "drape" | "treatment" | "object" | "opening",
-    id: string
-  ) {
-    if (
-      kind !== "object" &&
-      !(await confirm({
-        icon: Trash2,
-        eyebrow: "Studio",
-        title: "Remove this item?",
-        description: "It will be taken out of your studio design.",
-        confirmLabel: "Remove",
-        destructive: true,
-      }))
-    ) {
-      return;
-    }
-    onChange({
-      ...design,
-      drapeRuns:
-        kind === "drape"
-          ? design.drapeRuns.filter((item) => item.id !== id)
-          : design.drapeRuns,
-      treatments:
-        kind === "treatment"
-          ? design.treatments.filter((item) => item.id !== id)
-          : design.treatments,
-      objects:
-        kind === "object"
-          ? design.objects.filter((item) => item.id !== id)
-          : design.objects,
-      openings:
-        kind === "opening"
-          ? design.openings.filter((item) => item.id !== id)
-          : design.openings,
-    });
-    onSelect(null);
-  }
+  const title = multi
+    ? `${selectedIds.length} selected`
+    : selectedDrape
+      ? "Drape run"
+      : selectedTreatment
+        ? "Drape treatment"
+        : selectedObject
+          ? "Room object"
+          : selectedOpening
+            ? "Opening"
+            : selectedWall
+              ? `Wall ${selectedWall.index + 1}`
+              : "Design brief";
 
   return (
-    <aside className="h-full overflow-y-auto bg-card/35 p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[0.65rem] font-semibold tracking-[0.22em] text-primary uppercase">
-            Inspector
-          </p>
-          <h2 className="font-heading text-lg">
-            {selectedDrape
-              ? "Drape run"
-              : selectedTreatment
-                ? "Drape treatment"
-                : selectedObject
-                  ? "Room object"
-                  : selectedOpening
-                    ? "Opening"
-                    : selectedWall
-                      ? `Wall ${selectedWall.index + 1}`
-                      : "Design brief"}
-          </h2>
-        </div>
-        <SavePill state={saveState} />
-      </div>
-
-      {selectedDrape && (
-        <SelectedPanel
-          icon={ScissorsLineDashed}
-          onDelete={() => void remove("drape", selectedDrape.id)}
-        >
-          <DrapeRunEditor
-            design={design}
-            run={selectedDrape}
-            onChange={onChange}
-            idPrefix={`${idPrefix}-drape`}
-          />
-        </SelectedPanel>
-      )}
-
-      {selectedTreatment && (
-        <SelectedPanel
-          icon={Sparkles}
-          onDelete={() => void remove("treatment", selectedTreatment.id)}
-        >
-          <TreatmentEditor
-            design={design}
-            treatment={selectedTreatment}
-            onChange={onChange}
-            onSelect={onSelect}
-            idPrefix={`${idPrefix}-treatment`}
-          />
-        </SelectedPanel>
-      )}
-
-      {selectedObject && (
-        <SelectedPanel
-          icon={Box}
-          onDelete={() => void remove("object", selectedObject.id)}
-        >
-          <ObjectEditor
-            design={design}
-            object={selectedObject}
-            onChange={onChange}
-            onSelect={onSelect}
-            idPrefix={`${idPrefix}-object`}
-          />
-        </SelectedPanel>
-      )}
-
-      {selectedOpening && (
-        <SelectedPanel
-          icon={DoorOpen}
-          onDelete={() => void remove("opening", selectedOpening.id)}
-        >
-          <OpeningEditor
-            design={design}
-            opening={selectedOpening}
-            onChange={onChange}
-            idPrefix={`${idPrefix}-opening`}
-          />
-        </SelectedPanel>
-      )}
-
-      {selectedWall && (
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-primary/20 bg-primary/5 p-4">
-            <div className="flex items-center gap-2 text-primary">
-              <PanelsTopLeft className="size-4" aria-hidden="true" />
-              <span className="text-xs font-semibold tracking-wider uppercase">
-                Structural wall
-              </span>
+    <TooltipProvider delayDuration={250}>
+      <aside className="flex h-full min-h-0 flex-col bg-card/35">
+        <div className="shrink-0 space-y-3 border-b border-border/40 bg-[radial-gradient(ellipse_at_top_right,color-mix(in_oklch,var(--primary)_10%,transparent),transparent_70%)] px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[0.62rem] font-semibold tracking-[0.22em] text-primary uppercase">
+                {tab === "layers" ? "Outliner" : "Inspector"}
+              </p>
+              <h2 className="truncate font-heading text-lg leading-tight">
+                {tab === "layers" ? "Layers" : title}
+              </h2>
             </div>
-            <p className="mt-3 font-heading text-2xl">
-              {inchesToFeetLabel(selectedWall.length)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Click a treatment in the left rail to place it here.
-            </p>
+            <SavePill state={saveState} />
           </div>
-        </div>
-      )}
-
-      {!selectedDrape &&
-        !selectedTreatment &&
-        !selectedObject &&
-        !selectedOpening &&
-        !selectedWall && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            <Stat label="Floor area" value={`${Math.round(calculateRoomAreaSquareFeet(design.room.floor)).toLocaleString()} ft²`} />
-            <Stat label="Wall height" value={inchesToFeetLabel(design.room.wallHeight)} />
-            <Stat label="Drape total" value={inchesToFeetLabel(calculateDrapeLength(design))} />
-            <Stat label="Treatments" value={String(design.treatments.length)} />
-          </div>
-          <StudioEmptyState />
-          <div className="space-y-1.5">
-            <Label htmlFor={`${idPrefix}-design-notes`}>Design notes</Label>
-            <Textarea
-              id={`${idPrefix}-design-notes`}
-              rows={4}
-              value={design.notes}
-              placeholder="Add access, setup, or venue notes…"
-              onChange={(event) =>
-                onChange({ ...design, notes: event.target.value })
-              }
+          <div
+            role="tablist"
+            aria-label="Right rail"
+            className="grid grid-cols-2 gap-1 rounded-2xl border border-border/40 bg-background/40 p-1"
+          >
+            <RailTabButton
+              active={tab === "inspect"}
+              icon={SlidersHorizontal}
+              label="Inspect"
+              onClick={() => setTab("inspect")}
+            />
+            <RailTabButton
+              active={tab === "layers"}
+              icon={Layers}
+              label="Layers"
+              count={itemCount}
+              onClick={() => setTab("layers")}
             />
           </div>
         </div>
-      )}
 
-      <div className="my-5 h-px bg-border/60" />
-      <RoomFinishPanel
-        design={design}
-        onChange={onChange}
-        idPrefix={`${idPrefix}-finish`}
-      />
-      {confirmDialog}
-    </aside>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+          {tab === "layers" ? (
+            <StudioLayersPanel design={design} onChange={onChange} />
+          ) : multi ? (
+            <MultiInspector design={design} onChange={onChange} />
+          ) : selectedDrape ? (
+            <div className="space-y-3">
+              <ItemHeader
+                icon={ScissorsLineDashed}
+                eyebrow={`Drape run · Wall ${selectedDrape.wallIndex + 1}`}
+                label={selectedDrape.label}
+                locked={selectedDrape.locked}
+                hidden={selectedDrape.hidden}
+                meta={
+                  <StatusChip>
+                    {inchesToFeetLabel(
+                      selectedDrape.endOffset - selectedDrape.startOffset
+                    )}{" "}
+                    run
+                  </StatusChip>
+                }
+              />
+              <DrapeRunEditor
+                design={design}
+                run={selectedDrape}
+                onChange={onChange}
+                idPrefix={`${idPrefix}-drape`}
+              />
+            </div>
+          ) : selectedTreatment ? (
+            <div className="space-y-3">
+              <ItemHeader
+                icon={Sparkles}
+                eyebrow={`Treatment · Wall ${selectedTreatment.anchor.wallIndex + 1}`}
+                label={selectedTreatment.label}
+                locked={selectedTreatment.locked}
+                hidden={selectedTreatment.hidden}
+                meta={
+                  <StatusChip>
+                    {inchesToFeetLabel(
+                      selectedTreatment.anchor.endOffset -
+                        selectedTreatment.anchor.startOffset
+                    )}{" "}
+                    wide
+                  </StatusChip>
+                }
+              />
+              <TreatmentEditor
+                design={design}
+                treatment={selectedTreatment}
+                onChange={onChange}
+                onSelect={onSelect}
+                idPrefix={`${idPrefix}-treatment`}
+              />
+            </div>
+          ) : selectedObject ? (
+            <ObjectInspector
+              design={design}
+              object={selectedObject}
+              onChange={onChange}
+            />
+          ) : selectedOpening ? (
+            <OpeningInspector
+              design={design}
+              opening={selectedOpening}
+              onChange={onChange}
+            />
+          ) : selectedWall ? (
+            <WallInspector design={design} wallIndex={selectedWall.index} />
+          ) : (
+            <DesignBrief design={design} onChange={onChange} idPrefix={idPrefix} />
+          )}
+        </div>
+      </aside>
+    </TooltipProvider>
   );
 }
 
-function SelectedPanel({
+function RailTabButton({
+  active,
   icon: Icon,
-  onDelete,
-  children,
-}: {
-  icon: typeof Box;
-  onDelete: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 p-2">
-        <div className="flex items-center gap-2 text-xs font-medium">
-          <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Icon className="size-4" aria-hidden="true" />
-          </span>
-          Selected
-        </div>
-        <Button
-          type="button"
-          variant="destructive"
-          size="icon-sm"
-          onClick={onDelete}
-          aria-label="Delete selected item"
-        >
-          <Trash2 aria-hidden="true" />
-        </Button>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function ObjectEditor({
-  design,
-  object,
-  onChange,
-  onSelect,
-  idPrefix,
-}: {
-  design: StudioDesignJson;
-  object: StudioObject;
-  onChange: (design: StudioDesignJson) => void;
-  onSelect: (selection: StudioSelection) => void;
-  idPrefix: string;
-}) {
-  const fieldId = (name: string) => `${idPrefix}-${name}-${object.id}`;
-  const minimums = STUDIO_OBJECT_MIN_DIMENSIONS[object.type];
-  const boundsResult = getStudioObjectBoundsResult(object, design.room.floor);
-  const typeLabel =
-    STUDIO_OBJECT_OPTIONS.find((option) => option.type === object.type)?.label ??
-    object.type.replaceAll("_", " ");
-  const finishOptions =
-    object.type === "dance_floor"
-      ? DANCE_FLOOR_FINISHES
-      : GENERIC_OBJECT_FINISHES;
-  const showsSeating = seatingObjectTypes.includes(object.type);
-  function update(patch: Partial<StudioObject>) {
-    const nextObject = { ...object, ...patch } as StudioObject;
-    onChange({
-      ...design,
-      objects: design.objects.map((item) =>
-        item.id === object.id ? nextObject : item
-      ),
-    });
-  }
-
-  function duplicate() {
-    const duplicateObject: StudioObject = {
-      ...object,
-      id: createStudioItemId("object"),
-      label: `${object.label} copy`,
-      x: object.x + 12,
-      z: object.z + 12,
-    };
-    onChange({
-      ...design,
-      objects: [...design.objects, duplicateObject],
-    });
-    onSelect({ kind: "object", id: duplicateObject.id });
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-border/60 bg-background/45 p-3">
-        <p className="text-[0.62rem] font-semibold tracking-[0.18em] text-primary uppercase">
-          {typeLabel}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Position {inchesToFeetLabel(object.x)}, {inchesToFeetLabel(object.z)}
-        </p>
-      </div>
-      {!boundsResult.contained ? (
-        <div
-          className="flex gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"
-          role="status"
-        >
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          <span>{boundsResult.warning}</span>
-        </div>
-      ) : null}
-      <Field label="Label" id={fieldId("label")}>
-        <Input
-          id={fieldId("label")}
-          value={object.label}
-          onChange={(event) => update({ label: event.target.value })}
-        />
-      </Field>
-      <div className="grid grid-cols-2 gap-2">
-        {([
-          ["X position", "x"],
-          ["Z position", "z"],
-          ["Width", "width"],
-          ["Depth", "depth"],
-          ["Height", "height"],
-        ] as const).map(([label, key]) => (
-          <Field key={key} label={`${label} (ft)`} id={fieldId(key)}>
-            <Input
-              id={fieldId(key)}
-              type="number"
-              step="0.5"
-              min={
-                key === "x" || key === "z"
-                  ? undefined
-                  : key === "width"
-                    ? feetValue(minimums.width)
-                    : key === "depth"
-                      ? feetValue(minimums.depth)
-                      : 0
-              }
-              value={feetValue(object[key])}
-              onChange={(event) =>
-                update({
-                  [key]:
-                    key === "x" || key === "z"
-                      ? signedFeetInput(event.target.value, object[key])
-                      : key === "width"
-                        ? Math.max(
-                            minimums.width,
-                            feetInput(event.target.value, object[key])
-                          )
-                        : key === "depth"
-                          ? Math.max(
-                              minimums.depth,
-                              feetInput(event.target.value, object[key])
-                            )
-                          : Math.max(
-                              0,
-                              feetInput(event.target.value, object[key])
-                            ),
-                })
-              }
-              className="input-no-spin"
-            />
-          </Field>
-        ))}
-        <Field label="Rotation (°)" id={fieldId("rotation")}>
-          <Input
-            id={fieldId("rotation")}
-            type="number"
-            step="15"
-            value={object.rotation}
-            onChange={(event) =>
-              update({
-                rotation: parseNumber(event.target.value, object.rotation),
-              })
-            }
-            className="input-no-spin"
-          />
-        </Field>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => update({ rotation: object.rotation - 15 })}
-          aria-label="Rotate object minus 15 degrees"
-        >
-          <Minus aria-hidden="true" />
-          15°
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => update({ rotation: 0 })}
-          aria-label="Reset object rotation"
-        >
-          <RotateCcw aria-hidden="true" />
-          Reset
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => update({ rotation: object.rotation + 15 })}
-          aria-label="Rotate object plus 15 degrees"
-        >
-          <Plus aria-hidden="true" />
-          15°
-        </Button>
-      </div>
-      <Field label="Finish" id={fieldId("finish")}>
-        <SelectInput
-          id={fieldId("finish")}
-          value={
-            object.finish ??
-            (object.type === "dance_floor" ? "white_gloss" : "natural_wood")
-          }
-          onChange={(next) =>
-            update({ finish: next as StudioObject["finish"] })
-          }
-          options={finishOptions.map((option) => ({
-            value: option.value,
-            label: option.label,
-          }))}
-        />
-      </Field>
-      {showsSeating ? (
-        <Field label="Seating count" id={fieldId("seating")}>
-          <Input
-            id={fieldId("seating")}
-            type="number"
-            min={0}
-            max={STUDIO_MAX_SEATING_COUNT}
-            step={1}
-            value={object.seatingCount ?? 0}
-            onChange={(event) =>
-              update({
-                seatingCount: Math.min(
-                  STUDIO_MAX_SEATING_COUNT,
-                  Math.max(0, Math.round(parseNumber(event.target.value, 0)))
-                ),
-              })
-            }
-            className="input-no-spin"
-          />
-        </Field>
-      ) : null}
-      <Field label="Object notes" id={fieldId("notes")}>
-        <Textarea
-          id={fieldId("notes")}
-          rows={3}
-          maxLength={1000}
-          value={object.notes ?? ""}
-          placeholder="Placement, finish, or setup notes…"
-          onChange={(event) => update({ notes: event.target.value })}
-        />
-      </Field>
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        onClick={duplicate}
-      >
-        <Copy aria-hidden="true" />
-        Duplicate object
-      </Button>
-    </div>
-  );
-}
-
-function OpeningEditor({
-  design,
-  opening,
-  onChange,
-  idPrefix,
-}: {
-  design: StudioDesignJson;
-  opening: StudioOpening;
-  onChange: (design: StudioDesignJson) => void;
-  idPrefix: string;
-}) {
-  const walls = getWallSegments(design.room.floor);
-  const wall = walls[opening.wallIndex];
-  const fieldId = (name: string) => `${idPrefix}-${name}-${opening.id}`;
-
-  function update(patch: Partial<StudioOpening>) {
-    onChange(updateOpening(design, opening.id, patch));
-  }
-
-  return (
-    <div className="space-y-4">
-      <Field label="Label" id={fieldId("label")}>
-        <Input
-          id={fieldId("label")}
-          value={opening.label}
-          onChange={(event) => update({ label: event.target.value })}
-        />
-      </Field>
-      <Field label="Wall" id={fieldId("wall")}>
-        <SelectInput
-          id={fieldId("wall")}
-          value={String(opening.wallIndex)}
-          onChange={(next) => {
-            const wallIndex = Number(next);
-            const nextWall = walls[wallIndex];
-            update({
-              wallIndex,
-              offset: Math.max(0, (nextWall?.length ?? 36) / 2 - 18),
-              width: Math.min(opening.width, nextWall?.length ?? opening.width),
-            });
-          }}
-          options={walls.map((item) => ({
-            value: String(item.index),
-            label: `Wall ${item.index + 1}`,
-          }))}
-        />
-      </Field>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Offset (ft)" id={fieldId("offset")}>
-          <Input
-            id={fieldId("offset")}
-            type="number"
-            min={0}
-            step="0.5"
-            value={feetValue(opening.offset)}
-            onChange={(event) =>
-              update({
-                offset: Math.min(
-                  feetInput(event.target.value, opening.offset),
-                  Math.max(0, (wall?.length ?? 1) - 1)
-                ),
-              })
-            }
-            className="input-no-spin"
-          />
-        </Field>
-        <Field label="Width (ft)" id={fieldId("width")}>
-          <Input
-            id={fieldId("width")}
-            type="number"
-            min={1}
-            step="0.5"
-            value={feetValue(opening.width)}
-            onChange={(event) =>
-              update({
-                width: Math.min(
-                  Math.max(1, feetInput(event.target.value, opening.width)),
-                  wall?.length ?? opening.width
-                ),
-              })
-            }
-            className="input-no-spin"
-          />
-        </Field>
-      </div>
-    </div>
-  );
-}
-
-function Field({
   label,
-  id,
-  children,
+  count,
+  onClick,
 }: {
+  active: boolean;
+  icon: typeof Layers;
   label: string;
-  id: string;
-  children: React.ReactNode;
+  count?: number;
+  onClick: () => void;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs text-muted-foreground">
-        {label}
-      </Label>
-      {children}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background/50 p-3">
-      <p className="text-[0.65rem] tracking-wider text-muted-foreground uppercase">
-        {label}
-      </p>
-      <p className="mt-1 font-heading text-lg">{value}</p>
-    </div>
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "flex h-8 items-center justify-center gap-1.5 rounded-xl text-xs font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+        active
+          ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--primary)_30%,transparent)]"
+          : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <Icon className="size-3.5" aria-hidden="true" />
+      {label}
+      {count !== undefined ? (
+        <span
+          className={cn(
+            "rounded-full px-1.5 text-[0.6rem] tabular-nums",
+            active ? "bg-primary/20" : "bg-muted/60"
+          )}
+        >
+          {count}
+        </span>
+      ) : null}
+    </button>
   );
 }
 
@@ -679,13 +259,24 @@ function SavePill({ state }: { state: StudioSaveState }) {
       ? CheckCircle2
       : state === "error"
         ? TriangleAlert
-        : Clock3;
+        : state === "saving"
+          ? LoaderCircle
+          : Clock3;
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/60 bg-background/60 px-2 py-1 text-[0.62rem] text-muted-foreground"
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded-full border border-border/50 bg-background/60 px-2 py-1 text-[0.62rem] text-muted-foreground",
+        state === "error" && "border-destructive/40 text-destructive"
+      )}
       role="status"
     >
-      <Icon className="size-3 text-primary" aria-hidden="true" />
+      <Icon
+        className={cn(
+          "size-3 text-primary",
+          state === "saving" && "animate-spin motion-reduce:animate-none"
+        )}
+        aria-hidden="true"
+      />
       {saveCopy[state]}
     </span>
   );

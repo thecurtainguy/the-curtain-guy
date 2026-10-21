@@ -38,7 +38,12 @@ export type StudioCameraView =
   | "top"
   | "front"
   | "guest"
-  | "showcase";
+  | "showcase"
+  | "stage"
+  | "corner"
+  | "walk"
+  | "ceiling"
+  | "dollhouse";
 
 export type StudioLayerKey = "drapes" | "treatments" | "objects" | "openings";
 
@@ -659,4 +664,10 @@ export const STUDIO_SHORTCUTS: Array<{ keys: string[]; label: string }> = [
   { keys: ["Shift", "Click"], label: "Add to selection" },
   { keys: ["Esc"], label: "Clear selection" },
   { keys: ["?"], label: "Show shortcuts" },
+  { keys: ["Drag"], label: "3D in-room: look around (right-drag orbits the subject)" },
+  { keys: ["W", "A", "S", "D"], label: "3D in-room: walk (Shift = run)" },
+  { keys: ["Arrows"], label: "3D walk mode: walk instead of nudging" },
+  { keys: ["Q", "E"], label: "3D in-room: lower / raise eye height" },
+  { keys: ["Scroll"], label: "3D in-room: step forward / back" },
+  { keys: ["Double-click"], label: "3D in-room: glide to a floor spot" },
 ];

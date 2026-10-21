@@ -1,6 +1,16 @@
 "use client";
 
-import { getDrapeColorHex, type StudioObject } from "@/data/studio";
+import type { StudioObject } from "@/data/studio";
+import { useMemo } from "react";
+import { hashSeed } from "../texture-utils";
+import {
+  DrapeAssembly,
+  FabricMesh,
+  useFabricEditorState,
+} from "./drape-assembly";
+import { canopyCenterY, createCanopyGeometry } from "./geometry";
+import { useDisposeGeometry } from "./hardware";
+import { getFabricMaterial, getHardwareMaterial } from "./materials";
 
 const SCALE = 1 / 12;
 
@@ -10,22 +20,28 @@ const SCALE = 1 / 12;
  * The parent group applies position and rotation.
  */
 export function FreestandingDrapeModel({ object }: { object: StudioObject }) {
-  const width = Math.max(0.5, object.width * SCALE);
-  const height = Math.max(0.5, object.height * SCALE);
+  const { highlight, quality } = useFabricEditorState(object.id);
+  const seed = useMemo(() => hashSeed(object.id), [object.id]);
   return (
-    <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
-      <boxGeometry args={[width, height, 0.08]} />
-      <meshStandardMaterial
-        color={getDrapeColorHex(object.drapeColor ?? "ivory")}
-        roughness={0.85}
-      />
-    </mesh>
+    <DrapeAssembly
+      length={Math.max(0.5, object.width * SCALE)}
+      height={Math.max(0.5, object.height * SCALE)}
+      fabric={object.fabric ?? "velvet"}
+      color={object.drapeColor ?? "ivory"}
+      fullness={object.fullness ?? 2}
+      hardware="pipe_and_drape"
+      seed={seed}
+      quality={quality}
+      baseZ={0}
+      highlight={highlight}
+    />
   );
 }
 
 /**
  * Ceiling canopy in object-local space: footprint centered on origin; fabric
- * hangs from `wallHeight` (feet) down by the object's `height`.
+ * hangs from `wallHeight` (feet) down by the object's `height`, radiating
+ * from a central medallion to perimeter attachment points.
  */
 export function CeilingDrapeModel({
   object,
@@ -34,18 +50,53 @@ export function CeilingDrapeModel({
   object: StudioObject;
   wallHeight: number;
 }) {
+  const { highlight, quality } = useFabricEditorState(object.id);
   const width = Math.max(0.5, object.width * SCALE);
   const depth = Math.max(0.5, object.depth * SCALE);
-  const drop = Math.max(0.2, object.height * SCALE);
+  const drop = Math.max(0.3, Math.min(wallHeight - 1, object.height * SCALE));
+  const top = wallHeight - 0.02;
+  const fullness = object.fullness ?? 2;
+  const seed = useMemo(() => hashSeed(object.id), [object.id]);
+
+  const geometry = useMemo(
+    () =>
+      createCanopyGeometry({
+        width,
+        depth,
+        top,
+        drop,
+        fullness,
+        seed,
+        quality,
+      }),
+    [depth, drop, fullness, quality, seed, top, width]
+  );
+  useDisposeGeometry(geometry);
+
+  const material = getFabricMaterial(
+    object.fabric ?? "chiffon",
+    object.drapeColor ?? "white"
+  );
+  const centerY = canopyCenterY(top, drop);
+  const gold = getHardwareMaterial("gold");
+
   return (
-    <mesh position={[0, wallHeight - drop / 2, 0]}>
-      <boxGeometry args={[width, 0.05, depth]} />
-      <meshStandardMaterial
-        color={getDrapeColorHex(object.drapeColor ?? "white")}
-        roughness={0.8}
-        transparent
-        opacity={0.75}
-      />
-    </mesh>
+    <group>
+      <FabricMesh geometry={geometry} material={material} highlight={highlight} />
+      <group position={[0, centerY, 0]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]} material={gold} castShadow>
+          <torusGeometry args={[0.32, 0.045, 12, 40]} />
+        </mesh>
+        <mesh position={[0, -0.04, 0]} material={gold}>
+          <cylinderGeometry args={[0.3, 0.2, 0.08, 32]} />
+        </mesh>
+        <mesh position={[0, -0.14, 0]} material={gold}>
+          <sphereGeometry args={[0.09, 16, 12]} />
+        </mesh>
+        <mesh position={[0, (top - centerY) / 2, 0]} material={gold}>
+          <cylinderGeometry args={[0.018, 0.018, Math.max(0.05, top - centerY), 8]} />
+        </mesh>
+      </group>
+    </group>
   );
 }

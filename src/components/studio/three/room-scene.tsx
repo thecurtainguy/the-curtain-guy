@@ -1,88 +1,81 @@
 "use client";
 
 import { useThree } from "@react-three/fiber";
-import {
-  getStudioMaterials,
-  type StudioDesignJson,
-} from "@/data/studio";
+import { getStudioMaterials, type StudioDesignJson } from "@/data/studio";
 import { getStudioBounds } from "@/lib/studio-geometry";
 import { useEffect, useMemo } from "react";
+import {
+  DEFAULT_STUDIO_EDITOR_SETTINGS,
+  useOptionalStudioEditor,
+} from "../editor/studio-editor-context";
 import type { StudioSelection } from "../studio-types";
 import { StudioCameraControls } from "./camera-controls";
 import { StudioDrapes } from "./drapes";
-import { StudioObjects } from "./objects";
+import { getStudioQualityPreset } from "./engine-quality";
 import { LIGHTING_MOODS } from "./lighting-moods";
-import { StudioTreatments } from "./treatments";
 import { StudioManipulationLayer } from "./manipulation-layer";
+import { StudioObjects } from "./objects";
+import { StudioPostProcessing } from "./post-processing";
+import { StudioSceneEnvironment } from "./scene-environment";
+import { StudioSceneLighting } from "./scene-lighting";
+import { StudioTreatments } from "./treatments";
 import { StudioVenue } from "./venue";
+import { useCameraInsideRoom } from "./venue/camera-inside-store";
 
 export function RoomScene({
   design,
   selection,
   onSelect,
-  transparentWalls,
-  resetSignal,
-  fitSignal,
   darkTheme,
 }: {
   design: StudioDesignJson;
   selection: StudioSelection;
   onSelect: (selection: StudioSelection) => void;
-  transparentWalls: boolean;
-  resetSignal: number;
-  fitSignal: number;
   darkTheme: boolean;
 }) {
   const bounds = useMemo(
     () => getStudioBounds(design.room.floor),
     [design.room.floor]
   );
+  const editor = useOptionalStudioEditor();
+  const settings = editor?.settings ?? DEFAULT_STUDIO_EDITOR_SETTINGS;
+  const preset = getStudioQualityPreset(settings.quality);
   const materials = getStudioMaterials(design);
-  const lighting = LIGHTING_MOODS[materials.lighting];
-  const { invalidate } = useThree();
-  const sceneSize = Math.max(bounds.width, bounds.depth) / 12;
-  const wallHeight = design.room.wallHeight / 12;
-  const shadowSpan = Math.max(14, sceneSize * 0.72);
-  const lightHeight = Math.max(16, wallHeight * 1.7);
+  const mood = materials.lighting;
+  const invalidate = useThree((state) => state.invalidate);
+  const inside = useCameraInsideRoom();
+  const moodBloom = LIGHTING_MOODS[mood].bloom;
+  /* Eye level sits close to the lenses and practicals: let them glow a touch more. */
+  const bloom = useMemo(
+    () =>
+      inside
+        ? {
+            strength: moodBloom.strength * 1.2,
+            radius: Math.min(0.9, moodBloom.radius * 1.08),
+            threshold: moodBloom.threshold,
+          }
+        : moodBloom,
+    [inside, moodBloom]
+  );
 
   useEffect(() => {
     invalidate();
-  }, [darkTheme, design, invalidate, selection, transparentWalls]);
+  }, [darkTheme, design, invalidate, selection, settings]);
 
   return (
     <>
-      <ambientLight
-        intensity={lighting.ambientIntensity}
-        color={lighting.ambientColor}
+      <StudioSceneEnvironment
+        mood={mood}
+        darkTheme={darkTheme}
+        bounds={bounds}
+        wallHeight={design.room.wallHeight}
       />
-      <hemisphereLight
-        intensity={lighting.hemisphereIntensity}
-        color={lighting.hemisphereSky}
-        groundColor={lighting.hemisphereGround}
-      />
-      <directionalLight
-        position={[sceneSize * 0.42, lightHeight, sceneSize * 0.32]}
-        intensity={lighting.keyIntensity}
-        color={lighting.keyColor}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-camera-left={-shadowSpan}
-        shadow-camera-right={shadowSpan}
-        shadow-camera-top={shadowSpan}
-        shadow-camera-bottom={-shadowSpan}
-        shadow-camera-near={0.5}
-        shadow-camera-far={Math.max(80, sceneSize * 3)}
-        shadow-bias={-0.00035}
-        shadow-normalBias={0.025}
-        shadow-radius={2.5}
-      />
-      <pointLight
-        position={[-sceneSize * 0.38, wallHeight * 0.72, sceneSize * 0.28]}
-        intensity={lighting.fillIntensity}
-        color={lighting.fillColor}
-        distance={Math.max(45, sceneSize * 2.2)}
-        decay={1.25}
+      <StudioSceneLighting
+        design={design}
+        bounds={bounds}
+        mood={mood}
+        preset={preset}
+        layers={settings.layers}
       />
 
       <StudioVenue
@@ -111,12 +104,13 @@ export function RoomScene({
         darkTheme={darkTheme}
       />
       <StudioManipulationLayer design={design} bounds={bounds} />
-      <StudioCameraControls
-        bounds={bounds}
-        wallHeight={design.room.wallHeight}
-        resetSignal={resetSignal}
-        fitSignal={fitSignal}
-      />
+      <StudioCameraControls design={design} bounds={bounds} />
+      {preset.bloom || preset.ao || preset.smaa ? (
+        <StudioPostProcessing
+          preset={preset}
+          bloom={bloom}
+        />
+      ) : null}
     </>
   );
 }

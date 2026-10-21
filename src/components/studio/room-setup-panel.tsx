@@ -1,20 +1,45 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 import { useBrandConfirm } from "@/components/ui/brand-dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  cloneStudioTemplate,
-  type StudioDesignJson,
-  type StudioRoomShape,
-} from "@/data/studio";
-import {
-  updateTemplateRoomDimensions,
-} from "@/lib/studio-geometry";
+import type { StudioDesignJson, StudioRoomShape } from "@/data/studio";
+import { getWallSegments, updateTemplateRoomDimensions } from "@/lib/studio-geometry";
 import { cn } from "@/lib/utils";
-import { Box, CornerDownRight, RectangleHorizontal } from "lucide-react";
-import { feetInput, feetValue } from "./studio-types";
+import {
+  ArrowUpFromLine,
+  Building2,
+  GlassWater,
+  Hand,
+  MoveHorizontal,
+  MoveVertical,
+  Ruler,
+  Scan,
+  Shapes,
+  SquareDashed,
+  Theater,
+  Users,
+} from "lucide-react";
+import {
+  ChoiceTile,
+  DimensionControl,
+  DraftNumberInput,
+  LibraryCard,
+  LibrarySectionHeading,
+  StatTile,
+} from "./library/studio-library-ui";
+import {
+  ROOM_MAX_FEET,
+  ROOM_MIN_FEET,
+  WALL_HEIGHT_MAX_FEET,
+  WALL_HEIGHT_MIN_FEET,
+  changeRoomShape,
+  getStudioRoomStats,
+  scaleCustomRoom,
+  setCustomWallLength,
+  shapeChangeClearsWallItems,
+} from "./library/studio-room-tools";
+import { VenuePresetGrid } from "./library/venue-preset-grid";
 
 type RoomSetupPanelProps = {
   design: StudioDesignJson;
@@ -22,49 +47,117 @@ type RoomSetupPanelProps = {
   idPrefix: string;
 };
 
-const shapes: Array<{
+const SHAPES: Array<{
   value: StudioRoomShape;
   label: string;
-  icon: typeof Box;
+  description: string;
+  path: string;
 }> = [
-  { value: "rectangle", label: "Rectangle", icon: RectangleHorizontal },
-  { value: "l_shape", label: "L-shape", icon: CornerDownRight },
-  { value: "custom", label: "Custom", icon: Box },
+  {
+    value: "rectangle",
+    label: "Rectangle",
+    description: "Classic hall",
+    path: "M6 6 H58 V38 H6 Z",
+  },
+  {
+    value: "l_shape",
+    label: "L-shape",
+    description: "With cutout",
+    path: "M6 6 H58 V22 H36 V38 H6 Z",
+  },
+  {
+    value: "custom",
+    label: "Free-form",
+    description: "Drag corners",
+    path: "M14 6 H50 L58 18 V38 H24 L6 28 V14 Z",
+  },
 ];
 
-function DimensionField({
-  id,
-  label,
-  value,
-  min = 1,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: number;
-  min?: number;
-  onChange: (inches: number) => void;
-}) {
+function formatNumber(value: number) {
+  return Math.round(value).toLocaleString("en-US");
+}
+
+function RoomOutlineThumb({ design }: { design: StudioDesignJson }) {
+  const walls = getWallSegments(design.room.floor);
+  const xs = design.room.floor.map((point) => point.x);
+  const zs = design.room.floor.map((point) => point.z);
+  const minX = Math.min(...xs);
+  const minZ = Math.min(...zs);
+  const width = Math.max(1, Math.max(...xs) - minX);
+  const depth = Math.max(1, Math.max(...zs) - minZ);
+  const pad = Math.max(width, depth) * 0.12;
+  const points = design.room.floor
+    .map((point) => `${point.x - minX},${point.z - minZ}`)
+    .join(" ");
+  const labelSize = Math.max(width, depth) * 0.065;
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs text-muted-foreground">
-        {label}
-      </Label>
-      <div className="relative">
-        <Input
-          id={id}
-          type="number"
-          min={min}
-          step="0.5"
-          value={feetValue(value)}
-          onChange={(event) => onChange(feetInput(event.target.value, value))}
-          className="input-no-spin pr-9"
-        />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground">
-          ft
-        </span>
-      </div>
-    </div>
+    <svg
+      viewBox={`${-pad} ${-pad} ${width + pad * 2} ${depth + pad * 2}`}
+      className="h-24 w-full text-primary"
+      role="img"
+      aria-label={`${design.room.name} outline with ${walls.length} walls`}
+    >
+      <polygon
+        points={points}
+        className="fill-primary/12"
+        stroke="currentColor"
+        strokeWidth={Math.max(width, depth) * 0.012}
+        strokeLinejoin="round"
+      />
+      {walls.map((wall) => (
+        <text
+          key={wall.index}
+          x={wall.center.x - minX}
+          y={wall.center.z - minZ}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={labelSize}
+          className="fill-foreground/80 font-semibold"
+        >
+          {wall.index + 1}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+function WallLengthRow({
+  index,
+  length,
+  onCommit,
+}: {
+  index: number;
+  length: number;
+  onCommit: (inches: number) => void;
+}) {
+  const rounded = Math.round(length);
+  const feet = Math.floor(rounded / 12);
+  const inches = rounded % 12;
+  return (
+    <li className="flex items-center gap-2 rounded-xl border border-border/40 bg-background/30 px-2 py-1.5">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[0.62rem] font-semibold text-primary">
+        {index + 1}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+        Wall {index + 1}
+      </span>
+      <DraftNumberInput
+        value={feet}
+        suffix="ft"
+        ariaLabel={`Wall ${index + 1} feet`}
+        className="w-16"
+        onCommit={(next) => onCommit(Math.round(next * 12) + inches)}
+      />
+      <DraftNumberInput
+        value={inches}
+        suffix="in"
+        ariaLabel={`Wall ${index + 1} inches`}
+        className="w-13"
+        onCommit={(next) =>
+          onCommit(feet * 12 + Math.min(11, Math.max(0, Math.round(next))))
+        }
+      />
+    </li>
   );
 }
 
@@ -74,56 +167,31 @@ export function RoomSetupPanel({
   idPrefix,
 }: RoomSetupPanelProps) {
   const [confirm, confirmDialog] = useBrandConfirm();
+  const [wallError, setWallError] = useState<string | null>(null);
   const dimensions = design.room.templateDimensions;
   const fieldId = (name: string) => `${idPrefix}-${name}`;
+  const stats = getStudioRoomStats(design);
+  const isCustom = design.room.shape === "custom";
+  const walls = getWallSegments(design.room.floor);
 
   async function setShape(shape: StudioRoomShape) {
     if (shape === design.room.shape) return;
-    const hasWallItems =
-      design.drapeRuns.length > 0 ||
-      design.treatments.length > 0 ||
-      design.openings.length > 0;
     if (
-      hasWallItems &&
+      shapeChangeClearsWallItems(design, shape) &&
       !(await confirm({
-        icon: Box,
+        icon: Shapes,
         eyebrow: "Room setup",
         title: "Change the room shape?",
         description:
-          "Changing the room shape will remove all drape runs, treatments, and opening markers.",
+          "The wall layout changes, so drape runs, treatments and door markers will be removed. Furniture is kept.",
         confirmLabel: "Change shape",
         destructive: true,
       }))
     ) {
       return;
     }
-    if (shape === "custom") {
-      onChange({
-        ...design,
-        room: {
-          ...design.room,
-          shape,
-          name: "Custom room",
-          templateDimensions: undefined,
-        },
-        drapeRuns: [],
-        treatments: [],
-        openings: [],
-      });
-      return;
-    }
-
-    const template = cloneStudioTemplate(shape);
-    onChange({
-      ...design,
-      room: {
-        ...template.room,
-        wallHeight: design.room.wallHeight,
-      },
-      drapeRuns: [],
-      treatments: [],
-      openings: [],
-    });
+    setWallError(null);
+    onChange(changeRoomShape(design, shape));
   }
 
   function setDimensions(patch: {
@@ -131,18 +199,10 @@ export function RoomSetupPanel({
     length?: number;
     cutoutWidth?: number;
     cutoutDepth?: number;
-    wallHeight?: number;
   }) {
     const current = design.room.templateDimensions;
-    const minimumSide = design.room.shape === "l_shape" ? 24 : 12;
-    const width = Math.max(
-      minimumSide,
-      patch.width ?? current?.width ?? 720
-    );
-    const length = Math.max(
-      minimumSide,
-      patch.length ?? current?.length ?? 480
-    );
+    const width = patch.width ?? current?.width ?? 720;
+    const length = patch.length ?? current?.length ?? 480;
     const cutoutWidth = Math.min(
       width - 12,
       Math.max(12, patch.cutoutWidth ?? current?.cutoutWidth ?? width / 3)
@@ -157,131 +217,242 @@ export function RoomSetupPanel({
         length,
         cutoutWidth,
         cutoutDepth,
-        wallHeight: patch.wallHeight ?? design.room.wallHeight,
+        wallHeight: design.room.wallHeight,
       })
     );
   }
 
+  function setWallHeight(inches: number) {
+    onChange({
+      ...design,
+      room: {
+        ...design.room,
+        wallHeight: Math.min(600, Math.max(72, inches)),
+      },
+    });
+  }
+
+  function setWallLength(index: number, inches: number) {
+    const next = setCustomWallLength(design, index, inches);
+    if (!next) {
+      setWallError(
+        `Wall ${index + 1} can’t be that length — the walls would cross. Try a smaller change or drag corners in 2D.`
+      );
+      return;
+    }
+    setWallError(null);
+    onChange(next);
+  }
+
   return (
     <section
-      className="space-y-4"
+      className="space-y-3"
       aria-labelledby={fieldId("room-setup-heading")}
     >
-      <div>
-        <p className="text-[0.65rem] font-semibold tracking-[0.22em] text-primary uppercase">
-          Foundation
-        </p>
-        <h2 id={fieldId("room-setup-heading")} className="font-heading text-lg">
-          Room setup
-        </h2>
-      </div>
-
-      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Room shape">
-        {shapes.map(({ value, label, icon: Icon }) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={design.room.shape === value}
-            onClick={() => void setShape(value)}
-            className={cn(
-              "relative flex min-w-0 flex-col items-center gap-1 rounded-2xl border px-1.5 py-2.5 text-[0.68rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
-              design.room.shape === value
-                ? "border-primary/50 bg-primary/10 text-foreground"
-                : "border-border/50 bg-background/35 text-muted-foreground hover:bg-muted/60"
-            )}
-          >
-            <Icon className="size-4" aria-hidden="true" />
-            <span className="truncate">{label}</span>
-            {value === "custom" && (
-              <Badge className="absolute -top-2 -right-1 px-1.5 py-0 text-[0.55rem]">
-                Beta
-              </Badge>
-            )}
-          </button>
-        ))}
-      </div>
+      <LibrarySectionHeading
+        icon={Ruler}
+        eyebrow="Foundation"
+        title="Room setup"
+        id={fieldId("room-setup-heading")}
+      />
 
       <div className="space-y-1.5">
-        <Label
-          htmlFor={fieldId("room-name")}
-          className="text-xs text-muted-foreground"
-        >
-          Room name
-        </Label>
-        <Input
-          id={fieldId("room-name")}
-          value={design.room.name}
-          maxLength={160}
-          onChange={(event) =>
-            onChange({
-              ...design,
-              room: { ...design.room, name: event.target.value },
-            })
-          }
-        />
+        <div className="grid grid-cols-2 gap-1.5">
+          <StatTile
+            icon={Scan}
+            label="Floor area"
+            value={`${formatNumber(stats.areaSqFt)} ft²`}
+            hint={`${Math.round(stats.width / 12)}′ × ${Math.round(stats.length / 12)}′ overall`}
+          />
+          <StatTile
+            icon={SquareDashed}
+            label="Perimeter"
+            value={`${formatNumber(stats.perimeterFt)} ft`}
+            hint={`${walls.length} walls to drape`}
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          <StatTile icon={Users} label="Banquet" value={`≈${formatNumber(stats.banquet)}`} hint="seated" />
+          <StatTile icon={GlassWater} label="Cocktail" value={`≈${formatNumber(stats.cocktail)}`} hint="standing" />
+          <StatTile icon={Theater} label="Theatre" value={`≈${formatNumber(stats.theatre)}`} hint="rows" />
+        </div>
       </div>
 
-      {design.room.shape === "custom" ? (
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3">
-          <p className="text-xs font-medium">Basic polygon retained</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Custom mode preserves the current {design.room.floor.length}-point
-            outline. Direct point and edge editing is unavailable in Beta.
-          </p>
+      <LibraryCard aria-labelledby={fieldId("venue-heading")}>
+        <LibrarySectionHeading
+          icon={Building2}
+          eyebrow="Start from a venue"
+          title="Venue presets"
+          id={fieldId("venue-heading")}
+        />
+        <VenuePresetGrid design={design} onChange={onChange} />
+      </LibraryCard>
+
+      <LibraryCard aria-labelledby={fieldId("shape-heading")}>
+        <LibrarySectionHeading
+          icon={Shapes}
+          eyebrow="Floor plan"
+          title="Room shape"
+          id={fieldId("shape-heading")}
+        />
+        <div
+          className="grid grid-cols-3 gap-1.5"
+          role="radiogroup"
+          aria-labelledby={fieldId("shape-heading")}
+        >
+          {SHAPES.map((shape) => (
+            <ChoiceTile
+              key={shape.value}
+              selected={design.room.shape === shape.value}
+              onSelect={() => void setShape(shape.value)}
+              label={shape.label}
+              description={shape.description}
+              compact
+              preview={
+                <span className="flex items-center justify-center rounded-xl border border-border/30 bg-background/45 py-1.5">
+                  <svg viewBox="0 0 64 44" className="h-8 w-12 text-primary" aria-hidden>
+                    <path
+                      d={shape.path}
+                      className="fill-primary/18"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              }
+            />
+          ))}
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <DimensionField
-            id={fieldId("room-width")}
-            label="Width"
-            value={dimensions?.width ?? 720}
-            onChange={(width) => setDimensions({ width })}
+        {isCustom ? (
+          <div className="flex gap-2 rounded-xl border border-primary/20 bg-primary/5 p-2.5">
+            <Hand className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+            <p className="text-[0.66rem] leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">Free-form room.</span>{" "}
+              Drag corners on the 2D plan, or set exact wall lengths below.
+            </p>
+          </div>
+        ) : null}
+      </LibraryCard>
+
+      <LibraryCard aria-labelledby={fieldId("size-heading")}>
+        <LibrarySectionHeading
+          icon={MoveHorizontal}
+          eyebrow="Precise size"
+          title="Dimensions"
+          id={fieldId("size-heading")}
+        />
+        <div className="space-y-1.5">
+          <label
+            htmlFor={fieldId("room-name")}
+            className="text-[0.68rem] font-medium text-muted-foreground"
+          >
+            Room name
+          </label>
+          <Input
+            id={fieldId("room-name")}
+            value={design.room.name}
+            maxLength={160}
+            className="h-8 text-xs"
+            onChange={(event) =>
+              onChange({
+                ...design,
+                room: { ...design.room, name: event.target.value },
+              })
+            }
           />
-          <DimensionField
-            id={fieldId("room-length")}
-            label="Length"
-            value={dimensions?.length ?? 480}
-            onChange={(length) => setDimensions({ length })}
+        </div>
+
+        <DimensionControl
+          label="Width"
+          icon={MoveHorizontal}
+          value={isCustom ? stats.width : (dimensions?.width ?? 720)}
+          minFeet={ROOM_MIN_FEET}
+          maxFeet={ROOM_MAX_FEET}
+          onChange={(width) =>
+            isCustom
+              ? onChange(scaleCustomRoom(design, { width }))
+              : setDimensions({ width })
+          }
+        />
+        <DimensionControl
+          label="Length"
+          icon={MoveVertical}
+          value={isCustom ? stats.length : (dimensions?.length ?? 480)}
+          minFeet={ROOM_MIN_FEET}
+          maxFeet={ROOM_MAX_FEET}
+          onChange={(length) =>
+            isCustom
+              ? onChange(scaleCustomRoom(design, { length }))
+              : setDimensions({ length })
+          }
+        />
+
+        {design.room.shape === "l_shape" && dimensions ? (
+          <div className="space-y-3 rounded-xl border border-border/40 bg-background/25 p-2.5">
+            <p className="text-[0.6rem] font-semibold tracking-[0.16em] text-primary uppercase">
+              L-shape cutout
+            </p>
+            <DimensionControl
+              label="Cutout width"
+              value={dimensions.cutoutWidth ?? 240}
+              minFeet={1}
+              maxFeet={Math.max(2, Math.floor((dimensions.width - 12) / 12))}
+              onChange={(cutoutWidth) => setDimensions({ cutoutWidth })}
+            />
+            <DimensionControl
+              label="Cutout depth"
+              value={dimensions.cutoutDepth ?? 240}
+              minFeet={1}
+              maxFeet={Math.max(2, Math.floor((dimensions.length - 12) / 12))}
+              onChange={(cutoutDepth) => setDimensions({ cutoutDepth })}
+            />
+          </div>
+        ) : null}
+
+        <DimensionControl
+          label="Wall height"
+          icon={ArrowUpFromLine}
+          value={design.room.wallHeight}
+          minFeet={WALL_HEIGHT_MIN_FEET}
+          maxFeet={WALL_HEIGHT_MAX_FEET}
+          onChange={setWallHeight}
+        />
+      </LibraryCard>
+
+      {isCustom ? (
+        <LibraryCard aria-labelledby={fieldId("walls-heading")}>
+          <LibrarySectionHeading
+            icon={Ruler}
+            eyebrow="Free-form"
+            title="Wall lengths"
+            id={fieldId("walls-heading")}
           />
-          {design.room.shape === "l_shape" && (
-            <>
-              <DimensionField
-                id={fieldId("cutout-width")}
-                label="Cutout width"
-                value={dimensions?.cutoutWidth ?? 240}
-                onChange={(cutoutWidth) => setDimensions({ cutoutWidth })}
+          <div className="rounded-xl border border-border/30 bg-background/40 p-1.5">
+            <RoomOutlineThumb design={design} />
+          </div>
+          <ol className="space-y-1.5">
+            {walls.map((wall) => (
+              <WallLengthRow
+                key={wall.index}
+                index={wall.index}
+                length={wall.length}
+                onCommit={(inches) => setWallLength(wall.index, inches)}
               />
-              <DimensionField
-                id={fieldId("cutout-depth")}
-                label="Cutout depth"
-                value={dimensions?.cutoutDepth ?? 240}
-                onChange={(cutoutDepth) => setDimensions({ cutoutDepth })}
-              />
-            </>
-          )}
-          {design.room.shape === "l_shape" ? (
-            <p className="col-span-2 rounded-2xl border border-primary/15 bg-primary/5 p-2.5 text-[0.68rem] leading-relaxed text-muted-foreground">
-              Guarded Beta: use these dimensions for reliable L-shape changes.
-              Direct edge editing is unavailable.
+            ))}
+          </ol>
+          {wallError ? (
+            <p
+              role="alert"
+              className={cn(
+                "rounded-xl border border-destructive/30 bg-destructive/10 p-2 text-[0.66rem] leading-relaxed text-destructive"
+              )}
+            >
+              {wallError}
             </p>
           ) : null}
-        </div>
-      )}
-
-      <DimensionField
-        id={fieldId("wall-height")}
-        label="Wall height"
-        value={design.room.wallHeight}
-        min={6}
-        onChange={(wallHeight) => {
-          const clamped = Math.min(600, Math.max(72, wallHeight));
-          onChange({
-            ...design,
-            room: { ...design.room, wallHeight: clamped },
-          });
-        }}
-      />
+        </LibraryCard>
+      ) : null}
       {confirmDialog}
     </section>
   );

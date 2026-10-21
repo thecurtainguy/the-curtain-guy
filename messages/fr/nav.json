@@ -6,6 +6,24 @@
     "gallery": "Galerie",
     "about": "À propos",
     "contact": "Contact",
-    "studio": "Studio"
+    "studio": "Studio",
+    "faq": "FAQ",
+    "reviews": "Avis"
+  },
+  "explore": "Explorer",
+  "mega": {
+    "inspire": "S’inspirer",
+    "company": "Planifier avec nous",
+    "desc": {
+      "gallery": "De vraies installations : mariages, galas et scènes.",
+      "reviews": "Ce que disent les couples et planificateurs.",
+      "about": "L’équipe derrière chaque drapé installé.",
+      "faq": "Livraison, installation, horaires et prix."
+    },
+    "card": {
+      "eyebrow": "Estimation gratuite",
+      "title": "Transformez votre salle en un moment inoubliable.",
+      "cta": "Demander une estimation"
+    }
   }
 }

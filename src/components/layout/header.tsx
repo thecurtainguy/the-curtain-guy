@@ -1,10 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { NavigationMenu } from "radix-ui";
 import { usePathname } from "@/i18n/navigation";
-import { Menu } from "lucide-react";
-import { navLinks, siteConfig } from "@/data/site";
+import {
+  ArrowRight,
+  Box,
+  ChevronDown,
+  CircleHelp,
+  Home,
+  Images,
+  Mail,
+  Menu,
+  Package,
+  Sparkles,
+  Star,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import { imagePaths, siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand-logo";
 import {
@@ -24,15 +40,207 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-const navKeyByHref: Record<string, string> = {
-  "/": "home",
-  "/services": "services",
-  "/rentals": "rentals",
-  "/gallery": "gallery",
-  "/about": "about",
-  "/contact": "contact",
-  "/studio": "studio",
+const MEGA_CARD_PHOTO = `${imagePaths.gallery}/gala-ballroom-draping-01.jpg`;
+
+type MegaGroup = "inspire" | "company";
+
+type NavItem = {
+  key:
+    | "home"
+    | "services"
+    | "rentals"
+    | "studio"
+    | "gallery"
+    | "reviews"
+    | "about"
+    | "faq"
+    | "contact";
+  href: string;
+  icon: LucideIcon;
+  /** Desktop bar: before the Explore menu, inside one of its columns, after it, or mobile only. */
+  slot: "lead" | MegaGroup | "tail" | "mobile";
+  special?: boolean;
 };
+
+const NAV_ITEMS: readonly NavItem[] = [
+  { key: "home", href: "/", icon: Home, slot: "mobile" },
+  { key: "services", href: "/services", icon: Sparkles, slot: "lead" },
+  { key: "rentals", href: "/rentals", icon: Package, slot: "lead" },
+  { key: "studio", href: "/studio", icon: Box, slot: "lead", special: true },
+  { key: "gallery", href: "/gallery", icon: Images, slot: "inspire" },
+  { key: "reviews", href: "/reviews", icon: Star, slot: "inspire" },
+  { key: "about", href: "/about", icon: Users, slot: "company" },
+  { key: "faq", href: "/faq", icon: CircleHelp, slot: "company" },
+  { key: "contact", href: "/contact", icon: Mail, slot: "tail" },
+];
+
+const MEGA_GROUPS: readonly MegaGroup[] = ["inspire", "company"];
+
+const desktopLinkClassName =
+  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring xl:px-3 motion-reduce:transition-none";
+
+const desktopActiveClassName =
+  "bg-muted/60 text-foreground shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]";
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function DesktopBarLink({ item, pathname }: { item: NavItem; pathname: string }) {
+  const t = useTranslations("nav.links");
+  const active = isActivePath(pathname, item.href);
+  const Icon = item.icon;
+  return (
+    <NavigationMenu.Item>
+      <NavigationMenu.Link asChild active={active}>
+        <GuardedLink
+          href={item.href}
+          aria-current={active ? "page" : undefined}
+          className={cn(
+            desktopLinkClassName,
+            item.special
+              ? "text-primary hover:bg-primary/10"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+            active && desktopActiveClassName
+          )}
+        >
+          {item.special ? <Icon className="size-3.5" aria-hidden /> : null}
+          {t(item.key)}
+        </GuardedLink>
+      </NavigationMenu.Link>
+    </NavigationMenu.Item>
+  );
+}
+
+function ExploreMegaPanel({ pathname }: { pathname: string }) {
+  const t = useTranslations("nav");
+  return (
+    <div className="grid grid-cols-[15rem_1fr] gap-2 rounded-4xl border border-border/40 bg-popover/95 p-2 text-popover-foreground shadow-[0_24px_60px_-24px_oklch(0_0_0/0.6)] backdrop-blur-xl">
+      <NavigationMenu.Link asChild>
+        <GuardedLink
+          href="/get-estimate"
+          className="group/card relative flex min-h-[17rem] flex-col justify-end overflow-hidden rounded-2xl p-4 text-white outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Image
+            src={MEGA_CARD_PHOTO}
+            alt=""
+            fill
+            sizes="240px"
+            className="object-cover transition-transform duration-500 group-hover/card:scale-105 motion-reduce:transition-none"
+          />
+          <span
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"
+          />
+          <span className="relative text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-primary">
+            {t("mega.card.eyebrow")}
+          </span>
+          <span className="relative mt-1.5 font-heading text-lg leading-snug">
+            {t("mega.card.title")}
+          </span>
+          <span className="relative mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
+            {t("mega.card.cta")}
+            <ArrowRight
+              className="size-3.5 transition-transform group-hover/card:translate-x-0.5 motion-reduce:transition-none"
+              aria-hidden
+            />
+          </span>
+        </GuardedLink>
+      </NavigationMenu.Link>
+
+      <div className="grid grid-cols-2 gap-x-2 p-2">
+        {MEGA_GROUPS.map((group) => (
+          <div key={group}>
+            <p className="px-3 pb-2 pt-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-primary/80">
+              {t(`mega.${group}`)}
+            </p>
+            <ul className="flex flex-col gap-0.5">
+              {NAV_ITEMS.filter((item) => item.slot === group).map((item) => {
+                const active = isActivePath(pathname, item.href);
+                const Icon = item.icon;
+                return (
+                  <li key={item.key}>
+                    <NavigationMenu.Link asChild active={active}>
+                      <GuardedLink
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "group/item flex items-start gap-3 rounded-2xl p-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                          active ? "bg-muted/60" : "hover:bg-muted/50"
+                        )}
+                      >
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary transition-colors group-hover/item:bg-primary group-hover/item:text-primary-foreground">
+                          <Icon className="size-4" aria-hidden />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-foreground">
+                            {t(`links.${item.key}`)}
+                          </span>
+                          <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                            {t(`mega.desc.${item.key}`)}
+                          </span>
+                        </span>
+                      </GuardedLink>
+                    </NavigationMenu.Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DesktopNav({ pathname }: { pathname: string }) {
+  const t = useTranslations("nav");
+  const megaActive = NAV_ITEMS.some(
+    (item) =>
+      (item.slot === "inspire" || item.slot === "company") &&
+      isActivePath(pathname, item.href)
+  );
+
+  return (
+    <NavigationMenu.Root
+      aria-label="Main"
+      delayDuration={120}
+      className="relative hidden lg:block"
+    >
+      <NavigationMenu.List className="flex items-center gap-1">
+        {NAV_ITEMS.filter((item) => item.slot === "lead").map((item) => (
+          <DesktopBarLink key={item.key} item={item} pathname={pathname} />
+        ))}
+
+        <NavigationMenu.Item>
+          <NavigationMenu.Trigger
+            className={cn(
+              desktopLinkClassName,
+              "group data-open:bg-muted/50 data-open:text-foreground",
+              megaActive
+                ? desktopActiveClassName
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            )}
+          >
+            {t("explore")}
+            <ChevronDown
+              className="size-3.5 transition-transform duration-200 group-data-open:rotate-180 motion-reduce:transition-none"
+              aria-hidden
+            />
+          </NavigationMenu.Trigger>
+          <NavigationMenu.Content className="absolute left-1/2 top-full z-50 w-[46rem] -translate-x-1/2 pt-3 duration-150 data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-top-1 data-closed:animate-out data-closed:fade-out-0 motion-reduce:animate-none">
+            <ExploreMegaPanel pathname={pathname} />
+          </NavigationMenu.Content>
+        </NavigationMenu.Item>
+
+        {NAV_ITEMS.filter((item) => item.slot === "tail").map((item) => (
+          <DesktopBarLink key={item.key} item={item} pathname={pathname} />
+        ))}
+      </NavigationMenu.List>
+    </NavigationMenu.Root>
+  );
+}
 
 export function Header() {
   const pathname = usePathname();
@@ -108,11 +316,6 @@ export function Header() {
     };
   }, []);
 
-  function navLabel(href: string, fallback: string) {
-    const key = navKeyByHref[href];
-    return key ? t(key) : fallback;
-  }
-
   return (
     <header
       className={cn(
@@ -132,36 +335,7 @@ export function Header() {
       >
         <BrandLogo href="/" size="header" compact={compact} priority />
 
-        <nav
-          className="hidden items-center gap-1 lg:flex"
-          aria-label="Main"
-        >
-          {navLinks.map((link) => {
-            const Icon = link.icon;
-            const isActive =
-              link.href === "/"
-                ? pathname === "/"
-                : pathname === link.href || pathname.startsWith(`${link.href}/`);
-
-            return (
-              <GuardedLink
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-200 xl:px-3 motion-reduce:transition-none",
-                  link.special
-                    ? "text-primary hover:bg-primary/10"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                  isActive &&
-                    "bg-muted/60 text-foreground shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"
-                )}
-              >
-                {Icon && <Icon className="size-3.5" />}
-                {navLabel(link.href, link.label)}
-              </GuardedLink>
-            );
-          })}
-        </nav>
+        <DesktopNav pathname={pathname} />
 
         <div className="flex items-center gap-2">
           <LanguageSwitcher className="hidden sm:inline-flex" />
@@ -202,29 +376,26 @@ export function Header() {
               </SheetHeader>
               <div className="luxury-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
                 <nav className="flex flex-col gap-0.5" aria-label="Mobile">
-                  {navLinks.map((link) => {
-                    const Icon = link.icon;
-                    const isActive =
-                      link.href === "/"
-                        ? pathname === "/"
-                        : pathname === link.href ||
-                          pathname.startsWith(`${link.href}/`);
+                  {NAV_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = isActivePath(pathname, item.href);
 
                     return (
                       <GuardedLink
-                        key={link.href}
-                        href={link.href}
+                        key={item.key}
+                        href={item.href}
                         onClick={() => setMobileOpen(false)}
+                        aria-current={isActive ? "page" : undefined}
                         className={cn(
-                          "flex min-h-10 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                          link.special
+                          "flex min-h-10 items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                          item.special
                             ? "text-primary"
                             : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                           isActive && "bg-muted/60 text-foreground"
                         )}
                       >
-                        {Icon && <Icon className="size-4 shrink-0" />}
-                        {navLabel(link.href, link.label)}
+                        <Icon className="size-4 shrink-0 text-primary" aria-hidden />
+                        {t(item.key)}
                       </GuardedLink>
                     );
                   })}

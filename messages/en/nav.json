@@ -6,6 +6,24 @@
     "gallery": "Gallery",
     "about": "About",
     "contact": "Contact",
-    "studio": "Studio"
+    "studio": "Studio",
+    "faq": "FAQ",
+    "reviews": "Reviews"
+  },
+  "explore": "Explore",
+  "mega": {
+    "inspire": "Get inspired",
+    "company": "Plan with us",
+    "desc": {
+      "gallery": "Real installs from weddings, galas and stages.",
+      "reviews": "What couples and planners say about us.",
+      "about": "The team behind every drape we hang.",
+      "faq": "Delivery, install, timing and pricing answers."
+    },
+    "card": {
+      "eyebrow": "Free estimate",
+      "title": "Turn your venue into a moment.",
+      "cta": "Get estimate"
+    }
   }
 }

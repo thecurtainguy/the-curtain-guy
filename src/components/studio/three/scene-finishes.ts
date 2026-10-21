@@ -1,8 +1,4 @@
-import type {
-  StudioFloorFinish,
-  StudioLightingMood,
-  StudioWallFinish,
-} from "@/data/studio";
+import type { StudioFloorFinish, StudioWallFinish } from "@/data/studio";
 import * as THREE from "three";
 
 export const FLOOR_FINISHES: Record<
@@ -44,6 +40,10 @@ export const FLOOR_FINISHES: Record<
     metalness: 0.01,
     textureScale: 0.28,
   },
+  white_marble: { color: "#e9e6e1", roughness: 0.2, metalness: 0.02, textureScale: 0.2 },
+  dark_oak: { color: "#4e3a2a", roughness: 0.6, metalness: 0.01, textureScale: 0.16 },
+  herringbone: { color: "#94704b", roughness: 0.55, metalness: 0.01, textureScale: 0.2 },
+  lawn: { color: "#5d7a3e", roughness: 1, metalness: 0, textureScale: 0.5 },
 };
 
 export const WALL_FINISHES: Record<
@@ -54,81 +54,10 @@ export const WALL_FINISHES: Record<
   soft_grey: { color: "#b8b8b5", roughness: 0.92 },
   black_box: { color: "#242321", roughness: 0.86 },
   neutral_beige: { color: "#c9bcaa", roughness: 0.92 },
-};
-
-export const LIGHTING_MOODS: Record<
-  StudioLightingMood,
-  {
-    ambientColor: string;
-    ambientIntensity: number;
-    hemisphereSky: string;
-    hemisphereGround: string;
-    hemisphereIntensity: number;
-    keyColor: string;
-    keyIntensity: number;
-    fillColor: string;
-    fillIntensity: number;
-    exposure: number;
-    backgroundDark: string;
-    backgroundLight: string;
-  }
-> = {
-  neutral: {
-    ambientColor: "#f4f0e7",
-    ambientIntensity: 0.42,
-    hemisphereSky: "#fffaf0",
-    hemisphereGround: "#77736d",
-    hemisphereIntensity: 0.56,
-    keyColor: "#fff4df",
-    keyIntensity: 1.72,
-    fillColor: "#dbe7f3",
-    fillIntensity: 0.44,
-    exposure: 1.02,
-    backgroundDark: "#171716",
-    backgroundLight: "#dedbd4",
-  },
-  warm_gala: {
-    ambientColor: "#f4dfbc",
-    ambientIntensity: 0.38,
-    hemisphereSky: "#ffe8bf",
-    hemisphereGround: "#554637",
-    hemisphereIntensity: 0.48,
-    keyColor: "#ffd59b",
-    keyIntensity: 1.85,
-    fillColor: "#c9d6e8",
-    fillIntensity: 0.34,
-    exposure: 1.04,
-    backgroundDark: "#181411",
-    backgroundLight: "#ded5c8",
-  },
-  dark_venue: {
-    ambientColor: "#8d806f",
-    ambientIntensity: 0.26,
-    hemisphereSky: "#b7a98f",
-    hemisphereGround: "#171513",
-    hemisphereIntensity: 0.3,
-    keyColor: "#e9bd7c",
-    keyIntensity: 1.48,
-    fillColor: "#7689a3",
-    fillIntensity: 0.28,
-    exposure: 0.86,
-    backgroundDark: "#0e0d0c",
-    backgroundLight: "#1b1917",
-  },
-  bright_setup: {
-    ambientColor: "#ffffff",
-    ambientIntensity: 0.58,
-    hemisphereSky: "#ffffff",
-    hemisphereGround: "#aaa8a1",
-    hemisphereIntensity: 0.7,
-    keyColor: "#fff9ee",
-    keyIntensity: 1.92,
-    fillColor: "#e6f0fa",
-    fillIntensity: 0.54,
-    exposure: 1.12,
-    backgroundDark: "#20201e",
-    backgroundLight: "#eceae5",
-  },
+  white_plaster: { color: "#f1eee8", roughness: 0.95 },
+  exposed_brick: { color: "#8a4d3a", roughness: 0.95 },
+  wood_panel: { color: "#6b4a32", roughness: 0.7 },
+  tent_canvas: { color: "#f3f0e8", roughness: 0.9 },
 };
 
 const floorTextureCache = new Map<StudioFloorFinish, THREE.DataTexture>();

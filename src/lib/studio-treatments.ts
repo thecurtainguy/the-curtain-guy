@@ -84,6 +84,7 @@ export const STUDIO_TREATMENT_TYPE_LABELS: Record<
   side_tieback_panels: "Side panels / entrance reveal",
   top_swag_valance: "Top swag / valance",
   ceremony_arch: "Ceremony arch / frame",
+  layered_swag: "Layered swag",
 };
 
 const PRESET_TYPES: Record<StudioTreatmentPresetKey, StudioTreatmentType> = {

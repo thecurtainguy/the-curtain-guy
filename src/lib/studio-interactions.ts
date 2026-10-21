@@ -76,6 +76,23 @@ export const STUDIO_OBJECT_MIN_DIMENSIONS: Record<
   dj_booth: { width: 36, depth: 18 },
   bar: { width: 36, depth: 18 },
   lounge_area: { width: 36, depth: 36 },
+  sweetheart_table: { width: 36, depth: 18 },
+  head_table: { width: 48, depth: 18 },
+  buffet_table: { width: 36, depth: 18 },
+  cake_table: { width: 18, depth: 18 },
+  ceremony_seating: { width: 48, depth: 36 },
+  chair: { width: 14, depth: 14 },
+  sofa: { width: 36, depth: 24 },
+  photo_booth: { width: 48, depth: 48 },
+  plant: { width: 8, depth: 8 },
+  column: { width: 8, depth: 8 },
+  uplight: { width: 6, depth: 6 },
+  chandelier: { width: 12, depth: 12 },
+  piano: { width: 36, depth: 36 },
+  podium: { width: 12, depth: 12 },
+  av_screen: { width: 36, depth: 6 },
+  drape_backdrop: { width: 24, depth: 6 },
+  ceiling_drape: { width: 48, depth: 48 },
 };
 
 export function clampFinite(

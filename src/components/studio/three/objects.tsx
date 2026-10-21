@@ -15,7 +15,7 @@ import type { StudioSelection } from "../studio-types";
 const SCALE = 1 / 12;
 const GOLD = "#d4af55";
 
-const objectColors: Record<StudioObjectType, string> = {
+const objectColors: Partial<Record<StudioObjectType, string>> = {
   stage: "#55483a",
   dance_floor: "#f1eee7",
   entrance_marker: "#b68b3f",
@@ -34,6 +34,9 @@ const genericFinishColors: Record<GenericStudioObjectFinish, string> = {
   painted_black: "#242321",
   metal: "#7f8588",
   upholstered: "#76666a",
+  gold: "#c9a24a",
+  acrylic: "#dfe7ea",
+  marble: "#ece9e4",
   custom: "#9a7847",
 };
 
@@ -128,9 +131,10 @@ function getDanceTexture(finish: DanceFloorFinish) {
 }
 
 function finishColor(object: StudioObject) {
-  if (object.type === "dance_floor") return objectColors.dance_floor;
+  if (object.type === "dance_floor") return objectColors.dance_floor ?? "#f1eee7";
+  const fallback = objectColors[object.type] ?? "#89745b";
   const finish = object.finish as GenericStudioObjectFinish | undefined;
-  return finish ? genericFinishColors[finish] ?? objectColors[object.type] : objectColors[object.type];
+  return finish ? genericFinishColors[finish] ?? fallback : fallback;
 }
 
 function SelectionOutline({

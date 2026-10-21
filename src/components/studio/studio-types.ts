@@ -15,7 +15,7 @@ export type StudioSelection =
   | { kind: "opening"; id: string }
   | null;
 
-export type StudioViewMode = "2d" | "3d";
+export type StudioViewMode = "2d" | "3d" | "split";
 export type StudioSaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
 export type StudioLinkContext = {

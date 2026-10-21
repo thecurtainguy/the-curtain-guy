@@ -9,7 +9,7 @@ import { useState } from "react";
 import * as THREE from "three";
 import type { StudioEditorProps } from "./studio-types";
 import { RoomScene } from "./three/room-scene";
-import { LIGHTING_MOODS } from "./three/scene-finishes";
+import { LIGHTING_MOODS } from "./three/lighting-moods";
 
 export function Studio3DViewer({
   design,

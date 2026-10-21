@@ -10,11 +10,11 @@ import { useEffect, useMemo } from "react";
 import type { StudioSelection } from "../studio-types";
 import { StudioCameraControls } from "./camera-controls";
 import { StudioDrapes } from "./drapes";
-import { StudioFloor } from "./floor";
 import { StudioObjects } from "./objects";
-import { LIGHTING_MOODS } from "./scene-finishes";
+import { LIGHTING_MOODS } from "./lighting-moods";
 import { StudioTreatments } from "./treatments";
-import { StudioWalls } from "./walls";
+import { StudioManipulationLayer } from "./manipulation-layer";
+import { StudioVenue } from "./venue";
 
 export function RoomScene({
   design,
@@ -85,19 +85,11 @@ export function RoomScene({
         decay={1.25}
       />
 
-      <StudioFloor
-        floor={design.room.floor}
-        bounds={bounds}
-        finish={materials.floor}
-        onClearSelection={() => onSelect(null)}
-      />
-      <StudioWalls
+      <StudioVenue
         design={design}
         bounds={bounds}
         selection={selection}
         onSelect={onSelect}
-        transparent={transparentWalls}
-        finish={materials.walls}
       />
       <StudioDrapes
         design={design}
@@ -118,6 +110,7 @@ export function RoomScene({
         onSelect={onSelect}
         darkTheme={darkTheme}
       />
+      <StudioManipulationLayer design={design} bounds={bounds} />
       <StudioCameraControls
         bounds={bounds}
         wallHeight={design.room.wallHeight}

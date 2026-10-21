@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import {
   STUDIO_OBJECT_OPTIONS,
   createStudioItemId,
+  createStudioObject,
   type DrapeRunType,
   type StudioDesignJson,
-  type StudioObject,
   type StudioObjectType,
 } from "@/data/studio";
 import {
@@ -49,7 +49,7 @@ type StudioLeftRailProps = {
   idPrefix: string;
 };
 
-const objectIcons: Record<StudioObjectType, typeof AppWindow> = {
+const objectIcons: Partial<Record<StudioObjectType, typeof AppWindow>> = {
   stage: Warehouse,
   dance_floor: Disc3,
   entrance_marker: DoorOpen,
@@ -62,7 +62,7 @@ const objectIcons: Record<StudioObjectType, typeof AppWindow> = {
   lounge_area: Sofa,
 };
 
-const objectDescriptions: Record<StudioObjectType, string> = {
+const objectDescriptions: Partial<Record<StudioObjectType, string>> = {
   stage: "Raised platform",
   dance_floor: "Nine finish presets",
   entrance_marker: "Upright wayfinding",
@@ -167,35 +167,16 @@ export function StudioLeftRail({
   }
 
   function addObject(type: StudioObjectType) {
-    const option = STUDIO_OBJECT_OPTIONS.find((item) => item.type === type);
-    if (!option) return;
     const bounds = getStudioBounds(design.room.floor);
-    const id = createStudioItemId("object");
-    const nextObject: StudioObject =
-      option.type === "dance_floor"
-        ? {
-            ...option,
-            id,
-            x: bounds.centerX,
-            z: bounds.centerZ,
-            rotation: 0,
-            notes: "",
-            finish: option.finish,
-          }
-        : {
-            ...option,
-            id,
-            x: bounds.centerX,
-            z: bounds.centerZ,
-            rotation: 0,
-            notes: "",
-            finish: "natural_wood",
-          };
+    const nextObject = createStudioObject(type, {
+      x: bounds.centerX,
+      z: bounds.centerZ,
+    });
     onChange({
       ...design,
       objects: [...design.objects, nextObject],
     });
-    onSelect({ kind: "object", id });
+    onSelect({ kind: "object", id: nextObject.id });
   }
 
   return (
@@ -313,9 +294,9 @@ export function StudioLeftRail({
           {STUDIO_OBJECT_OPTIONS.map((option) => (
             <ToolButton
               key={option.type}
-              icon={objectIcons[option.type]}
+              icon={objectIcons[option.type] ?? Sparkles}
               label={option.label}
-              description={objectDescriptions[option.type]}
+              description={objectDescriptions[option.type] ?? option.description}
               layout="row"
               onClick={() => addObject(option.type)}
             />

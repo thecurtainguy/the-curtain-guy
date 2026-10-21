@@ -10,6 +10,7 @@ export const STUDIO_LABEL_MAX_LENGTH = 160;
 export const STUDIO_NOTES_MAX_LENGTH = 5000;
 export const STUDIO_OBJECT_NOTES_MAX_LENGTH = 1000;
 export const STUDIO_MAX_SEATING_COUNT = 10000;
+export const STUDIO_MAX_OBJECTS = 400;
 
 export const STUDIO_STATUSES = ["draft", "saved", "archived"] as const;
 export type StudioDesignStatus = (typeof STUDIO_STATUSES)[number];
@@ -23,6 +24,10 @@ export const STUDIO_FLOOR_FINISHES = [
   { value: "polished_concrete", label: "Polished venue concrete" },
   { value: "black_event", label: "Black event floor" },
   { value: "light_neutral", label: "Light neutral floor" },
+  { value: "white_marble", label: "White marble" },
+  { value: "dark_oak", label: "Dark oak planks" },
+  { value: "herringbone", label: "Herringbone parquet" },
+  { value: "lawn", label: "Garden lawn (tent)" },
 ] as const;
 export type StudioFloorFinish =
   (typeof STUDIO_FLOOR_FINISHES)[number]["value"];
@@ -32,6 +37,10 @@ export const STUDIO_WALL_FINISHES = [
   { value: "soft_grey", label: "Soft grey" },
   { value: "black_box", label: "Black box" },
   { value: "neutral_beige", label: "Neutral beige" },
+  { value: "white_plaster", label: "White plaster" },
+  { value: "exposed_brick", label: "Exposed brick" },
+  { value: "wood_panel", label: "Wood panelling" },
+  { value: "tent_canvas", label: "Tent canvas" },
 ] as const;
 export type StudioWallFinish =
   (typeof STUDIO_WALL_FINISHES)[number]["value"];
@@ -41,6 +50,9 @@ export const STUDIO_LIGHTING_MOODS = [
   { value: "warm_gala", label: "Warm gala" },
   { value: "dark_venue", label: "Dark venue" },
   { value: "bright_setup", label: "Bright setup" },
+  { value: "candlelight", label: "Candlelight" },
+  { value: "twilight_blue", label: "Twilight blue" },
+  { value: "daylight", label: "Daylight" },
 ] as const;
 export type StudioLightingMood =
   (typeof STUDIO_LIGHTING_MOODS)[number]["value"];
@@ -49,6 +61,8 @@ export type StudioMaterials = {
   floor: StudioFloorFinish;
   walls: StudioWallFinish;
   lighting: StudioLightingMood;
+  /** Perimeter uplighting washed along every wall; null/undefined = off. */
+  uplightColor?: DrapeColor | null;
 };
 
 export const DEFAULT_STUDIO_MATERIALS: StudioMaterials = {
@@ -62,13 +76,22 @@ export type StudioPoint = {
   z: number;
 };
 
+export const STUDIO_OPENING_TYPES = ["door", "entrance", "window"] as const;
+export type StudioOpeningType = (typeof STUDIO_OPENING_TYPES)[number];
+
 export type StudioOpening = {
   id: string;
-  type: "door" | "entrance";
+  type: StudioOpeningType;
   wallIndex: number;
   offset: number;
   width: number;
   label: string;
+  /** Inches from floor to the bottom of a window. Defaults: window 36, doors 0. */
+  sillHeight?: number;
+  /** Clear opening height in inches. Defaults: door 84, window 60. */
+  openingHeight?: number;
+  locked?: boolean;
+  hidden?: boolean;
 };
 
 export const STUDIO_OBJECT_TYPES = [
@@ -82,8 +105,84 @@ export const STUDIO_OBJECT_TYPES = [
   "dj_booth",
   "bar",
   "lounge_area",
+  "sweetheart_table",
+  "head_table",
+  "buffet_table",
+  "cake_table",
+  "ceremony_seating",
+  "chair",
+  "sofa",
+  "photo_booth",
+  "plant",
+  "column",
+  "uplight",
+  "chandelier",
+  "piano",
+  "podium",
+  "av_screen",
+  "drape_backdrop",
+  "ceiling_drape",
 ] as const;
 export type StudioObjectType = (typeof STUDIO_OBJECT_TYPES)[number];
+
+export const STUDIO_OBJECT_CATEGORIES = [
+  { value: "tables", label: "Tables" },
+  { value: "seating", label: "Seating" },
+  { value: "drapery", label: "Drapery" },
+  { value: "production", label: "Production" },
+  { value: "decor", label: "Decor & lighting" },
+  { value: "zones", label: "Zones & flow" },
+] as const;
+export type StudioObjectCategory =
+  (typeof STUDIO_OBJECT_CATEGORIES)[number]["value"];
+
+export const STUDIO_CHAIR_STYLES = [
+  { value: "chiavari_gold", label: "Gold chiavari" },
+  { value: "chiavari_silver", label: "Silver chiavari" },
+  { value: "chiavari_white", label: "White chiavari" },
+  { value: "ghost", label: "Ghost (clear)" },
+  { value: "cross_back", label: "Cross-back wood" },
+  { value: "folding_white", label: "White folding" },
+  { value: "banquet", label: "Banquet upholstered" },
+  { value: "none", label: "No chairs" },
+] as const;
+export type StudioChairStyle = (typeof STUDIO_CHAIR_STYLES)[number]["value"];
+export const DEFAULT_CHAIR_STYLE: StudioChairStyle = "chiavari_gold";
+
+/** Object types that render chairs from `seatingCount` + `chairStyle`. */
+export const SEATED_OBJECT_TYPES: readonly StudioObjectType[] = [
+  "round_table",
+  "rectangle_table",
+  "cocktail_table",
+  "table_area",
+  "lounge_area",
+  "sweetheart_table",
+  "head_table",
+  "ceremony_seating",
+];
+
+/** Object types that can wear a table linen (`linenColor`). */
+export const LINEN_OBJECT_TYPES: readonly StudioObjectType[] = [
+  "round_table",
+  "rectangle_table",
+  "cocktail_table",
+  "sweetheart_table",
+  "head_table",
+  "buffet_table",
+  "cake_table",
+];
+
+/** Object types that emit light (`lightColor`). */
+export const LIGHT_OBJECT_TYPES: readonly StudioObjectType[] = [
+  "uplight",
+  "chandelier",
+];
+
+/** Object types made of drape fabric (`fabric`, `drapeColor`, `fullness`). */
+export const FABRIC_OBJECT_TYPES: readonly StudioObjectType[] = [
+  "drape_backdrop",
+  "ceiling_drape",
+];
 
 export const DANCE_FLOOR_FINISHES = [
   { value: "white_gloss", label: "White gloss" },
@@ -109,6 +208,9 @@ export const GENERIC_OBJECT_FINISHES = [
   { value: "painted_black", label: "Painted black" },
   { value: "metal", label: "Metal" },
   { value: "upholstered", label: "Upholstered" },
+  { value: "gold", label: "Polished gold" },
+  { value: "acrylic", label: "Clear acrylic" },
+  { value: "marble", label: "White marble" },
   { value: "custom", label: "Custom" },
 ] as const;
 export type GenericStudioObjectFinish =
@@ -120,14 +222,31 @@ export type StudioObjectFinish =
 type StudioObjectBase = {
   id: string;
   label: string;
+  /** Center of the footprint, inches. */
   x: number;
   z: number;
+  /** Footprint along local X (before rotation), inches. */
   width: number;
+  /** Footprint along local Z (before rotation), inches. */
   depth: number;
   height: number;
+  /** Degrees. 2D plan rotates clockwise; 3D applies -rotation around Y. */
   rotation: number;
   notes?: string;
   seatingCount?: number;
+  locked?: boolean;
+  hidden?: boolean;
+  /** Inches above the floor to the bottom of the object (chandeliers, ceiling drape). */
+  elevation?: number;
+  /** Optional custom tint, `#rrggbb`. Overrides the finish colour where meaningful. */
+  color?: string;
+  chairStyle?: StudioChairStyle;
+  /** Table linen colour; null = bare table. Undefined = type default. */
+  linenColor?: DrapeColor | null;
+  lightColor?: DrapeColor;
+  fabric?: DrapeFabric;
+  drapeColor?: DrapeColor;
+  fullness?: number;
 };
 
 export type StudioObjectFinishFor<T extends StudioObjectType> =
@@ -158,6 +277,9 @@ export const DRAPE_FABRICS = [
   { value: "velour", label: "Velour" },
   { value: "poly", label: "Poly premier" },
   { value: "sheer", label: "Sheer" },
+  { value: "satin", label: "Satin" },
+  { value: "chiffon", label: "Chiffon" },
+  { value: "sequin", label: "Sequin" },
 ] as const;
 export type DrapeFabric = (typeof DRAPE_FABRICS)[number]["value"];
 
@@ -171,8 +293,26 @@ export const DRAPE_COLORS = [
   { value: "burgundy", label: "Burgundy", hex: "#5a1f2b" },
   { value: "blush", label: "Blush", hex: "#c99b9e" },
   { value: "charcoal", label: "Charcoal", hex: "#343333" },
+  { value: "silver", label: "Silver", hex: "#b9bbbd" },
+  { value: "rose_gold", label: "Rose gold", hex: "#c99382" },
+  { value: "taupe", label: "Taupe", hex: "#8b7d6b" },
+  { value: "sage", label: "Sage", hex: "#9caf88" },
+  { value: "emerald", label: "Emerald", hex: "#1f5a45" },
+  { value: "dusty_blue", label: "Dusty blue", hex: "#7d93ab" },
+  { value: "royal_blue", label: "Royal blue", hex: "#23408e" },
+  { value: "lavender", label: "Lavender", hex: "#b7a6cf" },
+  { value: "plum", label: "Plum", hex: "#4b2342" },
+  { value: "red", label: "Red", hex: "#8e1b1f" },
+  { value: "peach", label: "Peach", hex: "#e8b79a" },
 ] as const;
 export type DrapeColor = (typeof DRAPE_COLORS)[number]["value"];
+
+export const DRAPE_HARDWARE = [
+  { value: "pipe_and_drape", label: "Pipe & drape uprights" },
+  { value: "ceiling_track", label: "Ceiling track" },
+  { value: "wall_mount", label: "Concealed wall mount" },
+] as const;
+export type DrapeHardware = (typeof DRAPE_HARDWARE)[number]["value"];
 
 export type StudioDrapeRun = {
   id: string;
@@ -186,6 +326,14 @@ export type StudioDrapeRun = {
   fullness: number;
   label: string;
   notes?: string;
+  /** Defaults to pipe_and_drape. */
+  hardware?: DrapeHardware;
+  /** Floor uplights washing this run; null/undefined = none. */
+  uplightColor?: DrapeColor | null;
+  /** Extra fabric pooling on the floor. */
+  puddle?: boolean;
+  locked?: boolean;
+  hidden?: boolean;
 };
 
 export const STUDIO_TREATMENT_TYPES = [
@@ -193,6 +341,7 @@ export const STUDIO_TREATMENT_TYPES = [
   "side_tieback_panels",
   "top_swag_valance",
   "ceremony_arch",
+  "layered_swag",
 ] as const;
 export type StudioTreatmentType = (typeof STUDIO_TREATMENT_TYPES)[number];
 
@@ -231,6 +380,11 @@ export type StudioTreatment = {
   uplightColor: DrapeColor | null;
   frameFinish: StudioFrameFinish;
   notes: string;
+  /** Number of scallops for swag treatments (1–8). */
+  swagCount?: number;
+  hardware?: DrapeHardware;
+  locked?: boolean;
+  hidden?: boolean;
 };
 
 export type StudioRoom = {
@@ -258,11 +412,35 @@ export type StudioDesignJson = {
   treatments: StudioTreatment[];
   view: {
     cameraMode: "orbit";
+    /** Legacy glass-walls flag; `wallDisplay: "glass"` supersedes it. */
     transparentWalls?: boolean;
+    wallDisplay?: StudioWallDisplay;
+    showCeiling?: boolean;
   };
   materials?: StudioMaterials;
   notes: string;
 };
+
+export const STUDIO_WALL_DISPLAYS = [
+  { value: "full", label: "Full walls" },
+  { value: "cutaway", label: "Dollhouse cutaway" },
+  { value: "low", label: "Low walls" },
+  { value: "glass", label: "Glass walls" },
+] as const;
+export type StudioWallDisplay =
+  (typeof STUDIO_WALL_DISPLAYS)[number]["value"];
+
+export function getStudioWallDisplay(
+  view: StudioDesignJson["view"]
+): StudioWallDisplay {
+  if (
+    view.wallDisplay &&
+    STUDIO_WALL_DISPLAYS.some((option) => option.value === view.wallDisplay)
+  ) {
+    return view.wallDisplay;
+  }
+  return view.transparentWalls ? "glass" : "full";
+}
 
 export type StudioDesignRow = {
   id: string;
@@ -361,92 +539,100 @@ export const STUDIO_TEMPLATES: Record<StudioTemplateKey, StudioDesignJson> = {
   },
 };
 
-export const STUDIO_OBJECT_OPTIONS = [
-  {
-    type: "stage",
-    label: "Stage",
-    width: 240,
-    depth: 96,
-    height: 24,
-  },
-  {
-    type: "dance_floor",
-    label: "Dance floor",
-    width: 240,
-    depth: 240,
-    height: 2,
-    finish: DEFAULT_DANCE_FLOOR_FINISH,
-  },
-  {
-    type: "entrance_marker",
-    label: "Entrance marker",
-    width: 72,
-    depth: 24,
-    height: 84,
-  },
-  {
-    type: "round_table",
-    label: "Round table",
-    width: 60,
-    depth: 60,
-    height: 30,
-    seatingCount: 8,
-  },
-  {
-    type: "rectangle_table",
-    label: "Rectangle table",
-    width: 96,
-    depth: 36,
-    height: 30,
-    seatingCount: 8,
-  },
-  {
-    type: "cocktail_table",
-    label: "Cocktail table",
-    width: 36,
-    depth: 36,
-    height: 42,
-    seatingCount: 4,
-  },
-  {
-    type: "table_area",
-    label: "Table area",
-    width: 120,
-    depth: 120,
-    height: 30,
-    seatingCount: 10,
-  },
-  {
-    type: "dj_booth",
-    label: "DJ booth",
-    width: 72,
-    depth: 36,
-    height: 42,
-  },
-  {
-    type: "bar",
-    label: "Bar",
-    width: 96,
-    depth: 30,
-    height: 42,
-  },
-  {
-    type: "lounge_area",
-    label: "Lounge area",
-    width: 144,
-    depth: 120,
-    height: 36,
-    seatingCount: 8,
-  },
-] satisfies Array<{
+export type StudioObjectOption = {
   type: StudioObjectType;
   label: string;
+  description: string;
+  category: StudioObjectCategory;
   width: number;
   depth: number;
   height: number;
-  finish?: DanceFloorFinish;
+  finish?: StudioObjectFinish;
   seatingCount?: number;
-}>;
+  elevation?: number;
+  chairStyle?: StudioChairStyle;
+  linenColor?: DrapeColor | null;
+  lightColor?: DrapeColor;
+  fabric?: DrapeFabric;
+  drapeColor?: DrapeColor;
+  fullness?: number;
+};
+
+export const STUDIO_OBJECT_OPTIONS: StudioObjectOption[] = [
+  { type: "round_table", label: "Round table", description: "60\u2033 guest round", category: "tables", width: 60, depth: 60, height: 30, seatingCount: 8, chairStyle: DEFAULT_CHAIR_STYLE, linenColor: "ivory" },
+  { type: "rectangle_table", label: "Banquet table", description: "8\u2032 rectangle", category: "tables", width: 96, depth: 36, height: 30, seatingCount: 8, chairStyle: DEFAULT_CHAIR_STYLE, linenColor: "ivory" },
+  { type: "head_table", label: "Head table", description: "Long one-sided table", category: "tables", width: 192, depth: 30, height: 30, seatingCount: 8, chairStyle: DEFAULT_CHAIR_STYLE, linenColor: "ivory" },
+  { type: "sweetheart_table", label: "Sweetheart table", description: "Couple's table", category: "tables", width: 60, depth: 30, height: 30, seatingCount: 2, chairStyle: DEFAULT_CHAIR_STYLE, linenColor: "champagne" },
+  { type: "cocktail_table", label: "Cocktail table", description: "Draped high-top", category: "tables", width: 30, depth: 30, height: 42, seatingCount: 0, chairStyle: "none", linenColor: "ivory" },
+  { type: "buffet_table", label: "Buffet table", description: "Skirted service line", category: "tables", width: 96, depth: 30, height: 30, linenColor: "white" },
+  { type: "cake_table", label: "Cake table", description: "Round display table", category: "tables", width: 36, depth: 36, height: 30, linenColor: "ivory" },
+  { type: "ceremony_seating", label: "Ceremony rows", description: "Rows with centre aisle", category: "seating", width: 288, depth: 216, height: 34, seatingCount: 96, chairStyle: "chiavari_white" },
+  { type: "chair", label: "Single chair", description: "One accent chair", category: "seating", width: 18, depth: 18, height: 36, chairStyle: DEFAULT_CHAIR_STYLE },
+  { type: "sofa", label: "Lounge sofa", description: "Three-seat sofa", category: "seating", width: 84, depth: 36, height: 32, finish: "upholstered" },
+  { type: "lounge_area", label: "Lounge area", description: "Soft seating zone", category: "seating", width: 144, depth: 120, height: 36, seatingCount: 8 },
+  { type: "drape_backdrop", label: "Freestanding backdrop", description: "Pipe & drape anywhere", category: "drapery", width: 120, depth: 24, height: 96, fabric: "velvet", drapeColor: "ivory", fullness: 2 },
+  { type: "ceiling_drape", label: "Ceiling canopy", description: "Swagged ceiling fabric", category: "drapery", width: 240, depth: 240, height: 36, fabric: "chiffon", drapeColor: "white", fullness: 2 },
+  { type: "stage", label: "Stage", description: "Skirted platform", category: "production", width: 240, depth: 96, height: 24, finish: "painted_black" },
+  { type: "dance_floor", label: "Dance floor", description: "Nine finish presets", category: "production", width: 240, depth: 240, height: 2, finish: DEFAULT_DANCE_FLOOR_FINISH },
+  { type: "dj_booth", label: "DJ booth", description: "Facade & decks", category: "production", width: 72, depth: 36, height: 42, finish: "painted_white" },
+  { type: "bar", label: "Bar", description: "Service counter", category: "production", width: 96, depth: 30, height: 42, finish: "natural_wood" },
+  { type: "photo_booth", label: "Photo booth", description: "Booth with backdrop", category: "production", width: 96, depth: 96, height: 96 },
+  { type: "podium", label: "Podium", description: "Speaker lectern", category: "production", width: 24, depth: 20, height: 46, finish: "natural_wood" },
+  { type: "av_screen", label: "AV screen", description: "Projection screen", category: "production", width: 120, depth: 24, height: 96 },
+  { type: "piano", label: "Grand piano", description: "Baby grand", category: "production", width: 60, depth: 66, height: 40, finish: "painted_black" },
+  { type: "uplight", label: "Uplight", description: "Coloured LED wash", category: "decor", width: 12, depth: 12, height: 8, lightColor: "gold" },
+  { type: "chandelier", label: "Chandelier", description: "Crystal centrepiece", category: "decor", width: 36, depth: 36, height: 36, elevation: 96, lightColor: "champagne" },
+  { type: "plant", label: "Potted plant", description: "Greenery accent", category: "decor", width: 24, depth: 24, height: 72 },
+  { type: "column", label: "Column", description: "Venue pillar", category: "decor", width: 24, depth: 24, height: 144, finish: "painted_white" },
+  { type: "entrance_marker", label: "Entrance arch", description: "Upright wayfinding", category: "zones", width: 72, depth: 24, height: 84, finish: "gold" },
+  { type: "table_area", label: "Table area", description: "Flexible seating zone", category: "zones", width: 120, depth: 120, height: 30, seatingCount: 10 },
+];
+
+export function getStudioObjectOption(
+  type: StudioObjectType
+): StudioObjectOption | undefined {
+  return STUDIO_OBJECT_OPTIONS.find((option) => option.type === type);
+}
+
+/** Builds a clean, valid object from the library defaults. */
+export function createStudioObject(
+  type: StudioObjectType,
+  position: { x: number; z: number },
+  overrides: Partial<Omit<StudioObject, "type">> = {}
+): StudioObject {
+  const option = getStudioObjectOption(type);
+  const base = {
+    id: createStudioItemId("object"),
+    type,
+    label: option?.label ?? type.replaceAll("_", " "),
+    x: position.x,
+    z: position.z,
+    width: option?.width ?? 48,
+    depth: option?.depth ?? 48,
+    height: option?.height ?? 30,
+    rotation: 0,
+    notes: "",
+    ...(option?.finish
+      ? { finish: option.finish }
+      : type === "dance_floor"
+        ? { finish: DEFAULT_DANCE_FLOOR_FINISH }
+        : {}),
+    ...(option?.seatingCount !== undefined
+      ? { seatingCount: option.seatingCount }
+      : {}),
+    ...(option?.elevation !== undefined ? { elevation: option.elevation } : {}),
+    ...(option?.chairStyle ? { chairStyle: option.chairStyle } : {}),
+    ...(option?.linenColor !== undefined
+      ? { linenColor: option.linenColor }
+      : {}),
+    ...(option?.lightColor ? { lightColor: option.lightColor } : {}),
+    ...(option?.fabric ? { fabric: option.fabric } : {}),
+    ...(option?.drapeColor ? { drapeColor: option.drapeColor } : {}),
+    ...(option?.fullness !== undefined ? { fullness: option.fullness } : {}),
+    ...overrides,
+  };
+  return base as StudioObject;
+}
 
 export const STUDIO_STATUS_LABELS: Record<StudioDesignStatus, string> = {
   draft: "Draft",
@@ -491,7 +677,12 @@ export function getStudioMaterials(design: {
   )
     ? (materials.lighting as StudioLightingMood)
     : DEFAULT_STUDIO_MATERIALS.lighting;
-  return { floor, walls, lighting };
+  const uplightColor = DRAPE_COLORS.some(
+    (option) => option.value === materials.uplightColor
+  )
+    ? (materials.uplightColor as DrapeColor)
+    : null;
+  return { floor, walls, lighting, uplightColor };
 }
 
 function hasStableId(
@@ -524,6 +715,48 @@ function isOptionalSeatingCount(value: unknown): boolean {
       Number.isInteger(value) &&
       value >= 0 &&
       value <= STUDIO_MAX_SEATING_COUNT)
+  );
+}
+
+function isOptionalBoolean(value: unknown): boolean {
+  return value === undefined || typeof value === "boolean";
+}
+
+function isOptionalRange(value: unknown, min: number, max: number): boolean {
+  return (
+    value === undefined ||
+    (isFiniteNumber(value) && value >= min && value <= max)
+  );
+}
+
+function isOptionalDrapeColor(value: unknown, allowNull = false): boolean {
+  if (value === undefined) return true;
+  if (value === null) return allowNull;
+  return DRAPE_COLORS.some((option) => option.value === value);
+}
+
+function isOptionalOption<T extends { value: string }>(
+  value: unknown,
+  options: readonly T[]
+): boolean {
+  return value === undefined || options.some((option) => option.value === value);
+}
+
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+
+function isValidObjectExtras(object: Record<string, unknown>): boolean {
+  return (
+    isOptionalBoolean(object.locked) &&
+    isOptionalBoolean(object.hidden) &&
+    isOptionalRange(object.elevation, 0, 600) &&
+    (object.color === undefined ||
+      (typeof object.color === "string" && HEX_COLOR_PATTERN.test(object.color))) &&
+    isOptionalOption(object.chairStyle, STUDIO_CHAIR_STYLES) &&
+    isOptionalDrapeColor(object.linenColor, true) &&
+    isOptionalDrapeColor(object.lightColor) &&
+    isOptionalOption(object.fabric, DRAPE_FABRICS) &&
+    isOptionalDrapeColor(object.drapeColor) &&
+    isOptionalRange(object.fullness, 1, 4)
   );
 }
 
@@ -909,7 +1142,11 @@ export function validateStudioDesign(
       if (
         !stableId ||
         !isRecord(opening) ||
-        (opening.type !== "door" && opening.type !== "entrance") ||
+        !STUDIO_OPENING_TYPES.includes(opening.type as StudioOpeningType) ||
+        !isOptionalRange(opening.sillHeight, 0, 600) ||
+        !isOptionalRange(opening.openingHeight, 12, 600) ||
+        !isOptionalBoolean(opening.locked) ||
+        !isOptionalBoolean(opening.hidden) ||
         !isRequiredString(opening.label, STUDIO_LABEL_MAX_LENGTH) ||
         !Number.isInteger(wallIndex) ||
         wallLength === null ||
@@ -929,7 +1166,7 @@ export function validateStudioDesign(
   }
 
   const objects = value.objects;
-  if (!Array.isArray(objects) || objects.length > 100) {
+  if (!Array.isArray(objects) || objects.length > STUDIO_MAX_OBJECTS) {
     errors.push("Room objects must be a valid list.");
   } else {
     for (const object of objects) {
@@ -961,7 +1198,8 @@ export function validateStudioDesign(
         Math.abs(object.rotation) > 36000 ||
         !isOptionalString(object.notes, STUDIO_OBJECT_NOTES_MAX_LENGTH) ||
         !isValidStudioObjectFinish(object.type, object.finish) ||
-        !isOptionalSeatingCount(object.seatingCount)
+        !isOptionalSeatingCount(object.seatingCount) ||
+        !isValidObjectExtras(object)
       ) {
         errors.push("One or more room objects are invalid.");
         break;
@@ -1007,7 +1245,12 @@ export function validateStudioDesign(
         drape.height > 600 ||
         !isFiniteNumber(drape.fullness) ||
         drape.fullness < 1 ||
-        drape.fullness > 4
+        drape.fullness > 4 ||
+        !isOptionalOption(drape.hardware, DRAPE_HARDWARE) ||
+        !isOptionalDrapeColor(drape.uplightColor, true) ||
+        !isOptionalBoolean(drape.puddle) ||
+        !isOptionalBoolean(drape.locked) ||
+        !isOptionalBoolean(drape.hidden)
       ) {
         errors.push("One or more drape runs are invalid.");
         break;
@@ -1084,7 +1327,11 @@ export function validateStudioDesign(
         !STUDIO_FRAME_FINISHES.some(
           (finish) => finish.value === treatment.frameFinish
         ) ||
-        !isOptionalString(treatment.notes, STUDIO_NOTES_MAX_LENGTH)
+        !isOptionalString(treatment.notes, STUDIO_NOTES_MAX_LENGTH) ||
+        !isOptionalRange(treatment.swagCount, 1, 8) ||
+        !isOptionalOption(treatment.hardware, DRAPE_HARDWARE) ||
+        !isOptionalBoolean(treatment.locked) ||
+        !isOptionalBoolean(treatment.hidden)
       ) {
         errors.push("One or more drape treatments are invalid.");
         break;
@@ -1103,7 +1350,9 @@ export function validateStudioDesign(
     !isRecord(value.view) ||
     value.view.cameraMode !== "orbit" ||
     (value.view.transparentWalls !== undefined &&
-      typeof value.view.transparentWalls !== "boolean")
+      typeof value.view.transparentWalls !== "boolean") ||
+    !isOptionalOption(value.view.wallDisplay, STUDIO_WALL_DISPLAYS) ||
+    !isOptionalBoolean(value.view.showCeiling)
   ) {
     errors.push("Studio view settings are invalid.");
   }
@@ -1120,7 +1369,8 @@ export function validateStudioDesign(
       ) ||
       !STUDIO_LIGHTING_MOODS.some(
         (option) => option.value === materials.lighting
-      )
+      ) ||
+      !isOptionalDrapeColor(materials.uplightColor, true)
     ) {
       errors.push("Studio room finish settings are invalid.");
     }

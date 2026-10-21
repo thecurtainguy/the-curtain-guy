@@ -26,9 +26,12 @@ import type {
   StudioLinkContext,
   StudioSaveResponse,
   StudioSaveState,
-  StudioSelection,
-  StudioViewMode,
 } from "./studio-types";
+import {
+  StudioEditorProvider,
+  useStudioEditorState,
+} from "./editor/studio-editor-context";
+import { useStudioKeyboardShortcuts } from "./editor/use-studio-shortcuts";
 import type { EventBuilderBrief } from "@/data/event-builder/brief";
 import { EventPresetLibrary } from "@/components/event-builder/event-preset-library";
 import { EventBriefPanel } from "@/components/event-builder/event-brief-panel";
@@ -103,8 +106,6 @@ export function StudioDesigner(props: StudioDesignerProps) {
   const [savedUpdatedAt, setSavedUpdatedAt] = useState(
     props.initialDesignRecord?.updated_at
   );
-  const [selection, setSelection] = useState<StudioSelection>(null);
-  const [viewMode, setViewMode] = useState<StudioViewMode>("2d");
   const [saveState, setSaveState] = useState<StudioSaveState>("idle");
   const [saveMessage, setSaveMessage] = useState<string>();
   const [guestDialogOpen, setGuestDialogOpen] = useState(false);
@@ -152,6 +153,18 @@ export function StudioDesigner(props: StudioDesignerProps) {
     setSaveState("dirty");
     setSaveMessage(undefined);
   }, []);
+
+  const editor = useStudioEditorState({
+    design,
+    onDesignChange: changeDesign,
+  });
+  const {
+    selection,
+    select: setSelection,
+    commit,
+    viewMode,
+    setViewMode,
+  } = editor;
 
   const changeTitle = useCallback((next: string) => {
     revision.current += 1;
@@ -309,47 +322,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
   const signInWithReturn = `${signInHref}${signInHref.includes("?") ? "&" : "?"}next=${encodeURIComponent(authReturnTo)}`;
   const createAccountWithReturn = `${createAccountHref}${createAccountHref.includes("?") ? "&" : "?"}next=${encodeURIComponent(authReturnTo)}`;
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        void save();
-      }
-      if (event.key === "Escape") setSelection(null);
-      if (
-        (event.key === "Delete" || event.key === "Backspace") &&
-        (selection?.kind === "object" || selection?.kind === "treatment")
-      ) {
-        const target = event.target;
-        const editing =
-          target instanceof HTMLElement &&
-          (target.matches("input, textarea, select") ||
-            target.isContentEditable ||
-            Boolean(target.closest('[contenteditable="true"]')));
-        if (!editing) {
-          event.preventDefault();
-          changeDesign(
-            selection.kind === "object"
-              ? {
-                  ...design,
-                  objects: design.objects.filter(
-                    (object) => object.id !== selection.id
-                  ),
-                }
-              : {
-                  ...design,
-                  treatments: design.treatments.filter(
-                    (treatment) => treatment.id !== selection.id
-                  ),
-                }
-          );
-          setSelection(null);
-        }
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [changeDesign, design, save, selection]);
+  useStudioKeyboardShortcuts(editor, { onSave: () => void save() });
 
   const isEventMode = mode === "event" && eventBrief;
   const eventTypeLabel = eventBrief
@@ -360,7 +333,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
   const leftRail = isEventMode ? (
     <EventPresetLibrary
       design={design}
-      onChange={changeDesign}
+      onChange={commit}
       selection={selection}
       onSelect={setSelection}
       brief={eventBrief}
@@ -368,7 +341,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
   ) : (
     <StudioLeftRail
       design={design}
-      onChange={changeDesign}
+      onChange={commit}
       selection={selection}
       onSelect={setSelection}
       idPrefix="studio-desktop-tools"
@@ -378,7 +351,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
     <EventBriefPanel
       brief={eventBrief}
       design={design}
-      onChange={changeDesign}
+      onChange={commit}
       selection={selection}
       onSelect={setSelection}
       saveState={saveState}
@@ -390,7 +363,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
   ) : (
     <StudioRightRail
       design={design}
-      onChange={changeDesign}
+      onChange={commit}
       selection={selection}
       onSelect={setSelection}
       saveState={saveState}
@@ -400,7 +373,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
   const mobileLeftRail = isEventMode ? (
     <EventPresetLibrary
       design={design}
-      onChange={changeDesign}
+      onChange={commit}
       selection={selection}
       onSelect={setSelection}
       brief={eventBrief}
@@ -408,7 +381,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
   ) : (
     <StudioLeftRail
       design={design}
-      onChange={changeDesign}
+      onChange={commit}
       selection={selection}
       onSelect={setSelection}
       idPrefix="studio-mobile-tools"
@@ -418,7 +391,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
     <EventBriefPanel
       brief={eventBrief}
       design={design}
-      onChange={changeDesign}
+      onChange={commit}
       selection={selection}
       onSelect={setSelection}
       saveState={saveState}
@@ -430,7 +403,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
   ) : (
     <StudioRightRail
       design={design}
-      onChange={changeDesign}
+      onChange={commit}
       selection={selection}
       onSelect={setSelection}
       saveState={saveState}
@@ -439,7 +412,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
   );
 
   return (
-    <>
+    <StudioEditorProvider value={editor}>
       <StudioShell
         className={className}
         toolsOpen={toolsOpen}
@@ -468,17 +441,36 @@ export function StudioDesigner(props: StudioDesignerProps) {
           />
         }
       >
-        {viewMode === "2d" ? (
+        {viewMode === "split" ? (
+          <div className="grid h-full min-h-0 grid-rows-2 lg:grid-cols-2 lg:grid-rows-1">
+            <div className="min-h-0 border-b border-border/60 lg:border-r lg:border-b-0">
+              <Studio2DEditor
+                design={design}
+                onChange={commit}
+                selection={selection}
+                onSelect={setSelection}
+              />
+            </div>
+            <div className="min-h-0">
+              <Studio3DViewer
+                design={design}
+                onChange={commit}
+                selection={selection}
+                onSelect={setSelection}
+              />
+            </div>
+          </div>
+        ) : viewMode === "2d" ? (
           <Studio2DEditor
             design={design}
-            onChange={changeDesign}
+            onChange={commit}
             selection={selection}
             onSelect={setSelection}
           />
         ) : (
           <Studio3DViewer
             design={design}
-            onChange={changeDesign}
+            onChange={commit}
             selection={selection}
             onSelect={setSelection}
           />
@@ -504,6 +496,6 @@ export function StudioDesigner(props: StudioDesignerProps) {
           }
         />
       </Dialog>
-    </>
+    </StudioEditorProvider>
   );
 }

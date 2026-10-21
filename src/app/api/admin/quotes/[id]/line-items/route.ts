@@ -6,6 +6,7 @@ import {
   isValidQuoteLineCategorySlug,
   isQuoteTaxMode,
   normalizeManualTaxLines,
+  normalizeUnitPriceCents,
 } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
 import { upsertLineItems, type LineItemInput } from "@/lib/quotes";
@@ -83,7 +84,7 @@ export async function POST(request: Request, context: RouteContext) {
       quantity: Number(row.quantity) || 1,
       unit_label:
         typeof row.unit_label === "string" ? row.unit_label : null,
-      unit_price_cents: Math.round(Number(row.unit_price_cents) || 0),
+      unit_price_cents: normalizeUnitPriceCents(row.unit_price_cents),
       status,
       customer_visible:
         typeof row.customer_visible === "boolean" ? row.customer_visible : true,

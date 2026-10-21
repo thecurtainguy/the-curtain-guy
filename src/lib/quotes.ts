@@ -19,6 +19,7 @@ import {
   customerQuoteLineStatus,
   formatQuoteDisplayRef,
   normalizeManualTaxLines,
+  normalizeUnitPriceCents,
 } from "@/data/quotes";
 import {
   normalizeCustomerLanguage,
@@ -980,7 +981,7 @@ export async function upsertLineItems(input: {
   for (let index = 0; index < input.items.length; index++) {
     const item = input.items[index];
     const quantity = Number(item.quantity) || 0;
-    const unitPrice = Math.round(Number(item.unit_price_cents) || 0);
+    const unitPrice = normalizeUnitPriceCents(item.unit_price_cents);
     const lineTotal = computeLineTotalCents(quantity, unitPrice);
     const taxCategory =
       item.tax_category === "exempt" || item.tax_category === "custom"

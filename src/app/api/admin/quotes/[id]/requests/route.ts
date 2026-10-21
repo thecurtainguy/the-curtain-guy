@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   isValidQuoteLineCategorySlug,
   type QuoteRequestStatus,
+  normalizeUnitPriceCents,
 } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
 import { reviewCustomerRequest } from "@/lib/quotes";
@@ -85,7 +86,7 @@ export async function POST(request: Request, context: RouteContext) {
           : null,
       description,
       quantity: Number(convert.quantity) || 1,
-      unit_price_cents: Math.round(Number(convert.unit_price_cents) || 0),
+      unit_price_cents: normalizeUnitPriceCents(convert.unit_price_cents),
     };
   }
 

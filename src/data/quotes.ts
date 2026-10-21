@@ -973,6 +973,43 @@ export function formatQuoteFilenameStem(
   return `${ref}-R${revisionNumber - 1}`;
 }
 
+/**
+ * Quote line unit prices keep sub-cent precision so quantity × unit price can
+ * land on an exact total ($10,000 / 600 ft = 1666.666667¢). Line totals and
+ * every quote total stay whole cents.
+ */
+export const UNIT_PRICE_CENT_DECIMALS = 6;
+
+export function normalizeUnitPriceCents(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  const factor = 10 ** UNIT_PRICE_CENT_DECIMALS;
+  return Math.round(n * factor) / factor;
+}
+
+export function unitPriceDollarsToCents(dollars: string | number): number {
+  const n =
+    typeof dollars === "string"
+      ? Number.parseFloat(dollars.replace(",", "."))
+      : Number(dollars);
+  return Number.isFinite(n) ? normalizeUnitPriceCents(n * 100) : 0;
+}
+
+/** Input text for a unit price: at least 2 decimals, more only when needed. */
+export function unitPriceCentsToDollarInput(cents: number): string {
+  const fixed = ((Number(cents) || 0) / 100).toFixed(UNIT_PRICE_CENT_DECIMALS + 2);
+  return fixed.replace(/(\.\d{2}\d*?)0+$/, "$1");
+}
+
+/** Unit price that makes `quantity` × unit round to exactly `lineTotalCents`. */
+export function unitPriceCentsForLineTotal(
+  lineTotalCents: number,
+  quantity: number
+): number {
+  if (!Number.isFinite(quantity) || quantity <= 0) return 0;
+  return normalizeUnitPriceCents(lineTotalCents / quantity);
+}
+
 export function computeLineTotalCents(
   quantity: number,
   unitPriceCents: number

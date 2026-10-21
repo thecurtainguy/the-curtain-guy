@@ -30,6 +30,9 @@ import {
   QUOTE_TAX_MODES,
   computeLineTotalCents,
   computeQuoteTaxTotals,
+  unitPriceCentsForLineTotal,
+  unitPriceCentsToDollarInput,
+  unitPriceDollarsToCents,
   formatCadFromCents,
   formatQuoteRevisionLabel,
   getQuoteCategoryDefaultDescription,
@@ -72,10 +75,6 @@ import {
 } from "@/components/estimates/opportunity-files-panel";
 import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
 import type { QuoteWithRelations } from "@/lib/quotes";
-import {
-  centsToDollarInput,
-  dollarsToCents,
-} from "@/lib/quote-tokens";
 import { formatEventPlanReference } from "@/data/event-plans";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
@@ -113,6 +112,8 @@ type DraftLine = {
   quantity: number;
   unitLabel: string;
   unitPriceDollars: string;
+  /** Raw text while typing a line total; the unit price is derived from it. */
+  lineTotalDraft?: string;
   status: QuoteLineStatus;
   isTaxable: boolean;
   productId: string | null;
@@ -141,7 +142,7 @@ function linesFromQuote(quote: QuoteWithRelations): DraftLine[] {
     description: item.description,
     quantity: item.quantity,
     unitLabel: item.unit_label?.trim() || "each",
-    unitPriceDollars: centsToDollarInput(item.unit_price_cents),
+    unitPriceDollars: unitPriceCentsToDollarInput(item.unit_price_cents),
     status: item.status,
     isTaxable: item.is_taxable !== false,
     productId: item.product_id ?? null,
@@ -224,7 +225,7 @@ function lineFromInventory(item: InventoryPickResult): DraftLine {
     description: item.description,
     quantity: 1,
     unitLabel: item.unitLabel,
-    unitPriceDollars: centsToDollarInput(item.unitPriceCents),
+    unitPriceDollars: unitPriceCentsToDollarInput(item.unitPriceCents),
     status: "priced",
     isTaxable: item.isTaxable,
     productId: item.productId,
@@ -241,7 +242,7 @@ function lineFromLogistics(item: LogisticsServicePick): DraftLine {
     description: item.description,
     quantity: 1,
     unitLabel: item.unitLabel,
-    unitPriceDollars: centsToDollarInput(item.unitPriceCents),
+    unitPriceDollars: unitPriceCentsToDollarInput(item.unitPriceCents),
     status: item.included
       ? "included"
       : item.needsPricing
@@ -381,7 +382,7 @@ export function AdminQuoteBuilder({
       status: line.status,
       line_total_cents: computeLineTotalCents(
         line.quantity,
-        dollarsToCents(line.unitPriceDollars)
+        unitPriceDollarsToCents(line.unitPriceDollars)
       ),
       is_taxable: line.isTaxable,
     }));
@@ -521,7 +522,7 @@ export function AdminQuoteBuilder({
         description: line.description,
         quantity: line.quantity,
         unit_label: line.unitLabel,
-        unit_price_cents: dollarsToCents(line.unitPriceDollars),
+        unit_price_cents: unitPriceDollarsToCents(line.unitPriceDollars),
         status: line.status,
         customer_visible: true,
         is_taxable: line.isTaxable,
@@ -671,7 +672,7 @@ export function AdminQuoteBuilder({
           category_label: labelForCategory(convertCategory),
           description: convertDescription,
           quantity: convertQty,
-          unit_price_cents: dollarsToCents(convertPrice),
+          unit_price_cents: unitPriceDollarsToCents(convertPrice),
         };
       }
       const response = await fetch(`/api/admin/quotes/${quote.id}/requests`, {
@@ -731,6 +732,26 @@ export function AdminQuoteBuilder({
         }
 
         return { ...line, ...patch };
+      })
+    );
+  }
+
+  /** Typing a line total back-solves the unit price so the total is exact. */
+  function setLineTotal(key: string, text: string) {
+    setLines((prev) =>
+      prev.map((line) => {
+        if (line.key !== key) return line;
+        const totalCents = Math.round(unitPriceDollarsToCents(text));
+        if (!text.trim() || line.quantity <= 0) {
+          return { ...line, lineTotalDraft: text };
+        }
+        return {
+          ...line,
+          lineTotalDraft: text,
+          unitPriceDollars: unitPriceCentsToDollarInput(
+            unitPriceCentsForLineTotal(totalCents, line.quantity)
+          ),
+        };
       })
     );
   }
@@ -1110,7 +1131,7 @@ export function AdminQuoteBuilder({
             {lines.map((line) => {
               const lineTotal = computeLineTotalCents(
                 line.quantity,
-                dollarsToCents(line.unitPriceDollars)
+                unitPriceDollarsToCents(line.unitPriceDollars)
               );
               return (
                 <QuoteLineReorderItem
@@ -1121,7 +1142,7 @@ export function AdminQuoteBuilder({
                   onMove={(direction) => moveLine(line.key, direction)}
                   className="rounded-2xl border border-border/40 bg-background/40 p-4 backdrop-blur-md"
                 >
-                <div className="grid grid-cols-1 gap-3 @min-[30rem]:grid-cols-[56px_repeat(4,minmax(0,1fr))] @min-[60rem]:grid-cols-[56px_180px_minmax(0,1fr)_168px_96px_120px_104px_88px] @min-[60rem]:items-end">
+                <div className="grid grid-cols-1 gap-3 @min-[30rem]:grid-cols-[56px_repeat(4,minmax(0,1fr))] @min-[60rem]:grid-cols-[56px_170px_minmax(0,1fr)_168px_112px_116px_96px_120px] @min-[60rem]:items-end">
                   <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30 @min-[30rem]:row-span-2 @min-[60rem]:row-span-1">
                     {line.imageUrl ? (
                       <Image
@@ -1183,6 +1204,7 @@ export function AdminQuoteBuilder({
                         onChange={(e) =>
                           updateLine(line.key, {
                             quantity: Number(e.target.value) || 0,
+                            lineTotalDraft: undefined,
                           })
                         }
                       />
@@ -1209,6 +1231,7 @@ export function AdminQuoteBuilder({
                       onChange={(e) =>
                         updateLine(line.key, {
                           unitPriceDollars: e.target.value,
+                          lineTotalDraft: undefined,
                         })
                       }
                     />
@@ -1254,7 +1277,7 @@ export function AdminQuoteBuilder({
                     {line.status === "included" ||
                     isZeroPricedQuoteLine({
                       status: line.status,
-                      unit_price_cents: dollarsToCents(line.unitPriceDollars),
+                      unit_price_cents: unitPriceDollarsToCents(line.unitPriceDollars),
                     }) ? (
                       <p
                         className="w-full text-right text-sm font-medium text-primary"
@@ -1262,6 +1285,28 @@ export function AdminQuoteBuilder({
                       >
                         Included
                       </p>
+                    ) : isEditing ? (
+                      <div className="w-full min-w-0 space-y-1.5">
+                        <Label
+                          htmlFor={`line-total-${line.key}`}
+                          className="justify-end text-xs text-muted-foreground"
+                        >
+                          Line total
+                        </Label>
+                        <Input
+                          id={`line-total-${line.key}`}
+                          inputMode="decimal"
+                          value={
+                            line.lineTotalDraft ?? (lineTotal / 100).toFixed(2)
+                          }
+                          title="Type a total — the unit price is worked out so the total is exact"
+                          className="text-right font-medium tabular-nums"
+                          onChange={(e) => setLineTotal(line.key, e.target.value)}
+                          onBlur={() =>
+                            updateLine(line.key, { lineTotalDraft: undefined })
+                          }
+                        />
+                      </div>
                     ) : (
                       <p className="w-full text-right text-sm font-medium tabular-nums">
                         {formatCadFromCents(lineTotal)}

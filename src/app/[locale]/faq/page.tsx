@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import {
-  ArrowRight,
   Box,
   ClipboardList,
   HelpCircle,
@@ -232,12 +231,12 @@ export default async function FaqPage({ params }: PageProps) {
                       </p>
                       <Button
                         asChild
-                        variant="ghost"
-                        className="mt-4 h-9 justify-start px-0 text-primary hover:bg-transparent hover:text-primary/80"
+                        variant="atelier-link"
+                        size="atelier"
+                        className="mt-4 h-auto px-1 py-2.5"
                       >
                         <Link href={link.href}>
                           {t("page.open")}
-                          <ArrowRight className="size-4" />
                         </Link>
                       </Button>
                     </CardContent>

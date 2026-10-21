@@ -264,7 +264,9 @@ export function ContactForm() {
 
       <LoadingButton
         type="submit"
-        className="w-full min-h-11"
+        variant="atelier"
+        size="atelier"
+        className="w-full"
         isLoading={isSubmitting}
         loadingText={t("submitting")}
         icon={<Send className="size-4" />}

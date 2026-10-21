@@ -1,4 +1,4 @@
-import { ArrowRight, Package, Ruler, Truck } from "lucide-react";
+import { Package, Ruler, Truck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Reveal } from "@/components/animation/reveal";
@@ -54,24 +54,23 @@ export async function RentalsHero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
+            <Button variant="atelier" asChild size="atelier" className="min-h-11 w-full sm:w-auto">
               <a href="#packages">
                 {t("heroBrowsePackagesCta")}
-                <ArrowRight className="ml-1 size-4" />
               </a>
             </Button>
             <Button
               asChild
-              variant="outline"
-              size="lg"
+              variant="atelier-outline"
+              size="atelier"
               className="min-h-11 w-full sm:w-auto"
             >
               <a href="#items">{t("heroBrowseCta")}</a>
             </Button>
             <Button
               asChild
-              variant="outline"
-              size="lg"
+              variant="atelier-outline"
+              size="atelier"
               className="min-h-11 w-full sm:w-auto"
             >
               <Link href="/get-estimate">{tc("requestEstimate")}</Link>

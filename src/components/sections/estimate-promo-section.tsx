@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { SectionShell } from "@/components/section-shell";
@@ -31,13 +31,12 @@ export function EstimatePromoSection() {
                   {t("description")}
                 </p>
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <Button asChild size="lg" className="min-h-11">
+                  <Button variant="atelier" asChild size="atelier" className="min-h-11">
                     <Link href="/get-estimate">
                       {t("cta")}
-                      <ArrowRight />
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" size="lg" className="min-h-11">
+                  <Button asChild variant="atelier-outline" size="atelier" className="min-h-11">
                     <Link href="/contact">{tc("contactBrand")}</Link>
                   </Button>
                 </div>

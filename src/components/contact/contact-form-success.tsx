@@ -45,13 +45,13 @@ export function ContactFormSuccess({ onSendAnother }: ContactFormSuccessProps) {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <Button asChild className="min-h-10">
+        <Button variant="atelier" size="atelier" asChild className="min-h-10">
           <Link href="/get-estimate">{t("planDraping")}</Link>
         </Button>
         {onSendAnother ? (
           <Button
             type="button"
-            variant="outline"
+            variant="atelier-outline" size="atelier"
             className="min-h-10"
             onClick={onSendAnother}
           >

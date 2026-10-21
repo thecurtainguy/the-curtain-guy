@@ -98,7 +98,7 @@ export function ReviewsShowcase() {
               </h2>
             </div>
             <ShareExperienceDialog>
-              <Button variant="outline" className="shrink-0 rounded-2xl">
+              <Button variant="atelier-outline" size="atelier" className="shrink-0">
                 {t("page.shareCta")}
               </Button>
             </ShareExperienceDialog>

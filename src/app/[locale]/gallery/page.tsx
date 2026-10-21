@@ -65,10 +65,10 @@ export default async function GalleryPage({ params }: PageProps) {
         description={t("page.description")}
       >
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg" className="min-h-11">
+          <Button variant="atelier" asChild size="atelier" className="min-h-11">
             <Link href="/get-estimate">{tCommon("requestEstimate")}</Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="min-h-11">
+          <Button asChild variant="atelier-outline" size="atelier" className="min-h-11">
             <Link href="/services">{tCommon("viewServices")}</Link>
           </Button>
         </div>
@@ -125,8 +125,8 @@ export default async function GalleryPage({ params }: PageProps) {
                       {category.serviceHref && (
                         <Button
                           asChild
-                          variant="outline"
-                          size="sm"
+                          variant="atelier-outline"
+                          size="atelier-sm"
                           className="min-h-10 w-fit"
                         >
                           <Link href={category.serviceHref}>
@@ -187,7 +187,7 @@ export default async function GalleryPage({ params }: PageProps) {
                     </p>
                   </div>
                 </div>
-                <Button asChild className="min-h-11 w-full shrink-0 sm:w-auto">
+                <Button variant="atelier" size="atelier" asChild className="min-h-11 w-full shrink-0 sm:w-auto">
                   <Link href="/contact">{t("page.uploadCta")}</Link>
                 </Button>
               </CardContent>

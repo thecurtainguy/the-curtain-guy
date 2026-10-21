@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RootLink } from "@/components/ui/root-link";
 import { Button } from "@/components/ui/button";
@@ -27,10 +27,9 @@ export function StudioHubFeaturedCard() {
             </p>
           </div>
         </div>
-        <Button asChild size="lg" className="shrink-0">
+        <Button variant="atelier" asChild size="atelier" className="shrink-0">
           <RootLink href="/studio/build">
             {t("cta")}
-            <ArrowRight className="size-4" />
           </RootLink>
         </Button>
       </div>

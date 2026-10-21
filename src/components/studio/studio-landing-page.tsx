@@ -81,27 +81,25 @@ export function StudioLandingPage() {
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               {t("hero.description")}
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg">
-                <RootLink href="/studio/build">
-                  {t("hero.ctaBuild")}
-                  <ArrowRight className="size-4" />
-                </RootLink>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Button asChild size="atelier" variant="atelier">
+                <RootLink href="/studio/build">{t("hero.ctaBuild")}</RootLink>
               </Button>
-              <Button asChild size="lg" variant="outline">
+              <Button asChild size="atelier" variant="atelier-outline">
                 <RootLink href="/studio/new?mode=designer">
                   {t("hero.ctaStart")}
-                  <ArrowRight className="size-4" />
                 </RootLink>
               </Button>
-              <Button asChild size="lg" variant="outline">
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-x-7 gap-y-1">
+              <Button asChild size="atelier" variant="atelier-link" className="h-auto px-1 py-2.5">
                 <RootLink href="/studio/saved">{t("hero.ctaSaved")}</RootLink>
               </Button>
-              <Button asChild size="lg" variant="ghost">
+              <Button asChild size="atelier" variant="atelier-link" className="h-auto px-1 py-2.5">
                 <Link href="/get-estimate">{t("hero.ctaEstimate")}</Link>
               </Button>
             </div>
-            <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+            <p className="mt-4 max-w-xl text-sm text-muted-foreground">
               {t("hero.buildHint")}
             </p>
           </div>
@@ -216,7 +214,7 @@ export function StudioLandingPage() {
                 </p>
               </div>
             </div>
-            <Button asChild variant="outline" className="shrink-0">
+            <Button asChild variant="atelier-outline" size="atelier-sm" className="shrink-0">
               <RootLink href="/ai">{t("aiTeaser.cta")}</RootLink>
             </Button>
           </div>

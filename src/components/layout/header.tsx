@@ -27,7 +27,6 @@ import {
   HeaderAccountMenu,
   type HeaderSession,
 } from "@/components/layout/header-account-menu";
-import { headerActionClassName, headerActionGoldClassName } from "@/components/layout/header-actions";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -343,9 +342,9 @@ export function Header() {
           <HeaderAccountMenu session={session} />
           <Button
             asChild
-            variant="outline"
-            size="lg"
-            className={cn(headerActionClassName, headerActionGoldClassName, "hidden sm:inline-flex")}
+            variant="atelier"
+            size="atelier-sm"
+            className="hidden sm:inline-flex"
           >
             <GuardedLink href="/get-estimate">{tc("getEstimate")}</GuardedLink>
           </Button>
@@ -414,7 +413,7 @@ export function Header() {
                     <span className="text-sm text-muted-foreground">{tc("languageSwitcher")}</span>
                     <LanguageSwitcher />
                   </div>
-                  <Button asChild className="mt-3 w-full min-h-10">
+                  <Button asChild variant="atelier" size="atelier" className="mt-3 w-full">
                     <GuardedLink
                       href="/get-estimate"
                       onClick={() => setMobileOpen(false)}

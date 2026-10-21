@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -31,16 +30,15 @@ export function HeroSection() {
             {t("description")}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
+            <Button variant="atelier" asChild size="atelier" className="min-h-11 w-full sm:w-auto">
               <Link href="/get-estimate">
                 {tc("requestEstimate")}
-                <ArrowRight className="ml-1" />
               </Link>
             </Button>
             <Button
               asChild
-              variant="outline"
-              size="lg"
+              variant="atelier-outline"
+              size="atelier"
               className="min-h-11 w-full sm:w-auto"
             >
               <Link href="/services">{tc("viewServices")}</Link>

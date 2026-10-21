@@ -93,10 +93,10 @@ export default async function AreaDetailPage({ params }: PageProps) {
         description={area.intro}
       >
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg" className="min-h-11">
+          <Button variant="atelier" asChild size="atelier" className="min-h-11">
             <Link href="/get-estimate">{tCommon("requestEstimate")}</Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="min-h-11">
+          <Button asChild variant="atelier-outline" size="atelier" className="min-h-11">
             <Link href="/services">{tCommon("viewServices")}</Link>
           </Button>
         </div>

@@ -45,11 +45,11 @@ export default async function ReviewsPage({ params }: PageProps) {
         description={t("description")}
       >
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg" className="min-h-11">
+          <Button variant="atelier" asChild size="atelier" className="min-h-11">
             <Link href="/get-estimate">{t("getEstimate")}</Link>
           </Button>
           <ShareExperienceDialog>
-            <Button variant="outline" size="lg" className="min-h-11">
+            <Button variant="atelier-outline" size="atelier" className="min-h-11">
               {t("shareCta")}
             </Button>
           </ShareExperienceDialog>

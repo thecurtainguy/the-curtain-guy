@@ -54,10 +54,10 @@ export default async function ServicesHubPage({ params }: PageProps) {
         description={t("description")}
       >
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg" className="min-h-11">
+          <Button variant="atelier" asChild size="atelier" className="min-h-11">
             <Link href="/get-estimate">{tCommon("getEstimate")}</Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="min-h-11">
+          <Button asChild variant="atelier-outline" size="atelier" className="min-h-11">
             <Link href="/contact">{tCommon("contactBrand")}</Link>
           </Button>
         </div>
@@ -110,7 +110,7 @@ export default async function ServicesHubPage({ params }: PageProps) {
                     </p>
                   </div>
                 </div>
-                <Button asChild className="min-h-11 w-full shrink-0 sm:w-auto">
+                <Button variant="atelier" size="atelier" asChild className="min-h-11 w-full shrink-0 sm:w-auto">
                   <Link href="/get-estimate">{tCommon("getEstimate")}</Link>
                 </Button>
               </CardContent>

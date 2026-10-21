@@ -92,10 +92,10 @@ export default async function ServiceDetailPage({ params }: PageProps) {
         description={service.intro}
       >
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg" className="min-h-11">
+          <Button variant="atelier" asChild size="atelier" className="min-h-11">
             <Link href="/get-estimate">{tCommon("requestEstimate")}</Link>
           </Button>
-          <Button asChild variant="outline" size="lg" className="min-h-11">
+          <Button asChild variant="atelier-outline" size="atelier" className="min-h-11">
             <Link href="/contact">{tCommon("contactBrand")}</Link>
           </Button>
         </div>
@@ -234,18 +234,17 @@ export default async function ServiceDetailPage({ params }: PageProps) {
                     </div>
                   </div>
                   <CardContent className="space-y-3 p-5">
-                    <Button asChild className="min-h-11 w-full">
+                    <Button variant="atelier" size="atelier" asChild className="min-h-11 w-full">
                       <Link href="/get-estimate">
                         {tCommon("requestEstimate")}
                       </Link>
                     </Button>
-                    <Button asChild variant="outline" className="min-h-11 w-full">
+                    <Button asChild variant="atelier-outline" size="atelier" className="min-h-11 w-full">
                       <Link href="/contact">{tCommon("contact")}</Link>
                     </Button>
-                    <Button asChild variant="ghost" className="min-h-11 w-full">
+                    <Button asChild variant="atelier-link" size="atelier" className="mx-auto flex h-auto w-fit px-1 py-2.5">
                       <Link href="/services">
                         {tCommon("allServices")}
-                        <ArrowRight />
                       </Link>
                     </Button>
                   </CardContent>

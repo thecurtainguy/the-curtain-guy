@@ -116,10 +116,10 @@ export function QuoteCTA({
             {description}
           </p>
           <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-            <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
+            <Button variant="atelier" asChild size="atelier" className="min-h-11 w-full sm:w-auto">
               <Link href="/get-estimate">Get Estimate</Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="min-h-11 w-full sm:w-auto">
+            <Button asChild variant="atelier-outline" size="atelier" className="min-h-11 w-full sm:w-auto">
               <Link href="/contact">Contact Us</Link>
             </Button>
           </div>

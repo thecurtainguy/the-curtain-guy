@@ -20,6 +20,12 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        atelier:
+          "relative isolate overflow-hidden rounded-[6px] bg-gold-metallic font-semibold uppercase tracking-[0.16em] text-primary-foreground after:absolute after:inset-0 after:-z-10 after:-translate-x-[120%] after:bg-[linear-gradient(110deg,transparent_30%,oklch(1_0_0/35%)_50%,transparent_70%)] after:transition-transform after:duration-700 hover:-translate-y-px hover:shadow-[0_10px_28px_-10px_rgba(212,175,55,0.55)] hover:after:translate-x-[120%] motion-reduce:after:hidden motion-reduce:hover:translate-y-0",
+        "atelier-outline":
+          "relative isolate overflow-hidden rounded-[6px] border-primary/60 bg-transparent font-semibold uppercase tracking-[0.16em] text-primary before:absolute before:inset-0 before:-z-10 before:origin-left before:scale-x-0 before:bg-primary before:transition-transform before:duration-300 hover:text-primary-foreground hover:before:scale-x-100 motion-reduce:before:transition-none",
+        "atelier-link":
+          "relative h-auto rounded-none px-1 py-2 font-semibold uppercase tracking-[0.16em] text-primary after:absolute after:bottom-1 after:left-1 after:right-[calc(0.25rem+0.16em)] after:h-px after:origin-left after:scale-x-[0.35] after:bg-current after:transition-transform after:duration-300 hover:after:scale-x-100 motion-reduce:after:transition-none",
       },
       size: {
         default:
@@ -31,6 +37,8 @@ const buttonVariants = cva(
         "icon-xs": "size-6 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-7",
         "icon-lg": "size-9",
+        atelier: "h-12 gap-2 px-7 text-[12.5px]",
+        "atelier-sm": "h-9 gap-1.5 px-4 text-[11.5px]",
       },
     },
     defaultVariants: {

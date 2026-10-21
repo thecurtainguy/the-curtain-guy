@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { RootLink } from "@/components/ui/root-link";
@@ -74,13 +74,12 @@ export function AiTeaserSection() {
         </Stagger>
 
         <Reveal variant="fade-up" delay={0.1} className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Button asChild>
+          <Button variant="atelier" size="atelier" asChild>
             <Link href="/get-estimate">
               {t("cta")}
-              <ArrowRight />
             </Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild variant="atelier-outline" size="atelier">
             <RootLink href="/ai">
               <Sparkles className="size-4" />
               {t("secondary")}

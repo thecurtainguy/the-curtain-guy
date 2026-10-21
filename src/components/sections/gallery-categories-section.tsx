@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { galleryPageCategories } from "@/data/site";
@@ -105,13 +104,12 @@ export function GalleryCategoriesSection() {
               </p>
             </div>
             <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
-              <Button asChild>
+              <Button variant="atelier" size="atelier" asChild>
                 <Link href="/get-estimate">
                   {tc("getEstimate")}
-                  <ArrowRight />
                 </Link>
               </Button>
-              <Button asChild variant="outline">
+              <Button asChild variant="atelier-outline" size="atelier">
                 <Link href="/contact">{tc("contact")}</Link>
               </Button>
             </div>

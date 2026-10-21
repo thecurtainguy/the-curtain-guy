@@ -20,8 +20,8 @@ export function formatISODate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function formatDisplayDate(date: Date): string {
-  return date.toLocaleDateString("en-CA", {
+export function formatDisplayDate(date: Date, locale = "en-CA"): string {
+  return date.toLocaleDateString(locale, {
     year: "numeric",
     month: "long",
     day: "numeric",

@@ -22,7 +22,11 @@ import {
   formatEventPlanSummaryText,
 } from "@/lib/event-builder/format-event-plan-summary";
 import type { StudioDesignJson } from "@/data/studio";
-import { getDocumentText } from "@/lib/document-texts";
+import type { CustomerLanguage } from "@/data/customer-language";
+import {
+  getDocumentText,
+  getLocalizedDocumentText,
+} from "@/lib/document-texts";
 import type { EventPlanContact } from "@/lib/event-builder/event-plan-server";
 import { emailBannerBrandHeaderHtml } from "@/lib/email-brand";
 import { sendResendEmail } from "@/lib/resend";
@@ -41,7 +45,77 @@ export type SendEstimateCustomerConfirmationInput = {
   data: EstimateFormData;
   apiKey: string;
   fileCount?: number;
+  language?: CustomerLanguage;
 };
+
+const CUSTOMER_EMAIL_COPY = {
+  en: {
+    estimateSubject: (ref: string) =>
+      `We received your Curtain Guy estimate request — ${ref}`,
+    hi: "Hi,",
+    thanksText: "Thank you — we received your event drape estimate brief.",
+    referenceNumber: "Reference number",
+    filesText: (n: number) =>
+      `You selected ${n} file${n === 1 ? "" : "s"} with this request. Files that finished uploading are attached to your estimate brief.`,
+    filesHtml: (n: number) =>
+      `You selected <strong>${n} file${n === 1 ? "" : "s"}</strong> with this request. Files that finished uploading are attached to your estimate brief.`,
+    reviewText:
+      "The Curtain Guy team will review your measurements, availability, delivery, installation, and teardown before preparing your rental estimate.",
+    updatesText:
+      "Need to add updates, photos, or a floor plan? Create an account or reply to this email and we will include them in your file.",
+    signoff: "— The Curtain Guy",
+    estimateHeadline: "We received your estimate brief",
+    estimateIntroHtml:
+      "Thank you for submitting your event drape planning brief. Our team has it on file and will review the details below.",
+    reviewHtml:
+      "We will review measurements, availability, delivery, installation, and teardown before preparing your rental estimate.",
+    updatesHtml:
+      "Have updates, photos, or a floor plan to share? Create an account or reply to this email and we will add them to your file.",
+    footer: "The Curtain Guy · Montreal event drape rental",
+    planSubject: (ref: string) => `We received your event drape plan — ${ref}`,
+    planHeadline: "Event drape plan received",
+    planThanksText: (ref: string) =>
+      `Thank you — we received your event drape plan (${ref}).`,
+    planReviewText:
+      "Our team will review your room layout and selected setups within 24–48 hours and follow up by email with next steps.",
+    planIntroHtml:
+      "Thank you for submitting your event drape plan. Our team has it on file and will review the details below.",
+  },
+  fr: {
+    estimateSubject: (ref: string) =>
+      `Nous avons reçu votre demande d’estimation The Curtain Guy — ${ref}`,
+    hi: "Bonjour,",
+    thanksText:
+      "Merci — nous avons bien reçu votre brief d’estimation de drapage.",
+    referenceNumber: "Numéro de référence",
+    filesText: (n: number) =>
+      `Vous avez sélectionné ${n} fichier${n > 1 ? "s" : ""} avec cette demande. Les fichiers téléversés sont joints à votre brief.`,
+    filesHtml: (n: number) =>
+      `Vous avez sélectionné <strong>${n} fichier${n > 1 ? "s" : ""}</strong> avec cette demande. Les fichiers téléversés sont joints à votre brief.`,
+    reviewText:
+      "L’équipe The Curtain Guy révisera vos mesures, la disponibilité, la livraison, l’installation et le démontage avant de préparer votre estimation de location.",
+    updatesText:
+      "Vous souhaitez ajouter des mises à jour, des photos ou un plan de salle? Créez un compte ou répondez à ce courriel et nous les ajouterons à votre dossier.",
+    signoff: "— The Curtain Guy",
+    estimateHeadline: "Nous avons reçu votre brief",
+    estimateIntroHtml:
+      "Merci d’avoir soumis votre brief de planification de drapage. Notre équipe l’a bien reçu et révisera les détails ci-dessous.",
+    reviewHtml:
+      "Nous réviserons les mesures, la disponibilité, la livraison, l’installation et le démontage avant de préparer votre estimation de location.",
+    updatesHtml:
+      "Des mises à jour, des photos ou un plan de salle à partager? Créez un compte ou répondez à ce courriel et nous les ajouterons à votre dossier.",
+    footer: "The Curtain Guy · Location de draperie événementielle à Montréal",
+    planSubject: (ref: string) =>
+      `Nous avons reçu votre plan de drapage — ${ref}`,
+    planHeadline: "Plan de drapage reçu",
+    planThanksText: (ref: string) =>
+      `Merci — nous avons bien reçu votre plan de drapage (${ref}).`,
+    planReviewText:
+      "Notre équipe révisera l’aménagement de votre salle et les installations choisies d’ici 24 à 48 heures et vous écrira pour la suite.",
+    planIntroHtml:
+      "Merci d’avoir soumis votre plan de drapage. Notre équipe l’a bien reçu et révisera les détails ci-dessous.",
+  },
+} as const;
 
 type EstimateEmailContext = {
   requestId: string;
@@ -281,40 +355,42 @@ function buildNotificationHtml(ctx: EstimateEmailContext, disclaimer: string): s
 </html>`;
 }
 
-function buildCustomerConfirmationSubject(reference: string): string {
-  return `We received your Curtain Guy estimate request — ${reference}`;
+function buildCustomerConfirmationSubject(
+  reference: string,
+  language: CustomerLanguage
+): string {
+  return CUSTOMER_EMAIL_COPY[language].estimateSubject(reference);
 }
 
 function buildCustomerConfirmationText(
   ctx: EstimateEmailContext,
-  disclaimer: string
+  disclaimer: string,
+  language: CustomerLanguage
 ): string {
   const { reference, fileCount } = ctx;
+  const c = CUSTOMER_EMAIL_COPY[language];
 
   const lines = [
-    "Hi,",
+    c.hi,
     "",
-    "Thank you — we received your event drape estimate brief.",
+    c.thanksText,
     "",
-    `Reference number: ${reference}`,
+    `${c.referenceNumber}: ${reference}`,
     "",
   ];
 
   if (fileCount > 0) {
-    lines.push(
-      `You selected ${fileCount} file${fileCount === 1 ? "" : "s"} with this request. Files that finished uploading are attached to your estimate brief.`,
-      ""
-    );
+    lines.push(c.filesText(fileCount), "");
   }
 
   lines.push(
-    "The Curtain Guy team will review your measurements, availability, delivery, installation, and teardown before preparing your rental estimate.",
+    c.reviewText,
     "",
     disclaimer,
     "",
-    "Need to add updates, photos, or a floor plan? Create an account or reply to this email and we will include them in your file.",
+    c.updatesText,
     "",
-    "— The Curtain Guy",
+    c.signoff,
     "thecurtainguy.com"
   );
 
@@ -323,34 +399,36 @@ function buildCustomerConfirmationText(
 
 function buildCustomerConfirmationHtml(
   ctx: EstimateEmailContext,
-  disclaimer: string
+  disclaimer: string,
+  language: CustomerLanguage
 ): string {
   const { reference, fileCount } = ctx;
+  const c = CUSTOMER_EMAIL_COPY[language];
   const filesBlock =
     fileCount > 0
-      ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">You selected <strong>${fileCount} file${fileCount === 1 ? "" : "s"}</strong> with this request. Files that finished uploading are attached to your estimate brief.</p>`
+      ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">${c.filesHtml(fileCount)}</p>`
       : "";
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${language}">
   <body style="margin:0;padding:0;background:#f4f4f5;font-family:Georgia,'Times New Roman',serif;color:#111827;">
     <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
       <div style="background:#111827;border-radius:16px 16px 0 0;padding:28px 24px;">
         ${emailBannerBrandHeaderHtml()}
-        <h1 style="margin:0;font-size:24px;line-height:1.3;color:#ffffff;">We received your estimate brief</h1>
+        <h1 style="margin:0;font-size:24px;line-height:1.3;color:#ffffff;">${c.estimateHeadline}</h1>
       </div>
       <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
-        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">Thank you for submitting your event drape planning brief. Our team has it on file and will review the details below.</p>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">${c.estimateIntroHtml}</p>
         <div style="margin:0 0 20px;padding:16px 18px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
-          <p style="margin:0 0 4px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">Reference number</p>
+          <p style="margin:0 0 4px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">${c.referenceNumber}</p>
           <p style="margin:0;font-size:20px;font-weight:600;color:#111827;">${escapeHtml(reference)}</p>
         </div>
         ${filesBlock}
-        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">We will review measurements, availability, delivery, installation, and teardown before preparing your rental estimate.</p>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">${c.reviewHtml}</p>
         ${disclaimerBannerHtml(disclaimer)}
-        <p style="margin:0;font-size:15px;line-height:1.7;color:#374151;">Have updates, photos, or a floor plan to share? Create an account or reply to this email and we will add them to your file.</p>
+        <p style="margin:0;font-size:15px;line-height:1.7;color:#374151;">${c.updatesHtml}</p>
       </div>
-      <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">The Curtain Guy · Montreal event drape rental</p>
+      <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">${c.footer}</p>
     </div>
   </body>
 </html>`;
@@ -388,7 +466,14 @@ export async function sendEstimateCustomerConfirmationEmail(
     return;
   }
 
-  const { requestId, opportunityRef, data, apiKey, fileCount = 0 } = input;
+  const {
+    requestId,
+    opportunityRef,
+    data,
+    apiKey,
+    fileCount = 0,
+    language = "en",
+  } = input;
   const customerEmail = data.email.trim();
 
   if (!customerEmail) {
@@ -402,16 +487,19 @@ export async function sendEstimateCustomerConfirmationEmail(
     opportunityRef
   );
 
-  const disclaimer = await getDocumentText("estimate.email_disclaimer");
+  const disclaimer = await getLocalizedDocumentText(
+    "estimate.email_disclaimer",
+    language
+  );
 
   await sendResendEmail({
     apiKey,
     from: getEstimateFrom(),
     to: [customerEmail],
     replyTo: getEstimateNotifyTo(),
-    subject: buildCustomerConfirmationSubject(ctx.reference),
-    text: buildCustomerConfirmationText(ctx, disclaimer),
-    html: buildCustomerConfirmationHtml(ctx, disclaimer),
+    subject: buildCustomerConfirmationSubject(ctx.reference, language),
+    text: buildCustomerConfirmationText(ctx, disclaimer, language),
+    html: buildCustomerConfirmationHtml(ctx, disclaimer, language),
     logLabel: "estimate",
   });
 }
@@ -430,22 +518,26 @@ export type SendEventPlanCustomerConfirmationInput = {
   design: StudioDesignJson;
   contact: EventPlanContact;
   apiKey: string;
+  language?: CustomerLanguage;
 };
 
 function buildEventPlanSections(
   brief: EventBuilderBrief,
   design: StudioDesignJson,
-  contact: EventPlanContact
+  contact: EventPlanContact,
+  language: CustomerLanguage = "en"
 ) {
-  return formatEventPlanSummary(brief, design, contact);
+  return formatEventPlanSummary(brief, design, contact, language);
 }
 
 function buildEventPlanHtml(
   reference: string,
   sections: ReturnType<typeof formatEventPlanSummary>,
   intro: string,
-  disclaimer: string
+  disclaimer: string,
+  language: CustomerLanguage = "en"
 ): string {
+  const c = CUSTOMER_EMAIL_COPY[language];
   const sectionHtml = sections
     .map((section) => {
       const rows = section.rows
@@ -459,23 +551,23 @@ function buildEventPlanHtml(
     .join("");
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${language}">
   <body style="margin:0;padding:0;background:#f4f4f5;font-family:Georgia,'Times New Roman',serif;color:#111827;">
     <div style="max-width:560px;margin:0 auto;padding:24px 16px;">
       <div style="background:#111827;border-radius:16px 16px 0 0;padding:28px 24px;">
         ${emailBannerBrandHeaderHtml()}
-        <h1 style="margin:0;font-size:24px;line-height:1.3;color:#ffffff;">Event drape plan received</h1>
+        <h1 style="margin:0;font-size:24px;line-height:1.3;color:#ffffff;">${c.planHeadline}</h1>
       </div>
       <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
         <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">${escapeHtml(intro)}</p>
         <div style="margin:0 0 20px;padding:16px 18px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
-          <p style="margin:0 0 4px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">Reference number</p>
+          <p style="margin:0 0 4px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">${c.referenceNumber}</p>
           <p style="margin:0;font-size:20px;font-weight:600;color:#111827;">${escapeHtml(reference)}</p>
         </div>
         ${sectionHtml}
         ${disclaimerBannerHtml(disclaimer)}
       </div>
-      <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">The Curtain Guy · Montreal event drape rental</p>
+      <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">${c.footer}</p>
     </div>
   </body>
 </html>`;
@@ -515,22 +607,28 @@ export async function sendEventPlanCustomerConfirmationEmail(
   const customerEmail = input.contact.email.trim();
   if (!customerEmail) return;
 
+  const language = input.language ?? "en";
+  const c = CUSTOMER_EMAIL_COPY[language];
   const sections = buildEventPlanSections(
     input.brief,
     input.design,
-    input.contact
+    input.contact,
+    language
   );
-  const disclaimer = await getDocumentText("estimate.email_disclaimer");
+  const disclaimer = await getLocalizedDocumentText(
+    "estimate.email_disclaimer",
+    language
+  );
   const text = [
-    `Thank you — we received your event drape plan (${input.reference}).`,
+    c.planThanksText(input.reference),
     "",
-    formatEventPlanSummaryText(input.reference, sections),
+    formatEventPlanSummaryText(input.reference, sections, language),
     "",
-    "Our team will review your room layout and selected setups within 24–48 hours and follow up by email with next steps.",
+    c.planReviewText,
     "",
     disclaimer,
     "",
-    "— The Curtain Guy",
+    c.signoff,
   ].join("\n");
 
   await sendResendEmail({
@@ -538,13 +636,14 @@ export async function sendEventPlanCustomerConfirmationEmail(
     from: getEstimateFrom(),
     to: [customerEmail],
     replyTo: getEventPlanNotifyTo(),
-    subject: `We received your event drape plan — ${input.reference}`,
+    subject: c.planSubject(input.reference),
     text,
     html: buildEventPlanHtml(
       input.reference,
       sections,
-      "Thank you for submitting your event drape plan. Our team has it on file and will review the details below.",
-      disclaimer
+      c.planIntroHtml,
+      disclaimer,
+      language
     ),
     logLabel: "estimate",
   });

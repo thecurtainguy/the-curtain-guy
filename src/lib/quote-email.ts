@@ -8,7 +8,11 @@ import {
   getQuoteFrom,
   getSiteUrl,
 } from "@/lib/env";
-import { getDocumentTextsMap } from "@/lib/document-texts";
+import { normalizeCustomerLanguage } from "@/data/customer-language";
+import {
+  getDocumentTextsMap,
+  getLocalizedDocumentTexts,
+} from "@/lib/document-texts";
 import {
   brandQuoteEmailShell,
   buildDefaultQuoteEmailBodyText,
@@ -46,7 +50,9 @@ export async function sendQuoteReadyEmail(input: {
   compose?: QuoteReadyComposeOptions;
 }): Promise<void> {
   const { quote, publicQuoteUrl, apiKey, compose } = input;
-  const copy = await getDocumentTextsMap();
+  const copy = await getLocalizedDocumentTexts(
+    normalizeCustomerLanguage(quote.language)
+  );
   const emailNote = copy["quote.email_note"];
   const emailFooter = copy["quote.email_footer"];
   const siteUrl = getSiteUrl().replace(/\/$/, "");
@@ -95,6 +101,8 @@ export async function sendQuoteReadyEmail(input: {
     bodyText,
     emailFooter,
     pdfFilename: resolvedPdfName,
+    lineItems: quote.line_items,
+    assetBaseUrl: siteUrl,
   });
 
   await sendResendEmail({

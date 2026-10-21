@@ -2,14 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { UserPlus } from "lucide-react";
+import { BrandDialogContent } from "@/components/ui/brand-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import {
   STUDIO_TITLE_MAX_LENGTH,
   cloneStudioTemplate,
@@ -491,30 +486,23 @@ export function StudioDesigner(props: StudioDesignerProps) {
       </StudioShell>
 
       <Dialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen}>
-        <DialogContent className="overflow-hidden border-primary/20 bg-card">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklch,var(--primary)_24%,transparent),transparent_72%)]" />
-          <DialogHeader className="relative">
-            <p className="text-[0.65rem] font-semibold tracking-[0.22em] text-primary uppercase">
-              Keep your design
-            </p>
-            <DialogTitle className="font-heading text-2xl">
-              Save your room to an account
-            </DialogTitle>
-            <DialogDescription className="leading-relaxed">
-              This draft is kept temporarily in this browser tab. Keep the tab
-              open; if email verification opens another tab, return to this one
-              and use the Return to Studio button.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="relative sm:justify-start">
-            <Button asChild>
-              <a href={createAccountWithReturn}>Create account</a>
-            </Button>
-            <Button asChild variant="outline">
-              <a href={signInWithReturn}>Sign in</a>
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+        <BrandDialogContent
+          size="sm"
+          icon={UserPlus}
+          eyebrow="Keep your design"
+          title="Save your room to an account"
+          description="This draft is kept temporarily in this browser tab. Keep the tab open; if email verification opens another tab, return to this one and use the Return to Studio button."
+          footer={
+            <>
+              <Button asChild variant="outline">
+                <a href={signInWithReturn}>Sign in</a>
+              </Button>
+              <Button asChild>
+                <a href={createAccountWithReturn}>Create account</a>
+              </Button>
+            </>
+          }
+        />
       </Dialog>
     </>
   );

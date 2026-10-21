@@ -13,6 +13,10 @@ import {
 } from "@/lib/event-builder/event-plan-server";
 import { normalizeStudioDesign } from "@/data/studio";
 import { getResendApiKey, getSupabaseServerConfig } from "@/lib/env";
+import {
+  detectRequestLanguage,
+  rememberPreferredLanguage,
+} from "@/lib/request-language";
 
 export async function POST(request: NextRequest) {
   const contentLength = request.headers.get("content-length");
@@ -103,7 +107,10 @@ export async function POST(request: NextRequest) {
   const userId =
     user && profile?.profile.role === "customer" ? user.id : user?.id ?? null;
 
+  const language = detectRequestLanguage(request);
+
   const insertResult = await insertEventPlanSubmission(config, submissionPayload, {
+    language,
     submittedFromUrl: request.headers.get("referer"),
     userAgent: request.headers.get("user-agent"),
     userId: profile?.profile.role === "owner" ? null : userId,
@@ -114,6 +121,10 @@ export async function POST(request: NextRequest) {
       { ok: false, message: insertResult.message },
       { status: 500 }
     );
+  }
+
+  if (profile?.profile.role === "customer") {
+    await rememberPreferredLanguage(user?.id, language);
   }
 
   const apiKey = getResendApiKey();
@@ -132,6 +143,7 @@ export async function POST(request: NextRequest) {
         design: normalizedDesign,
         contact: parsed.contact,
         apiKey,
+        language,
       });
     } catch (error) {
       console.error("[event-plan] Email send failed:", error);

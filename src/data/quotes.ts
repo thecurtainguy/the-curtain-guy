@@ -1,3 +1,8 @@
+import {
+  customerLocaleTag,
+  type CustomerLanguage,
+} from "@/data/customer-language";
+
 export const QUOTE_STATUSES = [
   "draft",
   "sent",
@@ -94,6 +99,20 @@ export const QUOTE_CATEGORY_LABELS: Record<QuoteLineCategory, string> = {
   custom: "Custom",
 };
 
+const QUOTE_CATEGORY_LABELS_FR: Record<QuoteLineCategory, string> = {
+  drape_rental: "Location de draperie",
+  hardware: "Quincaillerie",
+  installation: "Installation",
+  delivery: "Livraison",
+  teardown: "Démontage",
+  labor: "Main-d’œuvre",
+  rush_special_handling: "Urgence / manutention spéciale",
+  premium_fabric: "Tissu premium",
+  backdrop: "Toile de fond",
+  room_divider_masking: "Séparateur / masquage",
+  custom: "Sur mesure",
+};
+
 /** Suggested line descriptions when picking a category in the admin quote builder. */
 export const QUOTE_CATEGORY_DEFAULT_DESCRIPTIONS: Record<
   QuoteLineCategory,
@@ -112,20 +131,133 @@ export const QUOTE_CATEGORY_DEFAULT_DESCRIPTIONS: Record<
   custom: "Custom draping scope",
 };
 
-export function getQuoteCategoryDefaultDescription(
-  category: QuoteLineCategory
-): string {
-  return QUOTE_CATEGORY_DEFAULT_DESCRIPTIONS[category];
+export function getQuoteCategoryDefaultDescription(category: string): string {
+  return isQuoteLineCategory(category)
+    ? QUOTE_CATEGORY_DEFAULT_DESCRIPTIONS[category]
+    : "";
 }
 
 /** True when description is empty or still the previous category’s auto-fill. */
 export function shouldAutofillQuoteDescription(
   description: string,
-  previousCategory: QuoteLineCategory
+  previousCategory: string
 ): boolean {
   const trimmed = description.trim();
   if (!trimmed) return true;
-  return trimmed === QUOTE_CATEGORY_DEFAULT_DESCRIPTIONS[previousCategory];
+  return trimmed === getQuoteCategoryDefaultDescription(previousCategory);
+}
+
+/** Display name for a quote line: saved snapshot, built-in type, or prettified slug. */
+export function quoteLineCategoryLabel(
+  item: {
+    category: string;
+    category_label?: string | null;
+    category_label_fr?: string | null;
+  },
+  language: CustomerLanguage = "en"
+): string {
+  if (language === "fr") {
+    const snapshotFr = item.category_label_fr?.trim();
+    if (snapshotFr) return snapshotFr;
+    if (isQuoteLineCategory(item.category)) {
+      return QUOTE_CATEGORY_LABELS_FR[item.category];
+    }
+  }
+  const snapshot = item.category_label?.trim();
+  if (snapshot) return snapshot;
+  if (isQuoteLineCategory(item.category)) {
+    return language === "fr"
+      ? QUOTE_CATEGORY_LABELS_FR[item.category]
+      : QUOTE_CATEGORY_LABELS[item.category];
+  }
+  const pretty = item.category.replaceAll("_", " ").trim();
+  if (pretty) return pretty.charAt(0).toUpperCase() + pretty.slice(1);
+  return language === "fr" ? "Article" : "Item";
+}
+
+/** Short unit forms for quotes: [singular, plural]. Unknown units show as typed. */
+const QUOTE_UNIT_SHORT: Record<
+  CustomerLanguage,
+  Record<string, [string, string]>
+> = {
+  en: {
+    each: ["ea", "ea"],
+    "linear ft": ["ft", "ft"],
+    ft: ["ft", "ft"],
+    panel: ["panel", "panels"],
+    set: ["set", "sets"],
+    hour: ["hr", "hrs"],
+    day: ["day", "days"],
+    event: ["event", "events"],
+  },
+  fr: {
+    each: ["ch.", "ch."],
+    "linear ft": ["pi", "pi"],
+    ft: ["pi", "pi"],
+    panel: ["panneau", "panneaux"],
+    set: ["ensemble", "ensembles"],
+    hour: ["h", "h"],
+    day: ["jour", "jours"],
+    event: ["événement", "événements"],
+  },
+};
+
+function normalizeQuoteUnit(unit: string | null | undefined): string {
+  return unit?.trim().toLowerCase() ?? "";
+}
+
+function formatQuantityNumber(
+  quantity: number,
+  language: CustomerLanguage
+): string {
+  const rounded = Number.isInteger(quantity)
+    ? quantity
+    : Number(quantity.toFixed(2));
+  return language === "fr"
+    ? String(rounded).replace(".", ",")
+    : String(rounded);
+}
+
+/** "40 ft", "2 sets", "1 event"; plain number for "each" or no unit. */
+export function formatQuoteQuantity(
+  quantity: number,
+  unit: string | null | undefined,
+  language: CustomerLanguage = "en"
+): string {
+  const qty = formatQuantityNumber(quantity, language);
+  const key = normalizeQuoteUnit(unit);
+  if (!key || key === "each") return qty;
+  const short = QUOTE_UNIT_SHORT[language][key];
+  const plural = language === "fr" ? quantity >= 2 : quantity !== 1;
+  const label = short ? (plural ? short[1] : short[0]) : unit!.trim();
+  return `${qty} ${label}`;
+}
+
+/** Suffix after a unit price: "/ ft", "/ set", "ea"; empty when no unit. */
+export function formatQuoteUnitSuffix(
+  unit: string | null | undefined,
+  language: CustomerLanguage = "en"
+): string {
+  const key = normalizeQuoteUnit(unit);
+  if (!key) return "";
+  const units = QUOTE_UNIT_SHORT[language];
+  if (key === "each") return units.each[0];
+  return `/ ${units[key]?.[0] ?? unit!.trim()}`;
+}
+
+/** "$40.00 / ft" or "$20.00 ea"; plain price when no unit. */
+export function formatQuoteUnitPrice(
+  unitPriceCents: number,
+  unit: string | null | undefined,
+  language: CustomerLanguage = "en"
+): string {
+  const suffix = formatQuoteUnitSuffix(unit, language);
+  const price = formatCadFromCents(unitPriceCents, language);
+  return suffix ? `${price} ${suffix}` : price;
+}
+
+export function isValidQuoteLineCategorySlug(value: string): boolean {
+  return /^[a-z0-9][a-z0-9_]*$/.test(value) && value.length <= 60;
 }
 
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
@@ -159,6 +291,96 @@ export const QUOTE_REQUEST_STATUS_LABELS: Record<QuoteRequestStatus, string> = {
   needs_info: "Needs info",
 };
 
+const QUOTE_STATUS_LABELS_FR: Record<QuoteStatus, string> = {
+  draft: "Brouillon",
+  sent: "Envoyée",
+  viewed: "Consultée",
+  accepted: "Acceptée",
+  declined: "Refusée",
+  revision_requested: "Révision demandée",
+  expired: "Expirée",
+  cancelled: "Annulée",
+};
+
+const QUOTE_LINE_STATUS_LABELS_FR: Record<QuoteLineStatus, string> = {
+  priced: "Tarifé",
+  included: "Inclus",
+  pending_owner_review: "En révision",
+  not_priced_yet: "Prix à venir",
+  requested_change: "Modification demandée",
+  approved: "Approuvé",
+  declined: "Refusé",
+  needs_measurement: "Mesures requises",
+  needs_venue_confirmation: "Confirmation du lieu requise",
+};
+
+const QUOTE_REQUEST_STATUS_LABELS_FR: Record<QuoteRequestStatus, string> = {
+  pending_owner_review: "En révision",
+  approved: "Approuvée",
+  declined: "Refusée",
+  converted_to_line_item: "Ajoutée à la soumission",
+  needs_info: "Précisions requises",
+};
+
+export function quoteStatusLabel(
+  status: QuoteStatus,
+  language: CustomerLanguage = "en"
+): string {
+  return (language === "fr" ? QUOTE_STATUS_LABELS_FR : QUOTE_STATUS_LABELS)[
+    status
+  ];
+}
+
+export function quoteLineStatusLabel(
+  status: QuoteLineStatus,
+  language: CustomerLanguage = "en"
+): string {
+  return (
+    language === "fr" ? QUOTE_LINE_STATUS_LABELS_FR : QUOTE_LINE_STATUS_LABELS
+  )[status];
+}
+
+/**
+ * A priced line at $0 reads as "Included" / "Inclus" to customers instead of
+ * $0.00. Lines still awaiting a price keep their own status.
+ */
+export function isZeroPricedQuoteLine(item: {
+  status: QuoteLineStatus | string;
+  unit_price_cents: number | null | undefined;
+}): boolean {
+  return (
+    (item.status === "priced" || item.status === "approved") &&
+    (item.unit_price_cents ?? 0) === 0
+  );
+}
+
+export function customerQuoteLineStatus<
+  T extends { status: QuoteLineStatus; unit_price_cents: number | null | undefined },
+>(item: T): QuoteLineStatus {
+  return isZeroPricedQuoteLine(item) ? "included" : item.status;
+}
+
+export function quoteRequestStatusLabel(
+  status: QuoteRequestStatus,
+  language: CustomerLanguage = "en"
+): string {
+  return (
+    language === "fr"
+      ? QUOTE_REQUEST_STATUS_LABELS_FR
+      : QUOTE_REQUEST_STATUS_LABELS
+  )[status];
+}
+
+export const DEFAULT_QUOTE_TERMS_FR = [
+  "Ce document est une proposition de planification fondée sur les renseignements fournis à ce jour; il ne constitue ni une facture finale ni une réservation confirmée.",
+  "Le prix final peut changer après la confirmation du lieu, la prise de mesures sur place, les contraintes d’accès et la vérification des plages d’installation et de démontage.",
+  "L’inventaire et l’horaire ne sont réservés qu’après la confirmation écrite de la réservation par The Curtain Guy.",
+  "La livraison, l’installation et le démontage sont planifiés selon l’horaire de l’événement et peuvent nécessiter des plages d’accès convenues avec le lieu.",
+  "Les taxes de vente applicables (y compris la TPS et la TVQ lorsqu’elles sont indiquées) sont incluses dans le total de la soumission, sauf indication contraire.",
+  "Un dépôt ou une confirmation écrite de réservation peut être exigé avant le début de la production.",
+  "Le client est responsable de l’exactitude des renseignements sur le lieu, de l’accès au débarquement et de toute règle du lieu touchant l’installation.",
+].join("\n");
+
 export const DEFAULT_QUOTE_TERMS = [
   "This document is a planning proposal based on details shared to date; it is not a final invoice or confirmed booking.",
   "Final pricing may change after venue confirmation, on-site measurements, access constraints, and install/teardown windows are verified.",
@@ -182,7 +404,6 @@ export function splitQuoteTerms(
     .filter((line) => line.length > 0)
     .filter((line) => !/^currency is cad\.?$/i.test(line));
 }
-
 export const QUOTE_TAX_MODES = ["quebec_gst_qst", "none", "manual"] as const;
 export type QuoteTaxMode = (typeof QUOTE_TAX_MODES)[number];
 
@@ -260,6 +481,8 @@ export type QuoteRow = {
   venue_name: string | null;
   city_area: string | null;
   status: QuoteStatus;
+  /** Customer-facing language for proposal page, PDF, and emails. */
+  language?: CustomerLanguage | null;
   currency: string;
   subtotal_cents: number;
   total_cents: number;
@@ -296,9 +519,14 @@ export type QuoteRow = {
 export type QuoteLineItemRow = {
   id: string;
   quote_id: string;
-  category: QuoteLineCategory;
+  /** product_categories.slug or a built-in QuoteLineCategory. */
+  category: string;
+  category_label?: string | null;
+  category_label_fr?: string | null;
   description: string;
   quantity: number;
+  /** How the line is priced, e.g. "linear ft", "set". Null on older lines. */
+  unit_label?: string | null;
   unit_price_cents: number;
   line_total_cents: number;
   status: QuoteLineStatus;
@@ -357,6 +585,7 @@ export type CustomerSafeQuote = {
   venue_name: string | null;
   city_area: string | null;
   status: QuoteStatus;
+  language: CustomerLanguage;
   currency: string;
   subtotal_cents: number;
   total_cents: number;
@@ -496,11 +725,47 @@ export function computeQuoteTaxTotals(
   };
 }
 
-function formatTaxPercent(rate: number): string {
+function formatTaxPercent(
+  rate: number,
+  language: CustomerLanguage = "en"
+): string {
   const pct = Number((Number(rate) * 100).toFixed(3));
-  const label = Number.isInteger(pct) ? String(pct) : String(pct);
-  return `${label}%`;
+  return language === "fr"
+    ? `${String(pct).replace(".", ",")} %`
+    : `${pct}%`;
 }
+
+const TAX_ROW_LABELS: Record<
+  CustomerLanguage,
+  {
+    subtotal: string;
+    taxable: string;
+    nontaxable: string;
+    gst: string;
+    qst: string;
+    tax: string;
+    total: string;
+  }
+> = {
+  en: {
+    subtotal: "Subtotal",
+    taxable: "Taxable subtotal",
+    nontaxable: "Non-taxable subtotal",
+    gst: "GST",
+    qst: "QST",
+    tax: "Tax",
+    total: "Total CAD",
+  },
+  fr: {
+    subtotal: "Sous-total",
+    taxable: "Sous-total taxable",
+    nontaxable: "Sous-total non taxable",
+    gst: "TPS",
+    qst: "TVQ",
+    tax: "Taxe",
+    total: "Total ($ CA)",
+  },
+};
 
 export function isQuoteTaxMode(value: string): value is QuoteTaxMode {
   return (QUOTE_TAX_MODES as readonly string[]).includes(value);
@@ -527,16 +792,18 @@ export function getQuoteTaxBreakdownRows(
     | "manual_tax_lines"
     | "total_cents"
   >,
-  options?: { variant?: "admin" | "customer" }
+  options?: { variant?: "admin" | "customer"; language?: CustomerLanguage }
 ): QuoteTaxBreakdownRow[] {
   const variant = options?.variant ?? "customer";
+  const language = options?.language ?? "en";
+  const labels = TAX_ROW_LABELS[language];
   const taxMode = isQuoteTaxMode(quote.tax_mode || "")
     ? quote.tax_mode
     : "none";
   const rows: QuoteTaxBreakdownRow[] = [
     {
       key: "subtotal",
-      label: "Subtotal",
+      label: labels.subtotal,
       amountCents: quote.subtotal_cents || 0,
     },
   ];
@@ -547,14 +814,14 @@ export function getQuoteTaxBreakdownRows(
     if (showSplit) {
       rows.push({
         key: "taxable",
-        label: "Taxable subtotal",
+        label: labels.taxable,
         amountCents: quote.taxable_subtotal_cents || 0,
         emphasis: "muted",
       });
       if ((quote.nontaxable_subtotal_cents || 0) > 0) {
         rows.push({
           key: "nontaxable",
-          label: "Non-taxable subtotal",
+          label: labels.nontaxable,
           amountCents: quote.nontaxable_subtotal_cents || 0,
           emphasis: "muted",
         });
@@ -563,12 +830,12 @@ export function getQuoteTaxBreakdownRows(
     rows.push(
       {
         key: "gst",
-        label: `GST ${formatTaxPercent(Number(quote.gst_rate) || DEFAULT_GST_RATE)}`,
+        label: `${labels.gst} ${formatTaxPercent(Number(quote.gst_rate) || DEFAULT_GST_RATE, language)}`,
         amountCents: quote.gst_cents || 0,
       },
       {
         key: "qst",
-        label: `QST ${formatTaxPercent(Number(quote.qst_rate) || DEFAULT_QST_RATE)}`,
+        label: `${labels.qst} ${formatTaxPercent(Number(quote.qst_rate) || DEFAULT_QST_RATE, language)}`,
         amountCents: quote.qst_cents || 0,
       }
     );
@@ -579,7 +846,7 @@ export function getQuoteTaxBreakdownRows(
       if (variant === "admin" || (quote.nontaxable_subtotal_cents || 0) > 0) {
         rows.push({
           key: "taxable",
-          label: "Taxable subtotal",
+          label: labels.taxable,
           amountCents: taxable,
           emphasis: "muted",
         });
@@ -587,14 +854,14 @@ export function getQuoteTaxBreakdownRows(
       manualLines.forEach((line, index) => {
         rows.push({
           key: `manual-${index}`,
-          label: `${line.label} ${formatTaxPercent(line.rate)}`,
+          label: `${line.label} ${formatTaxPercent(line.rate, language)}`,
           amountCents: computeManualTaxLineCents(taxable, line.rate),
         });
       });
     } else {
       rows.push({
         key: "manual",
-        label: (quote.manual_tax_label || "Tax").trim() || "Tax",
+        label: (quote.manual_tax_label || labels.tax).trim() || labels.tax,
         amountCents: quote.manual_tax_cents || 0,
       });
     }
@@ -602,7 +869,7 @@ export function getQuoteTaxBreakdownRows(
 
   rows.push({
     key: "total",
-    label: "Total CAD",
+    label: labels.total,
     amountCents: quote.total_cents || 0,
     emphasis: "total",
   });
@@ -610,9 +877,12 @@ export function getQuoteTaxBreakdownRows(
   return rows;
 }
 
-export function formatCadFromCents(cents: number): string {
+export function formatCadFromCents(
+  cents: number,
+  language: CustomerLanguage = "en"
+): string {
   const value = (Number(cents) || 0) / 100;
-  return new Intl.NumberFormat("en-CA", {
+  return new Intl.NumberFormat(customerLocaleTag(language), {
     style: "currency",
     currency: "CAD",
   }).format(value);
@@ -621,17 +891,32 @@ export function formatCadFromCents(cents: number): string {
 /**
  * Customer-facing quote reference.
  * Internal revision_number 1 = original (no -R suffix).
- * revision_number 2 = first revision → Quote TCG-10004-R1
+ * revision_number 2 = first revision → Quote TCG-10004-R1 / Soumission TCG-10004-R1
  */
 export function formatQuoteDisplayRef(
   opportunityRef: string,
-  revisionNumber: number
+  revisionNumber: number,
+  language: CustomerLanguage = "en"
 ): string {
   const ref = opportunityRef.trim() || "TCG-PENDING";
+  const word = language === "fr" ? "Soumission" : "Quote";
   if (!Number.isFinite(revisionNumber) || revisionNumber <= 1) {
-    return `Quote ${ref}`;
+    return `${word} ${ref}`;
   }
-  return `Quote ${ref}-R${revisionNumber - 1}`;
+  return `${word} ${ref}-R${revisionNumber - 1}`;
+}
+
+/** Reference the customer sees — never the admin "Draft Quote" heading. */
+export function customerQuoteDisplayRef(quote: {
+  opportunity_ref: string;
+  revision_number: number;
+  language?: CustomerLanguage | null;
+}): string {
+  return formatQuoteDisplayRef(
+    quote.opportunity_ref,
+    quote.revision_number,
+    quote.language ?? "en"
+  );
 }
 
 /** Draft admin heading — never includes -R1 for the original quote. */

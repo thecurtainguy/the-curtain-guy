@@ -151,6 +151,53 @@ export function buildProductColorOptions(product: {
   return [base, ...filtered];
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Suggest a color-free family name by removing the base color word from the
+ * start ("Black Velvet Drapes") or end ("Pop-Up Tent - White") of the name.
+ * Returns null when no clean match is found.
+ */
+export function deriveProductGroupName(
+  productName: string,
+  defaultColorName?: string | null
+): string | null {
+  const name = productName.trim();
+  const base = inferBaseColorName(name, defaultColorName).trim();
+  if (!name || !base) return null;
+  const color = escapeRegExp(base);
+  const leading = new RegExp(`^${color}\\s+`, "i");
+  const trailing = new RegExp(
+    `(?:\\s*[-–—|,·]\\s*|\\s+)\\(?${color}\\)?$`,
+    "i"
+  );
+  let stripped = name;
+  if (leading.test(name)) stripped = name.replace(leading, "");
+  else if (trailing.test(name)) stripped = name.replace(trailing, "");
+  stripped = stripped.trim();
+  return stripped && stripped !== name ? stripped : null;
+}
+
+/** Admin-facing family name: explicit group name, else derived when the product has colors. */
+export function resolveProductGroupName(
+  product: {
+    name: string;
+    group_name?: string | null;
+    default_color_name?: string | null;
+  },
+  hasColors: boolean
+): string {
+  const explicit = product.group_name?.trim();
+  if (explicit) return explicit;
+  if (!hasColors) return product.name;
+  return (
+    deriveProductGroupName(product.name, product.default_color_name) ??
+    product.name
+  );
+}
+
 export function resolveProductDisplayTitle(input: {
   productName: string;
   color?: Pick<ProductColorVariantRow, "display_title" | "name" | "id"> | null;

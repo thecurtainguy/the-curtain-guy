@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Check,
   Copy,
@@ -9,7 +9,31 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { CustomerLanguage } from "@/data/customer-language";
 import { cn } from "@/lib/utils";
+
+const COPY = {
+  en: {
+    eyebrow: "Guest proposal",
+    title: "Public token page",
+    body: "The shareable `/quote/…` page guests open from email — no login required.",
+    open: "Open guest proposal",
+    copy: "Copy guest link",
+    copied: "Copied",
+    openError: "Could not open guest proposal.",
+    copyError: "Could not copy link.",
+  },
+  fr: {
+    eyebrow: "Lien invité",
+    title: "Page de soumission publique",
+    body: "La page `/quote/…` à partager — vos invités l’ouvrent sans se connecter.",
+    open: "Ouvrir la soumission",
+    copy: "Copier le lien",
+    copied: "Copié",
+    openError: "Impossible d’ouvrir la soumission.",
+    copyError: "Impossible de copier le lien.",
+  },
+} as const;
 
 /**
  * Right-rail card — opens the public guest proposal (`/quote/[token]`).
@@ -17,21 +41,21 @@ import { cn } from "@/lib/utils";
 export function QuoteGuestProposalCard({
   ensureEndpoint,
   initialUrl = null,
+  language = "en",
   className,
 }: {
   /** POST endpoint that returns `{ ok, publicUrl }` */
   ensureEndpoint: string;
   initialUrl?: string | null;
+  language?: CustomerLanguage;
   className?: string;
 }) {
-  const [url, setUrl] = useState<string | null>(initialUrl);
+  const t = COPY[language];
+  const [createdUrl, setUrl] = useState<string | null>(null);
+  const url = createdUrl ?? initialUrl;
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (initialUrl) setUrl(initialUrl);
-  }, [initialUrl]);
 
   async function ensureUrl(): Promise<string | null> {
     if (url) return url;
@@ -48,13 +72,15 @@ export function QuoteGuestProposalCard({
         message?: string;
       };
       if (!response.ok || !payload.ok || !payload.publicUrl) {
-        setError(payload.message ?? "Could not open guest proposal.");
+        setError(
+          language === "en" ? (payload.message ?? t.openError) : t.openError
+        );
         return null;
       }
       setUrl(payload.publicUrl);
       return payload.publicUrl;
     } catch {
-      setError("Could not open guest proposal.");
+      setError(t.openError);
       return null;
     } finally {
       setBusy(false);
@@ -76,7 +102,7 @@ export function QuoteGuestProposalCard({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      setError("Could not copy link.");
+      setError(t.copyError);
     }
   }
 
@@ -99,15 +125,12 @@ export function QuoteGuestProposalCard({
             </span>
             <div className="min-w-0">
               <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
-                Guest proposal
+                {t.eyebrow}
               </p>
               <h2 className="mt-1 font-heading text-lg font-semibold text-foreground">
-                Public token page
+                {t.title}
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                The shareable `/quote/…` page guests open from email — no login
-                required.
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{t.body}</p>
             </div>
           </div>
 
@@ -123,7 +146,7 @@ export function QuoteGuestProposalCard({
               ) : (
                 <ExternalLink className="size-4" />
               )}
-              Open guest proposal
+              {t.open}
             </Button>
             <Button
               type="button"
@@ -137,7 +160,7 @@ export function QuoteGuestProposalCard({
               ) : (
                 <Copy className="size-4" />
               )}
-              {copied ? "Copied" : "Copy guest link"}
+              {copied ? t.copied : t.copy}
             </Button>
           </div>
 

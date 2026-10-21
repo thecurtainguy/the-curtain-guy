@@ -10,6 +10,7 @@ import {
 } from "@/components/account/account-page-frame";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { AccountProfileForm } from "@/components/account/account-profile-form";
+import { isCustomerLanguage } from "@/data/customer-language";
 
 export const metadata: Metadata = {
   title: "Profile",
@@ -35,6 +36,11 @@ export default async function AccountProfilePage() {
             email={current.profile.email}
             initialFullName={current.profile.full_name ?? ""}
             initialPhone={current.profile.phone ?? ""}
+            initialLanguage={
+              isCustomerLanguage(current.profile.preferred_language)
+                ? current.profile.preferred_language
+                : null
+            }
           />
         </div>
       </div>

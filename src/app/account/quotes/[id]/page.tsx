@@ -16,6 +16,7 @@ import { OpportunityFilesPanel } from "@/components/estimates/opportunity-files-
 import { PortalBackLink } from "@/components/portal/portal-back-link";
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
+import { normalizeCustomerLanguage } from "@/data/customer-language";
 import { resolveQuoteTerms } from "@/lib/document-texts";
 import {
   fetchEstimateById,
@@ -34,6 +35,21 @@ export const metadata: Metadata = {
   title: "Quote proposal",
   robots: { index: false, follow: false },
 };
+
+const STUDIO_COPY = {
+  en: {
+    title: "Draw the room for this proposal",
+    body: "Place drape runs in 2D and inspect the same design in 3D.",
+    draw: "Draw your room",
+    open: "Open designs",
+  },
+  fr: {
+    title: "Dessinez la salle pour cette soumission",
+    body: "Placez les draperies en 2D et visualisez le même plan en 3D.",
+    draw: "Dessiner ma salle",
+    open: "Voir mes plans",
+  },
+} as const;
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -56,10 +72,18 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
 
   await markQuoteViewed(quote.id);
 
+  const language = normalizeCustomerLanguage(quote.language);
+  const studio = STUDIO_COPY[language];
   const siteUrl = getSiteUrl().replace(/\/$/, "");
   const shareUrl = `${siteUrl}/account/quotes/${id}`;
   const safe = toCustomerSafeQuote(
-    { ...quote, terms: await resolveQuoteTerms(quote.terms) },
+    {
+      ...quote,
+      terms: await resolveQuoteTerms(
+        quote.terms,
+        language
+      ),
+    },
     { shareUrl }
   );
   const initialGuestUrl = await findActivePublicQuoteUrl(id, siteUrl);
@@ -93,10 +117,10 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
                   Studio
                 </p>
                 <h2 className="mt-1 font-heading text-lg font-semibold">
-                  Draw the room for this proposal
+                  {studio.title}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Place drape runs in 2D and inspect the same design in 3D.
+                  {studio.body}
                 </p>
               </div>
             </div>
@@ -105,12 +129,12 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
                 <Link
                   href={`/studio/new?quoteId=${quote.id}&estimateId=${quote.estimate_request_id}&opportunityRef=${encodeURIComponent(quote.opportunity_ref)}`}
                 >
-                  Draw your room
+                  {studio.draw}
                 </Link>
               </Button>
               <Button asChild variant="outline">
                 <Link href={`/account/studio?quoteId=${quote.id}`}>
-                  Open designs
+                  {studio.open}
                 </Link>
               </Button>
             </div>
@@ -138,6 +162,7 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
           <QuoteGuestProposalCard
             ensureEndpoint={`/api/quotes/${id}/guest-link`}
             initialUrl={initialGuestUrl}
+            language={language}
           />
         </aside>
       </div>

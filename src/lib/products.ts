@@ -7,7 +7,7 @@ import {
   type ProductKind,
   type ProductRow,
 } from "@/data/products";
-import { isQuoteLineCategory } from "@/data/quotes";
+import { validateProductCategorySlug } from "@/lib/product-categories";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { getSupabaseServerConfig } from "@/lib/env";
 
@@ -36,6 +36,7 @@ export type ProductWriteInput = {
   event_type_ids?: string[];
   default_color_name?: string | null;
   default_color_hex?: string | null;
+  group_name?: string | null;
   configurator_mode?: "simple" | "linear_ft";
   formula_segment_feet?: number | null;
   full_service_product_id?: string | null;
@@ -119,9 +120,8 @@ export async function createProduct(
   const name = input.name.trim();
   if (!name) return { error: "Name is required." };
   if (!isProductKind(input.kind)) return { error: "Invalid kind." };
-  if (!isQuoteLineCategory(input.category)) {
-    return { error: "Invalid category." };
-  }
+  const categoryCheck = await validateProductCategorySlug(input.category);
+  if ("error" in categoryCheck) return categoryCheck;
 
   const quantity =
     input.kind === "service"
@@ -182,6 +182,7 @@ export async function createProduct(
       default_color_hex: input.default_color_hex
         ? input.default_color_hex.trim()
         : null,
+      group_name: input.group_name?.trim().slice(0, 120) || null,
       configurator_mode:
         input.kind === "package"
           ? "simple"
@@ -230,9 +231,10 @@ export async function updateProduct(
   const name = input.name.trim();
   if (!name) return { error: "Name is required." };
   if (!isProductKind(input.kind)) return { error: "Invalid kind." };
-  if (!isQuoteLineCategory(input.category)) {
-    return { error: "Invalid category." };
-  }
+  const categoryCheck = await validateProductCategorySlug(input.category, {
+    currentSlug: existing.category,
+  });
+  if ("error" in categoryCheck) return categoryCheck;
 
   const quantity =
     input.kind === "service"
@@ -310,6 +312,10 @@ export async function updateProduct(
         input.default_color_hex === undefined
           ? existing.default_color_hex ?? null
           : input.default_color_hex?.trim() || null,
+      group_name:
+        input.group_name === undefined
+          ? existing.group_name ?? null
+          : input.group_name?.trim().slice(0, 120) || null,
       configurator_mode:
         input.kind === "package"
           ? "simple"

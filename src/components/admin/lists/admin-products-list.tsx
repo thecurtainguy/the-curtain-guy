@@ -18,7 +18,6 @@ import {
   PRODUCT_AVAILABILITY_STATUSES,
   PRODUCT_KIND_LABELS,
   formatProductPriceCents,
-  getProductCategoryLabel,
   type ProductAvailabilityStatus,
   type ProductKind,
 } from "@/data/products";
@@ -39,10 +38,13 @@ export type AdminProductListColor = {
 export type AdminProductListRow = {
   id: string;
   name: string;
+  /** Group name for products with colors, else the full name. */
+  display_name: string;
   slug: string;
   sku: string | null;
   kind: ProductKind;
   category: string;
+  category_label: string;
   default_unit_price_cents: number;
   quantity_on_hand: number;
   availability_status: ProductAvailabilityStatus;
@@ -76,7 +78,7 @@ const columns: PortalListColumn<AdminProductListRow>[] = [
     id: "item",
     label: "Item",
     sortable: true,
-    sortValue: (row) => row.name,
+    sortValue: (row) => row.display_name,
     render: (row) => (
       <div className="flex min-w-0 items-center gap-3">
         <div className="relative size-12 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-[#f5efe0] dark:bg-primary/10">
@@ -97,7 +99,7 @@ const columns: PortalListColumn<AdminProductListRow>[] = [
               href={`/admin/products/${row.id}`}
               className="font-medium text-primary hover:underline"
             >
-              {row.name}
+              {row.display_name}
             </Link>
             <a
               href={`/rentals/${row.slug}`}
@@ -111,6 +113,7 @@ const columns: PortalListColumn<AdminProductListRow>[] = [
             </a>
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
+            {row.display_name !== row.name ? `Site: ${row.name} · ` : ""}
             {row.sku ? `SKU ${row.sku}` : "No SKU"}
           </div>
           {row.colors.length > 0 ? (
@@ -163,11 +166,9 @@ const columns: PortalListColumn<AdminProductListRow>[] = [
     id: "category",
     label: "Category",
     sortable: true,
-    sortValue: (row) => row.category,
+    sortValue: (row) => row.category_label,
     render: (row) => (
-      <span className="text-muted-foreground">
-        {getProductCategoryLabel(row.category)}
-      </span>
+      <span className="text-muted-foreground">{row.category_label}</span>
     ),
   },
   {
@@ -309,7 +310,13 @@ function FilterSelect({
   );
 }
 
-function List({ rows }: { rows: AdminProductListRow[] }) {
+function List({
+  rows,
+  categoryOptions,
+}: {
+  rows: AdminProductListRow[];
+  categoryOptions: SelectOption[];
+}) {
   return (
     <PortalListView
       rows={rows}
@@ -318,8 +325,9 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
       getSearchText={(row) =>
         [
           row.name,
+          row.display_name,
           row.sku,
-          row.category,
+          row.category_label,
           row.kind,
           row.unit_label,
           ...row.missing_setup,
@@ -334,8 +342,10 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
       allStatusLabel="All kinds"
       searchLabel="Search name or SKU"
       searchPlaceholder="Ivory drape, SKU…"
-      extraKeys={["availability", "active", "rentals"]}
+      extraKeys={["category", "availability", "active", "rentals"]}
       filterRow={(row, state) => {
+        const category = state.extras.category;
+        if (category && row.category !== category) return false;
         const availability = state.extras.availability;
         if (availability && row.availability_status !== availability) {
           return false;
@@ -377,6 +387,18 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
               );
             })}
           </div>
+          {categoryOptions.length > 1 ? (
+            <FilterSelect
+              label="Category"
+              value={state.extras.category ?? ""}
+              onChange={(value) => setExtra("category", value || null)}
+              options={categoryOptions.map((option) => ({
+                value: option.value,
+                label: `Category: ${option.label}`,
+              }))}
+              placeholder="Category: All"
+            />
+          ) : null}
           <FilterSelect
             label="Availability"
             value={state.extras.availability ?? ""}
@@ -416,10 +438,16 @@ function List({ rows }: { rows: AdminProductListRow[] }) {
   );
 }
 
-export function AdminProductsList({ rows }: { rows: AdminProductListRow[] }) {
+export function AdminProductsList({
+  rows,
+  categoryOptions = [],
+}: {
+  rows: AdminProductListRow[];
+  categoryOptions?: SelectOption[];
+}) {
   return (
     <PortalListSuspense>
-      <List rows={rows} />
+      <List rows={rows} categoryOptions={categoryOptions} />
     </PortalListSuspense>
   );
 }

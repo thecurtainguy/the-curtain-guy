@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isCustomerLanguage } from "@/data/customer-language";
 import { resolveQuoteDisplayRef } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
 import { createDirectQuote } from "@/lib/quotes";
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
     venueName: typeof body.venueName === "string" ? body.venueName : null,
     cityArea: typeof body.cityArea === "string" ? body.cityArea : null,
     ownerNotes: typeof body.ownerNotes === "string" ? body.ownerNotes : null,
+    language: isCustomerLanguage(body.language) ? body.language : undefined,
     createdByUserId: owner.user.id,
   });
 

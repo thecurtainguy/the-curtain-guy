@@ -10,6 +10,7 @@ import { getSiteUrl } from "@/lib/env";
 import { fetchEstimateFiles } from "@/lib/estimate-access";
 import { fetchEventPlanByEstimateId } from "@/lib/event-plan-access";
 import { fetchJobByQuoteId } from "@/lib/jobs";
+import { listProductCategories } from "@/lib/product-categories";
 import { fetchQuoteById, findActivePublicQuoteUrl } from "@/lib/quotes";
 import { Button } from "@/components/ui/button";
 
@@ -39,6 +40,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
   const sourceEventPlan = quote.estimate_request_id
     ? await fetchEventPlanByEstimateId(quote.estimate_request_id)
     : null;
+  const categories = await listProductCategories();
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -89,6 +91,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
                 }
               : null
           }
+          categories={categories}
         />
       </div>
     </AdminPageFrame>

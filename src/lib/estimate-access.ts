@@ -10,6 +10,8 @@ export type EstimateRequestRow = {
   updated_at: string;
   status: string;
   source: string;
+  /** Site language at submission ("en" | "fr"). */
+  language?: string | null;
   customer_name: string;
   customer_email: string;
   customer_phone: string | null;

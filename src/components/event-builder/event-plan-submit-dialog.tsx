@@ -8,14 +8,8 @@ import type { EventBuilderBrief } from "@/data/event-builder/brief";
 import type { StudioDesignJson } from "@/data/studio";
 import { clearEventBuilderBrief } from "@/data/event-builder/brief";
 import { postEventPlanSubmission } from "@/lib/event-builder/event-plan-client";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { BrandDialogContent } from "@/components/ui/brand-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -111,21 +105,34 @@ export function EventPlanSubmitDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden border-primary/20 bg-card sm:max-w-md">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-[radial-gradient(ellipse_at_top,color-mix(in_oklch,var(--primary)_24%,transparent),transparent_72%)]" />
-        <DialogHeader className="relative">
-          <p className="text-[0.65rem] font-semibold tracking-[0.22em] text-primary uppercase">
-            {t("eyebrow")}
-          </p>
-          <DialogTitle className="font-heading text-2xl">
-            {t("title")}
-          </DialogTitle>
-          <DialogDescription className="leading-relaxed">
-            {t("description")}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="relative space-y-4">
+      <BrandDialogContent
+        size="sm"
+        icon={Mail}
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={submitting}
+            >
+              {t("cancel")}
+            </Button>
+            <LoadingButton
+              type="button"
+              isLoading={submitting}
+              icon={<Mail className="size-4" />}
+              onClick={() => void handleSubmit()}
+            >
+              {t("submit")}
+            </LoadingButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
           <div className="hidden" aria-hidden>
             <Label htmlFor="event-plan-website">Website</Label>
             <Input
@@ -177,26 +184,7 @@ export function EventPlanSubmitDialog({
           ) : null}
           <p className="text-xs text-muted-foreground">{t("noPricing")}</p>
         </div>
-
-        <DialogFooter className="relative sm:justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-          >
-            {t("cancel")}
-          </Button>
-          <LoadingButton
-            type="button"
-            isLoading={submitting}
-            icon={<Mail className="size-4" />}
-            onClick={() => void handleSubmit()}
-          >
-            {t("submit")}
-          </LoadingButton>
-        </DialogFooter>
-      </DialogContent>
+      </BrandDialogContent>
     </Dialog>
   );
 }

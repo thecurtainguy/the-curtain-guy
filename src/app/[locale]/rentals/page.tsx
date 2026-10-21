@@ -6,6 +6,8 @@ import { RentalsHero } from "@/components/rentals/rentals-hero";
 import { Reveal } from "@/components/animation/reveal";
 import { RentalsCatalogSkeleton } from "@/components/layout/route-loading-fallback";
 import { listPublicRentalProducts } from "@/lib/rentals";
+import { listProductCategories } from "@/lib/product-categories";
+import { localizedProductCategoryLabel } from "@/data/product-categories";
 import { createPageMetadata } from "@/lib/seo";
 import type { AppLocale } from "@/i18n/routing";
 import { routing } from "@/i18n/routing";
@@ -35,11 +37,20 @@ export function generateStaticParams() {
 async function RentalsCatalogSection({ locale }: { locale: string }) {
   setRequestLocale(locale);
   const t = await getTranslations("rentals.page");
-  const products = await listPublicRentalProducts();
+  const [products, categoryRows] = await Promise.all([
+    listPublicRentalProducts(),
+    listProductCategories(),
+  ]);
+  const categories = categoryRows.map((row) => ({
+    slug: row.slug,
+    label: localizedProductCategoryLabel(row, locale),
+    sort_order: row.sort_order,
+  }));
 
   return (
     <RentalsCatalog
       products={products}
+      categories={categories}
       packagesHeading={{
         eyebrow: t("packagesEyebrow"),
         title: t("packagesTitle"),

@@ -9,6 +9,7 @@ export type UserProfile = {
   email: string;
   full_name: string | null;
   phone: string | null;
+  preferred_language?: string | null;
   role: UserRole;
   is_active: boolean;
   created_at: string;

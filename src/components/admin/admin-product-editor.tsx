@@ -28,6 +28,7 @@ import {
 import { AdminSectionErrorBoundary } from "@/components/admin/admin-section-error-boundary";
 import { AdminProductGallery } from "@/components/admin/admin-product-gallery";
 import { AdminProductPickGrid } from "@/components/admin/admin-product-pick-grid";
+import { AdminProductCategoryPicker } from "@/components/admin/admin-product-category-picker";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,13 +60,15 @@ import {
   type PackageIncludedLogisticsMode,
 } from "@/data/rentals-logistics";
 import {
-  QUOTE_CATEGORY_LABELS,
-  QUOTE_LINE_CATEGORIES,
-  type QuoteLineCategory,
-} from "@/data/quotes";
+  sortProductCategories,
+  type ProductCategoryWithCount,
+} from "@/data/product-categories";
 import { centsToDollarInput, dollarsToCents } from "@/lib/quote-tokens";
 import { cn } from "@/lib/utils";
-import { normalizeHexColor } from "@/data/product-colors";
+import {
+  deriveProductGroupName,
+  normalizeHexColor,
+} from "@/data/product-colors";
 
 type AdminProductRentalsBundleProp = {
   includes: ProductFormulaIncludeWithProduct[];
@@ -185,7 +188,7 @@ type FormState = {
   name: string;
   sku: string;
   kind: ProductKind;
-  category: QuoteLineCategory;
+  category: string;
   short_description: string;
   description: string;
   unit_label: string;
@@ -211,12 +214,14 @@ type FormState = {
   event_type_ids: string[];
   default_color_name: string;
   default_color_hex: string;
+  group_name: string;
   colorDrafts: ColorDraft[];
 };
 
 function formFromProduct(
   product?: ProductRow | null,
-  rentalsBundle?: AdminProductRentalsBundleProp | null
+  rentalsBundle?: AdminProductRentalsBundleProp | null,
+  defaultCategory = "custom"
 ): FormState {
   const mode =
     product?.configurator_mode === "linear_ft" ? "linear_ft" : "simple";
@@ -230,7 +235,7 @@ function formFromProduct(
     name: product?.name ?? "",
     sku: product?.sku ?? "",
     kind: product?.kind ?? "product",
-    category: (product?.category as QuoteLineCategory) || "drape_rental",
+    category: product?.category || defaultCategory,
     short_description: product?.short_description ?? "",
     description: product?.description ?? "",
     unit_label: product?.unit_label ?? "each",
@@ -277,6 +282,7 @@ function formFromProduct(
     event_type_ids: product?.event_type_ids ?? [],
     default_color_name: product?.default_color_name ?? "",
     default_color_hex: product?.default_color_hex ?? "#111111",
+    group_name: product?.group_name ?? "",
     colorDrafts: colorDraftsFromRows(rentalsBundle?.colors),
   };
 }
@@ -310,6 +316,7 @@ function serializeFormDirty(form: FormState): string {
     event_type_ids: form.event_type_ids,
     default_color_name: form.default_color_name,
     default_color_hex: form.default_color_hex,
+    group_name: form.group_name,
     // Gallery owns image_url / image_alt (parent + variants) via its own API.
     colorDrafts: form.colorDrafts.map((draft) => ({
       clientKey: draft.clientKey,
@@ -551,6 +558,7 @@ function rentalsPayload(
     event_type_ids: form.event_type_ids,
     default_color_name: form.default_color_name.trim() || null,
     default_color_hex: form.default_color_hex.trim() || null,
+    group_name: form.group_name.trim() || null,
     color_variants: colorDraftsToPayload(form.colorDrafts),
   };
 }
@@ -559,20 +567,29 @@ export function AdminProductEditor({
   product = null,
   allProducts = [],
   rentalsBundle = null,
+  initialCategories = [],
 }: {
   product?: ProductRow | null;
   allProducts?: ProductRow[];
   rentalsBundle?: AdminProductRentalsBundleProp | null;
+  initialCategories?: ProductCategoryWithCount[];
 }) {
   const router = useRouter();
   const isNew = !product;
   const shortDescRef = useRef<HTMLInputElement>(null);
   const fullDescRef = useRef<HTMLTextAreaElement>(null);
+  const [categories, setCategories] =
+    useState<ProductCategoryWithCount[]>(initialCategories);
+  const [defaultCategory] = useState(
+    () =>
+      sortProductCategories(initialCategories).find((row) => row.is_active)
+        ?.slug ?? "custom"
+  );
   const [form, setForm] = useState<FormState>(() =>
-    formFromProduct(product, rentalsBundle)
+    formFromProduct(product, rentalsBundle, defaultCategory)
   );
   const [baseline, setBaseline] = useState(() =>
-    serializeFormDirty(formFromProduct(product, rentalsBundle))
+    serializeFormDirty(formFromProduct(product, rentalsBundle, defaultCategory))
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -633,6 +650,7 @@ export function AdminProductEditor({
         event_type_ids: prev.event_type_ids,
         default_color_name: prev.default_color_name,
         default_color_hex: prev.default_color_hex,
+        group_name: prev.group_name,
         colorDrafts: prev.colorDrafts,
       };
     });
@@ -718,6 +736,7 @@ export function AdminProductEditor({
           event_type_ids: prev.event_type_ids,
           default_color_name: prev.default_color_name,
           default_color_hex: prev.default_color_hex,
+          group_name: prev.group_name,
           colorDrafts: nextColors ?? prev.colorDrafts,
         };
         setBaseline(serializeFormDirty(next));
@@ -1002,6 +1021,26 @@ export function AdminProductEditor({
                   </div>
                 </div>
               </div>
+              <div className="mt-4 space-y-1.5">
+                <Label htmlFor="group-name">Group name (admin only)</Label>
+                <Input
+                  id="group-name"
+                  value={form.group_name}
+                  onChange={(e) => patch({ group_name: e.target.value })}
+                  placeholder={
+                    deriveProductGroupName(
+                      form.name,
+                      form.default_color_name
+                    ) ?? form.name
+                  }
+                  maxLength={120}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Color-free name for the Inventory list and the quote picker,
+                  e.g. “Velvet Drapes”. Leave blank to use the suggestion. The
+                  public site keeps the full name.
+                </p>
+              </div>
             </div>
           </section>
 
@@ -1100,52 +1139,48 @@ export function AdminProductEditor({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="sku">SKU</Label>
-                <Input
-                  id="sku"
-                  value={form.sku}
-                  onChange={(e) => patch({ sku: e.target.value })}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <SelectInput
-                  id="category"
+              <div className="sm:col-span-2">
+                <AdminProductCategoryPicker
                   value={form.category}
-                  onChange={(value) =>
-                    patch({ category: value as QuoteLineCategory })
-                  }
-                  options={QUOTE_LINE_CATEGORIES.map((category) => ({
-                    value: category,
-                    label: QUOTE_CATEGORY_LABELS[category],
-                  }))}
+                  onChange={(slug) => patch({ category: slug })}
+                  categories={categories}
+                  onCategoriesChange={setCategories}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="unit">Unit</Label>
-                <SelectInput
-                  id="unit"
-                  value={form.unit_label}
-                  onChange={(value) => patch({ unit_label: value })}
-                  options={PRODUCT_UNIT_LABELS.map((unit) => ({
-                    value: unit,
-                    label: unit,
-                  }))}
-                />
-              </div>
+              <div className="grid gap-4 sm:col-span-2 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="sku">SKU</Label>
+                  <Input
+                    id="sku"
+                    value={form.sku}
+                    onChange={(e) => patch({ sku: e.target.value })}
+                    placeholder="Optional"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="price">Default price (CAD)</Label>
-                <Input
-                  id="price"
-                  inputMode="decimal"
-                  value={form.priceDollars}
-                  onChange={(e) => patch({ priceDollars: e.target.value })}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="unit">Unit</Label>
+                  <SelectInput
+                    id="unit"
+                    value={form.unit_label}
+                    onChange={(value) => patch({ unit_label: value })}
+                    options={PRODUCT_UNIT_LABELS.map((unit) => ({
+                      value: unit,
+                      label: unit,
+                    }))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="price">Default price (CAD)</Label>
+                  <Input
+                    id="price"
+                    inputMode="decimal"
+                    value={form.priceDollars}
+                    onChange={(e) => patch({ priceDollars: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2 sm:col-span-2">

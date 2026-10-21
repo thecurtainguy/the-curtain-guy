@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCustomerLanguage } from "@/data/customer-language";
 import { requireCustomerOrOwner } from "@/lib/auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -11,10 +12,10 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  let body: { fullName?: string; phone?: string };
+  let body: { fullName?: string; phone?: string; preferredLanguage?: string };
 
   try {
-    body = (await request.json()) as { fullName?: string; phone?: string };
+    body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json(
       { ok: false, message: "Invalid JSON body." },
@@ -33,6 +34,9 @@ export async function PATCH(request: NextRequest) {
     .update({
       full_name: fullName || null,
       phone: phone || null,
+      ...(isCustomerLanguage(body.preferredLanguage)
+        ? { preferred_language: body.preferredLanguage }
+        : {}),
     })
     .eq("id", current.user.id)
     .select("*")

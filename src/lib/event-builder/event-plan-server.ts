@@ -2,6 +2,7 @@ import {
   isValidEmail,
   type EstimateFormData,
 } from "@/data/estimate";
+import type { CustomerLanguage } from "@/data/customer-language";
 import { formatEventPlanReference } from "@/data/event-plans";
 import {
   isEventBuilderBrief,
@@ -41,6 +42,7 @@ export type EventPlanInsertMeta = {
   userAgent?: string | null;
   userId?: string | null;
   studioDesignId?: string | null;
+  language?: CustomerLanguage;
 };
 
 export type EventPlanInsertResult =
@@ -148,6 +150,7 @@ export function buildEventPlanInsertRow(
     notes: payload.contact.notes?.trim() || null,
     submitted_from_url: meta.submittedFromUrl ?? null,
     user_agent: meta.userAgent ?? null,
+    language: meta.language ?? "en",
   };
 }
 

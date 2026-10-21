@@ -7,6 +7,7 @@ import {
   type QuoteStatus,
   type QuoteTaxMode,
 } from "@/data/quotes";
+import { isCustomerLanguage } from "@/data/customer-language";
 import { requireOwner } from "@/lib/auth";
 import {
   fetchQuoteById,
@@ -101,6 +102,15 @@ export async function PUT(request: Request, context: RouteContext) {
       typeof body.valid_until === "string" && body.valid_until.trim()
         ? body.valid_until.trim()
         : null;
+  }
+  if ("language" in body) {
+    if (!isCustomerLanguage(body.language)) {
+      return NextResponse.json(
+        { ok: false, message: "Invalid language." },
+        { status: 400 }
+      );
+    }
+    updates.language = body.language;
   }
   if ("status" in body && typeof body.status === "string") {
     if (!isQuoteStatus(body.status)) {

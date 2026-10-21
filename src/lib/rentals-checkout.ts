@@ -3,7 +3,13 @@ import {
   isValidEmail,
   type EstimateFormData,
 } from "@/data/estimate";
+import type { CustomerLanguage } from "@/data/customer-language";
 import { formatCadFromCents, type RentalCartLine } from "@/data/rentals";
+import { cartLineLogisticsService } from "@/data/rentals-logistics";
+import {
+  fetchLogisticsServiceProducts,
+  type LogisticsServiceProduct,
+} from "@/lib/logistics-products";
 import { cartSubtotalCents } from "@/lib/rentals";
 import { getCurrentUser } from "@/lib/auth";
 import {
@@ -17,6 +23,16 @@ import {
   type LineItemInput,
 } from "@/lib/quotes";
 import { fetchEstimateById } from "@/lib/estimate-access";
+import { listProductCategories } from "@/lib/product-categories";
+import {
+  resolveProductCategoryLabel,
+  type ProductCategoryRow,
+} from "@/data/product-categories";
+import {
+  formatQuoteQuantity,
+  formatQuoteUnitPrice,
+  isValidQuoteLineCategorySlug,
+} from "@/data/quotes";
 
 export type RentalsCheckoutInput = {
   name: string;
@@ -33,6 +49,7 @@ export type RentalsCheckoutInput = {
   lines: RentalCartLine[];
   submittedFromUrl?: string | null;
   userAgent?: string | null;
+  language?: CustomerLanguage;
 };
 
 export type RentalsCheckoutResult =
@@ -52,7 +69,7 @@ function linesToEstimateForm(
   const summary = input.lines
     .map(
       (line) =>
-        `• ${line.description} × ${line.quantity} @ ${formatCadFromCents(line.unitPriceCents)}`
+        `• ${line.description} × ${formatQuoteQuantity(line.quantity, line.unitLabel)} @ ${formatQuoteUnitPrice(line.unitPriceCents, line.unitLabel)}`
     )
     .join("\n");
 
@@ -94,16 +111,29 @@ function linesToEstimateForm(
   };
 }
 
-function cartLinesToQuoteItems(lines: RentalCartLine[]): LineItemInput[] {
+function cartLinesToQuoteItems(
+  lines: RentalCartLine[],
+  categories: ProductCategoryRow[],
+  logisticsProducts: Partial<Record<string, LogisticsServiceProduct>>
+): LineItemInput[] {
   return lines.map((line, index) => {
+    const logisticsService = cartLineLogisticsService(line.productId);
+    const logisticsProduct = logisticsService
+      ? logisticsProducts[logisticsService]
+      : undefined;
     const looksLikeUuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         line.productId
       );
+    const category = isValidQuoteLineCategorySlug(line.category || "")
+      ? line.category
+      : "custom";
     return {
-      category: line.category || "custom",
+      category,
+      category_label: resolveProductCategoryLabel(category, categories),
       description: line.description,
       quantity: line.quantity,
+      unit_label: line.unitLabel || null,
       unit_price_cents: line.unitPriceCents,
       status: "priced",
       customer_visible: true,
@@ -111,9 +141,15 @@ function cartLinesToQuoteItems(lines: RentalCartLine[]): LineItemInput[] {
       tax_category:
         line.isTaxable && line.unitPriceCents > 0 ? "standard" : "exempt",
       sort_order: index,
-      product_id: looksLikeUuid ? line.productId : null,
-      image_url: line.imageUrl,
-      image_alt: line.imageAlt,
+      product_id: looksLikeUuid
+        ? line.productId
+        : (logisticsProduct?.id ?? null),
+      image_url: line.imageUrl ?? logisticsProduct?.image_url ?? null,
+      image_alt:
+        line.imageAlt ??
+        logisticsProduct?.image_alt ??
+        logisticsProduct?.name ??
+        null,
     };
   });
 }
@@ -160,6 +196,7 @@ export async function submitRentalsCheckout(
       userAgent: input.userAgent,
       userId: user?.id ?? null,
       source: "rentals_cart",
+      language: input.language ?? "en",
       cartSnapshot: {
         version: 1,
         lines: input.lines,
@@ -197,9 +234,13 @@ export async function submitRentalsCheckout(
     return { ok: false, message: "Draft quote missing." };
   }
 
+  const [categories, logisticsProducts] = await Promise.all([
+    listProductCategories(),
+    fetchLogisticsServiceProducts(),
+  ]);
   const linesResult = await upsertLineItems({
     quoteId: quoteResult.quote.id,
-    items: cartLinesToQuoteItems(input.lines),
+    items: cartLinesToQuoteItems(input.lines, categories, logisticsProducts),
     actorUserId: user?.id ?? null,
     actorEmail: email,
   });

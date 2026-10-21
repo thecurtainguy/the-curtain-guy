@@ -1,18 +1,12 @@
 "use client";
 
-import { Eye } from "lucide-react";
+import { Eye, FileText, Mail } from "lucide-react";
 import type { DocumentPreviewKind } from "@/data/document-texts";
 import { siteConfig } from "@/data/site";
 import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
+import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 function PdfPaper({
@@ -190,17 +184,18 @@ export function DocumentTextPreviewButton({
           Preview
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border-primary/20 bg-card sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{label}</DialogTitle>
-          <DialogDescription>
-            {isPdf
-              ? "How this copy lands on the proposal PDF. One term per line becomes a numbered list."
-              : "How this copy appears on the generated email."}
-          </DialogDescription>
-        </DialogHeader>
+      <BrandDialogContent
+        icon={isPdf ? FileText : Mail}
+        eyebrow={isPdf ? "PDF preview" : "Email preview"}
+        title={label}
+        description={
+          isPdf
+            ? "How this copy lands on the proposal PDF. One term per line becomes a numbered list."
+            : "How this copy appears on the generated email."
+        }
+      >
         <PreviewBody kind={kind} body={body} pdfFooter={pdfFooter} />
-      </DialogContent>
+      </BrandDialogContent>
     </Dialog>
   );
 }

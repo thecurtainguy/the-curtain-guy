@@ -12,14 +12,8 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { BrandDialogContent } from "@/components/ui/brand-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 type PendingNavigation =
@@ -260,40 +254,34 @@ export function UnsavedChangesProvider({ children }: { children: ReactNode }) {
           if (!open) cancelLeave();
         }}
       >
-        <DialogContent
+        <BrandDialogContent
+          size="sm"
           showCloseButton={false}
-          className="border-border/50 bg-card text-foreground sm:max-w-md"
-        >
-          <DialogHeader className="gap-3">
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/25">
-              <AlertTriangle className="size-5" aria-hidden />
-            </div>
-            <DialogTitle className="font-heading text-xl font-semibold">
-              Leave this page?
-            </DialogTitle>
-            <DialogDescription className="text-sm leading-relaxed text-muted-foreground">
-              You have unsaved changes. If you leave now, your latest edits
-              will be lost.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:justify-stretch">
-            <Button
-              type="button"
-              className="w-full sm:flex-1"
-              onClick={cancelLeave}
-            >
-              Stay here
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 sm:flex-1"
-              onClick={confirmLeave}
-            >
-              Leave without saving
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+          icon={AlertTriangle}
+          eyebrow="Unsaved changes"
+          title="Leave this page?"
+          description="You have unsaved changes. If you leave now, your latest edits will be lost."
+          footerClassName="sm:justify-stretch"
+          footer={
+            <>
+              <Button
+                type="button"
+                className="w-full sm:flex-1"
+                onClick={cancelLeave}
+              >
+                Stay here
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 sm:flex-1"
+                onClick={confirmLeave}
+              >
+                Leave without saving
+              </Button>
+            </>
+          }
+        />
       </Dialog>
     </UnsavedChangesContext.Provider>
   );

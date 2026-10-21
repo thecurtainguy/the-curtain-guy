@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   FileText,
+  Languages,
   Mail,
   MapPin,
   Phone,
   UserRound,
 } from "lucide-react";
+import { CustomerLanguagePicker } from "@/components/quotes/customer-language-picker";
+import type { CustomerLanguage } from "@/data/customer-language";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Badge } from "@/components/ui/badge";
 import { DateInput } from "@/components/ui/date-input";
@@ -29,6 +32,7 @@ export function AdminCreateQuoteForm() {
   const [venueName, setVenueName] = useState("");
   const [cityArea, setCityArea] = useState("Montreal area");
   const [ownerNotes, setOwnerNotes] = useState("");
+  const [language, setLanguage] = useState<CustomerLanguage | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +53,7 @@ export function AdminCreateQuoteForm() {
           venueName,
           cityArea,
           ownerNotes,
+          ...(language ? { language } : {}),
         }),
       });
       const payload = (await response.json()) as {
@@ -243,6 +248,33 @@ export function AdminCreateQuoteForm() {
               placeholder="Setup windows, teardown, call notes…"
             />
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/40 bg-card/25">
+        <div className="overflow-hidden rounded-t-2xl border-b border-border/40 bg-gradient-to-br from-primary/8 via-transparent to-transparent px-5 py-4">
+          <div className="flex items-start gap-3">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Languages className="size-4" />
+            </span>
+            <div>
+              <h3 className="font-heading text-base font-semibold">
+                Customer language
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Proposal page, PDF, and emails. Leave unselected to use the
+                customer&apos;s account preference (English if none).
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="p-5">
+          <CustomerLanguagePicker
+            value={language}
+            onChange={(next) =>
+              setLanguage((current) => (current === next ? null : next))
+            }
+          />
         </div>
       </section>
 

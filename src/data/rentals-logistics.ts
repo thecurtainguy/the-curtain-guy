@@ -269,6 +269,29 @@ export function resolveCartLogistics(input: {
 
 export const LOGISTICS_LINE_KEY = "logistics:cart";
 
+/**
+ * Inventory service products whose photo (and link) quote logistics lines use.
+ * Change the photo in Admin → Inventory on these products.
+ */
+export const LOGISTICS_SERVICE_PRODUCT_SLUGS = {
+  full_service: "full-service",
+  transport_only: "transport-only-pickup-delivery",
+  installation_only: "on-site-installation-teardown",
+} as const;
+
+export type LogisticsServiceKey = keyof typeof LOGISTICS_SERVICE_PRODUCT_SLUGS;
+
+const CART_LOGISTICS_SERVICE: Record<string, LogisticsServiceKey> = {
+  "logistics-full-service": "full_service",
+  "logistics-transport-only": "transport_only",
+};
+
+export function cartLineLogisticsService(
+  productId: string
+): LogisticsServiceKey | null {
+  return CART_LOGISTICS_SERVICE[productId] ?? null;
+}
+
 export function buildCartLogisticsLine(input: {
   mode: RentalLogisticsMode;
   zoneId: string | null | undefined;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useBrandConfirm } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -90,6 +91,7 @@ export function StudioRightRail({
   saveState,
   idPrefix,
 }: StudioRightRailProps) {
+  const [confirm, confirmDialog] = useBrandConfirm();
   const walls = getWallSegments(design.room.floor);
   const selectedDrape =
     selection?.kind === "drape"
@@ -110,13 +112,20 @@ export function StudioRightRail({
   const selectedWall =
     selection?.kind === "wall" ? walls[selection.index] : undefined;
 
-  function remove(
+  async function remove(
     kind: "drape" | "treatment" | "object" | "opening",
     id: string
   ) {
     if (
       kind !== "object" &&
-      !window.confirm("Remove this item from the studio design?")
+      !(await confirm({
+        icon: Trash2,
+        eyebrow: "Studio",
+        title: "Remove this item?",
+        description: "It will be taken out of your studio design.",
+        confirmLabel: "Remove",
+        destructive: true,
+      }))
     ) {
       return;
     }
@@ -169,7 +178,7 @@ export function StudioRightRail({
       {selectedDrape && (
         <SelectedPanel
           icon={ScissorsLineDashed}
-          onDelete={() => remove("drape", selectedDrape.id)}
+          onDelete={() => void remove("drape", selectedDrape.id)}
         >
           <DrapeRunEditor
             design={design}
@@ -183,7 +192,7 @@ export function StudioRightRail({
       {selectedTreatment && (
         <SelectedPanel
           icon={Sparkles}
-          onDelete={() => remove("treatment", selectedTreatment.id)}
+          onDelete={() => void remove("treatment", selectedTreatment.id)}
         >
           <TreatmentEditor
             design={design}
@@ -198,7 +207,7 @@ export function StudioRightRail({
       {selectedObject && (
         <SelectedPanel
           icon={Box}
-          onDelete={() => remove("object", selectedObject.id)}
+          onDelete={() => void remove("object", selectedObject.id)}
         >
           <ObjectEditor
             design={design}
@@ -213,7 +222,7 @@ export function StudioRightRail({
       {selectedOpening && (
         <SelectedPanel
           icon={DoorOpen}
-          onDelete={() => remove("opening", selectedOpening.id)}
+          onDelete={() => void remove("opening", selectedOpening.id)}
         >
           <OpeningEditor
             design={design}
@@ -277,6 +286,7 @@ export function StudioRightRail({
         onChange={onChange}
         idPrefix={`${idPrefix}-finish`}
       />
+      {confirmDialog}
     </aside>
   );
 }

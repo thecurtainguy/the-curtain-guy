@@ -5,7 +5,6 @@ import {
   isProductAvailabilityStatus,
   isProductKind,
 } from "@/data/products";
-import { isQuoteLineCategory } from "@/data/quotes";
 
 export const runtime = "nodejs";
 
@@ -55,16 +54,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const kind = String(body.kind || "product");
-  const category = String(body.category || "custom");
+  const category = String(body.category || "custom").trim();
   if (!isProductKind(kind)) {
     return NextResponse.json(
       { ok: false, message: "Invalid kind." },
-      { status: 400 }
-    );
-  }
-  if (!isQuoteLineCategory(category)) {
-    return NextResponse.json(
-      { ok: false, message: "Invalid category." },
       { status: 400 }
     );
   }
@@ -127,6 +120,12 @@ export async function PATCH(request: Request, context: RouteContext) {
         ? null
         : typeof body.default_color_hex === "string"
           ? body.default_color_hex
+          : undefined,
+    group_name:
+      body.group_name === null
+        ? null
+        : typeof body.group_name === "string"
+          ? body.group_name
           : undefined,
     configurator_mode:
       body.configurator_mode === "linear_ft" || body.configurator_mode === "simple"

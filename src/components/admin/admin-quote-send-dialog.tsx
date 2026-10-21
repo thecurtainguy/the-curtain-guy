@@ -9,20 +9,21 @@ import {
   Upload,
 } from "lucide-react";
 import type { OpportunityFileItem } from "@/components/estimates/opportunity-files-panel";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
+import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
-import { DOCUMENT_TEXT_DEFS } from "@/data/document-texts";
+import {
+  CUSTOMER_LANGUAGE_LABELS,
+  normalizeCustomerLanguage,
+} from "@/data/customer-language";
+import {
+  defaultQuoteDocumentText,
+  fetchQuoteEmailTexts,
+} from "@/lib/quote-email-defaults";
 import {
   ESTIMATE_MAX_FILE_BYTES,
   formatFileSize,
@@ -68,13 +69,6 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-const defaultEmailNote =
-  DOCUMENT_TEXT_DEFS.find((def) => def.slug === "quote.email_note")
-    ?.defaultBody ?? "";
-const defaultEmailFooter =
-  DOCUMENT_TEXT_DEFS.find((def) => def.slug === "quote.email_footer")
-    ?.defaultBody ?? "Montreal event drape rental · thecurtainguy.com";
-
 export function AdminQuoteSendDialog({
   open,
   onOpenChange,
@@ -91,6 +85,12 @@ export function AdminQuoteSendDialog({
   onSent: (result: { publicUrl?: string; message?: string }) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const language = normalizeCustomerLanguage(quote.language);
+  const defaultEmailNote = defaultQuoteDocumentText("quote.email_note", language);
+  const defaultEmailFooter = defaultQuoteDocumentText(
+    "quote.email_footer",
+    language
+  );
   const [to, setTo] = useState(quote.customer_email || "");
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState(DEFAULT_BCC);
@@ -116,26 +116,11 @@ export function AdminQuoteSendDialog({
 
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      try {
-        const response = await fetch("/api/admin/document-texts");
-        const json = (await response.json()) as {
-          ok?: boolean;
-          texts?: Array<{ slug: string; body: string }>;
-        };
-        if (!response.ok || !json.ok || cancelled) return;
-        const note =
-          json.texts?.find((item) => item.slug === "quote.email_note")?.body ||
-          defaultEmailNote;
-        const footer =
-          json.texts?.find((item) => item.slug === "quote.email_footer")
-            ?.body || defaultEmailFooter;
-        setEmailFooter(footer);
-        setBodyText(buildDefaultQuoteEmailBodyText({ quote, emailNote: note }));
-      } catch {
-        // Keep defaults from initial state.
-      }
-    })();
+    void fetchQuoteEmailTexts(language).then(({ note, footer }) => {
+      if (cancelled) return;
+      setEmailFooter(footer);
+      setBodyText(buildDefaultQuoteEmailBodyText({ quote, emailNote: note }));
+    });
     return () => {
       cancelled = true;
     };
@@ -155,6 +140,8 @@ export function AdminQuoteSendDialog({
       bodyText,
       emailFooter,
       pdfFilename: attachPdf ? pdfName : null,
+      lineItems: quote.line_items,
+      assetBaseUrl: typeof window === "undefined" ? null : window.location.origin,
     }).html;
   }, [attachPdf, bodyText, emailFooter, pdfName, previewUrl, quote]);
 
@@ -267,19 +254,43 @@ export function AdminQuoteSendDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showCloseButton
-        className="flex max-h-[min(92vh,920px)] w-full max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
-      >
-        <DialogHeader className="border-b border-border/50 bg-gradient-to-br from-primary/10 via-transparent to-transparent px-5 py-4 sm:px-6">
-          <DialogTitle className="font-heading text-xl">Send quote</DialogTitle>
-          <DialogDescription>
+      <BrandDialogContent
+        size="xl"
+        icon={Send}
+        eyebrow="Quote email"
+        title="Send quote"
+        description={
+          <>
             Compose the customer email, preview the HTML, and choose attachments
-            before sending {quote.opportunity_ref}.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+            before sending {quote.opportunity_ref}. Email and PDF are in{" "}
+            <span className="font-medium text-primary">
+              {CUSTOMER_LANGUAGE_LABELS[language]}
+            </span>
+            .
+          </>
+        }
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={sending}
+            >
+              Cancel
+            </Button>
+            <LoadingButton
+              type="button"
+              isLoading={sending}
+              loadingText="Sending"
+              onClick={() => void handleSend()}
+              icon={<Send className="size-4" />}
+            >
+              Send quote
+            </LoadingButton>
+          </>
+        }
+      >
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -522,28 +533,7 @@ export function AdminQuoteSendDialog({
               {error}
             </p>
           ) : null}
-        </div>
-
-        <DialogFooter className="border-t border-border/50 px-5 py-4 sm:px-6">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={sending}
-          >
-            Cancel
-          </Button>
-          <LoadingButton
-            type="button"
-            isLoading={sending}
-            loadingText="Sending"
-            onClick={() => void handleSend()}
-            icon={<Send className="size-4" />}
-          >
-            Send quote
-          </LoadingButton>
-        </DialogFooter>
-      </DialogContent>
+      </BrandDialogContent>
     </Dialog>
   );
 }

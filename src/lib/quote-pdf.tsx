@@ -14,16 +14,24 @@ import {
 } from "@react-pdf/renderer";
 import {
   DEFAULT_QUOTE_TERMS,
-  QUOTE_CATEGORY_LABELS,
+  DEFAULT_QUOTE_TERMS_FR,
   formatCadFromCents,
+  formatQuoteQuantity,
+  formatQuoteUnitPrice,
   getQuoteTaxBreakdownRows,
+  quoteLineCategoryLabel,
+  quoteStatusLabel,
   splitQuoteTerms,
   type CustomerSafeQuote,
-  type QuoteLineCategory,
 } from "@/data/quotes";
+import { customerLocaleTag } from "@/data/customer-language";
+import {
+  formatQuoteDate,
+  getQuoteCopy,
+  quoteEventTypeLabel,
+} from "@/data/quote-copy";
 import { siteConfig } from "@/data/site";
-import { formatDisplayDate, parseISODate } from "@/lib/date";
-import { getDocumentTextsMap } from "@/lib/document-texts";
+import { getLocalizedDocumentTexts } from "@/lib/document-texts";
 
 const COLORS = {
   ink: "#1a1612",
@@ -248,19 +256,19 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.goldWash,
   },
   colDesc: {
-    width: "38%",
+    width: "34%",
     paddingRight: 10,
   },
   colCat: {
-    width: "18%",
+    width: "15%",
     paddingRight: 8,
   },
   colQty: {
-    width: "10%",
+    width: "11%",
     paddingRight: 6,
   },
   colUnit: {
-    width: "13%",
+    width: "19%",
     paddingRight: 6,
   },
   colTotal: {
@@ -385,17 +393,6 @@ const styles = StyleSheet.create({
   },
 });
 
-function formatPdfDate(value: string | null | undefined): string {
-  if (!value) return "—";
-  const parsed = parseISODate(value.slice(0, 10));
-  if (parsed) return formatDisplayDate(parsed);
-  try {
-    return formatDisplayDate(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
 function IconLink({ size = 9 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -490,11 +487,22 @@ function QuotePdfDocument({
   siteUrl: string;
   pdfFooter: string;
 }) {
+  const language = quote.language;
+  const t = getQuoteCopy(language);
+  const p = t.pdf;
+  const formatPdfDate = (value: string | null | undefined) =>
+    formatQuoteDate(value, language, "—");
   const pricedItems = quote.line_items.filter(
     (item) => item.status === "priced" || item.status === "included"
   );
-  const taxRows = getQuoteTaxBreakdownRows(quote, { variant: "customer" });
-  const terms = splitQuoteTerms(quote.terms, DEFAULT_QUOTE_TERMS);
+  const taxRows = getQuoteTaxBreakdownRows(quote, {
+    variant: "customer",
+    language,
+  });
+  const terms = splitQuoteTerms(
+    quote.terms,
+    language === "fr" ? DEFAULT_QUOTE_TERMS_FR : DEFAULT_QUOTE_TERMS
+  );
   const proposalUrl = publicUrl || quote.share_url || null;
   const base = siteUrl.replace(/\/$/, "");
   const websiteUrl = `https://${siteConfig.domain}`;
@@ -503,14 +511,14 @@ function QuotePdfDocument({
   );
   const mailBody = encodeURIComponent(
     proposalUrl
-      ? `Regarding your draping proposal:\n\n${proposalUrl}`
-      : `Regarding proposal ${quote.quote_display_ref}`
+      ? p.mailBodyWithUrl(proposalUrl)
+      : p.mailBodyNoUrl(quote.quote_display_ref)
   );
   const mailHref = `mailto:${siteConfig.email}?subject=${mailSubject}&body=${mailBody}`;
   const whatsappText = encodeURIComponent(
     proposalUrl
-      ? `${quote.quote_display_ref} from ${siteConfig.name}: ${proposalUrl}`
-      : `${quote.quote_display_ref} from ${siteConfig.name}`
+      ? t.shareWhatsApp(quote.quote_display_ref, siteConfig.name, proposalUrl)
+      : quote.quote_display_ref
   );
   const whatsappHref = `https://wa.me/?text=${whatsappText}`;
 
@@ -518,7 +526,8 @@ function QuotePdfDocument({
     <Document
       title={quote.quote_display_ref}
       author={siteConfig.name}
-      subject={`Proposal ${quote.opportunity_ref}`}
+      subject={p.subject(quote.opportunity_ref)}
+      language={customerLocaleTag(language)}
       keywords="event draping, proposal, Montreal"
     >
       <Page size="LETTER" style={styles.page} wrap>
@@ -530,35 +539,35 @@ function QuotePdfDocument({
             <Text style={styles.brandEyebrow}>{siteConfig.name}</Text>
             <Text style={styles.headerTitle}>{quote.quote_display_ref}</Text>
             <Text style={styles.headerMeta}>
-              Opportunity {quote.opportunity_ref}
+              {p.opportunity} {quote.opportunity_ref}
               {quote.valid_until
-                ? `  ·  Valid until ${formatPdfDate(quote.valid_until)}`
+                ? `  ·  ${p.validUntil} ${formatPdfDate(quote.valid_until)}`
                 : ""}
               {"  ·  CAD"}
             </Text>
             <Text style={styles.headerTag}>
-              {siteConfig.tagline} · {siteConfig.motto}
+              {p.tagline} · {p.motto}
             </Text>
           </View>
         </View>
 
         <View style={styles.actionsCard} wrap={false}>
-          <Text style={styles.actionsTitle}>Respond & share online</Text>
+          <Text style={styles.actionsTitle}>{p.respondTitle}</Text>
           <View style={styles.actionsRow}>
             {proposalUrl ? (
               <Link src={proposalUrl} style={[styles.actionBtn, styles.actionBtnPrimary]}>
                 <IconLink />
-                <Text style={styles.actionLabelOnDark}>Open proposal</Text>
+                <Text style={styles.actionLabelOnDark}>{p.openProposal}</Text>
               </Link>
             ) : (
               <Link src={websiteUrl} style={[styles.actionBtn, styles.actionBtnPrimary]}>
                 <IconLink />
-                <Text style={styles.actionLabelOnDark}>Visit website</Text>
+                <Text style={styles.actionLabelOnDark}>{p.visitWebsite}</Text>
               </Link>
             )}
             <Link src={mailHref} style={styles.actionBtn}>
               <IconMail />
-              <Text style={styles.actionLabel}>Email</Text>
+              <Text style={styles.actionLabel}>{t.email}</Text>
             </Link>
             <Link src={whatsappHref} style={styles.actionBtn}>
               <IconChat />
@@ -566,7 +575,7 @@ function QuotePdfDocument({
             </Link>
             <Link src={siteConfig.phoneHref} style={styles.actionBtn}>
               <IconPhone />
-              <Text style={styles.actionLabel}>Call</Text>
+              <Text style={styles.actionLabel}>{p.call}</Text>
             </Link>
             <Link src={websiteUrl} style={styles.actionBtn}>
               <IconDot />
@@ -575,69 +584,67 @@ function QuotePdfDocument({
           </View>
           {proposalUrl ? (
             <Text style={styles.actionUrl}>
-              Interactive proposal: {proposalUrl}
+              {p.interactiveProposal} {proposalUrl}
             </Text>
           ) : (
             <Text style={styles.actionUrl}>
-              Accept, request changes, or ask questions from your guest proposal
-              link when available · {base}
+              {p.noLinkHint} · {base}
             </Text>
           )}
         </View>
 
         <View style={styles.grid} wrap={false}>
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Event</Text>
-            <Meta label="Type" value={quote.event_type || "—"} />
-            <Meta label="Date" value={formatPdfDate(quote.event_date)} />
-            <Meta label="Venue" value={quote.venue_name || "—"} />
-            <Meta label="City / area" value={quote.city_area || "—"} />
+            <Text style={styles.panelTitle}>{p.event}</Text>
+            <Meta
+              label={p.type}
+              value={quoteEventTypeLabel(quote.event_type, language) || "—"}
+            />
+            <Meta label={p.date} value={formatPdfDate(quote.event_date)} />
+            <Meta label={p.venue} value={quote.venue_name || "—"} />
+            <Meta label={p.cityArea} value={quote.city_area || "—"} />
           </View>
           <View style={styles.panel}>
-            <Text style={styles.panelTitle}>Client</Text>
-            <Meta label="Name" value={quote.customer_name || "—"} />
-            <Meta label="Email" value={quote.customer_email || "—"} />
+            <Text style={styles.panelTitle}>{p.client}</Text>
+            <Meta label={p.name} value={quote.customer_name || "—"} />
+            <Meta label={t.email} value={quote.customer_email || "—"} />
             <Meta
-              label="Status"
-              value={
-                quote.status.replaceAll("_", " ").replace(/^\w/, (c) =>
-                  c.toUpperCase()
-                )
-              }
+              label={p.status}
+              value={quoteStatusLabel(quote.status, language)}
             />
-            <Meta label="Currency" value="CAD" />
+            <Meta label={p.currency} value="CAD" />
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Scope & pricing</Text>
+        <Text style={styles.sectionTitle}>{p.scopePricing}</Text>
         <View style={styles.tableHeader}>
           <View style={styles.colThumb}>
             <Text style={styles.tableHeaderText}> </Text>
           </View>
           <View style={styles.colDesc}>
-            <Text style={styles.tableHeaderText}>Description</Text>
+            <Text style={styles.tableHeaderText}>{p.description}</Text>
           </View>
           <View style={styles.colCat}>
-            <Text style={styles.tableHeaderText}>Category</Text>
+            <Text style={styles.tableHeaderText}>{p.category}</Text>
           </View>
           <View style={styles.colQty}>
             <Text style={[styles.tableHeaderText, styles.headerRight]}>
-              Qty
+              {t.colQty}
             </Text>
           </View>
           <View style={styles.colUnit}>
             <Text style={[styles.tableHeaderText, styles.headerRight]}>
-              Unit
+              {t.colPrice}
             </Text>
           </View>
           <View style={styles.colTotal}>
             <Text style={[styles.tableHeaderText, styles.headerRight]}>
-              Total
+              {p.total}
             </Text>
           </View>
         </View>
         {pricedItems.length === 0 ? (
-          <Text style={styles.cellMuted}>No priced line items yet.</Text>
+          <Text style={styles.cellMuted}>{p.noPricedItems}</Text>
         ) : (
           pricedItems.map((item) => (
             <View key={item.id} style={styles.tableRow} wrap={false}>
@@ -652,32 +659,35 @@ function QuotePdfDocument({
               <View style={styles.colDesc}>
                 <Text style={styles.cell}>
                   {item.description}
-                  {item.status === "included" ? " (Included)" : ""}
+                  {item.status === "included" ? p.includedSuffix : ""}
                 </Text>
               </View>
               <View style={styles.colCat}>
                 <Text style={styles.cellMuted}>
-                  {QUOTE_CATEGORY_LABELS[item.category as QuoteLineCategory] ||
-                    item.category}
+                  {quoteLineCategoryLabel(item, language)}
                 </Text>
               </View>
               <View style={styles.colQty}>
                 <Text style={[styles.cell, styles.cellRight]}>
-                  {String(item.quantity)}
+                  {formatQuoteQuantity(item.quantity, item.unit_label, language)}
                 </Text>
               </View>
               <View style={styles.colUnit}>
                 <Text style={[styles.cell, styles.cellRight]}>
                   {item.status === "included"
                     ? "—"
-                    : formatCadFromCents(item.unit_price_cents)}
+                    : formatQuoteUnitPrice(
+                        item.unit_price_cents,
+                        item.unit_label,
+                        language
+                      )}
                 </Text>
               </View>
               <View style={styles.colTotal}>
                 <Text style={[styles.cell, styles.cellRight]}>
                   {item.status === "included"
-                    ? "Included"
-                    : formatCadFromCents(item.line_total_cents)}
+                    ? t.included
+                    : formatCadFromCents(item.line_total_cents, language)}
                 </Text>
               </View>
             </View>
@@ -698,7 +708,7 @@ function QuotePdfDocument({
                   <Text
                     style={isTotal ? styles.totalFinalValue : styles.totalValue}
                   >
-                    {formatCadFromCents(row.amountCents)}
+                    {formatCadFromCents(row.amountCents, language)}
                   </Text>
                 </View>
               );
@@ -708,14 +718,14 @@ function QuotePdfDocument({
 
         {quote.customer_notes ? (
           <View style={styles.notesCard} wrap={false}>
-            <Text style={styles.sectionTitle}>Notes for you</Text>
+            <Text style={styles.sectionTitle}>{t.notesForYou}</Text>
             <Text style={styles.notesBody}>{quote.customer_notes}</Text>
           </View>
         ) : null}
 
         <View style={styles.termsDock} wrap={false}>
           <View style={styles.termsCard}>
-            <Text style={styles.sectionTitle}>Terms & conditions</Text>
+            <Text style={styles.sectionTitle}>{t.termsTitle}</Text>
             {terms.map((line, index) => (
               <View
                 key={`${index}-${line.slice(0, 16)}`}
@@ -732,12 +742,12 @@ function QuotePdfDocument({
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
             {siteConfig.name} · {siteConfig.email} · {siteConfig.phone} ·{" "}
-            {siteConfig.location}
+            {p.location}
             {"\n"}
             {pdfFooter}
           </Text>
           <Text style={styles.footerRight}>
-            Generated {generatedAt}
+            {p.generated} {generatedAt}
             {"\n"}
             {siteConfig.domain}
           </Text>
@@ -747,20 +757,51 @@ function QuotePdfDocument({
   );
 }
 
+const PDF_NATIVE_IMAGE = /\.(jpe?g|png)(\?|#|$)/i;
+
+/** react-pdf only decodes JPEG/PNG; convert anything else (WebP, GIF…) to a PNG data URI. */
+async function toPdfSafeImage(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  if (PDF_NATIVE_IMAGE.test(url)) return url;
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) return null;
+    const type = response.headers.get("content-type") || "";
+    if (/image\/(jpe?g|png)/i.test(type)) return url;
+    const { default: sharp } = await import("sharp");
+    const png = await sharp(Buffer.from(await response.arrayBuffer()))
+      .resize(240, 240, { fit: "cover" })
+      .png()
+      .toBuffer();
+    return `data:image/png;base64,${png.toString("base64")}`;
+  } catch (error) {
+    console.error("[quote-pdf] image convert", error);
+    return null;
+  }
+}
+
 export async function renderQuotePdfBuffer(input: {
   quote: CustomerSafeQuote;
   publicUrl?: string | null;
   siteUrl?: string | null;
 }): Promise<Buffer> {
-  const generatedAt = new Date().toLocaleString("en-CA", {
+  const language = input.quote.language;
+  const generatedAt = new Date().toLocaleString(customerLocaleTag(language), {
     timeZone: "America/Toronto",
   });
   const siteUrl =
     input.siteUrl?.replace(/\/$/, "") ||
     `https://${siteConfig.domain}`;
-  const copy = await getDocumentTextsMap();
+  const copy = await getLocalizedDocumentTexts(language);
+  const lineItems = await Promise.all(
+    input.quote.line_items.map(async (item) => ({
+      ...item,
+      image_url: await toPdfSafeImage(item.image_url),
+    }))
+  );
   const quote = {
     ...input.quote,
+    line_items: lineItems,
     terms: input.quote.terms?.trim() || copy["quote.terms"],
   };
   const buffer = await renderToBuffer(

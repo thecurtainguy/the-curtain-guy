@@ -16,6 +16,7 @@ import { AdminEstimateActions } from "@/components/admin/admin-estimate-actions"
 import { AdminEstimateQuotesSection } from "@/components/admin/admin-estimate-quotes-section";
 import { OpportunityFilesPanel } from "@/components/estimates/opportunity-files-panel";
 import { EstimateStatusBadge } from "@/components/estimates/status-badge";
+import { CustomerLanguageBadge } from "@/components/quotes/customer-language-badge";
 import { formatEstimateReference } from "@/data/estimate";
 import { listQuotesForEstimate } from "@/lib/quotes";
 
@@ -67,7 +68,12 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
           icon={ClipboardList}
           backHref="/admin/estimates"
           backLabel="All estimates"
-          meta={<EstimateStatusBadge status={estimate.status} />}
+          meta={
+            <div className="flex flex-wrap items-center gap-2">
+              <EstimateStatusBadge status={estimate.status} />
+              <CustomerLanguageBadge language={estimate.language} />
+            </div>
+          }
         />
 
         <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">

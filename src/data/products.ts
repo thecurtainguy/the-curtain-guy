@@ -1,8 +1,8 @@
 import {
-  QUOTE_CATEGORY_LABELS,
-  type QuoteLineCategory,
-  isQuoteLineCategory,
-} from "@/data/quotes";
+  resolveProductCategoryLabel,
+  type ProductCategoryRow,
+} from "@/data/product-categories";
+import type { QuoteLineCategory } from "@/data/quotes";
 
 export const PRODUCT_KINDS = ["product", "service", "package"] as const;
 export type ProductKind = (typeof PRODUCT_KINDS)[number];
@@ -52,6 +52,8 @@ export type ProductRow = {
   /** Parent listing color shown alongside variants (e.g. "Black"). */
   default_color_name?: string | null;
   default_color_hex?: string | null;
+  /** Color-free family name for admin lists (e.g. "Velvet Drapes"). */
+  group_name?: string | null;
   configurator_mode?: "simple" | "linear_ft";
   formula_segment_feet?: number | null;
   full_service_product_id?: string | null;
@@ -111,11 +113,11 @@ export function suggestAvailabilityFromQty(input: {
   return "available";
 }
 
-export function getProductCategoryLabel(category: string): string {
-  if (isQuoteLineCategory(category)) {
-    return QUOTE_CATEGORY_LABELS[category];
-  }
-  return category.replaceAll("_", " ");
+export function getProductCategoryLabel(
+  category: string,
+  categories?: readonly Pick<ProductCategoryRow, "slug" | "label">[] | null
+): string {
+  return resolveProductCategoryLabel(category, categories);
 }
 
 export function formatProductPriceCents(cents: number): string {

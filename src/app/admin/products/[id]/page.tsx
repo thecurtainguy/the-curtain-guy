@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import { AdminProductEditor } from "@/components/admin/admin-product-editor";
+import { listProductCategoriesWithCounts } from "@/lib/product-categories";
 import { fetchProductById, listProducts } from "@/lib/products";
 import { getAdminProductRentalsBundle } from "@/lib/rentals";
 
@@ -18,10 +19,11 @@ type PageProps = {
 export default async function AdminProductDetailPage({ params }: PageProps) {
   const owner = await requireAdminPage();
   const { id } = await params;
-  const [product, allProducts, rentalsBundle] = await Promise.all([
+  const [product, allProducts, rentalsBundle, categories] = await Promise.all([
     fetchProductById(id),
     listProducts({ limit: 500 }),
     getAdminProductRentalsBundle(id),
+    listProductCategoriesWithCounts(),
   ]);
   if (!product) notFound();
 
@@ -31,6 +33,7 @@ export default async function AdminProductDetailPage({ params }: PageProps) {
         product={product}
         allProducts={allProducts}
         rentalsBundle={rentalsBundle}
+        initialCategories={categories}
       />
     </AdminPageFrame>
   );

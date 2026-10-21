@@ -9,8 +9,15 @@ import {
 } from "@/components/admin/lists/admin-products-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { Button } from "@/components/ui/button";
-import { buildProductColorOptions } from "@/data/product-colors";
+import {
+  buildProductColorOptions,
+  resolveProductGroupName,
+} from "@/data/product-colors";
 import { listColorVariantsForProducts } from "@/lib/product-colors";
+import { AdminProductCategoriesButton } from "@/components/admin/admin-product-categories-manager";
+import { sortProductCategories } from "@/data/product-categories";
+import { getProductCategoryLabel } from "@/data/products";
+import { listProductCategoriesWithCounts } from "@/lib/product-categories";
 import { listProducts } from "@/lib/products";
 import { mapProductsCompleteness } from "@/lib/rentals";
 
@@ -21,7 +28,10 @@ export const metadata: Metadata = {
 
 export default async function AdminProductsPage() {
   const owner = await requireAdminPage();
-  const products = await listProducts({ limit: 500 });
+  const [products, categories] = await Promise.all([
+    listProducts({ limit: 500 }),
+    listProductCategoriesWithCounts(),
+  ]);
   const [completenessById, allColors] = await Promise.all([
     mapProductsCompleteness(products),
     listColorVariantsForProducts(
@@ -57,10 +67,12 @@ export default async function AdminProductsPage() {
     return {
       id: row.id,
       name: row.name,
+      display_name: resolveProductGroupName(row, colorOptions.length > 0),
       slug: row.slug,
       sku: row.sku,
       kind: row.kind,
       category: row.category,
+      category_label: getProductCategoryLabel(row.category, categories),
       default_unit_price_cents: row.default_unit_price_cents,
       quantity_on_hand: row.quantity_on_hand,
       availability_status: row.availability_status,
@@ -80,6 +92,16 @@ export default async function AdminProductsPage() {
     };
   });
 
+  const usedCategories = new Set(listRows.map((row) => row.category));
+  const categoryOptions = [
+    ...sortProductCategories(categories)
+      .filter((row) => usedCategories.has(row.slug))
+      .map((row) => ({ value: row.slug, label: row.label })),
+    ...[...usedCategories]
+      .filter((slug) => !categories.some((row) => row.slug === slug))
+      .map((slug) => ({ value: slug, label: getProductCategoryLabel(slug) })),
+  ];
+
   return (
     <AdminPageFrame email={owner.profile.email} profile={owner.profile}>
       <div className="space-y-6">
@@ -89,12 +111,18 @@ export default async function AdminProductsPage() {
           description="Products and services you can pull into quotes — with photos, pricing, and stock."
           icon={Package}
           actions={
-            <Button asChild>
-              <Link href="/admin/products/new">Add item</Link>
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <AdminProductCategoriesButton initialCategories={categories} />
+              <Button asChild>
+                <Link href="/admin/products/new">Add item</Link>
+              </Button>
+            </div>
           }
         />
-        <AdminProductsList rows={listRows} />
+        <AdminProductsList
+          rows={listRows}
+          categoryOptions={categoryOptions}
+        />
       </div>
     </AdminPageFrame>
   );

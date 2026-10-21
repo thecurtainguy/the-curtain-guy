@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
+import {
+  isCustomerLanguage,
+  normalizeCustomerLanguage,
+} from "@/data/customer-language";
 import { formatQuoteFilenameStem } from "@/data/quotes";
 import { getCurrentUser, requireOwner } from "@/lib/auth";
+import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { getSiteUrl } from "@/lib/env";
 import { fetchEstimateById } from "@/lib/estimate-access";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
@@ -18,7 +23,7 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const quote = await fetchQuoteById(id);
   if (!quote) {
@@ -52,23 +57,49 @@ export async function GET(_request: Request, context: RouteContext) {
     }
   }
 
+  const searchParams = new URL(request.url).searchParams;
+  const lang = searchParams.get("lang");
+  const isOwnerPreview = Boolean(owner) && searchParams.get("preview") === "1";
+  const quoteLanguage = normalizeCustomerLanguage(quote.language);
+  const language = isCustomerLanguage(lang) ? lang : quoteLanguage;
+
   const siteUrl = getSiteUrl();
   const publicUrl = await findActivePublicQuoteUrl(id, siteUrl);
-  const safe = toCustomerSafeQuote(quote, { shareUrl: publicUrl });
+  const viewQuote =
+    isOwnerPreview && quote.status === "draft"
+      ? // The emailed PDF is rendered after the quote flips to sent.
+        { ...quote, status: "sent" as const }
+      : quote;
+  const safe = toCustomerSafeQuote(
+    language === quoteLanguage
+      ? viewQuote
+      : {
+          ...viewQuote,
+          language,
+          terms: await resolveQuoteTermsForView(
+            quote.terms,
+            quoteLanguage,
+            language
+          ),
+        },
+    { shareUrl: publicUrl }
+  );
   const buffer = await renderQuotePdfBuffer({
     quote: safe,
     publicUrl,
     siteUrl,
   });
 
-  await logQuoteEvent({
-    quoteId: id,
-    actorType: owner ? "owner" : "customer",
-    actorUserId: owner?.user.id ?? null,
-    actorEmail: owner?.profile.email ?? null,
-    eventType: "pdf_downloaded",
-    summary: "PDF opened",
-  });
+  if (!isOwnerPreview) {
+    await logQuoteEvent({
+      quoteId: id,
+      actorType: owner ? "owner" : "customer",
+      actorUserId: owner?.user.id ?? null,
+      actorEmail: owner?.profile.email ?? null,
+      eventType: "pdf_downloaded",
+      summary: "PDF opened",
+    });
+  }
 
   const filename = `${formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number)}.pdf`;
   return new NextResponse(new Uint8Array(buffer), {

@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { useBrandConfirm } from "@/components/ui/brand-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -72,10 +73,11 @@ export function RoomSetupPanel({
   onChange,
   idPrefix,
 }: RoomSetupPanelProps) {
+  const [confirm, confirmDialog] = useBrandConfirm();
   const dimensions = design.room.templateDimensions;
   const fieldId = (name: string) => `${idPrefix}-${name}`;
 
-  function setShape(shape: StudioRoomShape) {
+  async function setShape(shape: StudioRoomShape) {
     if (shape === design.room.shape) return;
     const hasWallItems =
       design.drapeRuns.length > 0 ||
@@ -83,9 +85,15 @@ export function RoomSetupPanel({
       design.openings.length > 0;
     if (
       hasWallItems &&
-      !window.confirm(
-        "Changing the room shape will remove all drape runs, treatments, and opening markers. Continue?"
-      )
+      !(await confirm({
+        icon: Box,
+        eyebrow: "Room setup",
+        title: "Change the room shape?",
+        description:
+          "Changing the room shape will remove all drape runs, treatments, and opening markers.",
+        confirmLabel: "Change shape",
+        destructive: true,
+      }))
     ) {
       return;
     }
@@ -175,7 +183,7 @@ export function RoomSetupPanel({
             type="button"
             role="radio"
             aria-checked={design.room.shape === value}
-            onClick={() => setShape(value)}
+            onClick={() => void setShape(value)}
             className={cn(
               "relative flex min-w-0 flex-col items-center gap-1 rounded-2xl border px-1.5 py-2.5 text-[0.68rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
               design.room.shape === value
@@ -274,6 +282,7 @@ export function RoomSetupPanel({
           });
         }}
       />
+      {confirmDialog}
     </section>
   );
 }

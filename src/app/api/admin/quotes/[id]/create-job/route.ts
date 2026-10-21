@@ -3,6 +3,8 @@ import { requireOwner } from "@/lib/auth";
 import { getResendApiKey } from "@/lib/env";
 import { sendJobConfirmedEmail } from "@/lib/job-email";
 import { createJobFromQuote, getAdminJob } from "@/lib/jobs";
+import { fetchQuoteById } from "@/lib/quotes";
+import { normalizeCustomerLanguage } from "@/data/customer-language";
 
 export const runtime = "nodejs";
 
@@ -28,7 +30,12 @@ export async function POST(_request: Request, context: RouteContext) {
       const job = await getAdminJob(result.jobId);
       if (apiKey && job?.customer_email) {
         try {
-          await sendJobConfirmedEmail({ apiKey, job });
+          const quote = await fetchQuoteById(quoteId);
+          await sendJobConfirmedEmail({
+            apiKey,
+            job,
+            language: normalizeCustomerLanguage(quote?.language),
+          });
           emailSent = true;
         } catch (err) {
           console.error("[jobs] confirmation email failed", err);

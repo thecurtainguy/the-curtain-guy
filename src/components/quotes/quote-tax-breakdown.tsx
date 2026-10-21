@@ -3,6 +3,7 @@ import {
   getQuoteTaxBreakdownRows,
   type QuoteRow,
 } from "@/data/quotes";
+import type { CustomerLanguage } from "@/data/customer-language";
 import { cn } from "@/lib/utils";
 
 type QuoteTaxFields = Pick<
@@ -24,13 +25,15 @@ type QuoteTaxFields = Pick<
 export function QuoteTaxBreakdown({
   quote,
   variant = "customer",
+  language = "en",
   className,
 }: {
   quote: QuoteTaxFields;
   variant?: "admin" | "customer";
+  language?: CustomerLanguage;
   className?: string;
 }) {
-  const rows = getQuoteTaxBreakdownRows(quote, { variant });
+  const rows = getQuoteTaxBreakdownRows(quote, { variant, language });
 
   return (
     <dl className={cn("space-y-2", className)}>
@@ -68,7 +71,7 @@ export function QuoteTaxBreakdown({
                     : "text-sm font-medium text-foreground"
               )}
             >
-              {formatCadFromCents(row.amountCents)}
+              {formatCadFromCents(row.amountCents, language)}
             </dd>
           </div>
         );

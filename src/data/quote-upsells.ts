@@ -15,6 +15,7 @@ import {
   Theater,
   Timer,
 } from "lucide-react";
+import type { CustomerLanguage } from "@/data/customer-language";
 import { addOnOptions, getEnglishOptionLabel } from "@/data/estimate";
 import { services } from "@/data/services";
 
@@ -126,10 +127,108 @@ export function getQuoteUpsellByKey(key: string): QuoteUpsellItem | undefined {
   return quoteUpsells.find((item) => item.key === key);
 }
 
-export function getAddOnUpsells(): QuoteUpsellItem[] {
-  return quoteUpsells.filter((item) => item.type === "add_on");
+const UPSELL_COPY_FR: Record<string, { title: string; description: string }> = {
+  uplighting: {
+    title: "Éclairage d'ambiance",
+    description: "Éclairage d’accent pour mettre en valeur le tissu et l’ambiance.",
+  },
+  "star-drape": {
+    title: "Draperie étoilée",
+    description: "Effet ciel étoilé pour plafonds ou murs vedettes.",
+  },
+  "kabuki-reveal": {
+    title: "Kabuki / moment de révélation",
+    description: "Révélation pour entrées, scènes ou moments photo.",
+  },
+  "event-carpet": {
+    title: "Tapis événementiel",
+    description: "Tapis pour entrées, allées ou zones VIP.",
+  },
+  stanchions: {
+    title: "Potelets / cordons",
+    description: "Cordons et potelets pour files d’attente ou zones VIP.",
+  },
+  "screen-surround": {
+    title: "Surround d'écran",
+    description: "Encadrement en tissu autour d’écrans ou de projections.",
+  },
+  "dj-booth": {
+    title: "Surround cabine DJ / tech",
+    description: "Drapage autour de la cabine DJ ou de la régie technique.",
+  },
+  "step-repeat": {
+    title: "Toile de fond step-and-repeat",
+    description: "Step-and-repeat ou toile de fond photo à votre image.",
+  },
+  "ceiling-draping": {
+    title: "Drapage de plafond",
+    description: "Traitement de plafond tout en douceur pour salles de bal.",
+  },
+  "double-sided": {
+    title: "Draperie double face",
+    description: "Draperie double face visible des deux côtés.",
+  },
+  "premium-hardware": {
+    title: "Finition matériel premium",
+    description: "Quincaillerie haut de gamme là où elle est visible.",
+  },
+  "rush-setup": {
+    title: "Installation urgente / délai court",
+    description: "Fenêtre d’installation réduite ou délai serré.",
+  },
+  "wedding-draping": {
+    title: "Drapage de mariage",
+    description:
+      "Drapage de cérémonie et de réception — toiles de fond, ambiance de salle et moments photo.",
+  },
+  "pipe-and-drape-rental": {
+    title: "Location de pipe and drape",
+    description:
+      "Systèmes pipe and drape pour façonner et masquer l’espace avec souplesse.",
+  },
+  "corporate-event-draping": {
+    title: "Drapage événementiel corporatif",
+    description:
+      "Drapage pour scènes, zones de marque et transformations de salle soignées.",
+  },
+  "stage-backdrop-rentals": {
+    title: "Location de toiles de fond de scène",
+    description:
+      "Toiles de fond pour présentations, spectacles et murs vedettes.",
+  },
+  "blackout-room-divider-drapes": {
+    title: "Draperie d'occultation et séparateurs de salle",
+    description:
+      "Draperie occultante et séparateurs pour contrôler la lumière et diviser l’espace.",
+  },
+  "bar-bat-mitzvah-draping": {
+    title: "Drapage Bar & Bat Mitzvah",
+    description:
+      "Drapage pour salles de célébration, scènes et espaces photo.",
+  },
+};
+
+function localizeUpsell(
+  item: QuoteUpsellItem,
+  language: CustomerLanguage
+): QuoteUpsellItem {
+  if (language !== "fr") return item;
+  const fr = UPSELL_COPY_FR[item.key];
+  return fr ? { ...item, title: fr.title, description: fr.description } : item;
 }
 
-export function getServiceUpsells(): QuoteUpsellItem[] {
-  return quoteUpsells.filter((item) => item.type === "service");
+export function getAddOnUpsells(
+  language: CustomerLanguage = "en"
+): QuoteUpsellItem[] {
+  return quoteUpsells
+    .filter((item) => item.type === "add_on")
+    .map((item) => localizeUpsell(item, language));
+}
+
+export function getServiceUpsells(
+  language: CustomerLanguage = "en"
+): QuoteUpsellItem[] {
+  return quoteUpsells
+    .filter((item) => item.type === "service")
+    .map((item) => localizeUpsell(item, language));
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  isQuoteLineCategory,
+  isValidQuoteLineCategorySlug,
   type QuoteRequestStatus,
 } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
@@ -57,6 +57,7 @@ export async function POST(request: Request, context: RouteContext) {
   let convertToLineItem:
     | {
         category: string;
+        category_label: string | null;
         description: string;
         quantity: number;
         unit_price_cents: number;
@@ -67,7 +68,7 @@ export async function POST(request: Request, context: RouteContext) {
     const convert = body.convertToLineItem as Record<string, unknown>;
     const category = String(convert.category || "");
     const description = String(convert.description || "").trim();
-    if (!isQuoteLineCategory(category) || !description) {
+    if (!isValidQuoteLineCategorySlug(category) || !description) {
       return NextResponse.json(
         {
           ok: false,
@@ -78,6 +79,10 @@ export async function POST(request: Request, context: RouteContext) {
     }
     convertToLineItem = {
       category,
+      category_label:
+        typeof convert.category_label === "string"
+          ? convert.category_label.trim().slice(0, 80) || null
+          : null,
       description,
       quantity: Number(convert.quantity) || 1,
       unit_price_cents: Math.round(Number(convert.unit_price_cents) || 0),

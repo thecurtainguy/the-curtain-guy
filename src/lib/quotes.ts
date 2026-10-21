@@ -15,10 +15,15 @@ import {
   type QuoteTaxMode,
   computeLineTotalCents,
   computeQuoteTaxTotals,
+  customerQuoteDisplayRef,
+  customerQuoteLineStatus,
   formatQuoteDisplayRef,
   normalizeManualTaxLines,
-  resolveQuoteDisplayRef,
 } from "@/data/quotes";
+import {
+  normalizeCustomerLanguage,
+  type CustomerLanguage,
+} from "@/data/customer-language";
 import {
   initialEstimateFormData,
   type EstimateFormData,
@@ -35,8 +40,13 @@ import {
   mapEventBuilderBriefToEstimate,
   mergeEstimatePrefill,
 } from "@/lib/event-builder/map-brief-to-estimate";
-import { getDocumentText, resolveQuoteTerms } from "@/lib/document-texts";
+import {
+  getLocalizedDocumentText,
+  resolveQuoteTerms,
+} from "@/lib/document-texts";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { listProductCategories } from "@/lib/product-categories";
+import { resolveProductCategoryLabelFr } from "@/data/product-categories";
 import {
   buildPublicQuoteUrl,
   buildQuoteDisplayRef,
@@ -92,7 +102,7 @@ export function toCustomerSafeQuote(
     estimate_request_id: quote.estimate_request_id,
     opportunity_ref: quote.opportunity_ref,
     revision_number: quote.revision_number,
-    quote_display_ref: resolveQuoteDisplayRef(quote),
+    quote_display_ref: customerQuoteDisplayRef(quote),
     customer_name: quote.customer_name,
     customer_email: quote.customer_email,
     event_date: quote.event_date,
@@ -100,6 +110,7 @@ export function toCustomerSafeQuote(
     venue_name: quote.venue_name,
     city_area: quote.city_area,
     status: quote.status,
+    language: normalizeCustomerLanguage(quote.language),
     currency: quote.currency,
     subtotal_cents: quote.subtotal_cents,
     total_cents: quote.total_cents,
@@ -127,7 +138,9 @@ export function toCustomerSafeQuote(
     declined_by_name: quote.declined_by_name ?? null,
     created_at: quote.created_at,
     updated_at: quote.updated_at,
-    line_items: (quote.line_items || []).filter((item) => item.customer_visible),
+    line_items: (quote.line_items || [])
+      .filter((item) => item.customer_visible)
+      .map((item) => ({ ...item, status: customerQuoteLineStatus(item) })),
     requests: quote.requests || [],
     share_url: options?.shareUrl ?? null,
   };
@@ -418,7 +431,8 @@ export async function createQuoteFromEstimate(input: {
   }
 
   const displayRef = buildQuoteDisplayRef(opportunityRef, 1);
-  const defaultTerms = await getDocumentText("quote.terms");
+  const language = normalizeCustomerLanguage(input.estimate.language);
+  const defaultTerms = await getLocalizedDocumentText("quote.terms", language);
   const { data, error } = await admin
     .from("quotes")
     .insert({
@@ -426,6 +440,7 @@ export async function createQuoteFromEstimate(input: {
       opportunity_ref: opportunityRef,
       revision_number: 1,
       quote_display_ref: displayRef,
+      language,
       customer_name: input.estimate.customer_name,
       customer_email: input.estimate.customer_email,
       event_date: input.estimate.event_date,
@@ -478,8 +493,26 @@ export type DirectQuoteInput = {
   venueName?: string | null;
   cityArea?: string | null;
   ownerNotes?: string | null;
+  language?: CustomerLanguage;
   createdByUserId: string;
 };
+
+/** Saved account preference for this email, else English. */
+export async function findPreferredLanguageForEmail(
+  email: string
+): Promise<CustomerLanguage> {
+  const normalized = normalizeEmail(email);
+  if (!normalized) return "en";
+  const admin = createAdminSupabaseClient();
+  const { data } = await admin
+    .from("user_profiles")
+    .select("preferred_language")
+    .ilike("email", normalized.replace(/[\\%_]/g, "\\$&"))
+    .not("preferred_language", "is", null)
+    .limit(1)
+    .maybeSingle();
+  return normalizeCustomerLanguage(data?.preferred_language);
+}
 
 export async function createDirectQuote(
   input: DirectQuoteInput
@@ -514,6 +547,8 @@ export async function createDirectQuote(
     ...buildEstimateInsertRow(form, {
       userId: input.createdByUserId,
       source: "admin_direct_quote",
+      language:
+        input.language ?? (await findPreferredLanguageForEmail(customerEmail)),
     }),
     source: "admin_direct_quote",
     status: "quoted",
@@ -609,6 +644,7 @@ async function ensureEstimateFromEventPlan(
       submittedFromUrl: plan.submitted_from_url,
       userAgent: plan.user_agent,
       userId: plan.owner_user_id,
+      language: normalizeCustomerLanguage(plan.language),
     }),
     source: "event_plan_submission",
     status: "reviewed",
@@ -706,6 +742,7 @@ export async function createQuoteRevision(input: {
       venue_name: source.venue_name,
       city_area: source.city_area,
       status: "draft",
+      language: normalizeCustomerLanguage(source.language),
       currency: "CAD",
       tax_mode: source.tax_mode || "quebec_gst_qst",
       gst_rate: Number(source.gst_rate ?? DEFAULT_GST_RATE),
@@ -715,7 +752,10 @@ export async function createQuoteRevision(input: {
       manual_tax_lines: normalizeManualTaxLines(source.manual_tax_lines),
       customer_notes: source.customer_notes,
       owner_notes: source.owner_notes,
-      terms: await resolveQuoteTerms(source.terms),
+      terms: await resolveQuoteTerms(
+        source.terms,
+        normalizeCustomerLanguage(source.language)
+      ),
       created_by_user_id: input.createdByUserId,
     })
     .select("*")
@@ -730,8 +770,11 @@ export async function createQuoteRevision(input: {
     const copies = source.line_items.map((item, index) => ({
       quote_id: data.id,
       category: item.category,
+      category_label: item.category_label ?? null,
+      category_label_fr: item.category_label_fr ?? null,
       description: item.description,
       quantity: item.quantity,
+      unit_label: item.unit_label ?? null,
       unit_price_cents: item.unit_price_cents,
       line_total_cents: item.line_total_cents,
       status: item.status === "pending_owner_review" ? "priced" : item.status,
@@ -889,8 +932,10 @@ export async function markQuoteViewed(quoteId: string): Promise<void> {
 export type LineItemInput = {
   id?: string;
   category: string;
+  category_label?: string | null;
   description: string;
   quantity: number;
+  unit_label?: string | null;
   unit_price_cents: number;
   status?: string;
   customer_visible?: boolean;
@@ -915,6 +960,7 @@ export async function upsertLineItems(input: {
   const keepIds = new Set(
     input.items.filter((item) => item.id).map((item) => item.id as string)
   );
+  const categories = await listProductCategories();
 
   for (const item of existing.line_items) {
     if (!keepIds.has(item.id)) {
@@ -944,11 +990,24 @@ export async function upsertLineItems(input: {
       typeof item.is_taxable === "boolean"
         ? item.is_taxable
         : taxCategory !== "exempt";
+    const categoryLabel = item.category_label?.trim() || null;
+    const previous = item.id
+      ? existing.line_items.find((line) => line.id === item.id)
+      : undefined;
+    const categoryLabelFr = categoryLabel
+      ? resolveProductCategoryLabelFr(item.category, categories) ??
+        (previous?.category === item.category
+          ? previous.category_label_fr ?? null
+          : null)
+      : null;
     const payload = {
       quote_id: input.quoteId,
       category: item.category,
+      category_label: categoryLabel,
+      category_label_fr: categoryLabelFr,
       description: item.description.trim(),
       quantity,
+      unit_label: item.unit_label?.trim().slice(0, 40) || null,
       unit_price_cents: unitPrice,
       line_total_cents: lineTotal,
       status: item.status || "priced",
@@ -1078,6 +1137,7 @@ export async function reviewCustomerRequest(input: {
   reviewedByUserId: string;
   convertToLineItem?: {
     category: string;
+    category_label?: string | null;
     description: string;
     quantity: number;
     unit_price_cents: number;
@@ -1105,6 +1165,13 @@ export async function reviewCustomerRequest(input: {
     const { error: lineError } = await admin.from("quote_line_items").insert({
       quote_id: input.quoteId,
       category: input.convertToLineItem.category,
+      category_label: input.convertToLineItem.category_label?.trim() || null,
+      category_label_fr: input.convertToLineItem.category_label?.trim()
+        ? resolveProductCategoryLabelFr(
+            input.convertToLineItem.category,
+            await listProductCategories()
+          )
+        : null,
       description: input.convertToLineItem.description,
       quantity: input.convertToLineItem.quantity,
       unit_price_cents: input.convertToLineItem.unit_price_cents,

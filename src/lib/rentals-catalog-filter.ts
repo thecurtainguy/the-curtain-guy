@@ -10,7 +10,10 @@ import {
 } from "@/data/product-colors";
 import type { ProductAvailabilityStatus } from "@/data/products";
 import type { PublicRentalProduct } from "@/data/rentals";
-import { QUOTE_LINE_CATEGORIES, type QuoteLineCategory } from "@/data/quotes";
+import {
+  resolveProductCategoryLabel,
+  sortProductCategories,
+} from "@/data/product-categories";
 
 export type RentalsSortId =
   | "featured"
@@ -149,7 +152,16 @@ export function expandRentalsCatalogEntries(
   return entries;
 }
 
-export function collectCatalogFacets(products: PublicRentalProduct[]) {
+export type RentalsCategoryOption = {
+  slug: string;
+  label: string;
+  sort_order: number;
+};
+
+export function collectCatalogFacets(
+  products: PublicRentalProduct[],
+  categoryOptions: readonly RentalsCategoryOption[] = []
+) {
   const categorySet = new Set<string>();
   const colorMap = new Map<string, { name: string; hex: string }>();
   const eventSet = new Set<string>();
@@ -186,9 +198,17 @@ export function collectCatalogFacets(products: PublicRentalProduct[]) {
     }
   }
 
-  const categories = QUOTE_LINE_CATEGORIES.filter((id) =>
-    categorySet.has(id)
-  ) as QuoteLineCategory[];
+  const known = sortProductCategories(categoryOptions).filter((row) =>
+    categorySet.has(row.slug)
+  );
+  const knownSlugs = new Set(known.map((row) => row.slug));
+  const categories: Array<{ slug: string; label: string }> = [
+    ...known.map((row) => ({ slug: row.slug, label: row.label })),
+    ...[...categorySet]
+      .filter((slug) => !knownSlugs.has(slug))
+      .sort()
+      .map((slug) => ({ slug, label: resolveProductCategoryLabel(slug) })),
+  ];
 
   const eventTypes = PRODUCT_EVENT_TYPE_IDS.filter((id) =>
     eventSet.has(id)

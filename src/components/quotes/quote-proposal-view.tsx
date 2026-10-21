@@ -36,10 +36,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatCadFromCents,
+  formatQuoteQuantity,
+  formatQuoteUnitPrice,
   getCustomerRevisionNumber,
-  QUOTE_CATEGORY_LABELS,
+  quoteLineCategoryLabel,
   type CustomerSafeQuote,
-  type QuoteLineCategory,
 } from "@/data/quotes";
 import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
 import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
@@ -48,8 +49,15 @@ import {
   getServiceUpsells,
   type QuoteUpsellItem,
 } from "@/data/quote-upsells";
+import type { CustomerLanguage } from "@/data/customer-language";
+import {
+  formatQuoteDate,
+  getQuoteCopy,
+  localizeQuoteApiError,
+  quoteEventTypeLabel,
+  type QuoteCopy,
+} from "@/data/quote-copy";
 import { siteConfig } from "@/data/site";
-import { formatDisplayDate, parseISODate } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -59,6 +67,8 @@ type Props = {
   pdfUrl: string;
   shareUrl: string;
   heroImageSrc?: string;
+  /** Owner preview: renders the customer view but never posts actions. */
+  preview?: boolean;
 };
 
 type ActionPanel =
@@ -79,24 +89,6 @@ type ActionPayload = {
 };
 
 const FEATURED_UPSELL_COUNT = 3;
-
-function formatQuoteDate(value: string | null): string {
-  if (!value) return "TBD";
-  const parsed = parseISODate(value.slice(0, 10));
-  if (parsed) return formatDisplayDate(parsed);
-  try {
-    return formatDisplayDate(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-function categoryLabel(category: string): string {
-  return (
-    QUOTE_CATEGORY_LABELS[category as QuoteLineCategory] ||
-    category.replaceAll("_", " ")
-  );
-}
 
 function StatTile({
   icon: Icon,
@@ -134,6 +126,9 @@ const railBtnOutline =
   "h-10 gap-2 rounded-2xl border-border/50 bg-background/75 px-3.5 text-sm font-medium text-foreground shadow-[0_3px_12px_rgba(0,0,0,0.05)] backdrop-blur-sm hover:border-primary/35 hover:bg-primary/[0.07] hover:text-foreground dark:bg-background/45 dark:shadow-[0_3px_12px_rgba(0,0,0,0.2)]";
 const railBtnMuted =
   "h-10 gap-2 rounded-2xl border border-border/45 bg-background/50 px-3.5 text-sm font-medium text-muted-foreground shadow-[0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-sm hover:border-rose-500/35 hover:bg-rose-500/[0.06] hover:text-rose-800 dark:hover:text-rose-300";
+/** Half-width rail buttons: French labels are long, so let them wrap inside. */
+const railBtnHalf =
+  "h-auto min-h-10 min-w-0 whitespace-normal px-2.5 py-2 text-center leading-tight";
 const railBtnActive =
   "border-primary/40 bg-primary/10 text-foreground ring-1 ring-primary/25";
 
@@ -236,8 +231,11 @@ export function QuoteProposalView({
   pdfUrl,
   shareUrl,
   heroImageSrc,
+  preview = false,
 }: Props) {
   const router = useRouter();
+  const language = quote.language;
+  const t = getQuoteCopy(language);
   const [optimisticStatus, setOptimisticStatus] = useState<
     CustomerSafeQuote["status"] | null
   >(null);
@@ -273,10 +271,10 @@ export function QuoteProposalView({
     status !== "expired" &&
     status !== "draft";
 
-  const visibleAddOns = getAddOnUpsells().filter(
+  const visibleAddOns = getAddOnUpsells(language).filter(
     (item) => !pendingKeys.has(item.key)
   );
-  const visibleServices = getServiceUpsells().filter(
+  const visibleServices = getServiceUpsells(language).filter(
     (item) => !pendingKeys.has(item.key)
   );
   const allUpsells = [...visibleAddOns, ...visibleServices];
@@ -290,6 +288,20 @@ export function QuoteProposalView({
   const hasMoreUpsells = moreAddOns.length > 0 || moreServices.length > 0;
 
   async function postAction(payload: ActionPayload): Promise<boolean> {
+    if (preview) {
+      setError(null);
+      setConfirmNote(
+        "Preview only — nothing was sent. The customer's buttons work on the live link."
+      );
+      setPanel(null);
+      setRequestingKey(null);
+      requestAnimationFrame(() =>
+        document
+          .getElementById("quote-confirm-note")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" })
+      );
+      return false;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -305,33 +317,35 @@ export function QuoteProposalView({
       } | null;
 
       if (!res.ok || !data?.ok) {
-        setError(data?.message || "Something went wrong. Please try again.");
+        setError(
+          localizeQuoteApiError(data?.message, language) || t.errorGeneric
+        );
         return false;
       }
 
       if (data.status === "accepted" || payload.action === "accept") {
         setOptimisticStatus("accepted");
-        setConfirmNote("Thank you — we’ve noted your acceptance.");
+        setConfirmNote(t.confirmAccepted);
         setCelebrateAccept(true);
       } else if (data.status === "declined" || payload.action === "decline") {
         setOptimisticStatus("declined");
-        setConfirmNote("We’ve recorded your response.");
+        setConfirmNote(t.confirmDeclined);
       } else if (payload.action === "request_changes") {
         setOptimisticStatus("revision_requested");
-        setConfirmNote("Change request sent — pending owner review.");
+        setConfirmNote(t.confirmChanges);
       } else if (payload.action === "request_add_on" && payload.sourceKey) {
         setExtraPendingKeys((prev) =>
           prev.includes(payload.sourceKey!)
             ? prev
             : [...prev, payload.sourceKey!]
         );
-        setConfirmNote("Added to quote for review — pending owner review.");
+        setConfirmNote(t.confirmAddOn);
       } else if (payload.action === "custom_request") {
-        setConfirmNote("Custom request sent — pending owner review.");
+        setConfirmNote(t.confirmCustom);
       } else if (payload.action === "ask_question") {
-        setConfirmNote("Question sent — we’ll follow up shortly.");
+        setConfirmNote(t.confirmQuestion);
       } else {
-        setConfirmNote("Request received.");
+        setConfirmNote(t.confirmGeneric);
       }
 
       setPanel(null);
@@ -340,7 +354,7 @@ export function QuoteProposalView({
       router.refresh();
       return true;
     } catch {
-      setError("Network error. Please try again.");
+      setError(t.errorNetwork);
       return false;
     } finally {
       setBusy(false);
@@ -357,7 +371,7 @@ export function QuoteProposalView({
   }
 
   const totalCard = (
-    <TotalCard quote={quote} compact />
+    <TotalCard quote={quote} t={t} compact />
   );
 
   const respondCard = canAct ? (
@@ -369,6 +383,7 @@ export function QuoteProposalView({
       acceptName={acceptName}
       setAcceptName={setAcceptName}
       busy={busy}
+      t={t}
       onAction={(payload) => void postAction(payload)}
     />
   ) : null;
@@ -378,6 +393,7 @@ export function QuoteProposalView({
       value={customMessage}
       onChange={setCustomMessage}
       busy={busy}
+      t={t}
       onSubmit={() =>
         void postAction({
           action: "custom_request",
@@ -394,6 +410,8 @@ export function QuoteProposalView({
       pdfUrl={pdfUrl}
       shareUrl={shareUrl}
       quoteRef={quote.quote_display_ref}
+      t={t}
+      language={language}
     />
   );
 
@@ -430,7 +448,7 @@ export function QuoteProposalView({
                 />
                 <div className="min-w-0">
                   <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-                    Proposal
+                    {t.proposal}
                   </p>
                   <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                     {quote.quote_display_ref}
@@ -441,17 +459,16 @@ export function QuoteProposalView({
                       const rev = getCustomerRevisionNumber(
                         quote.revision_number
                       );
-                      return rev ? ` · Revision ${rev}` : "";
+                      return rev ? ` · ${t.revision(rev)}` : "";
                     })()}
                   </p>
                 </div>
               </div>
-              <QuoteStatusBadge status={status} />
+              <QuoteStatusBadge status={status} language={language} />
             </div>
 
             <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
-              A tailored draping plan from {siteConfig.name} for your event —
-              reviewed and refined with our team.
+              {t.tagline(siteConfig.name)}
             </p>
           </div>
 
@@ -482,21 +499,20 @@ export function QuoteProposalView({
             <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-300" />
             <div>
               <p className="font-heading text-lg font-semibold text-foreground">
-                Proposal accepted
+                {t.acceptedTitle}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Thank you
+                {t.acceptedThanks}
                 {quote.accepted_by_name || acceptName.trim() ? (
                   <>
                     {" "}
-                    — accepted by{" "}
+                    — {t.acceptedBy}{" "}
                     <span className="font-medium text-foreground">
                       {quote.accepted_by_name || acceptName.trim()}
                     </span>
                   </>
                 ) : null}
-                . Our team will confirm next steps for delivery, installation,
-                and teardown.
+                {t.acceptedNext}
               </p>
             </div>
           </div>
@@ -509,20 +525,20 @@ export function QuoteProposalView({
             <XCircle className="mt-0.5 size-5 shrink-0 text-rose-300" />
             <div>
               <p className="font-heading text-lg font-semibold text-foreground">
-                Proposal declined
+                {t.declinedTitle}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                We’ve recorded your response
+                {t.declinedRecorded}
                 {quote.declined_by_name ? (
                   <>
                     {" "}
-                    — declined by{" "}
+                    — {t.declinedBy}{" "}
                     <span className="font-medium text-foreground">
                       {quote.declined_by_name}
                     </span>
                   </>
                 ) : null}
-                . Reach out anytime if you’d like to revisit the plan.
+                {t.declinedNext}
               </p>
             </div>
           </div>
@@ -531,7 +547,8 @@ export function QuoteProposalView({
 
       {confirmNote ? (
         <div
-          className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary"
+          id="quote-confirm-note"
+          className="scroll-mt-24 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary"
           role="status"
         >
           {confirmNote}
@@ -551,34 +568,34 @@ export function QuoteProposalView({
         <div className="min-w-0 space-y-5 sm:space-y-6">
           <GlassSection
             icon={PartyPopper}
-            title="Event summary"
-            description="The details this proposal is built around."
+            title={t.eventSummaryTitle}
+            description={t.eventSummaryDescription}
           >
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               <StatTile
                 icon={Sparkles}
-                label="Event"
-                value={quote.event_type || "TBD"}
+                label={t.statEvent}
+                value={quoteEventTypeLabel(quote.event_type, language) || t.tbd}
               />
               <StatTile
                 icon={Calendar}
-                label="Date"
-                value={formatQuoteDate(quote.event_date)}
+                label={t.statDate}
+                value={formatQuoteDate(quote.event_date, language, t.tbd)}
               />
               <StatTile
                 icon={MapPin}
-                label="Venue"
-                value={quote.venue_name || "TBD"}
+                label={t.statVenue}
+                value={quote.venue_name || t.tbd}
               />
               <StatTile
                 icon={MapPin}
-                label="City"
-                value={quote.city_area || "TBD"}
+                label={t.statCity}
+                value={quote.city_area || t.tbd}
               />
               <StatTile
                 icon={Calendar}
-                label="Valid until"
-                value={formatQuoteDate(quote.valid_until)}
+                label={t.statValidUntil}
+                value={formatQuoteDate(quote.valid_until, language, t.tbd)}
               />
             </div>
           </GlassSection>
@@ -591,21 +608,21 @@ export function QuoteProposalView({
 
           <GlassSection
             icon={FileText}
-            title="What’s included"
-            description="Priced and included items in this proposal."
+            title={t.includedTitle}
+            description={t.includedDescription}
           >
             <div className="overflow-hidden rounded-2xl border border-border/35 bg-background/25">
               {quote.line_items.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-muted-foreground">
-                  Line items will appear here once the proposal is finalized.
+                  {t.noLineItems}
                 </p>
               ) : (
                 <>
-                  <div className="hidden border-b border-border/30 px-5 py-2.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.6fr)_72px_100px_110px] sm:gap-3">
-                    <span>Item</span>
-                    <span className="text-right">Qty</span>
-                    <span className="text-right">Unit</span>
-                    <span className="text-right">Amount</span>
+                  <div className="hidden border-b border-border/30 px-5 py-2.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.6fr)_80px_128px_110px] sm:gap-3">
+                    <span>{t.colItem}</span>
+                    <span className="text-right">{t.colQty}</span>
+                    <span className="text-right">{t.colPrice}</span>
+                    <span className="text-right">{t.colAmount}</span>
                   </div>
                   <ul className="divide-y divide-border/30">
                     {quote.line_items.map((item) => {
@@ -615,7 +632,7 @@ export function QuoteProposalView({
                       return (
                         <li
                           key={item.id}
-                          className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1.6fr)_72px_100px_110px] sm:items-center sm:gap-3 sm:px-5"
+                          className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1.6fr)_80px_128px_110px] sm:items-center sm:gap-3 sm:px-5"
                         >
                           <div className="flex min-w-0 gap-3">
                             <div
@@ -644,43 +661,47 @@ export function QuoteProposalView({
                               </p>
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="inline-flex rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-primary">
-                                  {categoryLabel(item.category)}
+                                  {quoteLineCategoryLabel(item, language)}
                                 </span>
-                                <QuoteLineStatusBadge status={item.status} />
+                                <QuoteLineStatusBadge
+                                  status={item.status}
+                                  language={language}
+                                />
                                 {item.is_taxable !== false ? (
                                   <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                                    Taxable
+                                    {t.taxable}
                                   </span>
                                 ) : (
                                   <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-muted-foreground">
-                                    Non-taxable
+                                    {t.nonTaxable}
                                   </span>
                                 )}
                               </div>
                               <p className="text-xs text-muted-foreground sm:hidden">
-                                Qty {item.quantity}
+                                {t.qtyShort}{" "}
+                                {formatQuoteQuantity(item.quantity, item.unit_label, language)}
                                 {showMoney
-                                  ? ` · ${formatCadFromCents(item.unit_price_cents)} each`
+                                  ? ` · ${formatQuoteUnitPrice(item.unit_price_cents, item.unit_label || "each", language)}`
                                   : ""}
                               </p>
                             </div>
                           </div>
                           <p className="hidden text-right text-sm tabular-nums text-foreground sm:block">
-                            {item.quantity}
+                            {formatQuoteQuantity(item.quantity, item.unit_label, language)}
                           </p>
                           <p className="hidden text-right text-sm tabular-nums text-muted-foreground sm:block">
                             {showMoney
-                              ? formatCadFromCents(item.unit_price_cents)
+                              ? formatQuoteUnitPrice(item.unit_price_cents, item.unit_label, language)
                               : "—"}
                           </p>
                           <div className="text-left sm:text-right">
                             {included ? (
                               <p className="text-sm font-medium text-primary">
-                                Included
+                                {t.included}
                               </p>
                             ) : showMoney ? (
                               <p className="font-heading text-base font-semibold tabular-nums text-foreground sm:text-lg">
-                                {formatCadFromCents(item.line_total_cents)}
+                                {formatCadFromCents(item.line_total_cents, language)}
                               </p>
                             ) : (
                               <p className="text-sm text-muted-foreground">—</p>
@@ -692,7 +713,11 @@ export function QuoteProposalView({
                   </ul>
                   <div className="border-t border-border/40 bg-background/25 px-4 py-4 sm:px-5">
                     <div className="ml-auto w-full max-w-sm">
-                      <QuoteTaxBreakdown quote={quote} variant="customer" />
+                      <QuoteTaxBreakdown
+                        quote={quote}
+                        variant="customer"
+                        language={language}
+                      />
                     </div>
                   </div>
                 </>
@@ -703,8 +728,8 @@ export function QuoteProposalView({
           {quote.requests.length > 0 ? (
             <GlassSection
               icon={MessageSquarePlus}
-              title="Your requests"
-              description="Options and questions you’ve shared for review."
+              title={t.requestsTitle}
+              description={t.requestsDescription}
             >
               <div className="space-y-2">
                 {quote.requests.map((req) => (
@@ -723,7 +748,10 @@ export function QuoteProposalView({
                           </p>
                         ) : null}
                       </div>
-                      <QuoteRequestStatusBadge status={req.status} />
+                      <QuoteRequestStatusBadge
+                        status={req.status}
+                        language={language}
+                      />
                     </div>
                     {req.owner_response ? (
                       <p className="mt-3 rounded-xl border border-border/30 bg-background/40 px-3 py-2 text-sm text-muted-foreground">
@@ -744,28 +772,27 @@ export function QuoteProposalView({
               />
               <div className="relative">
                 <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
-                  Notes for you
+                  {t.notesForYou}
                 </p>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                  {quote.customer_notes ||
-                    "No additional notes on this proposal."}
+                  {quote.customer_notes || t.noNotes}
                 </p>
               </div>
             </div>
             <GlassSection
               icon={FileText}
-              title="Terms & conditions"
-              description="The same numbered list that prints on your proposal PDF."
+              title={t.termsTitle}
+              description={t.termsDescription}
             >
-              <QuoteTermsList terms={quote.terms} />
+              <QuoteTermsList terms={quote.terms} emptyText={t.noTerms} />
             </GlassSection>
           </div>
 
           {canAct && featuredUpsells.length > 0 ? (
             <GlassSection
               icon={Sparkles}
-              title="Review options"
-              description="A few enhancements we can price into this proposal."
+              title={t.optionsTitle}
+              description={t.optionsDescription}
             >
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {featuredUpsells.map((item) => (
@@ -775,6 +802,7 @@ export function QuoteProposalView({
                     busy={busy && requestingKey === item.key}
                     disabled={busy}
                     onRequest={() => void requestUpsell(item)}
+                    t={t}
                     compact
                   />
                 ))}
@@ -784,7 +812,7 @@ export function QuoteProposalView({
                 <details className="group mt-4 rounded-2xl border border-border/35 bg-background/25 open:bg-background/35">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
                     <span>
-                      Browse more options
+                      {t.browseMore}
                       <span className="ml-2 text-muted-foreground">
                         ({moreAddOns.length + moreServices.length})
                       </span>
@@ -795,7 +823,7 @@ export function QuoteProposalView({
                     {moreAddOns.length > 0 ? (
                       <div>
                         <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
-                          Add-ons
+                          {t.addOns}
                         </p>
                         <div className="grid gap-3 sm:grid-cols-2">
                           {moreAddOns.map((item) => (
@@ -805,6 +833,7 @@ export function QuoteProposalView({
                               busy={busy && requestingKey === item.key}
                               disabled={busy}
                               onRequest={() => void requestUpsell(item)}
+                              t={t}
                               compact
                             />
                           ))}
@@ -814,7 +843,7 @@ export function QuoteProposalView({
                     {moreServices.length > 0 ? (
                       <div>
                         <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
-                          Related services
+                          {t.relatedServices}
                         </p>
                         <div className="grid gap-3 sm:grid-cols-2">
                           {moreServices.map((item) => (
@@ -824,6 +853,7 @@ export function QuoteProposalView({
                               busy={busy && requestingKey === item.key}
                               disabled={busy}
                               onRequest={() => void requestUpsell(item)}
+                              t={t}
                               compact
                             />
                           ))}
@@ -856,9 +886,11 @@ export function QuoteProposalView({
 
 function TotalCard({
   quote,
+  t,
   compact,
 }: {
   quote: CustomerSafeQuote;
+  t: QuoteCopy;
   compact?: boolean;
 }) {
   return (
@@ -876,7 +908,7 @@ function TotalCard({
       <div className="relative space-y-4">
         <div className="border-b border-border/35 pb-4">
           <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-            Proposal total · CAD
+            {t.totalTitle}
           </p>
           <p
             className={cn(
@@ -884,14 +916,18 @@ function TotalCard({
               compact ? "text-3xl" : "text-4xl"
             )}
           >
-            {formatCadFromCents(quote.total_cents)}
+            {formatCadFromCents(quote.total_cents, quote.language)}
           </p>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-            Based on priced and included line items.
+            {t.totalHint}
           </p>
         </div>
         <div className="rounded-2xl border border-border/35 bg-background/30 p-3.5 backdrop-blur-sm">
-          <QuoteTaxBreakdown quote={quote} variant="customer" />
+          <QuoteTaxBreakdown
+            quote={quote}
+            variant="customer"
+            language={quote.language}
+          />
         </div>
       </div>
     </section>
@@ -906,6 +942,7 @@ function RespondCard({
   acceptName,
   setAcceptName,
   busy,
+  t,
   onAction,
 }: {
   panel: ActionPanel;
@@ -915,6 +952,7 @@ function RespondCard({
   acceptName: string;
   setAcceptName: (value: string) => void;
   busy: boolean;
+  t: QuoteCopy;
   onAction: (payload: ActionPayload) => void;
 }) {
   return (
@@ -926,8 +964,8 @@ function RespondCard({
       <div className="relative">
         <SectionHeader
           icon={CheckCircle2}
-          title="Respond"
-          description="Accept, request changes, decline, or ask a question."
+          title={t.respondTitle}
+          description={t.respondDescription}
           compact
           embedded
         />
@@ -940,13 +978,14 @@ function RespondCard({
             onClick={() => setPanel(panel === "accept" ? null : "accept")}
           >
             <CheckCircle2 className="size-4" />
-            Accept proposal
+            {t.accept}
           </Button>
           <Button
             type="button"
             variant="outline"
             className={cn(
               railBtnOutline,
+              railBtnHalf,
               panel === "request_changes" && railBtnActive
             )}
             disabled={busy}
@@ -956,13 +995,14 @@ function RespondCard({
             }
           >
             <PencilLine className="size-4" />
-            Request changes
+            {t.requestChanges}
           </Button>
           <Button
             type="button"
             variant="outline"
             className={cn(
               railBtnOutline,
+              railBtnHalf,
               panel === "ask_question" && railBtnActive
             )}
             disabled={busy}
@@ -972,7 +1012,7 @@ function RespondCard({
             }
           >
             <HelpCircle className="size-4" />
-            Ask a question
+            {t.askQuestion}
           </Button>
           <Button
             type="button"
@@ -988,27 +1028,27 @@ function RespondCard({
             onClick={() => setPanel(panel === "decline" ? null : "decline")}
           >
             <XCircle className="size-4" />
-            Decline
+            {t.decline}
           </Button>
         </div>
 
         {panel === "accept" ? (
           <div className="mt-3 space-y-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-3.5">
             <p className="text-xs text-muted-foreground">
-              Confirm you’d like to move forward as outlined.
+              {t.acceptConfirmHint}
             </p>
             <div className="space-y-2">
-              <Label htmlFor="quote-accept-name">Full name</Label>
+              <Label htmlFor="quote-accept-name">{t.fullName}</Label>
               <Input
                 id="quote-accept-name"
                 value={acceptName}
                 onChange={(e) => setAcceptName(e.target.value)}
                 autoComplete="name"
-                placeholder="Your full name"
+                placeholder={t.fullNamePlaceholder}
                 disabled={busy}
               />
               <p className="text-[11px] text-muted-foreground">
-                We’ll record who accepted this proposal.
+                {t.acceptRecordHint}
               </p>
             </div>
             <LoadingButton
@@ -1016,7 +1056,7 @@ function RespondCard({
               className={cn(railBtnPrimary, "w-full")}
               disabled={acceptName.trim().length < 2}
               isLoading={busy}
-              loadingText="Sending…"
+              loadingText={t.sending}
               icon={<CheckCircle2 className="size-4" />}
               onClick={() =>
                 onAction({
@@ -1025,27 +1065,27 @@ function RespondCard({
                 })
               }
             >
-              Confirm acceptance
+              {t.confirmAcceptance}
             </LoadingButton>
           </div>
         ) : null}
 
         {panel === "request_changes" ? (
           <div className="mt-3 space-y-3 rounded-2xl border border-border/40 bg-background/40 p-3.5">
-            <Label htmlFor="quote-changes">What would you like adjusted?</Label>
+            <Label htmlFor="quote-changes">{t.changesLabel}</Label>
             <Textarea
               id="quote-changes"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
-              placeholder="I’d like to adjust the backdrop height…"
+              placeholder={t.changesPlaceholder}
             />
             <LoadingButton
               type="button"
               className={cn(railBtnPrimary, "w-full")}
               disabled={!message.trim()}
               isLoading={busy}
-              loadingText="Sending…"
+              loadingText={t.sending}
               icon={<Send className="size-4" />}
               onClick={() =>
                 onAction({
@@ -1054,7 +1094,7 @@ function RespondCard({
                 })
               }
             >
-              Send change request
+              {t.sendChangeRequest}
             </LoadingButton>
           </div>
         ) : null}
@@ -1062,27 +1102,27 @@ function RespondCard({
         {panel === "decline" ? (
           <div className="mt-3 space-y-3 rounded-2xl border border-rose-500/25 bg-rose-500/5 p-3.5">
             <div className="space-y-2">
-              <Label htmlFor="quote-decline-name">Full name</Label>
+              <Label htmlFor="quote-decline-name">{t.fullName}</Label>
               <Input
                 id="quote-decline-name"
                 value={acceptName}
                 onChange={(e) => setAcceptName(e.target.value)}
                 autoComplete="name"
-                placeholder="Your full name"
+                placeholder={t.fullNamePlaceholder}
                 disabled={busy}
               />
               <p className="text-[11px] text-muted-foreground">
-                We’ll record who declined this proposal.
+                {t.declineRecordHint}
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="quote-decline">Optional note</Label>
+              <Label htmlFor="quote-decline">{t.optionalNote}</Label>
               <Textarea
                 id="quote-decline"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={2}
-                placeholder="Timing no longer works…"
+                placeholder={t.declinePlaceholder}
                 disabled={busy}
               />
             </div>
@@ -1092,7 +1132,7 @@ function RespondCard({
               className="h-10 w-full gap-2 rounded-2xl px-4 text-sm font-medium shadow-[0_4px_14px_-4px_rgba(225,29,72,0.35)]"
               disabled={acceptName.trim().length < 2}
               isLoading={busy}
-              loadingText="Sending…"
+              loadingText={t.sending}
               icon={<XCircle className="size-4" />}
               onClick={() =>
                 onAction({
@@ -1102,27 +1142,27 @@ function RespondCard({
                 })
               }
             >
-              Confirm decline
+              {t.confirmDecline}
             </LoadingButton>
           </div>
         ) : null}
 
         {panel === "ask_question" ? (
           <div className="mt-3 space-y-3 rounded-2xl border border-border/40 bg-background/40 p-3.5">
-            <Label htmlFor="quote-question">Your question</Label>
+            <Label htmlFor="quote-question">{t.questionLabel}</Label>
             <Textarea
               id="quote-question"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={2}
-              placeholder="Can teardown happen the morning after?"
+              placeholder={t.questionPlaceholder}
             />
             <LoadingButton
               type="button"
               className={cn(railBtnPrimary, "w-full")}
               disabled={!message.trim()}
               isLoading={busy}
-              loadingText="Sending…"
+              loadingText={t.sending}
               icon={<Send className="size-4" />}
               onClick={() =>
                 onAction({
@@ -1131,7 +1171,7 @@ function RespondCard({
                 })
               }
             >
-              Send question
+              {t.sendQuestion}
             </LoadingButton>
           </div>
         ) : null}
@@ -1144,11 +1184,13 @@ function CustomRequestCard({
   value,
   onChange,
   busy,
+  t,
   onSubmit,
 }: {
   value: string;
   onChange: (value: string) => void;
   busy: boolean;
+  t: QuoteCopy;
   onSubmit: () => void;
 }) {
   return (
@@ -1160,19 +1202,19 @@ function CustomRequestCard({
       <div className="relative">
         <SectionHeader
           icon={MessageSquarePlus}
-          title="Something else?"
-          description="Describe a custom detail for review."
+          title={t.customTitle}
+          description={t.customDescription}
           compact
           embedded
         />
         <div className="space-y-3">
-          <Label htmlFor="quote-custom">Custom request</Label>
+          <Label htmlFor="quote-custom">{t.customLabel}</Label>
           <Textarea
             id="quote-custom"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             rows={3}
-            placeholder="Can you also add draping around the DJ area?"
+            placeholder={t.customPlaceholder}
           />
           <LoadingButton
             type="button"
@@ -1180,11 +1222,11 @@ function CustomRequestCard({
             className={cn(railBtnOutline, "w-full")}
             disabled={!value.trim()}
             isLoading={busy}
-            loadingText="Sending…"
+            loadingText={t.sending}
             icon={<Plus className="size-4" />}
             onClick={onSubmit}
           >
-            Add for review
+            {t.addForReview}
           </LoadingButton>
         </div>
       </div>
@@ -1196,10 +1238,14 @@ function ShareCard({
   pdfUrl,
   shareUrl,
   quoteRef,
+  t,
+  language,
 }: {
   pdfUrl: string;
   shareUrl: string;
   quoteRef: string;
+  t: QuoteCopy;
+  language: CustomerLanguage;
 }) {
   return (
     <section className={cn(glassCardClass, "p-4 sm:p-5")}>
@@ -1210,19 +1256,24 @@ function ShareCard({
       <div className="relative">
         <SectionHeader
           icon={Download}
-          title="Share & PDF"
-          description="Send this proposal or open the PDF."
+          title={t.shareTitle}
+          description={t.shareDescription}
           compact
           embedded
         />
         <Button asChild className={cn(railBtnPrimary, "w-full")}>
           <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
             <Download className="size-4" />
-            View PDF
+            {t.viewPdf}
           </a>
         </Button>
         <div className="mt-3 border-t border-border/30 pt-3">
-          <QuoteShareBar shareUrl={shareUrl} quoteRef={quoteRef} elevated />
+          <QuoteShareBar
+            shareUrl={shareUrl}
+            quoteRef={quoteRef}
+            language={language}
+            elevated
+          />
         </div>
       </div>
     </section>
@@ -1234,12 +1285,14 @@ function UpsellCard({
   busy,
   disabled,
   onRequest,
+  t,
   compact,
 }: {
   item: QuoteUpsellItem;
   busy: boolean;
   disabled: boolean;
   onRequest: () => void;
+  t: QuoteCopy;
   compact?: boolean;
 }) {
   const Icon = item.icon ?? Sparkles;
@@ -1261,7 +1314,7 @@ function UpsellCard({
             {item.description}
           </p>
           <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.12em] text-amber-800/90 dark:text-amber-300/90">
-            Pending owner review after request
+            {t.pendingAfterRequest}
           </p>
         </div>
       </div>
@@ -1271,11 +1324,11 @@ function UpsellCard({
         className={cn(railBtnOutline, "mt-3 w-full")}
         disabled={disabled && !busy}
         isLoading={busy}
-        loadingText="Sending…"
+        loadingText={t.sending}
         icon={<Plus className="size-4" />}
         onClick={onRequest}
       >
-        Add for review
+        {t.addForReview}
       </LoadingButton>
     </div>
   );

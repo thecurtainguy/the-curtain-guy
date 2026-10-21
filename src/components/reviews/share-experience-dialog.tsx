@@ -20,14 +20,8 @@ import { siteConfig } from "@/data/site";
 import { StarRatingInput } from "@/components/reviews/star-rating-input";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { BrandDialogContent } from "@/components/ui/brand-dialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -35,6 +29,8 @@ import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { ReviewSubmissionData } from "@/lib/review-submission-schema";
+
+const FORM_ID = "share-experience-form";
 
 const emptyForm: ReviewSubmissionData = {
   name: "",
@@ -196,23 +192,29 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
       }}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="flex h-[min(94vh,960px)] max-h-[min(94vh,960px)] flex-col gap-0 overflow-hidden border-border/50 bg-background p-0 sm:max-w-2xl">
-        <div className="shrink-0 border-b border-border/40 bg-gradient-to-br from-primary/10 via-card/40 to-transparent px-6 py-5 sm:px-7">
-          <DialogHeader className="gap-2 text-left">
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-              {t("eyebrow")}
-            </p>
-            <DialogTitle className="font-heading text-2xl font-semibold text-foreground">
-              {t("title")}
-            </DialogTitle>
-            <DialogDescription className="max-w-xl text-sm leading-relaxed">
-              {t("description")}
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-
+      <BrandDialogContent
+        icon={MessageSquareQuote}
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
+        bodyClassName="luxury-scroll"
+        footer={
+          submitSuccess ? undefined : (
+            <LoadingButton
+              type="submit"
+              form={FORM_ID}
+              className="w-full min-h-11 gap-2"
+              isLoading={isSubmitting}
+              loadingText={t("submitting")}
+            >
+              <Star className="size-4" />
+              {t("submit")}
+            </LoadingButton>
+          )
+        }
+      >
         {submitSuccess ? (
-          <div className="luxury-scroll flex-1 overflow-y-auto px-6 py-8 sm:px-7">
+          <div className="py-3">
             <div className="rounded-3xl border border-emerald-500/25 bg-emerald-500/10 p-6 text-center">
               <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
                 <CheckCircle2 className="size-7" />
@@ -236,11 +238,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
             </div>
           </div>
         ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="flex min-h-0 flex-1 flex-col"
-            noValidate
-          >
+          <form id={FORM_ID} onSubmit={handleSubmit} noValidate>
             <input
               type="text"
               name="website"
@@ -252,7 +250,7 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
               className="absolute -left-[9999px] h-0 w-0 opacity-0"
             />
 
-            <div className="luxury-scroll flex-1 overflow-y-auto px-6 py-5 sm:px-7">
+            <div>
               <div className="space-y-4">
             <SectionCard icon={UserRound} eyebrow={t("aboutEyebrow")} title={t("aboutTitle")}>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -549,21 +547,9 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
             ) : null}
               </div>
             </div>
-
-            <div className="shrink-0 border-t border-border/40 bg-background/95 px-6 py-4 backdrop-blur sm:px-7">
-              <LoadingButton
-                type="submit"
-                className="w-full min-h-11 gap-2"
-                isLoading={isSubmitting}
-                loadingText={t("submitting")}
-              >
-                <Star className="size-4" />
-                {t("submit")}
-              </LoadingButton>
-            </div>
           </form>
         )}
-      </DialogContent>
+      </BrandDialogContent>
     </Dialog>
   );
 }

@@ -13,6 +13,8 @@ export type EventPlanSubmissionRow = {
   plan_number: number | null;
   created_at: string;
   updated_at: string;
+  /** Site language at submission ("en" | "fr"). */
+  language?: string | null;
   contact_name: string;
   contact_email: string;
   contact_phone: string | null;

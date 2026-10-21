@@ -1,4 +1,6 @@
+import type { CustomerLanguage } from "@/data/customer-language";
 import { formatJobRef, type EventJobRow } from "@/data/jobs";
+import { formatQuoteDate, labelWithColon } from "@/data/quote-copy";
 import { emailDarkBrandHeaderHtml } from "@/lib/email-brand";
 import {
   getEstimateNotifyTo,
@@ -15,9 +17,44 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function brandShell(title: string, innerHtml: string): string {
+const JOB_CONFIRMED_COPY = {
+  en: {
+    subject: (ref: string) => `Your Curtain Guy event is confirmed — ${ref}`,
+    title: (ref: string) => `Your event is confirmed — ${ref}`,
+    intro: "Your booked event is now available in your Curtain Guy account.",
+    eventDate: "Event date",
+    venue: "Venue",
+    accountLink: "View your event details and send updates in your account:",
+    button: "View your event",
+    followUp:
+      "We will follow up with install and teardown scheduling as planning continues.",
+    footer: "Montreal event drape rental · thecurtainguy.com",
+  },
+  fr: {
+    subject: (ref: string) =>
+      `Votre événement The Curtain Guy est confirmé — ${ref}`,
+    title: (ref: string) => `Votre événement est confirmé — ${ref}`,
+    intro:
+      "Votre événement réservé est maintenant disponible dans votre compte The Curtain Guy.",
+    eventDate: "Date de l’événement",
+    venue: "Lieu",
+    accountLink:
+      "Consultez les détails de votre événement et envoyez vos mises à jour dans votre compte :",
+    button: "Voir mon événement",
+    followUp:
+      "Nous vous contacterons pour planifier l’installation et le démontage au fil de la préparation.",
+    footer: "Location de drapage événementiel à Montréal · thecurtainguy.com",
+  },
+} as const;
+
+function brandShell(
+  title: string,
+  innerHtml: string,
+  language: CustomerLanguage = "en"
+): string {
+  const footer = JOB_CONFIRMED_COPY[language].footer;
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${language}">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
 <body style="margin:0;padding:0;background:#0b0d12;font-family:Georgia,'Times New Roman',serif;">
   <div style="max-width:640px;margin:0 auto;padding:28px 16px;">
@@ -26,7 +63,7 @@ function brandShell(title: string, innerHtml: string): string {
       <h1 style="margin:0 0 18px;font-size:26px;line-height:1.25;color:#f8f5ec;">${escapeHtml(title)}</h1>
       ${innerHtml}
     </div>
-    <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#8b909a;">Montreal event drape rental · thecurtainguy.com</p>
+    <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#8b909a;">${escapeHtml(footer)}</p>
   </div>
 </body>
 </html>`;
@@ -35,49 +72,58 @@ function brandShell(title: string, innerHtml: string): string {
 export async function sendJobConfirmedEmail(input: {
   apiKey: string;
   job: EventJobRow;
+  language?: CustomerLanguage;
 }): Promise<void> {
   const { job, apiKey } = input;
   const to = job.customer_email?.trim();
   if (!to) return;
+  const language = input.language ?? "en";
+  const c = JOB_CONFIRMED_COPY[language];
+  const colon = (label: string) => labelWithColon(label, language);
+  const eventDate = job.event_date
+    ? formatQuoteDate(job.event_date, language, job.event_date)
+    : null;
 
   const siteUrl = getSiteUrl().replace(/\/$/, "");
   const accountUrl = `${siteUrl}/account/events/${job.id}`;
   const ref = formatJobRef(job.opportunity_ref);
 
   const text = [
-    `Your Curtain Guy event is confirmed — ${job.opportunity_ref}`,
+    c.subject(job.opportunity_ref),
     "",
     ref,
-    job.event_date ? `Event date: ${job.event_date}` : "",
-    job.venue_name ? `Venue: ${job.venue_name}` : "",
+    eventDate ? `${colon(c.eventDate)} ${eventDate}` : "",
+    job.venue_name ? `${colon(c.venue)} ${job.venue_name}` : "",
     "",
-    "View your event details and send updates in your account:",
+    c.accountLink,
     accountUrl,
     "",
-    "We will follow up with install and teardown scheduling as planning continues.",
+    c.followUp,
   ]
     .filter(Boolean)
     .join("\n");
 
   const html = brandShell(
-    `Your event is confirmed — ${escapeHtml(job.opportunity_ref)}`,
+    c.title(job.opportunity_ref),
     `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#d8dce3;">
-      Your booked event is now available in your Curtain Guy account.
+      ${escapeHtml(c.intro)}
     </p>
     <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#aeb4bf;">
-      ${job.event_date ? `Event date: <strong style="color:#f8f5ec;">${escapeHtml(job.event_date)}</strong><br/>` : ""}
-      ${job.venue_name ? `Venue: ${escapeHtml(job.venue_name)}` : ""}
+      ${eventDate ? `${escapeHtml(colon(c.eventDate))} <strong style="color:#f8f5ec;">${escapeHtml(eventDate)}</strong><br/>` : ""}
+      ${job.venue_name ? `${escapeHtml(colon(c.venue))} ${escapeHtml(job.venue_name)}` : ""}
     </p>
     <p style="margin:0 0 18px;">
-      <a href="${escapeHtml(accountUrl)}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#d4af37;color:#0b0d12;font-size:14px;font-weight:600;text-decoration:none;">View your event</a>
-    </p>`
+      <a href="${escapeHtml(accountUrl)}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#d4af37;color:#0b0d12;font-size:14px;font-weight:600;text-decoration:none;">${escapeHtml(c.button)}</a>
+    </p>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:#8b909a;">${escapeHtml(c.followUp)}</p>`,
+    language
   );
 
   await sendResendEmail({
     apiKey,
     from: getQuoteFrom(),
     to: [to],
-    subject: `Your Curtain Guy event is confirmed — ${job.opportunity_ref}`,
+    subject: c.subject(job.opportunity_ref),
     text,
     html,
     logLabel: "jobs",

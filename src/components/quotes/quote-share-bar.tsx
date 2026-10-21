@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Check, Copy, Mail, MessageCircle, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { CustomerLanguage } from "@/data/customer-language";
+import { getQuoteCopy } from "@/data/quote-copy";
 import { siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +14,7 @@ type QuoteShareBarProps = {
   className?: string;
   /** Taller glass-style actions for proposal rail */
   elevated?: boolean;
+  language?: CustomerLanguage;
 };
 
 const elevatedBtn =
@@ -22,16 +25,16 @@ export function QuoteShareBar({
   quoteRef,
   className,
   elevated = false,
+  language = "en",
 }: QuoteShareBarProps) {
   const [copied, setCopied] = useState(false);
+  const t = getQuoteCopy(language);
 
   const subject = encodeURIComponent(`${quoteRef} · ${siteConfig.name}`);
-  const body = encodeURIComponent(
-    `Here is the draping proposal from ${siteConfig.name}:\n\n${shareUrl}`
-  );
+  const body = encodeURIComponent(t.shareMailBody(siteConfig.name, shareUrl));
   const mailHref = `mailto:?subject=${subject}&body=${body}`;
   const whatsappHref = `https://wa.me/?text=${encodeURIComponent(
-    `${quoteRef} from ${siteConfig.name}: ${shareUrl}`
+    t.shareWhatsApp(quoteRef, siteConfig.name, shareUrl)
   )}`;
 
   async function copyLink() {
@@ -49,7 +52,7 @@ export function QuoteShareBar({
       try {
         await navigator.share({
           title: quoteRef,
-          text: `Draping proposal from ${siteConfig.name}`,
+          text: t.shareNativeText(siteConfig.name),
           url: shareUrl,
         });
         return;
@@ -74,12 +77,12 @@ export function QuoteShareBar({
           ) : (
             <Copy className="size-4" />
           )}
-          {copied ? "Copied" : "Copy link"}
+          {copied ? t.copied : t.copyLink}
         </Button>
         <Button asChild variant="outline" className={cn(elevatedBtn, "w-full")}>
           <a href={mailHref}>
             <Mail className="size-4" />
-            Email
+            {t.email}
           </a>
         </Button>
         <Button asChild variant="outline" className={cn(elevatedBtn, "w-full")}>
@@ -95,7 +98,7 @@ export function QuoteShareBar({
           onClick={() => void nativeShare()}
         >
           <Share2 className="size-4" />
-          Share
+          {t.share}
         </Button>
       </div>
     );
@@ -110,12 +113,12 @@ export function QuoteShareBar({
         onClick={() => void copyLink()}
       >
         {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-        {copied ? "Copied" : "Copy link"}
+        {copied ? t.copied : t.copyLink}
       </Button>
       <Button asChild variant="outline" size="sm">
         <a href={mailHref}>
           <Mail className="size-3.5" />
-          Email
+          {t.email}
         </a>
       </Button>
       <Button asChild variant="outline" size="sm">
@@ -131,7 +134,7 @@ export function QuoteShareBar({
         onClick={() => void nativeShare()}
       >
         <Share2 className="size-3.5" />
-        Share
+        {t.share}
       </Button>
     </div>
   );

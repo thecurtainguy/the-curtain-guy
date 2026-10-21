@@ -1,11 +1,20 @@
+import type { CustomerLanguage } from "@/data/customer-language";
 import {
+  BASE_DOCUMENT_TEXT_SLUGS,
   DOCUMENT_TEXT_DEFS,
   DOCUMENT_TEXT_SLUGS,
   MAX_DOCUMENT_TEXT_LENGTH,
   getDocumentTextDefault,
   isDocumentTextSlug,
+  localizedDocumentTextSlug,
+  type BaseDocumentTextSlug,
   type DocumentTextSlug,
 } from "@/data/document-texts";
+import {
+  DEFAULT_QUOTE_TERMS,
+  DEFAULT_QUOTE_TERMS_FR,
+  splitQuoteTerms,
+} from "@/data/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export type DocumentTextRow = {
@@ -94,11 +103,56 @@ export async function getDocumentText(
   return map[slug];
 }
 
+/** Document texts keyed by base slug, resolved for one customer language. */
+export async function getLocalizedDocumentTexts(
+  language: CustomerLanguage
+): Promise<Record<BaseDocumentTextSlug, string>> {
+  const map = await getDocumentTextsMap();
+  const result = {} as Record<BaseDocumentTextSlug, string>;
+  for (const slug of BASE_DOCUMENT_TEXT_SLUGS) {
+    result[slug] = map[localizedDocumentTextSlug(slug, language)];
+  }
+  return result;
+}
+
+export async function getLocalizedDocumentText(
+  slug: BaseDocumentTextSlug,
+  language: CustomerLanguage
+): Promise<string> {
+  return getDocumentText(localizedDocumentTextSlug(slug, language));
+}
+
 export async function resolveQuoteTerms(
-  stored: string | null | undefined
+  stored: string | null | undefined,
+  language: CustomerLanguage = "en"
 ): Promise<string> {
   if (stored?.trim()) return stored.trim();
-  return getDocumentText("quote.terms");
+  return getLocalizedDocumentText("quote.terms", language);
+}
+
+/**
+ * Terms for viewing a quote in another language: default terms follow the
+ * view language; custom terms stay as written.
+ */
+export async function resolveQuoteTermsForView(
+  stored: string | null | undefined,
+  quoteLanguage: CustomerLanguage,
+  viewLanguage: CustomerLanguage
+): Promise<string> {
+  if (viewLanguage === quoteLanguage || !stored?.trim()) {
+    return resolveQuoteTerms(stored, viewLanguage);
+  }
+  const normalize = (value: string) =>
+    splitQuoteTerms(value).join("\n").trim();
+  const storedTerms = normalize(stored);
+  const quoteDefaults = [
+    await getLocalizedDocumentText("quote.terms", quoteLanguage),
+    quoteLanguage === "fr" ? DEFAULT_QUOTE_TERMS_FR : DEFAULT_QUOTE_TERMS,
+  ].map(normalize);
+  if (quoteDefaults.includes(storedTerms)) {
+    return getLocalizedDocumentText("quote.terms", viewLanguage);
+  }
+  return stored.trim();
 }
 
 export async function upsertDocumentText(input: {

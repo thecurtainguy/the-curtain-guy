@@ -16,6 +16,10 @@ import {
   ESTIMATE_MAX_FILES,
 } from "@/lib/estimate-files";
 import { getResendApiKey, getSupabaseServerConfig } from "@/lib/env";
+import {
+  detectRequestLanguage,
+  rememberPreferredLanguage,
+} from "@/lib/request-language";
 
 type EstimateViewerRole = "guest" | "customer" | "owner";
 
@@ -132,10 +136,13 @@ export async function POST(request: NextRequest) {
     currentProfile?.profile.role
   );
 
+  const language = detectRequestLanguage(request);
+
   const insertResult = await insertEstimateRequest(
     supabaseConfig,
     data,
     {
+      language,
       submittedFromUrl:
         request.headers.get("referer") ?? request.headers.get("origin"),
       userAgent: request.headers.get("user-agent"),
@@ -153,6 +160,10 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+  }
+
+  if (viewerRole === "customer") {
+    await rememberPreferredLanguage(authUser?.id, language);
   }
 
   const resendApiKey = getResendApiKey();
@@ -183,6 +194,7 @@ export async function POST(request: NextRequest) {
         data,
         apiKey: resendApiKey,
         fileCount: expectedFileCount,
+        language,
       });
     } catch {
       customerEmailFailed = true;

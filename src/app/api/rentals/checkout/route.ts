@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { RentalCartLine } from "@/data/rentals";
 import { isHoneypotTriggered } from "@/lib/estimate-server";
 import { submitRentalsCheckout } from "@/lib/rentals-checkout";
+import { detectRequestLanguage } from "@/lib/request-language";
 
 export const runtime = "nodejs";
 
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
     lines,
     submittedFromUrl: request.headers.get("referer"),
     userAgent: request.headers.get("user-agent"),
+    language: detectRequestLanguage(request),
   });
 
   if (!result.ok) {

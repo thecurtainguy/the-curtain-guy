@@ -23,13 +23,13 @@ import {
   PRODUCT_AVAILABILITY_STATUSES,
   type ProductAvailabilityStatus,
 } from "@/data/products";
-import { QUOTE_CATEGORY_LABELS } from "@/data/quotes";
 import { Link } from "@/i18n/navigation";
 import {
   DEFAULT_RENTALS_FILTERS,
   activeFilterCount,
   collectCatalogFacets,
   filterAndSortRentalsCatalog,
+  type RentalsCategoryOption,
   type RentalsCatalogEntry,
   type RentalsCatalogFilters,
   type RentalsSortId,
@@ -55,6 +55,7 @@ type CatalogSectionHeading = {
 
 type RentalsCatalogProps = {
   products: PublicRentalProduct[];
+  categories?: RentalsCategoryOption[];
   packagesHeading: CatalogSectionHeading;
   itemsHeading: CatalogSectionHeading;
 };
@@ -166,18 +167,21 @@ function FilterPanel({
           <p className="text-sm font-medium">{t("category")}</p>
           <div className="grid gap-2">
             {facets.categories.map((category) => {
-              const selected = filters.categories.includes(category);
+              const selected = filters.categories.includes(category.slug);
               return (
                 <FilterOptionButton
-                  key={category}
+                  key={category.slug}
                   selected={selected}
                   onSelect={() =>
                     patch({
-                      categories: toggleValue(filters.categories, category),
+                      categories: toggleValue(
+                        filters.categories,
+                        category.slug
+                      ),
                     })
                   }
                 >
-                  {QUOTE_CATEGORY_LABELS[category]}
+                  {category.label}
                 </FilterOptionButton>
               );
             })}
@@ -342,6 +346,7 @@ function FilterPanel({
 
 export function RentalsCatalog({
   products,
+  categories = [],
   packagesHeading,
   itemsHeading,
 }: RentalsCatalogProps) {
@@ -352,7 +357,10 @@ export function RentalsCatalog({
   );
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const facets = useMemo(() => collectCatalogFacets(products), [products]);
+  const facets = useMemo(
+    () => collectCatalogFacets(products, categories),
+    [products, categories]
+  );
   const filtered = useMemo(
     () => filterAndSortRentalsCatalog(products, filters),
     [products, filters]

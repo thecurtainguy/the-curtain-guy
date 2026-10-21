@@ -23,7 +23,7 @@ import {
   getNextJobStatuses,
   type JobStatus,
 } from "@/data/jobs";
-import { QUOTE_CATEGORY_LABELS, formatCadFromCents, resolveQuoteDisplayRef } from "@/data/quotes";
+import { formatCadFromCents, quoteLineCategoryLabel, resolveQuoteDisplayRef } from "@/data/quotes";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
@@ -572,7 +572,7 @@ export function AdminJobDetail({
                 <div>
                   <p className="font-medium">{item.description}</p>
                   <p className="text-xs text-muted-foreground">
-                    {QUOTE_CATEGORY_LABELS[item.category]}
+                    {quoteLineCategoryLabel(item)}
                   </p>
                 </div>
                 <p className="tabular-nums text-foreground">

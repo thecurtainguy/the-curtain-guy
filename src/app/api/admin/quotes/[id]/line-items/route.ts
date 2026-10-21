@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import {
   DEFAULT_GST_RATE,
   DEFAULT_QST_RATE,
-  isQuoteLineCategory,
   isQuoteLineStatus,
+  isValidQuoteLineCategorySlug,
   isQuoteTaxMode,
   normalizeManualTaxLines,
 } from "@/data/quotes";
@@ -55,7 +55,7 @@ export async function POST(request: Request, context: RouteContext) {
     const row = raw as Record<string, unknown>;
     const category = String(row.category || "");
     const description = String(row.description || "").trim();
-    if (!isQuoteLineCategory(category)) {
+    if (!isValidQuoteLineCategorySlug(category)) {
       return NextResponse.json(
         { ok: false, message: `Invalid category: ${category}` },
         { status: 400 }
@@ -75,8 +75,14 @@ export async function POST(request: Request, context: RouteContext) {
     items.push({
       id: typeof row.id === "string" ? row.id : undefined,
       category,
+      category_label:
+        typeof row.category_label === "string"
+          ? row.category_label.trim().slice(0, 80) || null
+          : null,
       description,
       quantity: Number(row.quantity) || 1,
+      unit_label:
+        typeof row.unit_label === "string" ? row.unit_label : null,
       unit_price_cents: Math.round(Number(row.unit_price_cents) || 0),
       status,
       customer_visible:

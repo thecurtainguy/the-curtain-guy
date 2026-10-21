@@ -7,12 +7,14 @@ export function QuoteTermsList({
   className,
   compact,
   tone = "ui",
+  emptyText = "No terms on this proposal yet.",
 }: {
   terms?: string | null;
   fallback?: string | null;
   className?: string;
   compact?: boolean;
   tone?: "ui" | "paper";
+  emptyText?: string;
 }) {
   const items = splitQuoteTerms(terms, fallback);
 
@@ -25,7 +27,7 @@ export function QuoteTermsList({
           className
         )}
       >
-        No terms on this proposal yet.
+        {emptyText}
       </p>
     );
   }

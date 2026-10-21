@@ -8,16 +8,22 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Eye,
   FileText,
   Loader2,
   Package,
   Pencil,
   Plus,
   Trash2,
+  Truck,
 } from "lucide-react";
+import { PRODUCT_UNIT_LABELS } from "@/data/products";
 import {
-  QUOTE_CATEGORY_LABELS,
-  QUOTE_LINE_CATEGORIES,
+  buildQuoteCategoryOptions,
+  type ProductCategoryRow,
+  type QuoteCategoryOption,
+} from "@/data/product-categories";
+import {
   QUOTE_LINE_STATUS_LABELS,
   QUOTE_LINE_STATUSES,
   QUOTE_TAX_MODE_LABELS,
@@ -27,13 +33,15 @@ import {
   formatCadFromCents,
   formatQuoteRevisionLabel,
   getQuoteCategoryDefaultDescription,
+  isZeroPricedQuoteLine,
   normalizeManualTaxLines,
+  formatQuoteUnitSuffix,
   percentInputToRate,
+  quoteLineCategoryLabel,
   rateToPercentInput,
   resolveQuoteDisplayRef,
   shouldAutofillQuoteDescription,
-  isQuoteLineCategory,
-  type QuoteLineCategory,
+  splitQuoteTerms,
   type QuoteLineStatus,
   type QuoteManualTaxLine,
   type QuoteRequestStatus,
@@ -45,8 +53,16 @@ import {
 } from "@/components/quotes/quote-status-badge";
 import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
 import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
+import { CustomerLanguagePicker } from "@/components/quotes/customer-language-picker";
+import { CustomerLanguageBadge } from "@/components/quotes/customer-language-badge";
+import {
+  normalizeCustomerLanguage,
+  type CustomerLanguage,
+} from "@/data/customer-language";
+import { localizedDocumentTextSlug } from "@/data/document-texts";
 import { DocumentTextPreviewButton } from "@/components/admin/document-text-preview";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
+import { AdminQuotePreviewDialog } from "@/components/admin/admin-quote-preview-dialog";
 import { AdminQuoteSendDialog } from "@/components/admin/admin-quote-send-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
@@ -73,6 +89,14 @@ import {
   AdminInventoryPickerDialog,
   type InventoryPickResult,
 } from "@/components/admin/admin-inventory-picker-dialog";
+import {
+  AdminLogisticsServiceDialog,
+  type LogisticsServicePick,
+} from "@/components/admin/admin-logistics-service-dialog";
+import {
+  QuoteLineReorderGroup,
+  QuoteLineReorderItem,
+} from "@/components/admin/quote-line-reorder";
 import Image from "next/image";
 
 type QuoteSourceEventPlan = {
@@ -83,9 +107,11 @@ type QuoteSourceEventPlan = {
 type DraftLine = {
   key: string;
   id?: string;
-  category: QuoteLineCategory;
+  category: string;
+  categoryLabel: string | null;
   description: string;
   quantity: number;
+  unitLabel: string;
   unitPriceDollars: string;
   status: QuoteLineStatus;
   isTaxable: boolean;
@@ -111,8 +137,10 @@ function linesFromQuote(quote: QuoteWithRelations): DraftLine[] {
     key: item.id,
     id: item.id,
     category: item.category,
+    categoryLabel: item.category_label ?? null,
     description: item.description,
     quantity: item.quantity,
+    unitLabel: item.unit_label?.trim() || "each",
     unitPriceDollars: centsToDollarInput(item.unit_price_cents),
     status: item.status,
     isTaxable: item.is_taxable !== false,
@@ -170,12 +198,15 @@ function toStoredManualTaxLines(
     .filter((line) => line.rate > 0 || line.label.length > 0);
 }
 
-function emptyLine(): DraftLine {
+function emptyLine(first: QuoteCategoryOption | undefined): DraftLine {
+  const category = first?.value ?? "custom";
   return {
     key: `new-${crypto.randomUUID()}`,
-    category: "drape_rental",
-    description: getQuoteCategoryDefaultDescription("drape_rental"),
+    category,
+    categoryLabel: first?.label ?? null,
+    description: getQuoteCategoryDefaultDescription(category),
     quantity: 1,
+    unitLabel: "each",
     unitPriceDollars: "0.00",
     status: "priced",
     isTaxable: true,
@@ -186,16 +217,36 @@ function emptyLine(): DraftLine {
 }
 
 function lineFromInventory(item: InventoryPickResult): DraftLine {
-  const category = isQuoteLineCategory(item.category)
-    ? item.category
-    : "custom";
   return {
     key: `new-${crypto.randomUUID()}`,
-    category,
+    category: item.category,
+    categoryLabel: item.categoryLabel,
     description: item.description,
     quantity: 1,
+    unitLabel: item.unitLabel,
     unitPriceDollars: centsToDollarInput(item.unitPriceCents),
     status: "priced",
+    isTaxable: item.isTaxable,
+    productId: item.productId,
+    imageUrl: item.imageUrl,
+    imageAlt: item.imageAlt,
+  };
+}
+
+function lineFromLogistics(item: LogisticsServicePick): DraftLine {
+  return {
+    key: `new-${crypto.randomUUID()}`,
+    category: item.category,
+    categoryLabel: item.categoryLabel,
+    description: item.description,
+    quantity: 1,
+    unitLabel: item.unitLabel,
+    unitPriceDollars: centsToDollarInput(item.unitPriceCents),
+    status: item.included
+      ? "included"
+      : item.needsPricing
+        ? "not_priced_yet"
+        : "priced",
     isTaxable: item.isTaxable,
     productId: item.productId,
     imageUrl: item.imageUrl,
@@ -208,12 +259,46 @@ export function AdminQuoteBuilder({
   initialGuestUrl = null,
   opportunityFiles = [],
   sourceEventPlan = null,
+  categories = [],
 }: {
   quote: QuoteWithRelations;
   initialGuestUrl?: string | null;
   opportunityFiles?: OpportunityFileItem[];
   sourceEventPlan?: QuoteSourceEventPlan | null;
+  categories?: ProductCategoryRow[];
 }) {
+  const categoryOptions = useMemo(
+    () => buildQuoteCategoryOptions(categories),
+    [categories]
+  );
+
+  function optionsIncluding(value: string, label: string | null) {
+    if (categoryOptions.some((option) => option.value === value)) {
+      return categoryOptions;
+    }
+    return [
+      ...categoryOptions,
+      { value, label: label || quoteLineCategoryLabel({ category: value }) },
+    ];
+  }
+
+  function unitOptionsIncluding(value: string) {
+    const options = PRODUCT_UNIT_LABELS.map((unit) => ({
+      value: unit as string,
+      label: unit === "linear ft" ? "ft (linear)" : unit,
+    }));
+    return options.some((option) => option.value === value)
+      ? options
+      : [...options, { value, label: value }];
+  }
+
+  function labelForCategory(value: string) {
+    return (
+      categoryOptions.find((option) => option.value === value)?.label ??
+      quoteLineCategoryLabel({ category: value })
+    );
+  }
+
   const eventPlanRef = sourceEventPlan
     ? formatEventPlanReference(sourceEventPlan.id, sourceEventPlan.reference)
     : null;
@@ -231,6 +316,9 @@ export function AdminQuoteBuilder({
   const [customerNotes, setCustomerNotes] = useState(quote.customer_notes ?? "");
   const [ownerNotes, setOwnerNotes] = useState(quote.owner_notes ?? "");
   const [terms, setTerms] = useState(quote.terms ?? "");
+  const [language, setLanguage] = useState<CustomerLanguage>(
+    normalizeCustomerLanguage(quote.language)
+  );
   const [lines, setLines] = useState<DraftLine[]>(() => linesFromQuote(quote));
   const [taxMode, setTaxMode] = useState<QuoteTaxMode>(
     quote.tax_mode || "quebec_gst_qst"
@@ -240,6 +328,7 @@ export function AdminQuoteBuilder({
   );
 
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [sendDialogKey, setSendDialogKey] = useState(0);
   const [revising, setRevising] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -247,11 +336,11 @@ export function AdminQuoteBuilder({
   const [publicUrl, setPublicUrl] = useState<string | null>(initialGuestUrl);
   const [copied, setCopied] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [logisticsOpen, setLogisticsOpen] = useState(false);
   const [applyingDefaultTerms, setApplyingDefaultTerms] = useState(false);
 
   const [convertFor, setConvertFor] = useState<string | null>(null);
-  const [convertCategory, setConvertCategory] =
-    useState<QuoteLineCategory>("custom");
+  const [convertCategory, setConvertCategory] = useState("custom");
   const [convertDescription, setConvertDescription] = useState("");
   const [convertQty, setConvertQty] = useState(1);
   const [convertPrice, setConvertPrice] = useState("0.00");
@@ -268,6 +357,7 @@ export function AdminQuoteBuilder({
     setCustomerNotes(source.customer_notes ?? "");
     setOwnerNotes(source.owner_notes ?? "");
     setTerms(source.terms ?? "");
+    setLanguage(normalizeCustomerLanguage(source.language));
     setLines(linesFromQuote(source));
     setTaxMode(source.tax_mode || "quebec_gst_qst");
     setManualTaxLines(manualTaxLinesFromQuote(source));
@@ -360,33 +450,65 @@ export function AdminQuoteBuilder({
       customer_notes: customerNotes,
       owner_notes: ownerNotes,
       terms,
+      language,
     };
+  }
+
+  async function fetchDefaultTerms(): Promise<Record<
+    CustomerLanguage,
+    string
+  > | null> {
+    const response = await fetch("/api/admin/document-texts");
+    const json = (await response.json()) as {
+      ok?: boolean;
+      message?: string;
+      texts?: Array<{ slug: string; body: string }>;
+    };
+    if (!response.ok || !json.ok) {
+      setError(json.message || "Could not load default terms.");
+      return null;
+    }
+    const bodyFor = (lang: CustomerLanguage) =>
+      json.texts?.find(
+        (item) => item.slug === localizedDocumentTextSlug("quote.terms", lang)
+      )?.body ?? "";
+    return { en: bodyFor("en"), fr: bodyFor("fr") };
   }
 
   async function applyDefaultTerms() {
     setApplyingDefaultTerms(true);
     setError(null);
     try {
-      const response = await fetch("/api/admin/document-texts");
-      const json = (await response.json()) as {
-        ok?: boolean;
-        message?: string;
-        texts?: Array<{ slug: string; body: string }>;
-      };
-      if (!response.ok || !json.ok) {
-        setError(json.message || "Could not load default terms.");
-        return;
-      }
-      const next = json.texts?.find((item) => item.slug === "quote.terms")?.body;
-      if (!next) {
+      const defaults = await fetchDefaultTerms();
+      if (!defaults) return;
+      if (!defaults[language]) {
         setError("Default terms are not configured.");
         return;
       }
-      setTerms(next);
+      setTerms(defaults[language]);
     } catch {
       setError("Could not load default terms.");
     } finally {
       setApplyingDefaultTerms(false);
+    }
+  }
+
+  async function changeLanguage(next: CustomerLanguage) {
+    if (next === language) return;
+    const previous = language;
+    setLanguage(next);
+    try {
+      const defaults = await fetchDefaultTerms();
+      if (!defaults?.[next]) return;
+      const same = (a: string, b: string) =>
+        splitQuoteTerms(a).join("\n") === splitQuoteTerms(b).join("\n");
+      setTerms((current) =>
+        !current.trim() || same(current, defaults[previous])
+          ? defaults[next]
+          : current
+      );
+    } catch {
+      // Keep current terms; owner can use "Use default terms".
     }
   }
 
@@ -395,8 +517,10 @@ export function AdminQuoteBuilder({
       items: lines.map((line, index) => ({
         id: line.id,
         category: line.category,
+        category_label: line.categoryLabel,
         description: line.description,
         quantity: line.quantity,
+        unit_label: line.unitLabel,
         unit_price_cents: dollarsToCents(line.unitPriceDollars),
         status: line.status,
         customer_visible: true,
@@ -544,6 +668,7 @@ export function AdminQuoteBuilder({
         body.status = "converted_to_line_item";
         body.convertToLineItem = {
           category: convertCategory,
+          category_label: labelForCategory(convertCategory),
           description: convertDescription,
           quantity: convertQty,
           unit_price_cents: dollarsToCents(convertPrice),
@@ -570,6 +695,18 @@ export function AdminQuoteBuilder({
     } finally {
       setRequestBusy(null);
     }
+  }
+
+  function moveLine(key: string, direction: -1 | 1) {
+    setLines((prev) => {
+      const from = prev.findIndex((line) => line.key === key);
+      const to = from + direction;
+      if (from < 0 || to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   }
 
   function updateLine(key: string, patch: Partial<DraftLine>) {
@@ -621,6 +758,7 @@ export function AdminQuoteBuilder({
               ) : null;
             })()}
             <QuoteStatusBadge status={quote.status} />
+            <CustomerLanguageBadge language={quote.language} />
             {sourceEventPlan && eventPlanRef ? (
               <span>
                 From event plan{" "}
@@ -686,10 +824,20 @@ export function AdminQuoteBuilder({
                   </Button>
                 </>
               ) : (
-                <Button type="button" onClick={startEditing}>
-                  <Pencil className="size-4" />
-                  Edit
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setPreviewOpen(true)}
+                  >
+                    <Eye className="size-4" />
+                    Preview as customer
+                  </Button>
+                  <Button type="button" onClick={startEditing}>
+                    <Pencil className="size-4" />
+                    Edit
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -802,6 +950,21 @@ export function AdminQuoteBuilder({
           </div>
         </div>
 
+        <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
+          <div>
+            <Label>Customer language</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Proposal page, PDF, and quote email. Default terms switch with
+              the language unless you edited them.
+            </p>
+          </div>
+          <CustomerLanguagePicker
+            value={language}
+            onChange={(next) => void changeLanguage(next)}
+            disabled={!isEditing}
+          />
+        </div>
+
         <div className="mt-4 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="customer_notes">Customer notes</Label>
@@ -895,7 +1058,18 @@ export function AdminQuoteBuilder({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setLines((prev) => [...prev, emptyLine()])}
+                onClick={() => setLogisticsOpen(true)}
+              >
+                <Truck className="size-4" />
+                Add installation / transport
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setLines((prev) => [...prev, emptyLine(categoryOptions[0])])
+                }
               >
                 <Plus className="size-4" />
                 Add row
@@ -911,26 +1085,44 @@ export function AdminQuoteBuilder({
             setLines((prev) => [...prev, lineFromInventory(item)])
           }
         />
+        <AdminLogisticsServiceDialog
+          open={logisticsOpen}
+          onOpenChange={setLogisticsOpen}
+          onPick={(item) =>
+            setLines((prev) => [...prev, lineFromLogistics(item)])
+          }
+        />
 
-        <div className="mt-4 space-y-3">
-          {lines.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-border/40 px-4 py-8 text-center text-sm text-muted-foreground">
-              {isEditing
-                ? "No line items yet. Add from inventory or add a blank row."
-                : "No line items yet."}
-            </p>
-          ) : (
-            lines.map((line) => {
+        {lines.length === 0 ? (
+          <p className="mt-4 rounded-2xl border border-dashed border-border/40 px-4 py-8 text-center text-sm text-muted-foreground">
+            {isEditing
+              ? "No line items yet. Add from inventory or add a blank row."
+              : "No line items yet."}
+          </p>
+        ) : (
+          <QuoteLineReorderGroup
+            as="div"
+            axis="y"
+            values={lines}
+            onReorder={setLines}
+            className="mt-4 space-y-3"
+          >
+            {lines.map((line) => {
               const lineTotal = computeLineTotalCents(
                 line.quantity,
                 dollarsToCents(line.unitPriceDollars)
               );
               return (
-                <div
+                <QuoteLineReorderItem
                   key={line.key}
-                  className="grid grid-cols-1 gap-3 rounded-2xl border border-border/40 bg-background/40 p-4 sm:grid-cols-[56px_minmax(0,1fr)] lg:grid-cols-[56px_210px_minmax(0,1fr)_72px_88px_128px_112px_96px] lg:items-end"
+                  value={line}
+                  enabled={isEditing && lines.length > 1}
+                  label={line.description || "line item"}
+                  onMove={(direction) => moveLine(line.key, direction)}
+                  className="rounded-2xl border border-border/40 bg-background/40 p-4 backdrop-blur-md"
                 >
-                  <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
+                <div className="grid grid-cols-1 gap-3 @min-[30rem]:grid-cols-[56px_repeat(4,minmax(0,1fr))] @min-[60rem]:grid-cols-[56px_180px_minmax(0,1fr)_168px_96px_120px_104px_88px] @min-[60rem]:items-end">
+                  <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30 @min-[30rem]:row-span-2 @min-[60rem]:row-span-1">
                     {line.imageUrl ? (
                       <Image
                         src={line.imageUrl}
@@ -946,7 +1138,7 @@ export function AdminQuoteBuilder({
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0 space-y-1.5">
+                  <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
                     <Label className="text-xs text-muted-foreground">
                       Category
                     </Label>
@@ -955,16 +1147,17 @@ export function AdminQuoteBuilder({
                       disabled={!isEditing}
                       onChange={(next) =>
                         updateLine(line.key, {
-                          category: next as QuoteLineCategory,
+                          category: next,
+                          categoryLabel: labelForCategory(next),
                         })
                       }
-                      options={QUOTE_LINE_CATEGORIES.map((cat) => ({
-                        value: cat,
-                        label: QUOTE_CATEGORY_LABELS[cat],
-                      }))}
+                      options={optionsIncluding(
+                        line.category,
+                        line.categoryLabel
+                      )}
                     />
                   </div>
-                  <div className="min-w-0 space-y-1.5 sm:col-span-2 lg:col-span-1">
+                  <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
                     <Label className="text-xs text-muted-foreground">
                       Description
                     </Label>
@@ -977,24 +1170,37 @@ export function AdminQuoteBuilder({
                       placeholder="What is included"
                     />
                   </div>
-                  <div className="min-w-0 space-y-1.5">
+                  <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
                     <Label className="text-xs text-muted-foreground">Qty</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={line.quantity}
-                      disabled={!isEditing}
-                      onChange={(e) =>
-                        updateLine(line.key, {
-                          quantity: Number(e.target.value) || 0,
-                        })
-                      }
-                    />
+                    <div className="flex gap-1.5">
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={line.quantity}
+                        disabled={!isEditing}
+                        className="w-16 shrink-0"
+                        onChange={(e) =>
+                          updateLine(line.key, {
+                            quantity: Number(e.target.value) || 0,
+                          })
+                        }
+                      />
+                      <SelectInput
+                        aria-label="Unit"
+                        value={line.unitLabel}
+                        disabled={!isEditing}
+                        className="min-w-0 flex-1"
+                        onChange={(next) =>
+                          updateLine(line.key, { unitLabel: next })
+                        }
+                        options={unitOptionsIncluding(line.unitLabel)}
+                      />
+                    </div>
                   </div>
                   <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
-                      Unit CAD
+                      CAD {formatQuoteUnitSuffix(line.unitLabel)}
                     </Label>
                     <Input
                       inputMode="decimal"
@@ -1025,7 +1231,7 @@ export function AdminQuoteBuilder({
                       }))}
                     />
                   </div>
-                  <div className="min-w-0 space-y-1.5">
+                  <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
                     <Label className="text-xs text-muted-foreground">Tax</Label>
                     <label className="flex h-8 items-center gap-2 rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm">
                       <input
@@ -1044,10 +1250,23 @@ export function AdminQuoteBuilder({
                       </span>
                     </label>
                   </div>
-                  <div className="flex min-w-0 items-end justify-between gap-2 lg:flex-col lg:items-end lg:justify-end">
-                    <p className="w-full text-right text-sm font-medium tabular-nums">
-                      {formatCadFromCents(lineTotal)}
-                    </p>
+                  <div className="flex min-w-0 items-end justify-between gap-2 @min-[30rem]:col-span-3 @min-[60rem]:col-span-1 @min-[60rem]:flex-col @min-[60rem]:items-end @min-[60rem]:justify-end">
+                    {line.status === "included" ||
+                    isZeroPricedQuoteLine({
+                      status: line.status,
+                      unit_price_cents: dollarsToCents(line.unitPriceDollars),
+                    }) ? (
+                      <p
+                        className="w-full text-right text-sm font-medium text-primary"
+                        title="$0 lines show as Included / Inclus to the customer"
+                      >
+                        Included
+                      </p>
+                    ) : (
+                      <p className="w-full text-right text-sm font-medium tabular-nums">
+                        {formatCadFromCents(lineTotal)}
+                      </p>
+                    )}
                     {isEditing ? (
                       <Button
                         type="button"
@@ -1064,14 +1283,15 @@ export function AdminQuoteBuilder({
                         <Trash2 className="size-4" />
                       </Button>
                     ) : (
-                      <span className="hidden h-8 lg:block" aria-hidden />
+                      <span className="hidden h-8 @min-[60rem]:block" aria-hidden />
                     )}
                   </div>
                 </div>
+                </QuoteLineReorderItem>
               );
-            })
-          )}
-        </div>
+            })}
+          </QuoteLineReorderGroup>
+        )}
       </section>
 
       <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
@@ -1317,8 +1537,7 @@ export function AdminQuoteBuilder({
                       <Label className="text-xs">Category</Label>
                       <SelectInput
                         value={convertCategory}
-                        onChange={(next) => {
-                          const category = next as QuoteLineCategory;
+                        onChange={(category) => {
                           setConvertCategory(category);
                           setConvertDescription((prev) =>
                             shouldAutofillQuoteDescription(prev, convertCategory)
@@ -1326,10 +1545,7 @@ export function AdminQuoteBuilder({
                               : prev
                           );
                         }}
-                        options={QUOTE_LINE_CATEGORIES.map((cat) => ({
-                          value: cat,
-                          label: QUOTE_CATEGORY_LABELS[cat],
-                        }))}
+                        options={optionsIncluding(convertCategory, null)}
                       />
                     </div>
                     <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
@@ -1485,6 +1701,14 @@ export function AdminQuoteBuilder({
           send.
         </p>
         <div className="mt-4 flex flex-col gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye className="size-4" />
+            Preview as customer
+          </Button>
           <Button type="button" onClick={() => void sendQuote()}>
             Send quote
           </Button>
@@ -1569,6 +1793,14 @@ export function AdminQuoteBuilder({
         saving={saving}
         label="Save quote"
         onSave={() => void saveAll()}
+      />
+      <AdminQuotePreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        quote={quote}
+        publicUrl={publicUrl}
+        hasUnsavedChanges={isEditing}
+        onSend={() => void sendQuote()}
       />
       {sendDialogOpen ? (
         <AdminQuoteSendDialog

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
+import {
+  isCustomerLanguage,
+  normalizeCustomerLanguage,
+} from "@/data/customer-language";
 import { formatQuoteFilenameStem } from "@/data/quotes";
+import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { getSiteUrl } from "@/lib/env";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
@@ -15,7 +20,7 @@ type RouteContext = {
   params: Promise<{ token: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { token } = await context.params;
   const quote = await fetchQuoteByPublicToken(token);
   if (!quote) {
@@ -26,7 +31,23 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   const publicUrl = buildPublicQuoteUrl(getSiteUrl(), token);
-  const safe = toCustomerSafeQuote(quote, { shareUrl: publicUrl });
+  const lang = new URL(request.url).searchParams.get("lang");
+  const quoteLanguage = normalizeCustomerLanguage(quote.language);
+  const language = isCustomerLanguage(lang) ? lang : quoteLanguage;
+  const safe = toCustomerSafeQuote(
+    language === quoteLanguage
+      ? quote
+      : {
+          ...quote,
+          language,
+          terms: await resolveQuoteTermsForView(
+            quote.terms,
+            quoteLanguage,
+            language
+          ),
+        },
+    { shareUrl: publicUrl }
+  );
   const buffer = await renderQuotePdfBuffer({
     quote: safe,
     publicUrl,

@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { APP_TIME_ZONE, type AppLocale } from "@/i18n/routing";
+import { useLocaleOverride } from "@/lib/i18n/locale-override";
 import { resolveAppLocale } from "@/lib/i18n/locale-preference";
 
 type LocaleProviderProps = {
@@ -16,7 +17,9 @@ export function LocaleProvider({
   messagesByLocale,
 }: LocaleProviderProps) {
   const pathname = usePathname();
-  const locale = useMemo(() => resolveAppLocale(pathname), [pathname]);
+  const override = useLocaleOverride(pathname);
+  const resolved = useMemo(() => resolveAppLocale(pathname), [pathname]);
+  const locale = override ?? resolved;
 
   return (
     <NextIntlClientProvider

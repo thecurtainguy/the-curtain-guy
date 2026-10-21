@@ -20,6 +20,7 @@ import {
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { Badge } from "@/components/ui/badge";
+import { useBrandConfirm } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -115,6 +116,7 @@ export function AdminDeliveryZonesEditor({
   );
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirm, confirmDialog] = useBrandConfirm();
   const [restoring, setRestoring] = useState(false);
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -333,9 +335,15 @@ export function AdminDeliveryZonesEditor({
   async function deleteZone(id: string) {
     const zone = zones.find((row) => row.id === id);
     const label = zone?.shortLabel || id;
-    const confirmed = window.confirm(
-      `Delete delivery zone “${label}”? This cannot be undone. Packages that use it as included logistics home zone must be updated first.`
-    );
+    const confirmed = await confirm({
+      icon: Trash2,
+      eyebrow: "Delivery zones",
+      title: `Delete “${label}”?`,
+      description:
+        "This cannot be undone. Packages that use it as their included logistics home zone must be updated first.",
+      confirmLabel: "Delete zone",
+      destructive: true,
+    });
     if (!confirmed) return;
 
     setDeletingId(id);
@@ -976,6 +984,7 @@ export function AdminDeliveryZonesEditor({
         }
         onSave={() => void saveAllDirty()}
       />
+      {confirmDialog}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname as useNextPathname, useRouter as useNextRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { routing, type AppLocale } from "@/i18n/routing";
 import {
@@ -15,20 +15,32 @@ import {
   resolveAppLocale,
   writeClientLocalePreference,
 } from "@/lib/i18n/locale-preference";
+import { useLocaleOverride } from "@/lib/i18n/locale-override";
 import { cn } from "@/lib/utils";
 
 export function LanguageSwitcher({ className }: { className?: string }) {
   const nextPathname = useNextPathname();
   const nextRouter = useNextRouter();
   const pathname = getPathnameWithoutLocale(nextPathname);
-  const locale = isRootOnlyPath(pathname)
-    ? (readClientLocalePreference() ?? resolveAppLocale(pathname))
-    : resolveAppLocale(nextPathname);
+  const activeLocale = useLocale() as AppLocale;
+  const pageLocale = useLocaleOverride(nextPathname);
+  const locale = pageLocale
+    ? activeLocale
+    : isRootOnlyPath(pathname)
+      ? (readClientLocalePreference() ?? resolveAppLocale(pathname))
+      : resolveAppLocale(nextPathname);
   const router = useRouter();
   const t = useTranslations("common");
 
   function switchLocale(nextLocale: AppLocale) {
     if (nextLocale === locale) return;
+
+    if (pageLocale) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("lang", nextLocale);
+      window.location.assign(url.toString());
+      return;
+    }
 
     if (isAccountAuthPath(pathname)) {
       nextRouter.push(localizeAuthHref(pathname, nextLocale));

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { createProduct, listProducts } from "@/lib/products";
+import { listColorVariantsForProducts } from "@/lib/product-colors";
 import {
   isProductAvailabilityStatus,
   isProductKind,
 } from "@/data/products";
-import { isQuoteLineCategory } from "@/data/quotes";
 
 export const runtime = "nodejs";
 
@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   const kindRaw = url.searchParams.get("kind");
   const availabilityRaw = url.searchParams.get("availability");
   const activeOnly = url.searchParams.get("activeOnly") === "1";
+  const includeColors = url.searchParams.get("includeColors") === "1";
 
   const products = await listProducts({
     kind: kindRaw && isProductKind(kindRaw) ? kindRaw : null,
@@ -32,7 +33,28 @@ export async function GET(request: Request) {
     activeOnly,
   });
 
-  return NextResponse.json({ ok: true, products });
+  if (!includeColors) {
+    return NextResponse.json({ ok: true, products });
+  }
+
+  const variants = await listColorVariantsForProducts(
+    products.map((product) => product.id),
+    { activeOnly: true }
+  );
+  const byProduct = new Map<string, typeof variants>();
+  for (const variant of variants) {
+    const list = byProduct.get(variant.product_id) ?? [];
+    list.push(variant);
+    byProduct.set(variant.product_id, list);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    products: products.map((product) => ({
+      ...product,
+      colors: byProduct.get(product.id) ?? [],
+    })),
+  });
 }
 
 export async function POST(request: Request) {
@@ -55,16 +77,10 @@ export async function POST(request: Request) {
   }
 
   const kind = String(body.kind || "product");
-  const category = String(body.category || "custom");
+  const category = String(body.category || "custom").trim();
   if (!isProductKind(kind)) {
     return NextResponse.json(
       { ok: false, message: "Invalid kind." },
-      { status: 400 }
-    );
-  }
-  if (!isQuoteLineCategory(category)) {
-    return NextResponse.json(
-      { ok: false, message: "Invalid category." },
       { status: 400 }
     );
   }
@@ -114,6 +130,8 @@ export async function POST(request: Request) {
       typeof body.default_color_hex === "string"
         ? body.default_color_hex
         : null,
+    group_name:
+      typeof body.group_name === "string" ? body.group_name : null,
     configurator_mode:
       body.configurator_mode === "linear_ft" || body.configurator_mode === "simple"
         ? body.configurator_mode

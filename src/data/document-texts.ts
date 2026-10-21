@@ -1,4 +1,5 @@
-import { DEFAULT_QUOTE_TERMS } from "@/data/quotes";
+import type { CustomerLanguage } from "@/data/customer-language";
+import { DEFAULT_QUOTE_TERMS, DEFAULT_QUOTE_TERMS_FR } from "@/data/quotes";
 
 export const DOCUMENT_TYPES = [
   "quote_pdf",
@@ -8,7 +9,7 @@ export const DOCUMENT_TYPES = [
 
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
-export const DOCUMENT_TEXT_SLUGS = [
+export const BASE_DOCUMENT_TEXT_SLUGS = [
   "quote.terms",
   "quote.pdf_footer",
   "quote.email_note",
@@ -16,7 +17,26 @@ export const DOCUMENT_TEXT_SLUGS = [
   "estimate.email_disclaimer",
 ] as const;
 
+export type BaseDocumentTextSlug = (typeof BASE_DOCUMENT_TEXT_SLUGS)[number];
+
+export const DOCUMENT_TEXT_SLUGS = [
+  ...BASE_DOCUMENT_TEXT_SLUGS,
+  "quote.terms.fr",
+  "quote.pdf_footer.fr",
+  "quote.email_note.fr",
+  "quote.email_footer.fr",
+  "estimate.email_disclaimer.fr",
+] as const;
+
 export type DocumentTextSlug = (typeof DOCUMENT_TEXT_SLUGS)[number];
+
+/** French texts live under "<slug>.fr"; English uses the base slug. */
+export function localizedDocumentTextSlug(
+  slug: BaseDocumentTextSlug,
+  language: CustomerLanguage
+): DocumentTextSlug {
+  return language === "fr" ? (`${slug}.fr` as DocumentTextSlug) : slug;
+}
 
 export type DocumentPreviewKind =
   | "pdf_terms"
@@ -125,6 +145,71 @@ export const DOCUMENT_TEXT_DEFS: DocumentTextDefinition[] = [
     defaultBody:
       "This is a planning brief, not final pricing. The Curtain Guy team will review measurements, availability, labor, delivery, installation, and teardown before confirming a final rental estimate.",
     appliesTo: ["Estimate emails", "Event plan emails"],
+    previewKind: "email_banner",
+  },
+  {
+    slug: "quote.terms.fr",
+    documentType: "quote_pdf",
+    documentLabel: DOCUMENT_TYPE_META.quote_pdf.label,
+    documentDescription: DOCUMENT_TYPE_META.quote_pdf.description,
+    label: "Default terms & conditions — Français",
+    description:
+      "Copied onto new French quotes and used when a quote is switched to French.",
+    rows: 10,
+    defaultBody: DEFAULT_QUOTE_TERMS_FR,
+    appliesTo: ["New French quotes", "French PDF", "French web proposal"],
+    previewKind: "pdf_terms",
+  },
+  {
+    slug: "quote.pdf_footer.fr",
+    documentType: "quote_pdf",
+    documentLabel: DOCUMENT_TYPE_META.quote_pdf.label,
+    documentDescription: DOCUMENT_TYPE_META.quote_pdf.description,
+    label: "PDF footer disclaimer — Français",
+    description: "Footer line on French proposal PDFs.",
+    rows: 3,
+    defaultBody:
+      "Proposition de planification seulement. La réservation est confirmée séparément par écrit.",
+    appliesTo: ["French PDF"],
+    previewKind: "pdf_footer",
+  },
+  {
+    slug: "quote.email_note.fr",
+    documentType: "quote_email",
+    documentLabel: DOCUMENT_TYPE_META.quote_email.label,
+    documentDescription: DOCUMENT_TYPE_META.quote_email.description,
+    label: "Customer email note — Français",
+    description: "Closing note on French quote-ready emails.",
+    rows: 4,
+    defaultBody:
+      "La disponibilité n’est garantie qu’après confirmation. L’installation et le démontage sont planifiés selon l’horaire de votre événement. Aucun paiement n’est demandé dans ce courriel.",
+    appliesTo: ["French quote-ready email"],
+    previewKind: "email_note",
+  },
+  {
+    slug: "quote.email_footer.fr",
+    documentType: "quote_email",
+    documentLabel: DOCUMENT_TYPE_META.quote_email.label,
+    documentDescription: DOCUMENT_TYPE_META.quote_email.description,
+    label: "Email footer — Français",
+    description: "Small print under French quote emails.",
+    rows: 2,
+    defaultBody: "Location de draperie événementielle à Montréal · thecurtainguy.com",
+    appliesTo: ["French quote-ready email"],
+    previewKind: "email_footer",
+  },
+  {
+    slug: "estimate.email_disclaimer.fr",
+    documentType: "estimate_email",
+    documentLabel: DOCUMENT_TYPE_META.estimate_email.label,
+    documentDescription: DOCUMENT_TYPE_META.estimate_email.description,
+    label: "Planning-brief disclaimer — Français",
+    description:
+      "Shown on confirmation emails to customers who submitted from the French site.",
+    rows: 4,
+    defaultBody:
+      "Ceci est un document de planification et non un prix final. L’équipe The Curtain Guy révisera les mesures, la disponibilité, la main-d’œuvre, la livraison, l’installation et le démontage avant de confirmer une estimation de location finale.",
+    appliesTo: ["French estimate emails", "French event plan emails"],
     previewKind: "email_banner",
   },
 ];

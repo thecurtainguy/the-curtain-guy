@@ -1,7 +1,8 @@
+import type { CustomerLanguage } from "@/data/customer-language";
 import {
-  QUOTE_LINE_STATUS_LABELS,
-  QUOTE_REQUEST_STATUS_LABELS,
-  QUOTE_STATUS_LABELS,
+  quoteLineStatusLabel,
+  quoteRequestStatusLabel,
+  quoteStatusLabel,
   type QuoteLineStatus,
   type QuoteRequestStatus,
   type QuoteStatus,
@@ -50,7 +51,13 @@ const LINE_STYLES: Record<QuoteLineStatus, string> = {
 const pillBase =
   "inline-flex rounded-full font-semibold uppercase tracking-[0.08em] ring-1";
 
-export function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
+export function QuoteStatusBadge({
+  status,
+  language = "en",
+}: {
+  status: QuoteStatus;
+  language?: CustomerLanguage;
+}) {
   return (
     <span
       className={cn(
@@ -59,12 +66,18 @@ export function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
         STATUS_STYLES[status]
       )}
     >
-      {QUOTE_STATUS_LABELS[status]}
+      {quoteStatusLabel(status, language)}
     </span>
   );
 }
 
-export function QuoteLineStatusBadge({ status }: { status: QuoteLineStatus }) {
+export function QuoteLineStatusBadge({
+  status,
+  language = "en",
+}: {
+  status: QuoteLineStatus;
+  language?: CustomerLanguage;
+}) {
   return (
     <span
       className={cn(
@@ -73,15 +86,17 @@ export function QuoteLineStatusBadge({ status }: { status: QuoteLineStatus }) {
         LINE_STYLES[status]
       )}
     >
-      {QUOTE_LINE_STATUS_LABELS[status]}
+      {quoteLineStatusLabel(status, language)}
     </span>
   );
 }
 
 export function QuoteRequestStatusBadge({
   status,
+  language = "en",
 }: {
   status: QuoteRequestStatus;
+  language?: CustomerLanguage;
 }) {
   const style =
     status === "pending_owner_review"
@@ -100,7 +115,7 @@ export function QuoteRequestStatusBadge({
         style
       )}
     >
-      {QUOTE_REQUEST_STATUS_LABELS[status]}
+      {quoteRequestStatusLabel(status, language)}
     </span>
   );
 }

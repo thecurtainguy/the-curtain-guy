@@ -3,6 +3,7 @@ import {
   type EstimateFormData,
   isValidEmail,
 } from "@/data/estimate";
+import type { CustomerLanguage } from "@/data/customer-language";
 
 export type EstimateSubmissionValidation = {
   valid: boolean;
@@ -18,6 +19,7 @@ export type EstimateInsertMeta = {
   uploadTokenExpiresAt?: string | null;
   source?: string | null;
   cartSnapshot?: unknown;
+  language?: CustomerLanguage;
 };
 
 export type EstimateInsertResult =
@@ -193,6 +195,7 @@ export function buildEstimateInsertRow(
     user_id: meta.userId ?? null,
     upload_token_hash: meta.uploadTokenHash ?? null,
     upload_token_expires_at: meta.uploadTokenExpiresAt ?? null,
+    language: meta.language ?? "en",
     ...(meta.source ? { source: meta.source } : {}),
     ...(meta.cartSnapshot !== undefined
       ? { cart_snapshot: meta.cartSnapshot }

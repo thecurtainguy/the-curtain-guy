@@ -47,6 +47,8 @@ export function Header() {
   });
 
   useEffect(() => {
+    // Owner "preview as customer" pages render the header as a signed-out guest.
+    if (pathname.startsWith("/quote/preview/")) return;
     let cancelled = false;
     void (async () => {
       try {

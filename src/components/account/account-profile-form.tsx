@@ -6,19 +6,26 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CustomerLanguagePicker } from "@/components/quotes/customer-language-picker";
+import type { CustomerLanguage } from "@/data/customer-language";
 
 export function AccountProfileForm({
   email,
   initialFullName,
   initialPhone,
+  initialLanguage,
 }: {
   email: string;
   initialFullName: string;
   initialPhone: string;
+  initialLanguage: CustomerLanguage | null;
 }) {
   const router = useRouter();
   const [fullName, setFullName] = useState(initialFullName);
   const [phone, setPhone] = useState(initialPhone);
+  const [language, setLanguage] = useState<CustomerLanguage | null>(
+    initialLanguage
+  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +39,11 @@ export function AccountProfileForm({
       const response = await fetch("/api/account/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, phone }),
+        body: JSON.stringify({
+          fullName,
+          phone,
+          ...(language ? { preferredLanguage: language } : {}),
+        }),
       });
       const payload = (await response.json()) as {
         ok?: boolean;
@@ -73,6 +84,17 @@ export function AccountProfileForm({
           type="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Quote &amp; email language / Langue des soumissions</Label>
+        <CustomerLanguagePicker
+          value={language}
+          onChange={(next) => setLanguage(next)}
+          descriptions={{
+            en: "Quotes, PDFs and emails in English",
+            fr: "Soumissions, PDF et courriels en français",
+          }}
         />
       </div>
       <Button type="submit" disabled={saving}>

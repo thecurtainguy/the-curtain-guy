@@ -12,6 +12,8 @@ export type StudioContextRequest = {
   /** What was under the pointer; `null` = empty canvas. */
   target: StudioSelection;
   surface: StudioContextSurface;
+  /** Ids of every item under the pointer, topmost / nearest first. */
+  stack: readonly string[];
 };
 
 type Host = (request: StudioContextRequest) => void;
@@ -78,6 +80,16 @@ export function hoveredStudioTarget(design: StudioDesignJson): StudioSelection {
   return found && id ? ({ kind: found.kind, id } as StudioSelection) : null;
 }
 
+/** Plan items under a viewport point (`data-studio-item` hit areas), topmost first. */
+export function planItemsAt(x: number, y: number): string[] {
+  const ids: string[] = [];
+  for (const element of document.elementsFromPoint(x, y)) {
+    const id = element.closest<SVGElement>("[data-studio-item]")?.dataset.studioItem;
+    if (id && !ids.includes(id)) ids.push(id);
+  }
+  return ids;
+}
+
 /** The menu component registers itself; returns the unregister function. */
 export function registerStudioContextMenuHost(next: Host): () => void {
   trackPointers();
@@ -95,7 +107,8 @@ export function registerStudioContextMenuHost(next: Host): () => void {
 export function requestStudioContextMenu(
   event: MouseEvent,
   target: StudioSelection,
-  surface: StudioContextSurface
+  surface: StudioContextSurface,
+  stack: readonly string[] = []
 ): void {
   if (!host || event === lastEvent) return;
   lastEvent = event;
@@ -113,7 +126,7 @@ export function requestStudioContextMenu(
     x = rect.left + rect.width / 2;
     y = rect.top + rect.height / 2;
   }
-  const request: StudioContextRequest = { x, y, target, surface };
+  const request: StudioContextRequest = { x, y, target, surface, stack };
 
   if (recent?.held) {
     pending = request;

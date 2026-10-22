@@ -253,6 +253,7 @@ const CeilingEntryView = memo(function CeilingEntryView({
   const outline = polygonPath(layout.outline);
   return (
     <g
+      data-studio-item={drape.id}
       role="button"
       tabIndex={interactive ? 0 : -1}
       aria-pressed={selected}

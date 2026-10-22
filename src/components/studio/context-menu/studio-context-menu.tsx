@@ -73,6 +73,7 @@ import {
   Keyboard,
   LampCeiling,
   Layers,
+  Layers2,
   LayoutGrid,
   Lock,
   LockOpen,
@@ -113,6 +114,7 @@ import { STUDIO_OBJECT_ICONS } from "../library/studio-library-icons";
 import { formatStudioFeet } from "../library/studio-library-placement";
 import { STUDIO_MAX_OPENINGS } from "../openings/opening-preset-grid";
 import { OpeningStyleGlyph } from "../openings/opening-style-glyph";
+import type { StudioSelection } from "../studio-types";
 import {
   registerStudioContextMenuHost,
   type StudioContextRequest,
@@ -180,6 +182,8 @@ export function StudioContextMenu({ disabled = false }: { disabled?: boolean }) 
 }
 
 type FoundItem = StudioItemRef & { id: string };
+
+const WALL_ITEM_KINDS: ReadonlySet<StudioItemKind> = new Set(["drape", "treatment", "opening"]);
 
 const KIND_META: Record<
   StudioItemKind,
@@ -370,7 +374,9 @@ function StudioContextMenuBody({ request }: { request: OpenRequest }) {
       : undefined;
 
   if (wall) return <WallMenu design={design} wall={wall} />;
-  if (request.target && items.length > 0) return <ItemsMenu design={design} items={items} />;
+  if (request.target && items.length > 0) {
+    return <ItemsMenu design={design} items={items} surface={request.surface} stack={request.stack} />;
+  }
   return (
     <CanvasMenu
       design={design}
@@ -392,7 +398,17 @@ function PasteItem() {
   );
 }
 
-function ItemsMenu({ design, items }: { design: StudioDesignJson; items: FoundItem[] }) {
+function ItemsMenu({
+  design,
+  items,
+  surface,
+  stack,
+}: {
+  design: StudioDesignJson;
+  items: FoundItem[];
+  surface: StudioContextRequest["surface"];
+  stack: readonly string[];
+}) {
   const actions = useStudioEditorActions();
   const settings = useStudioSettings();
   const { commands } = actions;
@@ -406,10 +422,18 @@ function ItemsMenu({ design, items }: { design: StudioDesignJson; items: FoundIt
   const similarIds = single ? findSimilarIds(design, single) : [];
   const singleWall = single ? itemWallIndex(single) : null;
   const step = settings.rotationSnap || 15;
-  const itemIds = items.map((found) => found.id);
+  const selectedIds = new Set(items.map((found) => found.id));
+  const overlapping: FoundItem[] = stack.flatMap((id) => {
+    const found = selectedIds.has(id) ? null : findStudioItem(design, id);
+    return found ? [{ ...found, id }] : [];
+  });
+  // In 3D, furniture and ceilings stack by where they stand; only wall items share a plane.
+  const arrangeIds = items
+    .filter((found) => surface === "2d" || WALL_ITEM_KINDS.has(found.kind))
+    .map((found) => found.id);
   const arrangeModes = new Set(
     ARRANGE_OPTIONS.filter(
-      (option) => arrangeStudioItems(design, itemIds, option.mode) !== design
+      (option) => arrangeStudioItems(design, arrangeIds, option.mode) !== design
     ).map((option) => option.mode)
   );
 
@@ -425,6 +449,42 @@ function ItemsMenu({ design, items }: { design: StudioDesignJson; items: FoundIt
         <MenuHeader icon={BoxSelect} title={`${items.length} selected`} detail={summarizeKinds(items)} />
       )}
       <DropdownMenuSeparator />
+
+      {overlapping.length > 0 ? (
+        <>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Layers2 aria-hidden />
+              {surface === "3d" ? "Select behind" : "Select underneath"}
+              <span className="ml-auto rounded-full bg-primary/12 px-1.5 text-[0.62rem] font-semibold text-primary tabular-nums">
+                {overlapping.length}
+              </span>
+            </DropdownMenuSubTrigger>
+            <SubMenuContent className="w-64">
+              {overlapping.map((found) => {
+                const Icon = itemIcon(found);
+                return (
+                  <DropdownMenuItem
+                    key={found.id}
+                    onSelect={() => actions.select({ kind: found.kind, id: found.id } as StudioSelection)}
+                  >
+                    <Icon aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">
+                        {found.item.label || KIND_META[found.kind].label}
+                      </span>
+                      <span className="block truncate text-[0.66rem] text-muted-foreground">
+                        {itemDetail(found)}
+                      </span>
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </SubMenuContent>
+          </DropdownMenuSub>
+          <DropdownMenuSeparator />
+        </>
+      ) : null}
 
       <DropdownMenuGroup>
         <DropdownMenuItem onSelect={commands.duplicate}>

@@ -6,6 +6,7 @@ import {
   type StudioDrapeRun,
   type StudioObject,
   type StudioOpening,
+  type StudioTreatment,
 } from "@/data/studio";
 import { getDrapeRunSegments } from "@/lib/studio-door-gaps";
 import {
@@ -49,13 +50,26 @@ export type ProxyEvents = {
   onHover: (target: ProxyTarget | null) => void;
 };
 
-type ProxyUserData = {
+export type ProxyUserData = {
   studioProxy: true;
   lowPriority: boolean;
+  target: ProxyTarget;
 };
 
-/** Inches a wall-item proxy floats in front of its wall. */
-const WALL_PROXY_INSET = 4;
+/** Pick slab thickness for wall items, feet. */
+const WALL_PROXY_DEPTH = 0.5;
+/**
+ * Inches from the wall to a wall item's pick slab, matching where it hangs:
+ * openings sit in the wall, drapes hang just off it, treatments stand in
+ * front of the drapes and the ceremony arch stands well clear.
+ */
+function wallProxyInset(kind: WallItemKind, item: WallItem): number {
+  if (kind === "opening") return 2;
+  if (kind === "drape") return 4;
+  return (item as StudioTreatment).type === "ceremony_arch" ? 19 : 10;
+}
+/** Inches each later item in the arrange order stands nearer, so it wins where same-kind items overlap. */
+const WALL_PROXY_STACK_STEP = 0.4;
 
 type Hit = THREE.Intersection & { eventObject: THREE.Object3D };
 
@@ -106,6 +120,24 @@ export function proxyClaimsEvent(
 }
 
 /**
+ * Every item whose pick proxy lies on the event's ray, nearest first,
+ * stopping at the first solid non-proxy surface (a wall hides what's behind).
+ */
+export function proxyStackAt(event: ThreeEvent<PointerEvent | MouseEvent>): ProxyTarget[] {
+  const stack: ProxyTarget[] = [];
+  for (const hit of event.intersections as Hit[]) {
+    const data = hit.eventObject.userData;
+    if (data?.studioProxy && data.target) {
+      const target = data.target as ProxyTarget;
+      if (!stack.some((entry) => entry.id === target.id)) stack.push(target);
+    } else if (!data?.studioGizmo && !isSeeThrough(hit.object)) {
+      break;
+    }
+  }
+  return stack;
+}
+
+/**
  * Ceiling designs: seen from below they pick like anything else; seen from
  * above (looking down through the fabric) they yield to every floor-level
  * proxy on the ray, so tables under a canopy stay clickable.
@@ -131,7 +163,7 @@ function ProxyMesh({
   lowPriority: boolean;
   events: ProxyEvents;
 }) {
-  const userData: ProxyUserData = { studioProxy: true, lowPriority };
+  const userData: ProxyUserData = { studioProxy: true, lowPriority, target };
   return (
     <mesh
       position={position}
@@ -252,6 +284,7 @@ export const WallItemProxy = memo(function WallItemProxy({
   bounds,
   events,
   openings,
+  stackRank,
 }: {
   kind: WallItemKind;
   item: WallItem;
@@ -260,6 +293,8 @@ export const WallItemProxy = memo(function WallItemProxy({
   events: ProxyEvents;
   /** Drapes only: hit areas follow the hung pieces so doorways stay clickable. */
   openings?: readonly StudioOpening[];
+  /** Position in the arrange order among same-kind items on this wall. */
+  stackRank: number;
 }) {
   const spans = useMemo(() => {
     if (kind === "drape" && openings) {
@@ -269,6 +304,7 @@ export const WallItemProxy = memo(function WallItemProxy({
     return [{ start: span.start, end: span.end }];
   }, [item, kind, openings]);
   const { bottom, top } = getWallItemVertical(kind, item);
+  const inset = wallProxyInset(kind, item) + stackRank * WALL_PROXY_STACK_STEP;
   const target = useMemo(
     () => ({ kind, id: item.id, locked: Boolean(item.locked) }),
     [item.id, item.locked, kind]
@@ -280,8 +316,8 @@ export const WallItemProxy = memo(function WallItemProxy({
         const end = Math.max(start + 1, Math.min(span.end, wall.length));
         const along = getPointAlongWall(wall, (start + end) / 2);
         const [x, z] = toWorld(bounds, {
-          x: along.x + wall.normal.x * WALL_PROXY_INSET,
-          z: along.z + wall.normal.z * WALL_PROXY_INSET,
+          x: along.x + wall.normal.x * inset,
+          z: along.z + wall.normal.z * inset,
         });
         return (
           <ProxyMesh
@@ -289,7 +325,7 @@ export const WallItemProxy = memo(function WallItemProxy({
             target={target}
             position={[x, ((bottom + top) / 2) * SCALE, z]}
             rotationY={-wall.angle}
-            size={[(end - start) * SCALE, Math.max(6, top - bottom) * SCALE, 0.5]}
+            size={[(end - start) * SCALE, Math.max(6, top - bottom) * SCALE, WALL_PROXY_DEPTH]}
             lowPriority={false}
             events={events}
           />

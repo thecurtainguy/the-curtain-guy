@@ -35,7 +35,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { hoveredStudioTarget, requestStudioContextMenu } from "./context-menu/context-menu-store";
+import {
+  hoveredStudioTarget,
+  planItemsAt,
+  requestStudioContextMenu,
+} from "./context-menu/context-menu-store";
 import { disarmCeilingPlacement, useCeilingPlacement } from "./editor/ceiling-placement-store";
 import {
   useStudioCanvasCommand,
@@ -1297,7 +1301,8 @@ export function Studio2DEditor(props: StudioEditorProps) {
             wall
               ? { kind: "wall", index: Number(wall.dataset.studioWall) }
               : hoveredStudioTarget(design),
-            "2d"
+            "2d",
+            wall ? [] : planItemsAt(event.clientX, event.clientY)
           );
         }}
       >

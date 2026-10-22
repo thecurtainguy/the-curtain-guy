@@ -58,6 +58,7 @@ import {
 import {
   ObjectProxy,
   WallItemProxy,
+  proxyStackAt,
   type ProxyEvents,
   type ProxyTarget,
 } from "./manipulation/proxies";
@@ -220,7 +221,8 @@ function ManipulationLayer({
       requestStudioContextMenu(
         event.nativeEvent,
         { kind: target.kind, id: target.id } as StudioSelection,
-        "3d"
+        "3d",
+        proxyStackAt(event).map((entry) => entry.id)
       );
     },
     /*
@@ -403,27 +405,31 @@ function ManipulationLayer({
           events={proxyEvents}
         />
       ))}
-      {WALL_ITEM_KINDS.flatMap((kind) =>
-        settings.layers[LAYER_FOR_KIND[kind]]
-          ? getWallItems(design, kind)
-              .filter((item) => !item.hidden)
-              .map((item) => {
-                const wall = frames[getWallItemSpan(kind, item).wallIndex];
-                if (!wall) return null;
-                return (
-                  <WallItemProxy
-                    key={item.id}
-                    kind={kind}
-                    item={item}
-                    wall={wall}
-                    bounds={bounds}
-                    events={proxyEvents}
-                    openings={kind === "drape" ? design.openings : undefined}
-                  />
-                );
-              })
-          : []
-      )}
+      {WALL_ITEM_KINDS.flatMap((kind) => {
+        if (!settings.layers[LAYER_FOR_KIND[kind]]) return [];
+        const ranks = new Map<number, number>();
+        return getWallItems(design, kind)
+          .filter((item) => !item.hidden)
+          .map((item) => {
+            const { wallIndex } = getWallItemSpan(kind, item);
+            const wall = frames[wallIndex];
+            if (!wall) return null;
+            const stackRank = ranks.get(wallIndex) ?? 0;
+            ranks.set(wallIndex, stackRank + 1);
+            return (
+              <WallItemProxy
+                key={item.id}
+                kind={kind}
+                item={item}
+                wall={wall}
+                bounds={bounds}
+                events={proxyEvents}
+                openings={kind === "drape" ? design.openings : undefined}
+                stackRank={stackRank}
+              />
+            );
+          });
+      })}
       {ceilingEntries.map(({ drape, layout }) => (
         <CeilingProxy
           key={drape.id}

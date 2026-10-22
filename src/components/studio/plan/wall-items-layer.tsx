@@ -229,6 +229,7 @@ const WallItemView = memo(function WallItemView({
   return (
     <g
       transform={wallFrame(wall, inwardSign)}
+      data-studio-item={entry.id}
       data-studio-tip={entry.kind === "opening" ? openingTip(entry.item, span) : undefined}
       role="button"
       tabIndex={0}

@@ -76,7 +76,7 @@ export const CeilingProxy = memo(function CeilingProxy({
       geometry={geometry}
       material={pickMaterial}
       visible={false}
-      userData={{ studioProxy: true, lowPriority: true, ceilingProxy: true }}
+      userData={{ studioProxy: true, lowPriority: true, ceilingProxy: true, target }}
       onPointerOver={(event) => {
         if (!ceilingProxyClaimsEvent(event)) return;
         event.stopPropagation();

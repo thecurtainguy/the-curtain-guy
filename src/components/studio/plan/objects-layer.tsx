@@ -53,6 +53,7 @@ const PlanObjectItem = memo(function PlanObjectItem({
     : { fill: "transparent" };
   return (
     <g
+      data-studio-item={object.id}
       role="button"
       tabIndex={ceilingMode ? -1 : 0}
       aria-pressed={selected}

@@ -145,10 +145,17 @@ export const EVENT_LAYOUT_OPTIONS: ReadonlyArray<{
 const GUESTS_PER_ITEM: Record<StudioLayoutKey, number> = {
   banquet_grid: 8,
   banquet_rows: 8,
-  classroom: 3,
-  ceremony: 1,
-  cocktail: 8,
+  family_style: 8,
+  buffet: 1,
   gala: 1,
+  wedding: 1,
+  ceremony: 1,
+  theater: 1,
+  classroom: 3,
+  cocktail: 8,
+  // Visitors a booth serves at a time, so the guest list sizes the floor.
+  trade_show: 10,
+  runway: 1,
 };
 
 /** Generator `count` for a guest list, clamped to the layout's range. */

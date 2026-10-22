@@ -49,10 +49,16 @@ export const EVENT_LAYOUT_IDS = [
   "none",
   "banquet_grid",
   "banquet_rows",
-  "classroom",
-  "ceremony",
-  "cocktail",
+  "family_style",
+  "buffet",
   "gala",
+  "wedding",
+  "ceremony",
+  "theater",
+  "classroom",
+  "cocktail",
+  "trade_show",
+  "runway",
 ] as const;
 export type EventLayoutId = (typeof EVENT_LAYOUT_IDS)[number];
 
@@ -147,12 +153,12 @@ export const DEFAULT_EVENT_OPENINGS: EventBuilderOpening[] = [
 ];
 
 const DEFAULT_LAYOUT_BY_EVENT: Record<string, EventLayoutId> = {
-  wedding: "banquet_grid",
+  wedding: "wedding",
   corporate: "classroom",
   gala: "gala",
   mitzvah: "gala",
-  "stage-show": "classroom",
-  "trade-show": "cocktail",
+  "stage-show": "theater",
+  "trade-show": "trade_show",
   private: "cocktail",
   other: "banquet_grid",
 };

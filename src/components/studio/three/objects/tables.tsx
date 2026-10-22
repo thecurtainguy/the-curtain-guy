@@ -11,7 +11,7 @@ import {
   segmentsFor,
   UNIT,
 } from "./geometry";
-import { clusterTables } from "./layout";
+import { BOX_LINEN, clusterLinen, clusterTables, ROUND_LINEN } from "./layout";
 import {
   finishMaterial,
   linenMaterial,
@@ -53,8 +53,7 @@ function RoundLinen({
       height,
       radius,
       bottomRadius: radius,
-      foldDepth: 0.045,
-      flare: 0.1,
+      ...ROUND_LINEN,
       rows,
     }),
     segments,
@@ -87,9 +86,7 @@ function BoxLinen({
       height,
       radius: 0.05,
       bottomRadius: Math.min(0.34, Math.min(w, d) / 2),
-      foldDepth: 0.028,
-      flare: 0.05,
-      pool: 0.08,
+      ...BOX_LINEN,
       rows,
     }),
     segments,
@@ -640,7 +637,7 @@ export function CocktailTableModel({ object, w, d, h, quality }: ModelProps) {
 /** table_area zone furniture: the round tables of the cluster (chairs instanced). */
 export function TableClusterTables({ object, h, quality }: ModelProps) {
   const tables = clusterTables(object);
-  const linen = object.linenColor === null ? null : (object.linenColor ?? "ivory");
+  const linen = clusterLinen(object);
   const height = clamp(h, 2.2, 3.2);
   const seed = seedOf(object.id);
   return (

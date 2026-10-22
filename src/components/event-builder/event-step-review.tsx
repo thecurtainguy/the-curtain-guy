@@ -79,9 +79,30 @@ export const REVIEW_STEP = {
 } as const;
 
 /** Seated layouts warn when fewer seats fit than guests invited. */
-const SEATED_LAYOUTS = new Set<EventLayoutId>(["banquet_grid", "banquet_rows", "classroom", "ceremony", "gala"]);
+const SEATED_LAYOUTS = new Set<EventLayoutId>([
+  "banquet_grid",
+  "banquet_rows",
+  "family_style",
+  "buffet",
+  "gala",
+  "wedding",
+  "ceremony",
+  "theater",
+  "classroom",
+  "runway",
+]);
 /** Layouts whose generator count is the guest list itself, so a "×N" item badge would mislead. */
-const PER_GUEST_LAYOUTS = new Set<EventLayoutId>(["ceremony", "gala"]);
+const PER_GUEST_LAYOUTS = new Set<EventLayoutId>([
+  "buffet",
+  "gala",
+  "wedding",
+  "ceremony",
+  "theater",
+  "runway",
+]);
+/** Layouts with no chairs to style. */
+const CHAIRLESS_LAYOUTS = new Set<EventLayoutId>(["cocktail", "trade_show"]);
+const DANCE_FLOOR_LAYOUTS = new Set<EventLayoutId>(["gala", "wedding"]);
 
 type EventStepReviewProps = {
   brief: EventBuilderBrief;
@@ -227,7 +248,7 @@ export function EventStepReview({
 
         {layout.id !== "none" ? (
           <div className="mt-6 space-y-5">
-            {layout.id !== "cocktail" ? (
+            {!CHAIRLESS_LAYOUTS.has(layout.id) ? (
               <div>
                 <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground" id="chair-label">
                   <Armchair className="size-3.5 text-primary" aria-hidden />
@@ -258,7 +279,7 @@ export function EventStepReview({
                 ariaLabel={copy.review.linen}
               />
             </div>
-            {layout.id === "gala" ? (
+            {DANCE_FLOOR_LAYOUTS.has(layout.id) ? (
               <div>
                 <p className="mb-2 text-xs font-medium text-muted-foreground" id="dance-floor-label">
                   {copy.review.danceFloor}

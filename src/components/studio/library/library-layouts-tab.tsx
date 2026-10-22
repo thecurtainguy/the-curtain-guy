@@ -14,12 +14,18 @@ import { getStudioBounds } from "@/lib/studio-geometry";
 import {
   Church,
   Crown,
+  HandPlatter,
+  Heart,
   LayoutGrid,
   Martini,
   Presentation,
   Rows3,
+  Shirt,
   Sparkles,
+  Store,
+  Theater,
   Users,
+  UtensilsCrossed,
   Wand2,
   type LucideIcon,
 } from "lucide-react";
@@ -43,10 +49,16 @@ import {
 const LAYOUT_ICONS: Record<StudioLayoutKey, LucideIcon> = {
   banquet_grid: LayoutGrid,
   banquet_rows: Rows3,
-  classroom: Presentation,
-  ceremony: Church,
-  cocktail: Martini,
+  family_style: UtensilsCrossed,
+  buffet: HandPlatter,
   gala: Crown,
+  wedding: Heart,
+  ceremony: Church,
+  theater: Theater,
+  classroom: Presentation,
+  cocktail: Martini,
+  trade_show: Store,
+  runway: Shirt,
 };
 
 function filterLayouts(query: string) {
@@ -263,7 +275,7 @@ export function LibraryLayoutsTab({
                 {config.spacingLabel}
               </label>
               <span className="font-heading text-sm text-foreground tabular-nums">
-                {params.key === "ceremony" ? `${params.spacing}″` : formatStudioFeet(params.spacing)}
+                {config.spacingInInches ? `${params.spacing}″` : formatStudioFeet(params.spacing)}
               </span>
             </div>
             <RangeSlider

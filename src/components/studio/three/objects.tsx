@@ -257,7 +257,7 @@ function selectionPad(object: StudioObject, showSeating: boolean) {
     resolveSeatingCount(object) > 0 &&
     resolveChairStyle(object) !== "none"
   ) {
-    return 1.35;
+    return 1.8;
   }
   return 0.3;
 }

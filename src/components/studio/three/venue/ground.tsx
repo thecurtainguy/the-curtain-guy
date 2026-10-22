@@ -2,7 +2,7 @@
 
 import type { StudioFloorFinish, StudioPoint } from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { buildBandGeometry } from "./band-geometry";
 import { offsetPolygon } from "./polygon";
@@ -22,7 +22,7 @@ const PLINTH_TOP_FT = -0.02;
  * the background. Nothing here is raycastable (clicks fall through to the
  * canvas miss handler); inside the room it is hidden under the floor.
  */
-export function VenueGround({
+export const VenueGround = memo(function VenueGround({
   floor,
   bounds,
   floorFinish,
@@ -125,4 +125,4 @@ export function VenueGround({
       ) : null}
     </>
   );
-}
+});

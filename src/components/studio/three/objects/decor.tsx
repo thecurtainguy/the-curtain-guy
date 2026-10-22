@@ -15,7 +15,7 @@ import {
   UNIT,
 } from "./geometry";
 import { cachedMaterial, finishMaterial, MAT } from "./materials";
-import { Part, seedOf } from "./part";
+import { Group, Part, seedOf } from "./part";
 import { genericFinish, isDetailed, type ModelProps } from "./types";
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -156,7 +156,7 @@ export function PlantModel({ object, w, d, h, quality }: ModelProps) {
           scale={[0.06, (h - potTop) * 0.6, 0.06]}
         />
       ) : null}
-      <group scale={[w / Math.max(footprint, 0.01), 1, d / Math.max(footprint, 0.01)]}>
+      <Group scale={[w / Math.max(footprint, 0.01), 1, d / Math.max(footprint, 0.01)]}>
         {GREENS.map((green, index) => (
           <Part
             key={green}
@@ -164,7 +164,7 @@ export function PlantModel({ object, w, d, h, quality }: ModelProps) {
             material={MAT.leaf(green)}
           />
         ))}
-      </group>
+      </Group>
     </>
   );
 }
@@ -273,7 +273,7 @@ export function UplightModel({ object, w, d, h }: ModelProps) {
           scale={[0.025, canH * 0.7, 0.08]}
         />
       ))}
-      <group position={[0, canH * 0.5, 0]} rotation={[-0.22, 0, 0]}>
+      <Group position={[0, canH * 0.5, 0]} rotation={[-0.22, 0, 0]}>
         <Part geometry={UNIT.taper(1.08, 24)} material={housing} scale={[r, canH * 0.85, r]} />
         <Part
           geometry={UNIT.disc(24)}
@@ -283,7 +283,7 @@ export function UplightModel({ object, w, d, h }: ModelProps) {
           cast={false}
           receive={false}
         />
-      </group>
+      </Group>
     </>
   );
 }
@@ -466,7 +466,7 @@ export function ChandelierModel({
     })
   );
   return (
-    <group position={[0, bottom, 0]}>
+    <Group position={[0, bottom, 0]}>
       {chain > 0.05 ? (
         <>
           <Part geometry={chainGeometry(chain)} material={frame} position={[0, height, 0]} cast={false} />
@@ -503,7 +503,7 @@ export function ChandelierModel({
         scale={[Math.max(1, R * 0.6), height * 0.82, Math.max(1, R * 0.6)]}
       />
       {tiers.map((tier, index) => (
-        <group key={index}>
+        <Group key={index}>
           <Part
             geometry={flatTorus(0.04, 8, torusSeg)}
             material={frame}
@@ -524,7 +524,7 @@ export function ChandelierModel({
               />
             );
           })}
-        </group>
+        </Group>
       ))}
       <Part geometry={candleSleeveGeometry(R, height)} material={MAT.porcelain()} cast={false} />
       <Part geometry={bulbGeometry(R, height)} material={bulb} cast={false} receive={false} />
@@ -534,6 +534,6 @@ export function ChandelierModel({
         cast={isDetailed(quality)}
         receive={false}
       />
-    </group>
+    </Group>
   );
 }

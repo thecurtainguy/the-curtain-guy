@@ -2,6 +2,8 @@
 
 import type { StudioObject } from "@/data/studio";
 import type { StudioResizeHandle } from "@/lib/studio-interactions";
+import { memo } from "react";
+import { useStudioHoveredId } from "../editor/hover-store";
 import { isCircularObjectType, type PlanEdgeHandle } from "./object-geometry";
 import type { PlanRect } from "./viewport";
 
@@ -26,7 +28,7 @@ const EDGE_HANDLES: Array<{ handle: PlanEdgeHandle; x: -1 | 0 | 1; z: -1 | 0 | 1
 const RESIZE_CURSORS = ["ew-resize", "nwse-resize", "ns-resize", "nesw-resize"];
 
 /** Resize cursor for a handle direction after the object's rotation. */
-function cursorFor(x: number, z: number, rotation: number): string {
+export function cursorFor(x: number, z: number, rotation: number): string {
   const angle = (Math.atan2(z, x) * 180) / Math.PI + rotation;
   const normalized = ((angle % 180) + 180) % 180;
   return RESIZE_CURSORS[Math.round(normalized / 45) % 4];
@@ -34,55 +36,128 @@ function cursorFor(x: number, z: number, rotation: number): string {
 
 export type ObjectStatus = "selected" | "hovered" | "conflict" | "conflict-selected";
 
-/** Gold selection / hover outlines and red collision hints. */
-export function ObjectStatusOutlines({
-  objects,
+type HaloProps = {
+  fill: "none";
+  stroke: string;
+  strokeOpacity: number;
+  strokeWidth: number;
+  strokeLinejoin: "round";
+  strokeLinecap: "round";
+  vectorEffect: "non-scaling-stroke";
+  pointerEvents: "none";
+};
+
+/**
+ * Two soft, wide strokes drawn under a crisp selection stroke. Reads like a
+ * glow but costs two plain strokes instead of a per-item gaussian blur.
+ */
+export function selectionHalo(color = "var(--primary)"): [HaloProps, HaloProps] {
+  const base = {
+    fill: "none" as const,
+    stroke: color,
+    strokeLinejoin: "round" as const,
+    strokeLinecap: "round" as const,
+    vectorEffect: "non-scaling-stroke" as const,
+    pointerEvents: "none" as const,
+  };
+  return [
+    { ...base, strokeOpacity: 0.12, strokeWidth: 9 },
+    { ...base, strokeOpacity: 0.26, strokeWidth: 5 },
+  ];
+}
+
+const StatusOutline = memo(function StatusOutline({
+  object,
   status,
   pad,
 }: {
+  object: StudioObject;
+  status: ObjectStatus;
+  pad: number;
+}) {
+  const conflict = status === "conflict" || status === "conflict-selected";
+  const selected = status === "selected" || status === "conflict-selected";
+  const stroke = conflict ? "#ef4444" : "var(--primary)";
+  const common = {
+    fill: conflict ? "rgba(239,68,68,0.08)" : "none",
+    stroke,
+    strokeWidth: selected ? 2 : 1.5,
+    strokeOpacity: status === "hovered" ? 0.7 : 1,
+    strokeDasharray: conflict && !selected ? "5 3" : undefined,
+    vectorEffect: "non-scaling-stroke" as const,
+  };
+  const circular = isCircularObjectType(object.type);
+  const shape = (props: object, key: string) =>
+    circular ? (
+      <ellipse key={key} rx={object.width / 2 + pad} ry={object.depth / 2 + pad} {...props} />
+    ) : (
+      <rect
+        key={key}
+        x={-object.width / 2 - pad}
+        y={-object.depth / 2 - pad}
+        width={object.width + pad * 2}
+        height={object.depth + pad * 2}
+        rx={pad}
+        {...props}
+      />
+    );
+  return (
+    <g transform={`translate(${object.x} ${object.z}) rotate(${object.rotation})`}>
+      {selected ? selectionHalo(stroke).map((halo, index) => shape(halo, `halo-${index}`)) : null}
+      {shape(common, "stroke")}
+    </g>
+  );
+});
+
+/** Hover outline for the hovered object only; the only part that re-renders on hover. */
+function HoverOutline({
+  objects,
+  selectedIds,
+  conflicts,
+  pad,
+}: {
   objects: readonly StudioObject[];
-  status: (object: StudioObject) => ObjectStatus | null;
+  selectedIds: ReadonlySet<string>;
+  conflicts: ReadonlySet<string>;
+  pad: number;
+}) {
+  const hoveredId = useStudioHoveredId();
+  if (!hoveredId || selectedIds.has(hoveredId) || conflicts.has(hoveredId)) return null;
+  const object = objects.find((item) => item.id === hoveredId);
+  return object ? <StatusOutline object={object} status="hovered" pad={pad} /> : null;
+}
+
+/** Gold selection / hover outlines and red collision hints. */
+export const ObjectStatusOutlines = memo(function ObjectStatusOutlines({
+  objects,
+  selectedIds,
+  conflicts,
+  pad,
+}: {
+  objects: readonly StudioObject[];
+  selectedIds: ReadonlySet<string>;
+  conflicts: ReadonlySet<string>;
   pad: number;
 }) {
   return (
     <g className="pointer-events-none">
       {objects.map((object) => {
-        const value = status(object);
-        if (!value) return null;
-        const conflict = value === "conflict" || value === "conflict-selected";
-        const selected = value === "selected" || value === "conflict-selected";
-        const stroke = conflict ? "#ef4444" : "var(--primary)";
-        const common = {
-          fill: conflict ? "rgba(239,68,68,0.08)" : "none",
-          stroke,
-          strokeWidth: selected ? 2 : 1.5,
-          strokeOpacity: value === "hovered" ? 0.7 : 1,
-          strokeDasharray: conflict && !selected ? "5 3" : undefined,
-          vectorEffect: "non-scaling-stroke" as const,
-          filter: selected ? "url(#studio-selection-glow)" : undefined,
-        };
-        return (
-          <g key={object.id} transform={`translate(${object.x} ${object.z}) rotate(${object.rotation})`}>
-            {isCircularObjectType(object.type) ? (
-              <ellipse rx={object.width / 2 + pad} ry={object.depth / 2 + pad} {...common} />
-            ) : (
-              <rect
-                x={-object.width / 2 - pad}
-                y={-object.depth / 2 - pad}
-                width={object.width + pad * 2}
-                height={object.depth + pad * 2}
-                rx={pad}
-                {...common}
-              />
-            )}
-          </g>
-        );
+        const selected = selectedIds.has(object.id);
+        const conflict = conflicts.has(object.id);
+        if (!selected && !conflict) return null;
+        const status: ObjectStatus = selected
+          ? conflict
+            ? "conflict-selected"
+            : "selected"
+          : "conflict";
+        return <StatusOutline key={object.id} object={object} status={status} pad={pad} />;
       })}
+      <HoverOutline objects={objects} selectedIds={selectedIds} conflicts={conflicts} pad={pad} />
     </g>
   );
-}
+});
 
-function Handle({
+export function Handle({
   cx,
   cz,
   r,
@@ -121,7 +196,7 @@ function Handle({
   );
 }
 
-function RotateKnob({
+export function RotateKnob({
   x,
   z,
   stemFrom,

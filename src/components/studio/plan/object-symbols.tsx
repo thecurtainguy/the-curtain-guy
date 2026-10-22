@@ -55,6 +55,15 @@ const CHAIR_COLORS: Record<StudioChairStyle, { fill: string; back: string; opaci
 };
 
 const CHAIR = 17;
+/** Below this on-screen chair size (px) seats collapse to one flat path per table. */
+const SEAT_DETAIL_MIN_PX = 6;
+
+export type PlanSymbolDetail = "full" | "low";
+
+/** Level of detail for seat glyphs at a zoom (screen px per inch). */
+export function planSymbolDetail(zoom: number): PlanSymbolDetail {
+  return zoom * CHAIR >= SEAT_DETAIL_MIN_PX ? "full" : "low";
+}
 
 function finishHex(object: StudioObject, fallback: string): string {
   if (object.color) return object.color;
@@ -73,48 +82,39 @@ function chairStyleOf(object: StudioObject): StudioChairStyle {
   return object.chairStyle ?? getStudioObjectOption(object.type)?.chairStyle ?? "chiavari_gold";
 }
 
-/** One chair: seat centred at (x, z), backrest away from the facing direction. */
-function Chair({
-  x,
-  z,
-  angle,
-  style,
-  size = CHAIR,
-}: {
-  x: number;
-  z: number;
-  angle: number;
-  style: StudioChairStyle;
-  size?: number;
-}) {
-  const colors = CHAIR_COLORS[style];
-  const half = size / 2;
+type ChairSpec = { x: number; z: number; angle: number };
+
+const fmt = (value: number) => Math.round(value * 100) / 100;
+
+/**
+ * Path for a (rounded) rect in chair-local space, rotated by the chair angle
+ * and translated to its seat centre — the same geometry `<rect rx>` inside a
+ * `translate() rotate()` group would draw.
+ */
+function chairRectPath(
+  chair: ChairSpec,
+  x0: number,
+  y0: number,
+  width: number,
+  height: number,
+  radius: number
+): string {
+  const radians = (chair.angle * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const at = (px: number, py: number) =>
+    `${fmt(chair.x + px * cos - py * sin)} ${fmt(chair.z + px * sin + py * cos)}`;
+  const x1 = x0 + width;
+  const y1 = y0 + height;
+  const r = fmt(Math.max(0, Math.min(radius, width / 2, height / 2)));
+  if (r <= 0) return `M${at(x0, y0)}L${at(x1, y0)}L${at(x1, y1)}L${at(x0, y1)}Z`;
+  const arc = (px: number, py: number) => `A${r} ${r} 0 0 1 ${at(px, py)}`;
   return (
-    <g transform={`translate(${x} ${z}) rotate(${angle})`} opacity={colors.opacity}>
-      <rect
-        x={-half}
-        y={-half}
-        width={size}
-        height={size}
-        rx={size * 0.22}
-        fill={colors.fill}
-        stroke={colors.back}
-        strokeWidth={0.75}
-        vectorEffect="non-scaling-stroke"
-      />
-      <rect
-        x={-half}
-        y={half - size * 0.22}
-        width={size}
-        height={size * 0.22}
-        rx={size * 0.1}
-        fill={colors.back}
-      />
-    </g>
+    `M${at(x0 + r, y0)}L${at(x1 - r, y0)}${arc(x1, y0 + r)}` +
+    `L${at(x1, y1 - r)}${arc(x1 - r, y1)}L${at(x0 + r, y1)}${arc(x0, y1 - r)}` +
+    `L${at(x0, y0 + r)}${arc(x0 + r, y0)}Z`
   );
 }
-
-type ChairSpec = { x: number; z: number; angle: number };
 
 function ringChairs(rx: number, rz: number, count: number, gap = 10): ChairSpec[] {
   const chairs: ChairSpec[] = [];
@@ -158,11 +158,42 @@ function banquetChairs(width: number, depth: number, count: number): ChairSpec[]
   ];
 }
 
-function renderChairs(chairs: ChairSpec[], style: StudioChairStyle, size = CHAIR) {
-  if (style === "none") return null;
-  return chairs.map((chair, index) => (
-    <Chair key={index} x={chair.x} z={chair.z} angle={chair.angle} style={style} size={size} />
-  ));
+/**
+ * Every chair around a table as two paths (seats + backrests) instead of a
+ * group per chair. Zoomed out ("low"), seats collapse to one flat path.
+ */
+function renderChairs(
+  chairs: ChairSpec[],
+  style: StudioChairStyle,
+  detail: PlanSymbolDetail,
+  size = CHAIR
+) {
+  if (style === "none" || chairs.length === 0) return null;
+  const colors = CHAIR_COLORS[style];
+  const half = size / 2;
+  if (detail === "low") {
+    const seats = chairs.map((chair) => chairRectPath(chair, -half, -half, size, size, 0)).join("");
+    return <path d={seats} fill={colors.fill} opacity={colors.opacity} />;
+  }
+  const backDepth = size * 0.22;
+  let seats = "";
+  let backs = "";
+  for (const chair of chairs) {
+    seats += chairRectPath(chair, -half, -half, size, size, size * 0.22);
+    backs += chairRectPath(chair, -half, half - backDepth, size, backDepth, size * 0.1);
+  }
+  return (
+    <g opacity={colors.opacity}>
+      <path
+        d={seats}
+        fill={colors.fill}
+        stroke={colors.back}
+        strokeWidth={0.75}
+        vectorEffect="non-scaling-stroke"
+      />
+      <path d={backs} fill={colors.back} />
+    </g>
+  );
 }
 
 function seatsOf(object: StudioObject): number {
@@ -234,7 +265,7 @@ function Outline({
   );
 }
 
-function RoundTable({ object, showSeating }: SymbolProps) {
+function RoundTable({ object, showSeating, detail }: SymbolProps) {
   const hw = object.width / 2;
   const hd = object.depth / 2;
   const linen = linenHex(object);
@@ -242,7 +273,7 @@ function RoundTable({ object, showSeating }: SymbolProps) {
   const style = chairStyleOf(object);
   return (
     <>
-      {showSeating && seats > 0 ? renderChairs(ringChairs(hw, hd, seats), style) : null}
+      {showSeating && seats > 0 ? renderChairs(ringChairs(hw, hd, seats), style, detail) : null}
       <ellipse
         rx={hw}
         ry={hd}
@@ -290,7 +321,7 @@ function CakeTable({ object }: SymbolProps) {
   );
 }
 
-function RectTable({ object, showSeating }: SymbolProps) {
+function RectTable({ object, showSeating, detail }: SymbolProps) {
   const w = object.width;
   const d = object.depth;
   const linen = linenHex(object);
@@ -303,7 +334,7 @@ function RectTable({ object, showSeating }: SymbolProps) {
   const garland = oneSided ? Math.max(3, Math.round(w / 14)) : 0;
   return (
     <>
-      {showSeating && seats > 0 ? renderChairs(chairs, style) : null}
+      {showSeating && seats > 0 ? renderChairs(chairs, style, detail) : null}
       <Outline w={w} d={d} rx={2} fill={linen ?? "#8a6440"} />
       <rect
         x={-w / 2 + 3}
@@ -367,7 +398,7 @@ function BuffetTable({ object }: SymbolProps) {
   );
 }
 
-function ZoneArea({ object, showSeating }: SymbolProps) {
+function ZoneArea({ object, showSeating, detail }: SymbolProps) {
   const w = object.width;
   const d = object.depth;
   const seats = seatsOf(object);
@@ -377,7 +408,7 @@ function ZoneArea({ object, showSeating }: SymbolProps) {
     return (
       <>
         <Outline w={w} d={d} rx={6} fill={ZONE_FILL} stroke={ZONE_STROKE} dashed />
-        {showSeating && seats > 0 ? renderChairs(ringChairs(r, r, seats, 9), style, 15) : null}
+        {showSeating && seats > 0 ? renderChairs(ringChairs(r, r, seats, 9), style, detail, 15) : null}
         <circle r={r} fill="color-mix(in oklch, var(--primary) 18%, transparent)" stroke={ZONE_STROKE} strokeWidth={1} vectorEffect="non-scaling-stroke" />
       </>
     );
@@ -442,7 +473,7 @@ function SofaShape({
   );
 }
 
-function CeremonySeating({ object, showSeating }: SymbolProps) {
+function CeremonySeating({ object, showSeating, detail }: SymbolProps) {
   const w = object.width;
   const d = object.depth;
   const style = chairStyleOf(object);
@@ -475,7 +506,7 @@ function CeremonySeating({ object, showSeating }: SymbolProps) {
       <rect x={-aisle / 2 + 6} y={-d / 2} width={Math.max(0, aisle - 12)} height={d} fill="#f4f1e9" fillOpacity={0.55} />
       <line x1={0} x2={0} y1={-d / 2} y2={d / 2} stroke={GOLD} strokeOpacity={0.7} strokeDasharray="6 5" strokeWidth={1} vectorEffect="non-scaling-stroke" />
       {showSeating && style !== "none" ? (
-        renderChairs(chairs, style, 16)
+        renderChairs(chairs, style, detail, 16)
       ) : (
         <>
           <rect x={-w / 2} y={-d / 2} width={sideWidth} height={d} fill="url(#studio-hatch)" />
@@ -831,7 +862,7 @@ function EntranceMarker({ object }: SymbolProps) {
   );
 }
 
-type SymbolProps = { object: StudioObject; showSeating: boolean };
+type SymbolProps = { object: StudioObject; showSeating: boolean; detail: PlanSymbolDetail };
 
 function renderSymbol(props: SymbolProps): ReactNode {
   switch (props.object.type) {
@@ -896,20 +927,51 @@ function renderSymbol(props: SymbolProps): ReactNode {
   }
 }
 
+const POSE_KEYS: ReadonlySet<string> = new Set(["x", "z", "rotation"]);
+
+/** Same drawing apart from position/rotation (which the outer transform applies). */
+function sameShape(a: StudioObject, b: StudioObject): boolean {
+  if (a === b) return true;
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const leftKeys = Object.keys(left);
+  if (leftKeys.length !== Object.keys(right).length) return false;
+  for (const key of leftKeys) {
+    if (!POSE_KEYS.has(key) && !Object.is(left[key], right[key])) return false;
+  }
+  return true;
+}
+
+/** Local-space drawing; skips re-rendering while an object is only moved or rotated. */
+const SymbolBody = memo(
+  function SymbolBody(props: SymbolProps) {
+    return renderSymbol(props);
+  },
+  (previous, next) =>
+    previous.showSeating === next.showSeating &&
+    previous.detail === next.detail &&
+    sameShape(previous.object, next.object)
+);
+
 /** Memoized symbol for one object, positioned and rotated in plan space. */
 export const PlanObjectSymbol = memo(function PlanObjectSymbol({
   object,
   showSeating,
-}: SymbolProps) {
+  detail = "full",
+}: {
+  object: StudioObject;
+  showSeating: boolean;
+  detail?: PlanSymbolDetail;
+}) {
   return (
     <g transform={`translate(${object.x} ${object.z}) rotate(${object.rotation})`}>
-      {renderSymbol({ object, showSeating })}
+      <SymbolBody object={object} showSeating={showSeating} detail={detail} />
     </g>
   );
 });
 
 /** Shared SVG patterns used by plan symbols (dance floor finishes, hatches). */
-export function PlanSymbolDefs() {
+export const PlanSymbolDefs = memo(function PlanSymbolDefs() {
   return (
     <>
       <pattern id="studio-checkerboard" width="24" height="24" patternUnits="userSpaceOnUse">
@@ -942,13 +1004,6 @@ export function PlanSymbolDefs() {
         <rect width="6" height="6" fill="#2a2724" />
         <path d="M0 0v6" stroke="#8b7d6b" strokeWidth="1.6" />
       </pattern>
-      <filter id="studio-selection-glow" x="-40%" y="-40%" width="180%" height="180%">
-        <feGaussianBlur stdDeviation="4" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
     </>
   );
-}
+});

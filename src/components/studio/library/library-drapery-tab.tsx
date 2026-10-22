@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DRAPE_COLORS,
   DRAPE_FABRICS,
@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   AppWindow,
+  ArrowRight,
   Columns3,
   DoorClosed,
   DoorOpen,
@@ -42,6 +43,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { StudioSelection } from "../studio-types";
+import { CeilingStyleArt } from "./ceiling-style-art";
 import { STUDIO_OBJECT_ICONS } from "./studio-library-icons";
 import {
   findFreeStudioSpot,
@@ -102,7 +104,8 @@ const TREATMENT_ICONS: Record<string, LucideIcon> = {
   uplights: Lightbulb,
 };
 
-const FREESTANDING: StudioObjectType[] = ["drape_backdrop", "ceiling_drape"];
+// The legacy "ceiling_drape" object stays loadable; new ceilings come from the Ceiling tab.
+const FREESTANDING: StudioObjectType[] = ["drape_backdrop"];
 
 const RUN_LABELS: Record<DrapeRunType, string> = {
   wall_drape: "Wall drape",
@@ -155,6 +158,7 @@ export function LibraryDraperyTab({
   onStyleChange,
   query,
   idPrefix,
+  onOpenCeiling,
 }: {
   design: StudioDesignJson;
   onChange: (design: StudioDesignJson) => void;
@@ -165,10 +169,13 @@ export function LibraryDraperyTab({
   onStyleChange: (style: StudioDrapeStyle) => void;
   query: string;
   idPrefix: string;
+  /** Switches the library to the Ceiling tab. */
+  onOpenCeiling?: () => void;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
   const searching = query.trim().length > 0;
-  const walls = getWallSegments(design.room.floor);
+  const floor = design.room.floor;
+  const walls = useMemo(() => getWallSegments(floor), [floor]);
   const targetWall =
     selection?.kind === "wall" && walls[selection.index] ? selection.index : 0;
   const wall = walls[targetWall] ?? walls[0];
@@ -478,6 +485,33 @@ export function LibraryDraperyTab({
             })}
           </div>
         </LibraryCard>
+      ) : null}
+
+      {!searching && onOpenCeiling ? (
+        <button
+          type="button"
+          onClick={onOpenCeiling}
+          className="group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-border/40 bg-card/25 p-2 pr-3 text-left transition-all hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+        >
+          <span className="h-11 w-16 shrink-0 overflow-hidden rounded-xl border border-border/40">
+            <CeilingStyleArt style="starburst" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[0.58rem] font-semibold tracking-[0.2em] text-primary uppercase">
+              Overhead
+            </span>
+            <span className="block font-heading text-sm leading-tight text-foreground">
+              Ceiling drapery
+            </span>
+            <span className="block truncate text-[0.62rem] text-muted-foreground">
+              Starbursts, tents, billows & signature looks
+            </span>
+          </span>
+          <ArrowRight
+            className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary motion-reduce:group-hover:translate-x-0"
+            aria-hidden
+          />
+        </button>
       ) : null}
 
       {openingTools.length > 0 ? (

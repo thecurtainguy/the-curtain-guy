@@ -6,12 +6,21 @@ import { Keyboard } from "lucide-react";
 import { Fragment } from "react";
 import {
   STUDIO_SHORTCUTS,
-  useStudioEditor,
+  useStudioEditorActions,
+  useStudioView,
 } from "./editor/studio-editor-context";
+
+const DISPLAY_SHORTCUTS: typeof STUDIO_SHORTCUTS = [
+  { keys: ["Ctrl", "Shift", "F"], label: "Full screen on / off" },
+  { keys: ["P"], label: "Present to a client (Esc exits)" },
+];
+
+const SHORTCUTS = [...STUDIO_SHORTCUTS, ...DISPLAY_SHORTCUTS];
 
 /** Keyboard reference, controlled by the editor's `shortcutsOpen`. */
 export function StudioShortcutsDialog() {
-  const { shortcutsOpen, setShortcutsOpen } = useStudioEditor();
+  const { shortcutsOpen } = useStudioView();
+  const { setShortcutsOpen } = useStudioEditorActions();
   return (
     <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
       <BrandDialogContent
@@ -22,7 +31,7 @@ export function StudioShortcutsDialog() {
         description="Work at full speed — every move, rotation and view switch is a keystroke away. On a Mac, Ctrl also works as ⌘."
       >
         <ul className="grid gap-2 sm:grid-cols-2">
-          {STUDIO_SHORTCUTS.map((shortcut) => (
+          {SHORTCUTS.map((shortcut) => (
             <li
               key={shortcut.label}
               className="flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card/25 px-3 py-2.5"

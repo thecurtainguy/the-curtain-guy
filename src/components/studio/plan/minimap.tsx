@@ -74,7 +74,7 @@ export function PlanMinimap({
   }
 
   return (
-    <div className="pointer-events-auto overflow-hidden rounded-2xl border border-border/60 bg-background/85 p-1.5 shadow-lg backdrop-blur">
+    <div className="pointer-events-auto overflow-hidden rounded-2xl border border-border/60 bg-background/95 p-1.5 shadow-lg">
       <svg
         width={MAP_WIDTH}
         height={MAP_HEIGHT}

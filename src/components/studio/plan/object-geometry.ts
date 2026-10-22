@@ -42,9 +42,44 @@ export function isCircularObjectType(type: StudioObjectType): boolean {
   return CIRCULAR_TYPES.has(type);
 }
 
+type ObjectShapeCache = {
+  corners: StudioPoint[];
+  box: PlanRect;
+  /** Containment result for the floor it was computed against. */
+  floor?: readonly StudioPoint[];
+  contained?: boolean;
+};
+
+/** Design objects are immutable, so geometry is cached per object identity. */
+const shapeCache = new WeakMap<StudioObject, ObjectShapeCache>();
+
+function objectShape(object: StudioObject): ObjectShapeCache {
+  let entry = shapeCache.get(object);
+  if (!entry) {
+    const corners = getStudioObjectCorners(object);
+    entry = { corners, box: getPointsBox(corners) };
+    shapeCache.set(object, entry);
+  }
+  return entry;
+}
+
+/** Rotated corners of an object (cached; do not mutate). */
+export function getObjectCorners(object: StudioObject): readonly StudioPoint[] {
+  return objectShape(object).corners;
+}
+
+/** Axis-aligned bounds of an object (cached; do not mutate). */
 export function getObjectBox(object: StudioObject): PlanRect {
-  const corners = getStudioObjectCorners(object);
-  return getPointsBox(corners);
+  return objectShape(object).box;
+}
+
+function isContained(object: StudioObject, floor: StudioPoint[]): boolean {
+  const entry = objectShape(object);
+  if (entry.floor !== floor || entry.contained === undefined) {
+    entry.floor = floor;
+    entry.contained = getStudioObjectBoundsResult(object, floor).contained;
+  }
+  return entry.contained;
 }
 
 export function getPointsBox(points: readonly StudioPoint[]): PlanRect {
@@ -125,7 +160,7 @@ function rectPolygon(rect: PlanRect): StudioPoint[] {
 }
 
 export function objectIntersectsRect(object: StudioObject, rect: PlanRect): boolean {
-  return convexPolygonsOverlap(getStudioObjectCorners(object), rectPolygon(rect), 0);
+  return convexPolygonsOverlap(getObjectCorners(object), rectPolygon(rect), 0);
 }
 
 export function segmentIntersectsRect(
@@ -225,17 +260,18 @@ export function getConflictingObjectIds(
   floor: StudioPoint[]
 ): Set<string> {
   const conflicts = new Set<string>();
-  const solids: Array<{ object: StudioObject; corners: StudioPoint[]; box: PlanRect }> = [];
+  const solids: Array<{ object: StudioObject; corners: readonly StudioPoint[]; box: PlanRect }> =
+    [];
   for (const object of objects) {
     if (object.hidden) continue;
     if (object.type !== "ceiling_drape" && object.type !== "chandelier") {
-      if (!getStudioObjectBoundsResult(object, floor).contained) {
+      if (!isContained(object, floor)) {
         conflicts.add(object.id);
       }
     }
     if (NON_COLLIDING_TYPES.has(object.type)) continue;
-    const corners = getStudioObjectCorners(object);
-    solids.push({ object, corners, box: getPointsBox(corners) });
+    const shape = objectShape(object);
+    solids.push({ object, corners: shape.corners, box: shape.box });
   }
   solids.sort((a, b) => a.box.minX - b.box.minX);
   for (let index = 0; index < solids.length; index += 1) {

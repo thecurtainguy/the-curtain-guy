@@ -1,10 +1,10 @@
 "use client";
 
-import { Line } from "@react-three/drei";
 import type { StudioPoint } from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { CeilingLine } from "./ceiling/ceiling-line";
 import {
   GOLD,
   GOLD_BRIGHT,
@@ -48,6 +48,10 @@ export function GhostFootprint({
     shape.closePath();
     return new THREE.ShapeGeometry(shape);
   }, [bounds, corners]);
+  const outline = useMemo(
+    () => toFloorPoints(bounds, corners, FLOOR_Y, true),
+    [bounds, corners]
+  );
 
   useEffect(() => () => geometry.dispose(), [geometry]);
 
@@ -67,16 +71,14 @@ export function GhostFootprint({
           toneMapped={false}
         />
       </mesh>
-      <Line
-        points={toFloorPoints(bounds, corners, FLOOR_Y, true)}
+      <CeilingLine
+        points={outline}
         color={GOLD}
         lineWidth={1.4}
         dashed
         dashSize={0.35}
         gapSize={0.22}
-        transparent
         opacity={0.7}
-        depthTest={false}
         renderOrder={25}
       />
     </group>
@@ -95,14 +97,16 @@ export function FootprintOutline({
   opacity?: number;
   lineWidth?: number;
 }) {
+  const points = useMemo(
+    () => toFloorPoints(bounds, corners, FLOOR_Y, true),
+    [bounds, corners]
+  );
   return (
-    <Line
-      points={toFloorPoints(bounds, corners, FLOOR_Y, true)}
+    <CeilingLine
+      points={points}
       color={GOLD}
       lineWidth={lineWidth}
-      transparent
       opacity={opacity}
-      depthTest={false}
       renderOrder={26}
     />
   );
@@ -118,22 +122,32 @@ export function SelectionBox({
   rect: FloorRect;
   padding?: number;
 }) {
-  const corners: StudioPoint[] = [
-    { x: rect.minX - padding, z: rect.minZ - padding },
-    { x: rect.maxX + padding, z: rect.minZ - padding },
-    { x: rect.maxX + padding, z: rect.maxZ + padding },
-    { x: rect.minX - padding, z: rect.maxZ + padding },
-  ];
+  const { minX, minZ, maxX, maxZ } = rect;
+  const points = useMemo(
+    () =>
+      toFloorPoints(
+        bounds,
+        [
+          { x: minX - padding, z: minZ - padding },
+          { x: maxX + padding, z: minZ - padding },
+          { x: maxX + padding, z: maxZ + padding },
+          { x: minX - padding, z: maxZ + padding },
+        ],
+        FLOOR_Y + 0.06,
+        true
+      ),
+    [bounds, minX, minZ, maxX, maxZ, padding]
+  );
   return (
-    <Line
-      points={toFloorPoints(bounds, corners, FLOOR_Y + 0.06, true)}
+    <CeilingLine
+      points={points}
       color={GOLD_BRIGHT}
       lineWidth={2}
       dashed
       dashSize={0.6}
       gapSize={0.35}
-      transparent
       opacity={0.95}
+      depthTest
       renderOrder={27}
     />
   );
@@ -143,26 +157,34 @@ export function SelectionBox({
 export function GuideLines({
   bounds,
   guides,
+  height = FLOOR_Y + 0.01,
 }: {
   bounds: StudioBounds;
   guides: GuideLine[];
+  /** World y (feet); ceiling guides draw just under the ceiling. */
+  height?: number;
 }) {
+  const points = useMemo(
+    () =>
+      toFloorPoints(
+        bounds,
+        guides.flatMap((guide) => [guide.from, guide.to]),
+        height
+      ),
+    [bounds, guides, height]
+  );
+  if (points.length === 0) return null;
   return (
-    <group>
-      {guides.map((guide, index) => (
-        <Line
-          key={index}
-          points={toFloorPoints(bounds, [guide.from, guide.to], FLOOR_Y + 0.01)}
-          color={GOLD_BRIGHT}
-          lineWidth={1.6}
-          dashed
-          dashSize={0.5}
-          gapSize={0.25}
-          depthTest={false}
-          renderOrder={28}
-          />
-      ))}
-    </group>
+    <CeilingLine
+      points={points}
+      segments
+      color={GOLD_BRIGHT}
+      lineWidth={1.6}
+      dashed
+      dashSize={0.5}
+      gapSize={0.25}
+      renderOrder={28}
+    />
   );
 }
 
@@ -178,17 +200,19 @@ export function WallSpanLine({
   to: StudioPoint;
   ghost?: boolean;
 }) {
+  const points = useMemo(
+    () => toFloorPoints(bounds, [from, to], FLOOR_Y + 0.015),
+    [bounds, from, to]
+  );
   return (
-    <Line
-      points={toFloorPoints(bounds, [from, to], FLOOR_Y + 0.015)}
+    <CeilingLine
+      points={points}
       color={ghost ? GOLD : GOLD_BRIGHT}
       lineWidth={ghost ? 2 : 3.2}
       dashed={ghost}
       dashSize={0.35}
       gapSize={0.22}
-      transparent
       opacity={ghost ? 0.6 : 0.95}
-      depthTest={false}
       renderOrder={28}
     />
   );

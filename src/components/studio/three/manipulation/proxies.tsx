@@ -6,7 +6,7 @@ import {
   getPointAlongWall,
   type StudioBounds,
 } from "@/lib/studio-geometry";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type * as THREE from "three";
 import {
   layoutSeating,
@@ -24,12 +24,14 @@ import {
   type WallItemKind,
 } from "./drag-math";
 
-export type ProxyKind = "object" | WallItemKind;
+export type ProxyKind = "object" | WallItemKind | "ceiling";
 
 export type ProxyTarget = {
   kind: ProxyKind;
   id: string;
   locked: boolean;
+  /** False when dragging the body can't move it (room-wide ceiling rows). */
+  movable?: boolean;
 };
 
 export type ProxyEvents = {
@@ -94,6 +96,17 @@ export function proxyClaimsEvent(
     return false;
   }
   return true;
+}
+
+/**
+ * Ceiling designs: seen from below they pick like anything else; seen from
+ * above (looking down through the fabric) they yield to every floor-level
+ * proxy on the ray, so tables under a canopy stay clickable.
+ */
+export function ceilingProxyClaimsEvent(
+  event: ThreeEvent<PointerEvent | MouseEvent>
+): boolean {
+  return proxyClaimsEvent(event, event.ray.direction.y < -0.05);
 }
 
 function ProxyMesh({
@@ -184,7 +197,8 @@ function getPickBox(object: StudioObject, showSeating: boolean) {
   };
 }
 
-export function ObjectProxy({
+/** Memoized: with a stable `events`, only items whose data changed re-render during a drag. */
+export const ObjectProxy = memo(function ObjectProxy({
   object,
   bounds,
   wallHeight,
@@ -217,9 +231,9 @@ export function ObjectProxy({
       events={events}
     />
   );
-}
+});
 
-export function WallItemProxy({
+export const WallItemProxy = memo(function WallItemProxy({
   kind,
   item,
   wall,
@@ -251,4 +265,4 @@ export function WallItemProxy({
       events={events}
     />
   );
-}
+});

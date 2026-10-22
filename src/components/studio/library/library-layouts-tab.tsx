@@ -152,9 +152,10 @@ export function LibraryLayoutsTab({
   const config = getStudioLayoutConfig(params.key);
   const layouts = filterLayouts(query);
 
+  const floor = design.room.floor;
   const preview = useMemo(
-    () => generateStudioLayout(design, params.key, params.count, params.spacing),
-    [design, params]
+    () => generateStudioLayout({ room: { floor } }, params.key, params.count, params.spacing),
+    [floor, params]
   );
   const seats = preview.objects.reduce(
     (total, object) =>

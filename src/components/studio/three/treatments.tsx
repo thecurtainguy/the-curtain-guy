@@ -13,7 +13,8 @@ import {
   type StudioBounds,
   type StudioWallSegment,
 } from "@/lib/studio-geometry";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
+import * as THREE from "three";
 import type { StudioSelection } from "../studio-types";
 import {
   assemblyFrontZ,
@@ -23,6 +24,7 @@ import {
   SelectionFloorLine,
   useFabricEditorState,
   useFabricLayerVisible,
+  useSettledFabricProfile,
   wallStandoff,
   type FabricHighlight,
 } from "./fabric/drape-assembly";
@@ -54,9 +56,10 @@ import {
   useDisposeGeometry,
 } from "./fabric/hardware";
 import {
-  getFabricMaterial,
+  getFabricMaterialForQuality,
   type FabricQuality,
 } from "./fabric/materials";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { hashSeed } from "./texture-utils";
 
 const SCALE = 1 / 12;
@@ -79,19 +82,20 @@ function PanelMesh({
   look: Look;
 }) {
   const key = JSON.stringify(options);
+  const profile = useSettledFabricProfile(key, look.quality);
   const geometry = useMemo(
     () =>
       createPleatedPanelGeometry({
         ...(JSON.parse(key) as PleatedPanelOptions),
-        quality: look.quality,
+        quality: profile,
       }),
-    [key, look.quality]
+    [key, profile]
   );
   useDisposeGeometry(geometry);
   return (
     <FabricMesh
       geometry={geometry}
-      material={getFabricMaterial(look.fabric, color, look.glow)}
+      material={getFabricMaterialForQuality(look.fabric, color, look.glow, look.quality)}
       highlight={look.highlight}
     />
   );
@@ -109,19 +113,20 @@ function SwagMesh({
   position: [number, number, number];
 }) {
   const key = JSON.stringify(options);
+  const profile = useSettledFabricProfile(key, look.quality);
   const geometry = useMemo(
     () =>
       createSwagGeometry({
         ...(JSON.parse(key) as SwagOptions),
-        quality: look.quality,
+        quality: profile,
       }),
-    [key, look.quality]
+    [key, profile]
   );
   useDisposeGeometry(geometry);
   return (
     <FabricMesh
       geometry={geometry}
-      material={getFabricMaterial(look.fabric, color, look.glow)}
+      material={getFabricMaterialForQuality(look.fabric, color, look.glow, look.quality)}
       highlight={look.highlight}
       position={position}
     />
@@ -140,19 +145,20 @@ function JabotMesh({
   position: [number, number, number];
 }) {
   const key = JSON.stringify(options);
+  const profile = useSettledFabricProfile(key, look.quality);
   const geometry = useMemo(
     () =>
       createJabotGeometry({
         ...(JSON.parse(key) as JabotOptions),
-        quality: look.quality,
+        quality: profile,
       }),
-    [key, look.quality]
+    [key, profile]
   );
   useDisposeGeometry(geometry);
   return (
     <FabricMesh
       geometry={geometry}
-      material={getFabricMaterial(look.fabric, color, look.glow)}
+      material={getFabricMaterialForQuality(look.fabric, color, look.glow, look.quality)}
       highlight={look.highlight}
       position={position}
     />
@@ -187,7 +193,9 @@ function SwagRow({
 }) {
   const n = Math.max(1, Math.min(8, Math.round(count)));
   const scallop = width / n;
-  const rosette = getFabricMaterial("satin", rosetteColor);
+  const rosette = getFabricMaterialForQuality("satin", rosetteColor, null, look.quality);
+  const rosettes = useMemo(() => rosetteRowGeometry(n, width, y, z), [n, width, y, z]);
+  useDisposeGeometry(rosettes);
   return (
     <group>
       {Array.from({ length: n }, (_, index) => (
@@ -204,19 +212,27 @@ function SwagRow({
           position={[-width / 2 + (index + 0.5) * scallop, y, z + (index % 2) * 0.012]}
         />
       ))}
-      {Array.from({ length: n + 1 }, (_, index) => (
-        <mesh
-          key={`rosette-${index}`}
-          position={[-width / 2 + index * scallop, y - 0.04, z + 0.12]}
-          scale={[1, 1, 0.6]}
-          material={rosette}
-          castShadow
-        >
-          <torusKnotGeometry args={[0.1, 0.045, 48, 8, 2, 5]} />
-        </mesh>
-      ))}
+      {rosettes ? <mesh geometry={rosettes} material={rosette} /> : null}
     </group>
   );
+}
+
+let rosetteKnot: THREE.TorusKnotGeometry | null = null;
+
+/** Every rosette of a swag row merged into one geometry (one draw call). */
+function rosetteRowGeometry(count: number, width: number, y: number, z: number) {
+  rosetteKnot ??= new THREE.TorusKnotGeometry(0.1, 0.045, 48, 8, 2, 5);
+  const knot = rosetteKnot;
+  const scallop = width / count;
+  const parts = Array.from({ length: count + 1 }, (_, index) =>
+    knot
+      .clone()
+      .scale(1, 1, 0.6)
+      .translate(-width / 2 + index * scallop, y - 0.04, z + 0.12)
+  );
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((part) => part.dispose());
+  return merged;
 }
 
 /** Fabric band cinched around a tieback bundle, with a hanging tassel. */
@@ -227,6 +243,7 @@ function TieBand({
   bundle,
   depth,
   color,
+  quality,
 }: {
   x: number;
   y: number;
@@ -234,9 +251,10 @@ function TieBand({
   bundle: number;
   depth: number;
   color: DrapeColor;
+  quality: FabricQuality;
 }) {
   const radius = bundle * 0.56 + 0.03;
-  const material = getFabricMaterial("satin", color);
+  const material = getFabricMaterialForQuality("satin", color, null, quality);
   return (
     <group position={[x, y, z]}>
       <mesh
@@ -248,10 +266,10 @@ function TieBand({
         <torusGeometry args={[radius, 0.042, 10, 28]} />
       </mesh>
       <group position={[0, -0.05, depth + 0.07]}>
-        <mesh material={material} castShadow>
+        <mesh material={material}>
           <sphereGeometry args={[0.06, 14, 10]} />
         </mesh>
-        <mesh position={[0, -0.24, 0]} material={material} castShadow>
+        <mesh position={[0, -0.24, 0]} material={material}>
           <coneGeometry args={[0.075, 0.38, 14, 1, true]} />
         </mesh>
       </group>
@@ -411,6 +429,7 @@ function SideTiebacks({ treatment, width, height, look, seed }: AssemblyProps) {
               bundle={bundle}
               depth={bundleDepth}
               color={treatment.secondaryColor}
+              quality={look.quality}
             />
           ))
         : null}
@@ -716,6 +735,7 @@ function CeremonyArch({ treatment, width, height, look, seed }: AssemblyProps) {
               bundle={bundle}
               depth={bundleDepth}
               color={treatment.secondaryColor}
+              quality={look.quality}
             />
           ))
         : null}
@@ -778,7 +798,7 @@ function CeremonyArch({ treatment, width, height, look, seed }: AssemblyProps) {
   );
 }
 
-function TreatmentAssembly({
+const TreatmentAssembly = memo(function TreatmentAssembly({
   treatment,
   wall,
   bounds,
@@ -825,7 +845,7 @@ function TreatmentAssembly({
       {treatment.type === "ceremony_arch" ? <CeremonyArch {...props} /> : null}
     </group>
   );
-}
+});
 
 export function StudioTreatments({
   design,

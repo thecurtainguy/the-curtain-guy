@@ -33,6 +33,8 @@ export const CEILING_FOV = 65;
 export const MIN_CAMERA_HEIGHT = 2.5;
 /** Eye stays this far below the ceiling plane so the 14″ tray soffit never clips. */
 export const CEILING_CLEARANCE = 1.5;
+/** Extra headroom kept under deeper ceiling architecture (coffers, truss), feet. */
+const HANG_CLEARANCE = 0.5;
 /** Free-look pitch limits, radians. */
 export const MAX_PITCH_UP = THREE.MathUtils.degToRad(85);
 export const MAX_PITCH_DOWN = THREE.MathUtils.degToRad(-80);
@@ -223,7 +225,8 @@ function vec(point: FootPoint, y: number) {
 }
 
 export function maxEyeHeight(footprint: RoomFootprint) {
-  return Math.max(MIN_CAMERA_HEIGHT, footprint.height - CEILING_CLEARANCE);
+  const clearance = Math.max(CEILING_CLEARANCE, footprint.ceilingHang + HANG_CLEARANCE);
+  return Math.max(MIN_CAMERA_HEIGHT, footprint.height - clearance);
 }
 
 export function clampHeight(footprint: RoomFootprint, y: number) {

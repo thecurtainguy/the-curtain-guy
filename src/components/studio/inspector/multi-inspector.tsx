@@ -1,13 +1,16 @@
 "use client";
 
 import {
+  CEILING_LIGHT_STYLES,
   LINEN_OBJECT_TYPES,
   SEATED_OBJECT_TYPES,
   STUDIO_CHAIR_STYLES,
   type DrapeColor,
+  type StudioCeilingDrape,
   type StudioDesignJson,
   type StudioObject,
 } from "@/data/studio";
+import { estimateCeilingFabric, updateCeilingDrape } from "@/lib/studio-ceiling";
 import { findStudioItem, type StudioItemKind } from "@/lib/studio-commands";
 import {
   AlignCenterHorizontal,
@@ -23,17 +26,26 @@ import {
   Copy,
   Eye,
   EyeOff,
+  LampCeiling,
+  Lightbulb,
+  LightbulbOff,
   Lock,
   LockOpen,
   Palette,
+  Ruler,
   RotateCcw,
   RotateCw,
   Shirt,
+  Sparkles,
+  Star,
   Trash2,
   Users,
   X,
 } from "lucide-react";
-import { useStudioEditor } from "../editor/studio-editor-context";
+import {
+  useStudioEditorActions,
+  useStudioSelection,
+} from "../editor/studio-editor-context";
 import {
   ChoiceTile,
   IconAction,
@@ -43,6 +55,13 @@ import {
 } from "./inspector-ui";
 import { CHAIR_STYLE_SWATCHES, STUDIO_KIND_ICONS } from "./studio-item-meta";
 import { TintField } from "./tint-field";
+
+const CEILING_LIGHT_ICONS = {
+  none: LightbulbOff,
+  fairy: Sparkles,
+  bistro: Lightbulb,
+  starlight: Star,
+} as const;
 
 const KIND_PLURALS: Record<StudioItemKind, string> = {
   object: "Objects",
@@ -68,7 +87,8 @@ export function MultiInspector({
   design: StudioDesignJson;
   onChange: (design: StudioDesignJson) => void;
 }) {
-  const { selectedIds, commands, select } = useStudioEditor();
+  const { selectedIds } = useStudioSelection();
+  const { commands, select } = useStudioEditorActions();
   const refs = selectedIds
     .map((id) => findStudioItem(design, id))
     .filter((ref) => ref !== null);
@@ -92,6 +112,21 @@ export function MultiInspector({
   const chair = shared(seatedObjects.map((object) => object.chairStyle));
   const linen = shared(linenObjects.map((object) => object.linenColor ?? null));
   const tint = shared(objects.map((object) => object.color));
+  const ceilings = refs
+    .filter((ref) => ref.kind === "ceiling")
+    .map((ref) => ref.item as StudioCeilingDrape);
+  const ceilingColor = shared(ceilings.map((drape) => drape.color));
+  const ceilingLights = shared(ceilings.map((drape) => drape.lights));
+  const ceilingYards = ceilings.reduce(
+    (sum, drape) => sum + estimateCeilingFabric(drape, design.room.floor).linearYards,
+    0
+  );
+
+  function patchCeilings(patch: Partial<Omit<StudioCeilingDrape, "id">>) {
+    onChange(
+      ceilings.reduce((next, drape) => updateCeilingDrape(next, drape.id, patch), design)
+    );
+  }
 
   function patchObjects(
     filter: (object: StudioObject) => boolean,
@@ -292,6 +327,40 @@ export function MultiInspector({
               )
             }
           />
+        </InspectorSection>
+      ) : null}
+
+      {ceilings.length > 0 ? (
+        <InspectorSection
+          icon={LampCeiling}
+          eyebrow={`Bulk edit · ${ceilings.length} ceiling design${ceilings.length === 1 ? "" : "s"}`}
+          title="Ceiling drapery"
+          action={
+            <span className="inline-flex items-center gap-1 text-[0.6rem] text-muted-foreground tabular-nums">
+              <Ruler className="size-3 text-primary" aria-hidden="true" />
+              {(Math.round(ceilingYards * 10) / 10).toLocaleString()} yd
+            </span>
+          }
+        >
+          <SwatchGrid
+            label="Fabric colour"
+            mixed={ceilingColor.mixed}
+            value={ceilingColor.value}
+            onChange={(color) => {
+              if (color) patchCeilings({ color });
+            }}
+          />
+          <div role="radiogroup" aria-label="Ceiling lights" className="grid grid-cols-2 gap-1.5">
+            {CEILING_LIGHT_STYLES.map((light) => (
+              <ChoiceTile
+                key={light.value}
+                label={light.label}
+                icon={CEILING_LIGHT_ICONS[light.value]}
+                selected={!ceilingLights.mixed && ceilingLights.value === light.value}
+                onSelect={() => patchCeilings({ lights: light.value })}
+              />
+            ))}
+          </div>
         </InspectorSection>
       ) : null}
 

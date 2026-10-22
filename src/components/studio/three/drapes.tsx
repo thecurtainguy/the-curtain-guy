@@ -7,7 +7,7 @@ import {
   type StudioBounds,
   type StudioWallSegment,
 } from "@/lib/studio-geometry";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { StudioSelection } from "../studio-types";
 import {
   DrapeAssembly,
@@ -20,7 +20,7 @@ import { hashSeed } from "./texture-utils";
 
 const SCALE = 1 / 12;
 
-function DrapeRunModel({
+const DrapeRunModel = memo(function DrapeRunModel({
   run,
   wall,
   bounds,
@@ -66,7 +66,7 @@ function DrapeRunModel({
       />
     </group>
   );
-}
+});
 
 export function StudioDrapes({
   design,

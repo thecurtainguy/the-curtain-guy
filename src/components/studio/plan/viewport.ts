@@ -56,6 +56,17 @@ export function zoomCameraAt(
   return { zoom, x: planX - screen.x / zoom, z: planZ - screen.y / zoom };
 }
 
+const ZOOM_STEP_LOG = Math.log(1.1);
+
+/**
+ * Zoom snapped to 10% steps, for zoom-compensated sizes that need not follow
+ * every frame (hit areas, focus/outline padding): within ±5%, invisible.
+ */
+export function quantizeZoom(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= 0) return 1;
+  return Math.exp(Math.round(Math.log(zoom) / ZOOM_STEP_LOG) * ZOOM_STEP_LOG);
+}
+
 export function screenToPlan(
   camera: PlanCamera,
   screen: { x: number; y: number }

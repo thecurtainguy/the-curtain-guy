@@ -8,7 +8,6 @@
  * pools on the floor without seams.
  */
 import * as THREE from "three";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { rng } from "../texture-utils";
 import type { FabricQuality } from "./materials";
 
@@ -40,6 +39,66 @@ const QUALITY: Record<FabricQuality, QualityProfile> = {
 
 export function qualityProfile(quality: FabricQuality = "high") {
   return QUALITY[quality] ?? QUALITY.high;
+}
+
+/**
+ * Wall-drape panel tessellation. Folds change slowly down the drop, so body
+ * rows are sparse mid-drop and dense only where the shape changes quickly:
+ * the header roll-over, the weighted hem and around a tieback.
+ */
+type PanelDensity = {
+  columnsPerFold: number;
+  midRowsPerFoot: number;
+  detailRowsPerFoot: number;
+  minRows: number;
+};
+
+const PANEL_DENSITY: Record<FabricQuality, PanelDensity> = {
+  draft: { columnsPerFold: 5, midRowsPerFoot: 1, detailRowsPerFoot: 3, minRows: 8 },
+  high: { columnsPerFold: 7, midRowsPerFoot: 1.5, detailRowsPerFoot: 5, minRows: 14 },
+  ultra: { columnsPerFold: 10, midRowsPerFoot: 2.6, detailRowsPerFoot: 7, minRows: 22 },
+};
+
+const HEADER_DETAIL_FEET = 0.8;
+const HEM_DETAIL_FEET = 0.6;
+const TIE_DETAIL_FEET = 1.2;
+
+/**
+ * Body row positions as fractions 0..1 of the drop (top → bottom), spaced by
+ * a density that rises near the header, the hem and the tie point.
+ */
+function bodyRowFractions(
+  drop: number,
+  bodyTop: number,
+  density: PanelDensity,
+  tieY: number | null
+) {
+  const STEPS = 256;
+  const rowsPerFootAt = (d: number) => {
+    const y = bodyTop - d;
+    const detail =
+      d < HEADER_DETAIL_FEET ||
+      d > drop - HEM_DETAIL_FEET ||
+      (tieY !== null && Math.abs(y - tieY) < TIE_DETAIL_FEET);
+    return detail ? density.detailRowsPerFoot : density.midRowsPerFoot;
+  };
+  const cumulative = new Float64Array(STEPS + 1);
+  for (let k = 1; k <= STEPS; k++) {
+    const d = (drop * (k - 0.5)) / STEPS;
+    cumulative[k] = cumulative[k - 1] + (rowsPerFootAt(d) * drop) / STEPS;
+  }
+  const total = cumulative[STEPS];
+  const rows = Math.max(density.minRows, Math.ceil(total));
+  const fractions = new Float64Array(rows + 1);
+  let k = 1;
+  for (let i = 1; i < rows; i++) {
+    const target = (i / rows) * total;
+    while (k < STEPS && cumulative[k] < target) k++;
+    const span = cumulative[k] - cumulative[k - 1] || 1;
+    fractions[i] = (k - 1 + (target - cumulative[k - 1]) / span) / STEPS;
+  }
+  fractions[rows] = 1;
+  return fractions;
 }
 
 /** Folds per foot of hanging width for a given fullness. */
@@ -137,7 +196,8 @@ export type PleatedPanelOptions = {
 function buildHangPath(
   options: PleatedPanelOptions,
   profile: QualityProfile,
-  amplitude: number
+  amplitude: number,
+  panel?: { density: PanelDensity; tieY: number | null }
 ): PathSample[] {
   const samples: PathSample[] = [];
   const height = options.height;
@@ -174,9 +234,14 @@ function buildHangPath(
   const bend = puddle > 0 ? Math.min(0.32, Math.max(0.12, amplitude * 1.6)) : 0;
   const bodyBottom = puddle > 0 ? bend : bottom;
   const drop = Math.max(0.05, bodyTop - bodyBottom);
-  const rows = Math.max(profile.minRows, Math.ceil(drop * profile.rowsPerFoot));
+  const fractions = panel
+    ? bodyRowFractions(drop, bodyTop, panel.density, panel.tieY)
+    : null;
+  const rows = fractions
+    ? fractions.length - 1
+    : Math.max(profile.minRows, Math.ceil(drop * profile.rowsPerFoot));
   for (let i = 0; i <= rows; i++) {
-    const t = i / rows;
+    const t = fractions ? fractions[i] : i / rows;
     samples.push({
       y: bodyTop - drop * t,
       z,
@@ -221,30 +286,130 @@ function buildHangPath(
   return samples;
 }
 
-function gridIndices(columns: number, rows: number) {
-  const indices: number[] = [];
+function indexArray(vertexCount: number, length: number) {
+  return vertexCount > 65535 ? new Uint32Array(length) : new Uint16Array(length);
+}
+
+/** Writes grid triangle indices (offset by `base`) into `out` at `at`. */
+function writeGridIndices(
+  out: Uint16Array | Uint32Array,
+  at: number,
+  base: number,
+  columns: number,
+  rows: number
+) {
   const rowLength = columns + 1;
+  let k = at;
+  for (let row = 0; row < rows; row++) {
+    for (let column = 0; column < columns; column++) {
+      const a = base + row * rowLength + column;
+      const b = a + 1;
+      const c = a + rowLength;
+      const d = c + 1;
+      out[k++] = a;
+      out[k++] = c;
+      out[k++] = b;
+      out[k++] = b;
+      out[k++] = c;
+      out[k++] = d;
+    }
+  }
+  return k;
+}
+
+/**
+ * Area-weighted vertex normals for a grid (same result as
+ * `computeVertexNormals` on `writeGridIndices` triangles, without the
+ * per-vertex Vector3 overhead).
+ */
+function gridNormals(positions: Float32Array, columns: number, rows: number) {
+  const normals = new Float32Array(positions.length);
+  const rowLength = columns + 1;
+  const face = (a: number, b: number, c: number) => {
+    const ax = positions[a * 3];
+    const ay = positions[a * 3 + 1];
+    const az = positions[a * 3 + 2];
+    const bx = positions[b * 3];
+    const by = positions[b * 3 + 1];
+    const bz = positions[b * 3 + 2];
+    const cbx = positions[c * 3] - bx;
+    const cby = positions[c * 3 + 1] - by;
+    const cbz = positions[c * 3 + 2] - bz;
+    const abx = ax - bx;
+    const aby = ay - by;
+    const abz = az - bz;
+    const nx = cby * abz - cbz * aby;
+    const ny = cbz * abx - cbx * abz;
+    const nz = cbx * aby - cby * abx;
+    normals[a * 3] += nx;
+    normals[a * 3 + 1] += ny;
+    normals[a * 3 + 2] += nz;
+    normals[b * 3] += nx;
+    normals[b * 3 + 1] += ny;
+    normals[b * 3 + 2] += nz;
+    normals[c * 3] += nx;
+    normals[c * 3 + 1] += ny;
+    normals[c * 3 + 2] += nz;
+  };
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
       const a = row * rowLength + column;
       const b = a + 1;
       const c = a + rowLength;
       const d = c + 1;
-      indices.push(a, c, b, b, c, d);
+      face(a, c, b);
+      face(b, c, d);
     }
   }
-  return indices;
+  for (let i = 0; i < normals.length; i += 3) {
+    const length = Math.hypot(normals[i], normals[i + 1], normals[i + 2]) || 1;
+    normals[i] /= length;
+    normals[i + 1] /= length;
+    normals[i + 2] /= length;
+  }
+  return normals;
 }
 
-function finishGeometry(positions: Float32Array, uvs: Float32Array, columns: number, rows: number) {
+type GridArrays = {
+  positions: Float32Array;
+  uvs: Float32Array;
+  columns: number;
+  rows: number;
+};
+
+/** One indexed geometry from one or more grids (one draw call). */
+function gridsGeometry(grids: GridArrays[]) {
+  let vertexCount = 0;
+  let indexCount = 0;
+  for (const grid of grids) {
+    vertexCount += grid.positions.length / 3;
+    indexCount += grid.columns * grid.rows * 6;
+  }
+  const positions = new Float32Array(vertexCount * 3);
+  const normals = new Float32Array(vertexCount * 3);
+  const uvs = new Float32Array(vertexCount * 2);
+  const index = indexArray(vertexCount, indexCount);
+  let vertex = 0;
+  let at = 0;
+  for (const grid of grids) {
+    positions.set(grid.positions, vertex * 3);
+    normals.set(gridNormals(grid.positions, grid.columns, grid.rows), vertex * 3);
+    uvs.set(grid.uvs, vertex * 2);
+    at = writeGridIndices(index, at, vertex, grid.columns, grid.rows);
+    vertex += grid.positions.length / 3;
+  }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
   geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-  geometry.setIndex(gridIndices(columns, rows));
-  geometry.computeVertexNormals();
+  geometry.setIndex(new THREE.BufferAttribute(index, 1));
   geometry.computeBoundingSphere();
   geometry.computeBoundingBox();
   return geometry;
+}
+
+function finishGeometry(positions: Float32Array, uvs: Float32Array, columns: number, rows: number) {
+  return gridsGeometry([{ positions, uvs, columns, rows }]);
 }
 
 export function clampTieY(y: number, height: number) {
@@ -273,7 +438,13 @@ export function tieBundleDepth(width: number, fullness: number) {
 
 /** A single pleated panel hanging from a pipe or pinch-pleat header. */
 export function createPleatedPanelGeometry(options: PleatedPanelOptions) {
-  const profile = qualityProfile(options.quality);
+  return gridsGeometry([pleatedPanelArrays(options)]);
+}
+
+function pleatedPanelArrays(options: PleatedPanelOptions): GridArrays {
+  const quality = options.quality ?? "high";
+  const profile = qualityProfile(quality);
+  const density = PANEL_DENSITY[quality] ?? PANEL_DENSITY.high;
   const width = Math.max(0.2, options.width);
   const height = Math.max(0.3, options.height);
   const fullness = Math.max(1, options.fullness);
@@ -283,19 +454,34 @@ export function createPleatedPanelGeometry(options: PleatedPanelOptions) {
   const field = createFoldField(options.seed, folds);
   const rand = rng(options.seed ^ 0x5bd1e995);
   const puddleJitter = rand() * TAU;
-  const path = buildHangPath({ ...options, height }, profile, amplitude);
-  const columns = Math.min(profile.maxColumns, Math.max(12, folds * profile.columnsPerFold));
+  const tie = options.tieback;
+  const tieY = tie ? clampTieY(tie.y, height) : 0;
+  const path = buildHangPath({ ...options, height }, profile, amplitude, {
+    density,
+    tieY: tie ? tieY : null,
+  });
+  const columns = Math.min(profile.maxColumns, Math.max(12, folds * density.columnsPerFold));
   const rows = path.length - 1;
   const rowLength = columns + 1;
   const positions = new Float32Array(rowLength * path.length * 3);
   const uvs = new Float32Array(rowLength * path.length * 2);
   const sag = options.sag ?? 0;
-  const tie = options.tieback;
-  const tieY = tie ? clampTieY(tie.y, height) : 0;
   const bundle = tie ? (tie.bundle ?? tieBundleWidth(width)) : 0;
   const anchorX = tie ? tiebackAnchorX(x0, width, tie.side, bundle) : 0;
   const flatWidth = width * fullness;
   const pocketFront = options.z ?? 0;
+
+  // Per-column terms that don't depend on the row.
+  const pinchAt = new Float64Array(rowLength);
+  const sagAt = new Float64Array(rowLength);
+  const reachAt = new Float64Array(rowLength);
+  for (let column = 0; column <= columns; column++) {
+    const u = column / columns;
+    pinchAt[column] = field.gather(u);
+    sagAt[column] = Math.sin(Math.PI * u);
+    reachAt[column] =
+      0.62 + 0.38 * (0.5 + 0.5 * Math.sin(TAU * u * folds * 0.27 + puddleJitter));
+  }
 
   let i = 0;
   for (let row = 0; row < path.length; row++) {
@@ -334,7 +520,7 @@ export function createPleatedPanelGeometry(options: PleatedPanelOptions) {
       }
 
       const main = field.main(u, sample.y);
-      const pinch = field.gather(u);
+      const pinch = pinchAt[column];
       let fold: number;
       if (sample.region === "pocket") {
         fold = pinch * 0.32;
@@ -353,10 +539,10 @@ export function createPleatedPanelGeometry(options: PleatedPanelOptions) {
         const spread = 1 + 0.5 * sample.puddleT;
         amp *= spread;
         fold = sample.ny > 0.9 ? lump * (1 - 0.55 * sample.puddleT) : fold;
-        const reach =
-          0.62 + 0.38 * (0.5 + 0.5 * Math.sin(TAU * u * folds * 0.27 + puddleJitter));
         if (sample.ny > 0.99) {
-          pz = pocketFront + (sample.z - pocketFront) * lerp(1, reach, sample.puddleT);
+          pz =
+            pocketFront +
+            (sample.z - pocketFront) * lerp(1, reachAt[column], sample.puddleT);
         }
         pz += bodyPush * (1 - sample.puddleT);
       } else {
@@ -367,14 +553,14 @@ export function createPleatedPanelGeometry(options: PleatedPanelOptions) {
       py += sample.ny * displacement;
       pz += sample.nz * displacement + tieBulge * gather;
       if (sample.region === "body") {
-        py -= sag * Math.sin(Math.PI * u) * sagWeight;
+        py -= sag * sagAt[column] * sagWeight;
         if (row === path.length - 1 && !options.puddle) {
           // Weighted hem lifts slightly on the fold lobes.
           py += 0.02 * Math.max(0, main);
           pz -= 0.01;
         }
       } else if (sample.region === "pocket") {
-        py -= sag * Math.sin(Math.PI * u);
+        py -= sag * sagAt[column];
       }
       if (sample.region === "puddle") py = Math.max(0.006, py);
 
@@ -386,7 +572,7 @@ export function createPleatedPanelGeometry(options: PleatedPanelOptions) {
       i++;
     }
   }
-  return finishGeometry(positions, uvs, columns, rows);
+  return { positions, uvs, columns, rows };
 }
 
 export type PleatedRunOptions = Omit<PleatedPanelOptions, "width" | "x0" | "sag" | "tieback"> & {
@@ -401,13 +587,13 @@ export type PleatedRunOptions = Omit<PleatedPanelOptions, "width" | "x0" | "sag"
 /** Merges one pleated panel per bay into a single geometry (one draw call). */
 export function createPleatedRunGeometry(options: PleatedRunOptions) {
   const breaks = [...options.breaks].sort((a, b) => a - b);
-  const geometries: THREE.BufferGeometry[] = [];
+  const panels: GridArrays[] = [];
   for (let index = 0; index < breaks.length - 1; index++) {
     const left = breaks[index];
     const right = breaks[index + 1];
     const overlap = index < breaks.length - 2 ? 0.04 : 0;
-    geometries.push(
-      createPleatedPanelGeometry({
+    panels.push(
+      pleatedPanelArrays({
         ...options,
         x0: left - (index > 0 ? 0.02 : 0),
         width: right - left + overlap + (index > 0 ? 0.02 : 0),
@@ -417,11 +603,7 @@ export function createPleatedRunGeometry(options: PleatedRunOptions) {
       })
     );
   }
-  if (geometries.length === 1) return geometries[0];
-  const merged = mergeGeometries(geometries, false) ?? geometries[0];
-  if (merged !== geometries[0]) geometries.forEach((geometry) => geometry.dispose());
-  merged.computeBoundingSphere();
-  return merged;
+  return gridsGeometry(panels);
 }
 
 /** Evenly spaced upright positions (feet), every ≤ `maxBay`, centered on 0. */
@@ -603,7 +785,7 @@ export function createCanopyGeometry(options: CanopyOptions) {
   const acrossSteps = Math.max(8, Math.round(profile.columnsPerFold * 2));
   const folds = Math.max(2, Math.round(1.5 * options.fullness));
   const rand = rng(options.seed);
-  const geometries: THREE.BufferGeometry[] = [];
+  const grids: GridArrays[] = [];
   const maxSpan = Math.max(1, Math.hypot(options.width, options.depth) / 2);
 
   for (let k = 0; k < perimeter.length; k++) {
@@ -635,12 +817,9 @@ export function createCanopyGeometry(options: CanopyOptions) {
         i++;
       }
     }
-    geometries.push(finishGeometry(positions, uvs, acrossSteps, radialSteps));
+    grids.push({ positions, uvs, columns: acrossSteps, rows: radialSteps });
   }
-  const merged = mergeGeometries(geometries, false);
-  geometries.forEach((geometry) => geometry.dispose());
-  merged.computeBoundingSphere();
-  return merged;
+  return gridsGeometry(grids);
 }
 
 /** Front-face z for a panel whose rod pocket wraps a pipe centered at `pipeZ`. */

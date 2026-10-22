@@ -8,7 +8,11 @@ import {
 import { getWallSegments, inchesToFeetLabel } from "@/lib/studio-geometry";
 import { cn } from "@/lib/utils";
 import { DoorOpen, Lock, PanelsTopLeft, Ruler } from "lucide-react";
-import { useStudioEditor } from "../editor/studio-editor-context";
+import { useMemo } from "react";
+import {
+  useStudioSettings,
+  type StudioCommitOptions,
+} from "../editor/studio-editor-context";
 import { updateOpening } from "../studio-types";
 import {
   ChoiceTile,
@@ -29,17 +33,20 @@ export function OpeningInspector({
 }: {
   design: StudioDesignJson;
   opening: StudioOpening;
-  onChange: (design: StudioDesignJson) => void;
+  onChange: (design: StudioDesignJson, options?: StudioCommitOptions) => void;
 }) {
-  const { settings } = useStudioEditor();
-  const walls = getWallSegments(design.room.floor);
+  const settings = useStudioSettings();
+  const floor = design.room.floor;
+  const walls = useMemo(() => getWallSegments(floor), [floor]);
   const wall = walls[opening.wallIndex];
   const wallLength = wall?.length ?? opening.offset + opening.width;
   const locked = Boolean(opening.locked);
   const step = settings.snapEnabled ? settings.snapIncrement : 1;
   const meta = STUDIO_OPENING_META[opening.type];
   const update = (patch: Partial<StudioOpening>) =>
-    onChange(updateOpening(design, opening.id, patch));
+    onChange(updateOpening(design, opening.id, patch), {
+      coalesceKey: `opening:${opening.id}:${Object.keys(patch).join(",")}`,
+    });
   const openingHeight =
     opening.openingHeight ?? DEFAULT_OPENING_HEIGHT[opening.type];
   const sillHeight = opening.sillHeight ?? DEFAULT_SILL[opening.type];

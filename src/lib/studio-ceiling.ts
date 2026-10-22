@@ -796,11 +796,11 @@ const STYLE_DEFAULTS: Record<CeilingDrapeStyle, StyleDefaults> = {
     fabric: "chiffon", color: "white", hubDecor: "chandelier", inset: 0,
   },
   canopy: {
-    count: 20, sag: 18, hubDrop: 54, edgeDrop: 0,
+    count: 20, sag: 16, hubDrop: 36, edgeDrop: 0,
     fabric: "sheer", color: "ivory", hubDecor: "rosette", inset: 0,
   },
   tent: {
-    count: 24, sag: 10, hubDrop: 0, edgeDrop: 42,
+    count: 24, sag: 8, hubDrop: 0, edgeDrop: 30,
     fabric: "poly", color: "white", hubDecor: "medallion", inset: 0,
   },
   swag_rows: {
@@ -820,7 +820,7 @@ const STYLE_DEFAULTS: Record<CeilingDrapeStyle, StyleDefaults> = {
     panelWidth: 96, sag: 20, edgeDrop: 0, fabric: "satin", color: "champagne", inset: 0,
   },
   cascades: {
-    count: 4, scallops: 3, panelWidth: 30, sag: 72,
+    count: 4, scallops: 3, panelWidth: 30, sag: 48,
     fabric: "chiffon", color: "white", lights: "fairy",
   },
 };

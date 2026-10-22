@@ -1,13 +1,17 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { memo } from "react";
 import {
   Activity,
   Armchair,
   ArrowUpFromLine,
+  Bed,
   Check,
+  Crosshair,
   Eye,
   Minus,
+  MousePointer2,
   PersonStanding,
   Plus,
   type LucideIcon,
@@ -15,7 +19,9 @@ import {
 import {
   sendCameraRigCommand,
   setStudioHeadBob,
+  setStudioMouseLook,
   useStudioCameraRig,
+  type StudioCameraMode,
 } from "./camera-view-store";
 
 const EYE_STEP = 0.5;
@@ -92,7 +98,7 @@ function ToggleRow({
       aria-checked={active}
       onClick={onToggle}
       className={cn(
-        "flex flex-1 items-center gap-1.5 rounded-xl border px-2 py-1.5 text-[0.65rem] font-medium whitespace-nowrap transition-colors",
+        "flex w-full flex-1 items-center gap-1.5 rounded-xl border px-2 py-1.5 text-[0.65rem] font-medium whitespace-nowrap transition-colors",
         "focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
         active
           ? "border-primary/50 bg-primary/12 text-foreground"
@@ -119,9 +125,55 @@ function ToggleRow({
   );
 }
 
-/** Walk-mode eye-height and look controls, floating over the 3D canvas. */
-export function StudioWalkHud() {
+/** Camera modes that show the eye-height / look HUD. */
+export function showsWalkHud(mode: StudioCameraMode) {
+  return mode === "walk" || mode === "ceiling";
+}
+
+function MouseLookRow({
+  walk,
+  mouseLook,
+  locked,
+}: {
+  walk: boolean;
+  mouseLook: boolean;
+  locked: boolean;
+}) {
+  const offered = walk || mouseLook;
+  return (
+    <div className="space-y-1">
+      {walk ? null : (
+        <ToggleRow
+          icon={MousePointer2}
+          label="Mouse look"
+          active={mouseLook}
+          onToggle={() => setStudioMouseLook(!mouseLook)}
+        />
+      )}
+      {offered ? (
+        <p
+          className={cn(
+            "flex items-center gap-1.5 rounded-xl border px-2 py-1.5 text-[0.6rem] leading-tight",
+            locked
+              ? "border-primary/45 bg-primary/10 text-foreground"
+              : "border-border/40 bg-card/20 text-muted-foreground"
+          )}
+          aria-live="polite"
+        >
+          <Crosshair className="size-3.5 shrink-0 text-primary" aria-hidden />
+          {locked
+            ? "Mouse look on · click selects at the crosshair · Esc to release"
+            : "Click to look with the mouse · Esc to release"}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Walk / Ceiling view eye-height and look controls, floating over the 3D canvas. */
+export const StudioWalkHud = memo(function StudioWalkHud() {
   const rig = useStudioCameraRig();
+  const walk = rig.mode === "walk";
   const top = rig.maxEyeHeight;
   const presets = [
     { icon: Armchair, label: "Seated", feet: 4 },
@@ -188,14 +240,23 @@ export function StudioWalkHud() {
             active={rig.lookingUp}
             onToggle={() => sendCameraRigCommand({ type: "look_up", up: !rig.lookingUp })}
           />
-          <ToggleRow
-            icon={Activity}
-            label="Bob"
-            active={rig.headBob}
-            onToggle={() => setStudioHeadBob(!rig.headBob)}
-          />
+          {walk ? (
+            <ToggleRow
+              icon={Activity}
+              label="Bob"
+              active={rig.headBob}
+              onToggle={() => setStudioHeadBob(!rig.headBob)}
+            />
+          ) : null}
         </div>
+        <ToggleRow
+          icon={Bed}
+          label="Lie back · gaze up"
+          active={rig.lyingBack}
+          onToggle={() => sendCameraRigCommand({ type: "lie_back", on: !rig.lyingBack })}
+        />
+        <MouseLookRow walk={walk} mouseLook={rig.mouseLook} locked={rig.pointerLocked} />
       </div>
     </section>
   );
-}
+});

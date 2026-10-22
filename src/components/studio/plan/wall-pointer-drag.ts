@@ -2,7 +2,7 @@
 
 import type { StudioPoint } from "@/data/studio";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { useStudioEditor } from "../editor/studio-editor-context";
+import { useStudioEditorActions } from "../editor/studio-editor-context";
 import type { PlanLayerProps } from "./plan-types";
 
 export type PlanDragModifiers = {
@@ -21,11 +21,16 @@ export type PlanDragHandlers = {
   onCancel?: () => void;
 };
 
+type PendingMove = { clientX: number; clientY: number; modifiers: PlanDragModifiers };
+
 type DragSession = {
   pointerId: number;
   started: boolean;
   handlers: PlanDragHandlers;
   cleanup: () => void;
+  /** Latest pointer sample not yet applied; flushed once per animation frame. */
+  pending: PendingMove | null;
+  frame: number;
 };
 
 function modifiersOf(event: PointerEvent): PlanDragModifiers {
@@ -42,11 +47,13 @@ function modifiersOf(event: PointerEvent): PlanDragModifiers {
  * not start a marquee/pan, opens one editor transaction once the pointer moves
  * past `threshold` screen px (one undo step per drag), and rolls back on
  * Escape or pointercancel. Window listeners keep the gesture alive even if
- * the pressed element re-renders or unmounts mid-drag.
+ * the pressed element re-renders or unmounts mid-drag. `onMove` runs at most
+ * once per animation frame with the latest pointer position; pointerup
+ * applies any pending sample before the transaction closes.
  */
 export function usePlanPointerDrag(toPlanPoint: PlanLayerProps["toPlanPoint"]) {
   const { beginTransaction, endTransaction, cancelTransaction } =
-    useStudioEditor();
+    useStudioEditorActions();
   const latest = useRef({
     toPlanPoint,
     beginTransaction,
@@ -63,19 +70,38 @@ export function usePlanPointerDrag(toPlanPoint: PlanLayerProps["toPlanPoint"]) {
   }, [toPlanPoint, beginTransaction, endTransaction, cancelTransaction]);
   const sessionRef = useRef<DragSession | null>(null);
 
-  const finish = useCallback((mode: "end" | "cancel") => {
-    const session = sessionRef.current;
-    if (!session) return;
-    sessionRef.current = null;
-    session.cleanup();
-    if (mode === "end") {
-      if (session.started) latest.current.endTransaction();
-      session.handlers.onEnd?.(session.started);
-    } else {
-      if (session.started) latest.current.cancelTransaction();
-      session.handlers.onCancel?.();
+  const flush = useCallback((session: DragSession) => {
+    if (session.frame) {
+      window.cancelAnimationFrame(session.frame);
+      session.frame = 0;
     }
+    const pending = session.pending;
+    session.pending = null;
+    if (!pending) return;
+    const point = latest.current.toPlanPoint(pending);
+    if (point) session.handlers.onMove(point, pending.modifiers);
   }, []);
+
+  const finish = useCallback(
+    (mode: "end" | "cancel") => {
+      const session = sessionRef.current;
+      if (!session) return;
+      if (mode === "end") flush(session);
+      sessionRef.current = null;
+      if (session.frame) window.cancelAnimationFrame(session.frame);
+      session.frame = 0;
+      session.pending = null;
+      session.cleanup();
+      if (mode === "end") {
+        if (session.started) latest.current.endTransaction();
+        session.handlers.onEnd?.(session.started);
+      } else {
+        if (session.started) latest.current.cancelTransaction();
+        session.handlers.onCancel?.();
+      }
+    },
+    [flush]
+  );
 
   useEffect(() => () => finish("end"), [finish]);
 
@@ -103,6 +129,8 @@ export function usePlanPointerDrag(toPlanPoint: PlanLayerProps["toPlanPoint"]) {
         started: false,
         handlers,
         cleanup: () => undefined,
+        pending: null,
+        frame: 0,
       };
       const handleMove = (moveEvent: PointerEvent) => {
         if (moveEvent.pointerId !== pointerId) return;
@@ -116,8 +144,17 @@ export function usePlanPointerDrag(toPlanPoint: PlanLayerProps["toPlanPoint"]) {
           session.started = true;
           latest.current.beginTransaction();
         }
-        const point = latest.current.toPlanPoint(moveEvent);
-        if (point) handlers.onMove(point, modifiersOf(moveEvent));
+        session.pending = {
+          clientX: moveEvent.clientX,
+          clientY: moveEvent.clientY,
+          modifiers: modifiersOf(moveEvent),
+        };
+        if (!session.frame) {
+          session.frame = window.requestAnimationFrame(() => {
+            session.frame = 0;
+            if (sessionRef.current === session) flush(session);
+          });
+        }
       };
       const handleUp = (upEvent: PointerEvent) => {
         if (upEvent.pointerId === pointerId) finish("end");
@@ -150,7 +187,7 @@ export function usePlanPointerDrag(toPlanPoint: PlanLayerProps["toPlanPoint"]) {
       };
       sessionRef.current = session;
     },
-    [finish]
+    [finish, flush]
   );
 }
 

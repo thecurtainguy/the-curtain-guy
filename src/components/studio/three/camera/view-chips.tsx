@@ -1,21 +1,31 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { memo } from "react";
 import {
   ArrowUpFromLine,
   Cctv,
+  Crosshair,
   Footprints,
   Grid2x2,
   House,
   Maximize,
   MicVocal,
   Mouse,
+  MousePointer2,
   Orbit,
   PersonStanding,
   ScanSearch,
   type LucideIcon,
 } from "lucide-react";
-import type { StudioCameraMode } from "./camera-view-store";
+import {
+  isInteriorMode,
+  mouseLookAvailable,
+  setStudioMouseLook,
+  useStudioMouseLook,
+  useStudioPointerLocked,
+  type StudioCameraMode,
+} from "./camera-view-store";
 
 type ChipMode = Exclude<StudioCameraMode, "showcase" | "front">;
 
@@ -48,6 +58,21 @@ const MODE_HINTS: Record<StudioCameraMode, string[]> = {
   top: ["Drag to orbit", "Right-drag to pan", "Scroll to zoom"],
   dollhouse: ["Drag to orbit", "Right-drag to pan", "Scroll to zoom"],
 };
+
+const LOCKED_HINTS = [
+  "Mouse look",
+  "Click selects at the crosshair",
+  "WASD to walk · Shift to run",
+  "Q/E eye height",
+  "Esc to release",
+];
+
+function hintsFor(mode: StudioCameraMode, spinning: boolean, mouseLook: boolean, locked: boolean) {
+  if (spinning) return ["Showcase spin · drag to take over"];
+  if (locked) return LOCKED_HINTS;
+  const hints = MODE_HINTS[mode];
+  return mouseLookAvailable(mode, mouseLook) ? ["Click to look with the mouse", ...hints] : hints;
+}
 
 function ChipButton({
   icon: Icon,
@@ -98,7 +123,7 @@ function ChipButton({
  * Floating glass segmented control for the 3D camera: interior presets,
  * plan / dollhouse, the showcase spin toggle, plus fit and focus.
  */
-export function StudioViewChips({
+export const StudioViewChips = memo(function StudioViewChips({
   mode,
   spinning,
   hasSelection,
@@ -115,12 +140,24 @@ export function StudioViewChips({
   onFit: () => void;
   onFocus: () => void;
 }) {
-  const hints = MODE_HINTS[spinning ? "showcase" : mode];
+  const mouseLook = useStudioMouseLook();
+  const locked = useStudioPointerLocked();
+  const hints = hintsFor(mode, spinning, mouseLook, locked);
+  const offersMouseLook = isInteriorMode(mode) && mode !== "walk";
   return (
     <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex flex-col items-center gap-2">
-      <p className="hidden items-center gap-2 rounded-full border border-border/40 bg-background/55 px-3 py-1 text-[0.62rem] text-muted-foreground shadow-md backdrop-blur-xl @2xl:inline-flex">
-        <Mouse className="size-3 text-primary/80" aria-hidden />
-        {spinning ? "Showcase spin · drag to take over" : hints.join(" · ")}
+      <p
+        className={cn(
+          "hidden items-center gap-2 rounded-full border bg-background/55 px-3 py-1 text-[0.62rem] shadow-md backdrop-blur-xl @2xl:inline-flex",
+          locked ? "border-primary/40 text-foreground/85" : "border-border/40 text-muted-foreground"
+        )}
+      >
+        {locked ? (
+          <Crosshair className="size-3 text-primary" aria-hidden />
+        ) : (
+          <Mouse className="size-3 text-primary/80" aria-hidden />
+        )}
+        {hints.join(" · ")}
       </p>
       <nav
         aria-label="Camera views"
@@ -144,6 +181,20 @@ export function StudioViewChips({
           active={spinning}
           onClick={onToggleShowcase}
         />
+        {offersMouseLook ? (
+          <ChipButton
+            icon={MousePointer2}
+            label="Mouse look"
+            hint={
+              mouseLook
+                ? "Back to drag-to-look"
+                : "Click the room to look with the mouse · Esc to release"
+            }
+            active={mouseLook}
+            iconOnly
+            onClick={() => setStudioMouseLook(!mouseLook)}
+          />
+        ) : null}
         <span aria-hidden className="mx-0.5 h-6 w-px shrink-0 bg-border/50" />
         <ChipButton
           icon={Maximize}
@@ -165,4 +216,4 @@ export function StudioViewChips({
       </nav>
     </div>
   );
-}
+});

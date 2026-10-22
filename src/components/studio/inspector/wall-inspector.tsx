@@ -17,7 +17,11 @@ import {
   PanelsTopLeft,
   Ruler,
 } from "lucide-react";
-import { useStudioEditor } from "../editor/studio-editor-context";
+import {
+  useStudioEditorActions,
+  useStudioSelection,
+} from "../editor/studio-editor-context";
+import { useMemo } from "react";
 import { InspectorSection, StatTile } from "./inspector-ui";
 import { STUDIO_KIND_ICONS, STUDIO_KIND_LABELS } from "./studio-item-meta";
 
@@ -39,8 +43,10 @@ export function WallInspector({
   design: StudioDesignJson;
   wallIndex: number;
 }) {
-  const { select, setHoveredId, isSelected } = useStudioEditor();
-  const wall = getWallSegments(design.room.floor)[wallIndex];
+  const { select, setHoveredId } = useStudioEditorActions();
+  const { isSelected } = useStudioSelection();
+  const floor = design.room.floor;
+  const wall = useMemo(() => getWallSegments(floor), [floor])[wallIndex];
   if (!wall) return null;
 
   const items: WallItem[] = [

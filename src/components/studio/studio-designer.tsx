@@ -13,11 +13,20 @@ import {
   type StudioDesignJson,
   type StudioDesignRow,
 } from "@/data/studio";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Studio2DEditor } from "./studio-2d-editor";
-import { Studio3DViewer } from "./studio-3d-viewer";
+import { Studio3DViewer } from "./studio-3d-lazy";
 import { StudioLeftRail } from "./studio-left-rail";
+import { StudioPresentBar } from "./studio-present-bar";
 import { StudioRightRail } from "./studio-right-rail";
 import { StudioShell } from "./studio-shell";
 import { StudioToolbar } from "./studio-toolbar";
@@ -26,11 +35,22 @@ import type {
   StudioLinkContext,
   StudioSaveResponse,
   StudioSaveState,
+  StudioViewMode,
 } from "./studio-types";
+import { setStudioHoveredId } from "./editor/hover-store";
 import {
   StudioEditorProvider,
   useStudioEditorState,
+  useStudioRailDesign,
 } from "./editor/studio-editor-context";
+import {
+  enterStudioFullscreen,
+  exitStudioFullscreen,
+  getStudioFullscreenMode,
+  toggleStudioFullscreen,
+  useStudioFullscreenMode,
+  type StudioFullscreenMode,
+} from "./editor/studio-display-store";
 import { useStudioKeyboardShortcuts } from "./editor/use-studio-shortcuts";
 import type { EventBuilderBrief } from "@/data/event-builder/brief";
 import { EventPresetLibrary } from "@/components/event-builder/event-preset-library";
@@ -65,6 +85,27 @@ export type StudioDesignerProps = {
 };
 
 const STUDIO_SESSION_DRAFT_KEY = "tcg-studio-guest-draft-v1";
+const ignoreSelection = () => {};
+
+const MemoStudioLeftRail = memo(StudioLeftRail);
+const MemoStudioRightRail = memo(StudioRightRail);
+const MemoEventPresetLibrary = memo(EventPresetLibrary);
+const MemoEventBriefPanel = memo(EventBriefPanel);
+
+/**
+ * Feeds a memoized rail the rail design (deferred during drags) so canvas
+ * gestures never wait on side panels.
+ */
+function StudioRailSlot({
+  design,
+  children,
+}: {
+  design: StudioDesignJson;
+  children: (design: StudioDesignJson) => React.ReactNode;
+}) {
+  const railDesign = useStudioRailDesign(design);
+  return children(railDesign);
+}
 
 function initialJson(props: StudioDesignerProps): StudioDesignJson {
   const design =
@@ -158,13 +199,55 @@ export function StudioDesigner(props: StudioDesignerProps) {
     design,
     onDesignChange: changeDesign,
   });
-  const {
-    selection,
-    select: setSelection,
-    commit,
-    viewMode,
-    setViewMode,
-  } = editor;
+  const { select: setSelection, commit, setViewMode } = editor.actions;
+  const { selection } = editor.selection;
+  const { viewMode } = editor.view;
+
+  const fullscreenMode = useStudioFullscreenMode();
+  const fullscreen = fullscreenMode !== "off";
+  const [presenting, setPresenting] = useState(false);
+  const presentRestore = useRef<{
+    viewMode: StudioViewMode;
+    fullscreen: StudioFullscreenMode;
+  } | null>(null);
+
+  const togglePresent = useCallback(() => {
+    const restore = presentRestore.current;
+    if (restore) {
+      presentRestore.current = null;
+      setPresenting(false);
+      if (restore.viewMode !== "3d") setViewMode(restore.viewMode);
+      if (restore.fullscreen === "off") exitStudioFullscreen();
+      return;
+    }
+    const currentFullscreen = getStudioFullscreenMode();
+    presentRestore.current = { viewMode, fullscreen: currentFullscreen };
+    setPresenting(true);
+    if (viewMode !== "3d") setViewMode("3d");
+    if (currentFullscreen === "off") void enterStudioFullscreen();
+  }, [setViewMode, viewMode]);
+
+  /* Present is a read-only walkthrough: the canvas sees no selection, hover or drag tool. */
+  const canvasSelection = presenting ? null : selection;
+  const canvasSelect = presenting ? ignoreSelection : setSelection;
+
+  useEffect(() => {
+    if (presenting) setStudioHoveredId(null);
+  }, [presenting]);
+
+  useEffect(() => {
+    if (fullscreenMode === "off") return;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    root.dataset.studioFullscreen = fullscreenMode;
+    root.style.overflow = "hidden";
+    return () => {
+      delete root.dataset.studioFullscreen;
+      root.style.overflow = previousOverflow;
+    };
+  }, [fullscreenMode]);
+
+  useEffect(() => () => exitStudioFullscreen(), []);
 
   const changeTitle = useCallback((next: string) => {
     revision.current += 1;
@@ -322,7 +405,19 @@ export function StudioDesigner(props: StudioDesignerProps) {
   const signInWithReturn = `${signInHref}${signInHref.includes("?") ? "&" : "?"}next=${encodeURIComponent(authReturnTo)}`;
   const createAccountWithReturn = `${createAccountHref}${createAccountHref.includes("?") ? "&" : "?"}next=${encodeURIComponent(authReturnTo)}`;
 
-  useStudioKeyboardShortcuts(editor, { onSave: () => void save() });
+  const saveRef = useRef(save);
+  useLayoutEffect(() => {
+    saveRef.current = save;
+  }, [save]);
+  const onSave = useCallback(() => void saveRef.current(), []);
+  const openTools = useCallback(() => setToolsOpen(true), []);
+  const openProperties = useCallback(() => setPropertiesOpen(true), []);
+
+  useStudioKeyboardShortcuts(editor, {
+    onSave,
+    presenting,
+    onTogglePresent: togglePresent,
+  });
 
   const isEventMode = mode === "event" && eventBrief;
   const eventTypeLabel = eventBrief
@@ -330,99 +425,82 @@ export function StudioDesigner(props: StudioDesignerProps) {
       eventBrief.eventType
     : undefined;
 
-  const leftRail = isEventMode ? (
-    <EventPresetLibrary
-      design={design}
-      onChange={commit}
-      selection={selection}
-      onSelect={setSelection}
-      brief={eventBrief}
-    />
-  ) : (
-    <StudioLeftRail
-      design={design}
-      onChange={commit}
-      selection={selection}
-      onSelect={setSelection}
-      idPrefix="studio-desktop-tools"
-    />
+  const renderLeftRail = (idPrefix: string) => (
+    <StudioRailSlot design={design}>
+      {(railDesign) =>
+        isEventMode ? (
+          <MemoEventPresetLibrary
+            design={railDesign}
+            onChange={commit}
+            selection={selection}
+            onSelect={setSelection}
+            brief={eventBrief}
+          />
+        ) : (
+          <MemoStudioLeftRail
+            design={railDesign}
+            onChange={commit}
+            selection={selection}
+            onSelect={setSelection}
+            idPrefix={idPrefix}
+          />
+        )
+      }
+    </StudioRailSlot>
   );
-  const rightRail = isEventMode ? (
-    <EventBriefPanel
-      brief={eventBrief}
-      design={design}
-      onChange={commit}
-      selection={selection}
-      onSelect={setSelection}
-      saveState={saveState}
-      defaultName={eventContactDefaults?.name}
-      defaultEmail={eventContactDefaults?.email}
-      defaultPhone={eventContactDefaults?.phone}
-      idPrefix="studio-desktop-properties"
-    />
-  ) : (
-    <StudioRightRail
-      design={design}
-      onChange={commit}
-      selection={selection}
-      onSelect={setSelection}
-      saveState={saveState}
-      idPrefix="studio-desktop-properties"
-    />
+  const renderRightRail = (idPrefix: string) => (
+    <StudioRailSlot design={design}>
+      {(railDesign) =>
+        isEventMode ? (
+          <MemoEventBriefPanel
+            brief={eventBrief}
+            design={railDesign}
+            onChange={commit}
+            selection={selection}
+            onSelect={setSelection}
+            saveState={saveState}
+            defaultName={eventContactDefaults?.name}
+            defaultEmail={eventContactDefaults?.email}
+            defaultPhone={eventContactDefaults?.phone}
+            idPrefix={idPrefix}
+          />
+        ) : (
+          <MemoStudioRightRail
+            design={railDesign}
+            onChange={commit}
+            selection={selection}
+            onSelect={setSelection}
+            saveState={saveState}
+            idPrefix={idPrefix}
+          />
+        )
+      }
+    </StudioRailSlot>
   );
-  const mobileLeftRail = isEventMode ? (
-    <EventPresetLibrary
-      design={design}
-      onChange={commit}
-      selection={selection}
-      onSelect={setSelection}
-      brief={eventBrief}
-    />
-  ) : (
-    <StudioLeftRail
-      design={design}
-      onChange={commit}
-      selection={selection}
-      onSelect={setSelection}
-      idPrefix="studio-mobile-tools"
-    />
-  );
-  const mobileRightRail = isEventMode ? (
-    <EventBriefPanel
-      brief={eventBrief}
-      design={design}
-      onChange={commit}
-      selection={selection}
-      onSelect={setSelection}
-      saveState={saveState}
-      defaultName={eventContactDefaults?.name}
-      defaultEmail={eventContactDefaults?.email}
-      defaultPhone={eventContactDefaults?.phone}
-      idPrefix="studio-mobile-properties"
-    />
-  ) : (
-    <StudioRightRail
-      design={design}
-      onChange={commit}
-      selection={selection}
-      onSelect={setSelection}
-      saveState={saveState}
-      idPrefix="studio-mobile-properties"
-    />
-  );
+  const split = viewMode === "split";
 
   return (
-    <StudioEditorProvider value={editor}>
+    <StudioEditorProvider state={editor} presenting={presenting}>
       <StudioShell
         className={className}
         toolsOpen={toolsOpen}
         onToolsOpenChange={setToolsOpen}
         propertiesOpen={propertiesOpen}
         onPropertiesOpenChange={setPropertiesOpen}
-        leftRail={leftRail}
-        rightRail={rightRail}
-        mobileLeftRail={mobileLeftRail}
-        mobileRightRail={mobileRightRail}
+        leftRail={renderLeftRail("studio-desktop-tools")}
+        rightRail={renderRightRail("studio-desktop-properties")}
+        mobileLeftRail={renderLeftRail("studio-mobile-tools")}
+        mobileRightRail={renderRightRail("studio-mobile-properties")}
+        fullscreen={fullscreen}
+        presenting={presenting}
+        presentBar={
+          <StudioPresentBar
+            title={title}
+            fullscreen={fullscreen}
+            onToggleFullscreen={toggleStudioFullscreen}
+            onExit={togglePresent}
+          />
+        }
         toolbar={
           <StudioToolbar
             title={title}
@@ -432,49 +510,57 @@ export function StudioDesigner(props: StudioDesignerProps) {
             saveState={saveState}
             saveMessage={saveMessage}
             accessMode={accessMode}
-            onSave={() => void save()}
-            onOpenTools={() => setToolsOpen(true)}
-            onOpenProperties={() => setPropertiesOpen(true)}
+            onSave={onSave}
+            onOpenTools={openTools}
+            onOpenProperties={openProperties}
             titleEditable={!isEventMode}
             eventTypeLabel={isEventMode ? eventTypeLabel : undefined}
             saveHidden={isEventMode && accessMode === "guest"}
+            fullscreen={fullscreen}
+            onToggleFullscreen={toggleStudioFullscreen}
+            presenting={presenting}
+            onTogglePresent={togglePresent}
           />
         }
       >
-        {viewMode === "split" ? (
-          <div className="grid h-full min-h-0 grid-rows-2 lg:grid-cols-2 lg:grid-rows-1">
-            <div className="min-h-0 border-b border-border/60 lg:border-r lg:border-b-0">
+        {/* One stable tree for 2D / 3D / Split / Present: switching modes only
+            changes the grid, so the WebGL context and camera survive. */}
+        <div
+          className={cn(
+            "grid h-full min-h-0 min-w-0",
+            split
+              ? "grid-rows-2 lg:grid-cols-2 lg:grid-rows-1"
+              : "grid-cols-1 grid-rows-1"
+          )}
+        >
+          {viewMode !== "3d" ? (
+            <div
+              key="plan"
+              className={cn(
+                "min-h-0 min-w-0",
+                split && "border-b border-border/60 lg:border-r lg:border-b-0"
+              )}
+            >
               <Studio2DEditor
                 design={design}
                 onChange={commit}
-                selection={selection}
-                onSelect={setSelection}
+                selection={canvasSelection}
+                onSelect={canvasSelect}
               />
             </div>
-            <div className="min-h-0">
+          ) : null}
+          {viewMode !== "2d" ? (
+            <div key="viewer" className="min-h-0 min-w-0">
               <Studio3DViewer
                 design={design}
                 onChange={commit}
-                selection={selection}
-                onSelect={setSelection}
+                selection={canvasSelection}
+                onSelect={canvasSelect}
+                presenting={presenting}
               />
             </div>
-          </div>
-        ) : viewMode === "2d" ? (
-          <Studio2DEditor
-            design={design}
-            onChange={commit}
-            selection={selection}
-            onSelect={setSelection}
-          />
-        ) : (
-          <Studio3DViewer
-            design={design}
-            onChange={commit}
-            selection={selection}
-            onSelect={setSelection}
-          />
-        )}
+          ) : null}
+        </div>
       </StudioShell>
 
       <Dialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen}>

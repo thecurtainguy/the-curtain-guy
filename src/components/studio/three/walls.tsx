@@ -14,7 +14,7 @@ import * as THREE from "three";
 import type { StudioSelection } from "../studio-types";
 import {
   WALL_FINISHES,
-  getWallTextures,
+  useVenueTextures,
   type VenueQuality,
 } from "./scene-finishes";
 import {
@@ -24,6 +24,7 @@ import {
   setCutawayWalls,
   useCutawayWalls,
 } from "./venue/cutaway-store";
+import { disposeLater } from "./venue/dispose-later";
 import { getVenueEnvironment } from "./venue/environment";
 import {
   VenueOpening,
@@ -43,6 +44,10 @@ import {
 } from "./venue/wall-geometry";
 
 const SELF_FINISHED: StudioWallFinish[] = ["exposed_brick", "wood_panel", "tent_canvas", "black_box"];
+const noRaycast = () => null;
+
+/** The parts of an opening span that shape the wall solid (inches). */
+type SpanCut = Pick<OpeningSpan, "start" | "end" | "bottom" | "top">;
 
 function useWallMaterials(
   finish: StudioWallFinish,
@@ -51,9 +56,10 @@ function useWallMaterials(
   envMap: THREE.Texture,
   topFt: number
 ): THREE.Material[] {
+  const textures = useVenueTextures(glass ? null : { group: "wall", finish }, quality);
   const materials = useMemo(() => {
     const appearance = WALL_FINISHES[finish];
-    if (glass) {
+    if (glass || !textures) {
       const pane = new THREE.MeshPhysicalMaterial({
         color: "#e3ecef",
         roughness: 0.05,
@@ -74,7 +80,6 @@ function useWallMaterials(
       });
       return [pane, pane, cap];
     }
-    const textures = getWallTextures(finish, quality);
     const normalScale = new THREE.Vector2(appearance.normalScale, appearance.normalScale);
     const interior = applyWallShading(
       appearance.sheen
@@ -100,12 +105,18 @@ function useWallMaterials(
     );
     const cap = new THREE.MeshStandardMaterial({ color: appearance.cap, roughness: 0.75 });
     return [interior, exterior, cap];
-  }, [finish, quality, glass, envMap, topFt]);
-  useEffect(
-    () => () => new Set(materials).forEach((m) => m.dispose()),
-    [materials]
-  );
+  }, [finish, glass, envMap, topFt, textures]);
+  useEffect(() => () => disposeLater(materials), [materials]);
   return materials;
+}
+
+/** Stable string of the wall-cutting geometry so unrelated edits don't rebuild walls. */
+function spanCutKey(spansByWall: Map<number, OpeningSpan[]>) {
+  const out: Record<number, SpanCut[]> = {};
+  for (const [index, spans] of spansByWall) {
+    out[index] = spans.map(({ start, end, bottom, top }) => ({ start, end, bottom, top }));
+  }
+  return JSON.stringify(out);
 }
 
 export function StudioWalls({
@@ -143,6 +154,7 @@ export function StudioWalls({
   const envMap = useMemo(() => getVenueEnvironment(gl), [gl]);
   const floor = design.room.floor;
   const fullTop = design.room.wallHeight;
+  const openings = design.openings;
   const glass = display === "glass";
   const appearance = WALL_FINISHES[finish];
 
@@ -151,17 +163,24 @@ export function StudioWalls({
   const spansByWall = useMemo(() => {
     const map = new Map<number, OpeningSpan[]>();
     if (!showOpenings) return map;
-    for (const opening of design.openings) {
+    for (const opening of openings) {
       if (opening.hidden || !frames[opening.wallIndex]) continue;
       const list = map.get(opening.wallIndex) ?? [];
       list.push(getOpeningSpan(opening, floor, fullTop));
       map.set(opening.wallIndex, list);
     }
     return map;
-  }, [design.openings, frames, floor, fullTop, showOpenings]);
+  }, [openings, frames, floor, fullTop, showOpenings]);
+
+  // Opening style / selection edits keep the same cuts, so walls and trim stay put.
+  const cutKey = useMemo(() => spanCutKey(spansByWall), [spansByWall]);
+  const cutsByWall = useMemo(
+    () => JSON.parse(cutKey) as Record<number, SpanCut[] | undefined>,
+    [cutKey]
+  );
 
   const storeCut = useCutawayWalls();
-  const cutKey = display === "cutaway" ? storeCut.join(",") : "";
+  const cutawayKey = display === "cutaway" ? storeCut.join(",") : "";
 
   useFrame(({ camera }) => {
     if (display !== "cutaway") return;
@@ -186,10 +205,10 @@ export function StudioWalls({
 
   useEffect(() => {
     invalidate();
-  }, [cutKey, invalidate]);
+  }, [cutawayKey, invalidate]);
 
   const walls = useMemo(() => {
-    const cut = new Set(cutKey ? cutKey.split(",").map(Number) : []);
+    const cut = new Set(cutawayKey ? cutawayKey.split(",").map(Number) : []);
     return frames.map((frame) => {
       const top =
         display === "low"
@@ -197,20 +216,18 @@ export function StudioWalls({
           : cut.has(frame.index)
             ? Math.min(fullTop, CUTAWAY_WALL_HEIGHT_IN)
             : fullTop;
-      const spans = spansByWall.get(frame.index) ?? [];
-      const pieces = computeWallPieces(frame.length, top, spans);
+      const pieces = computeWallPieces(frame.length, top, cutsByWall[frame.index] ?? []);
       const geometry = buildWallGeometry(frame, pieces, bounds);
       return {
         frame,
         top,
-        spans,
         pieces,
         lowered: top < fullTop - 0.01,
         geometry,
         edges: display === "glass" ? new THREE.EdgesGeometry(geometry, 25) : null,
       };
     });
-  }, [frames, display, cutKey, fullTop, spansByWall, bounds]);
+  }, [frames, display, cutawayKey, fullTop, cutsByWall, bounds]);
 
   useEffect(
     () => () =>
@@ -251,12 +268,12 @@ export function StudioWalls({
             }}
           >
             {edges ? (
-              <lineSegments geometry={edges} raycast={() => null}>
+              <lineSegments geometry={edges} raycast={noRaycast}>
                 <lineBasicMaterial color="#f1e2bb" transparent opacity={0.55} />
               </lineSegments>
             ) : null}
             {selected ? (
-              <mesh geometry={geometry} renderOrder={20} raycast={() => null}>
+              <mesh geometry={geometry} renderOrder={20} raycast={noRaycast}>
                 <meshBasicMaterial
                   color="#e8bd55"
                   side={THREE.DoubleSide}
@@ -285,8 +302,8 @@ export function StudioWalls({
         bounds={bounds}
         glass={glass}
       />
-      {walls.map(({ frame, spans, top }) =>
-        spans.map((span) => (
+      {walls.map(({ frame, top }) =>
+        (spansByWall.get(frame.index) ?? []).map((span) => (
           <VenueOpening
             key={span.opening.id}
             span={span}

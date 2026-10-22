@@ -137,7 +137,7 @@ export type WallPiece = { a: number; b: number; y0: number; y1: number };
 export function computeWallPieces(
   length: number,
   wallTop: number,
-  spans: OpeningSpan[]
+  spans: Pick<OpeningSpan, "start" | "end" | "bottom" | "top">[]
 ): WallPiece[] {
   const cuts = new Set<number>([0, length]);
   for (const s of spans) {

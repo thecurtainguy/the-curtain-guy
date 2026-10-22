@@ -16,6 +16,9 @@ type MotionState = {
   /** Pending two-finger walk in feet. */
   walkAhead: number;
   walkSide: number;
+  /** Pending pointer-lock turn in radians (+yaw turns left, +pitch looks up). */
+  turnYaw: number;
+  turnPitch: number;
 };
 
 export type InteriorMotion = {
@@ -27,6 +30,9 @@ export type InteriorMotion = {
   takeLook: () => { x: number; y: number };
   takeOrbit: () => { x: number; y: number };
   takeWalk: () => { ahead: number; side: number };
+  /** Mouse-look under pointer lock: applied undamped, like a game camera. */
+  addTurn: (yaw: number, pitch: number) => void;
+  takeTurn: () => { yaw: number; pitch: number };
 };
 
 type Handlers = {
@@ -85,6 +91,8 @@ export function useInteriorInput(
     orbitY: 0,
     walkAhead: 0,
     walkSide: 0,
+    turnYaw: 0,
+    turnPitch: 0,
   });
   const handlerRef = useRef(handlers);
   useEffect(() => {
@@ -139,6 +147,17 @@ export function useInteriorInput(
       state.walkSide = 0;
       return step;
     },
+    addTurn: (yaw, pitch) => {
+      stateRef.current.turnYaw += yaw;
+      stateRef.current.turnPitch += pitch;
+    },
+    takeTurn: () => {
+      const state = stateRef.current;
+      const turn = { yaw: state.turnYaw, pitch: state.turnPitch };
+      state.turnYaw = 0;
+      state.turnPitch = 0;
+      return turn;
+    },
   }));
 
   useEffect(() => {
@@ -148,6 +167,7 @@ export function useInteriorInput(
       state.dolly = 0;
       state.lookX = state.lookY = state.orbitX = state.orbitY = 0;
       state.walkAhead = state.walkSide = 0;
+      state.turnYaw = state.turnPitch = 0;
     };
     if (!enabled) {
       reset();

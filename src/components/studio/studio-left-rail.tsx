@@ -8,6 +8,7 @@ import {
   Armchair,
   Building2,
   GalleryVerticalEnd,
+  LampCeiling,
   LayoutGrid,
   Ruler,
   Search,
@@ -15,13 +16,17 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useOptionalStudioEditor } from "./editor/studio-editor-context";
+import { useOptionalStudioEditorActions } from "./editor/studio-editor-context";
 import {
   DEFAULT_DRAPE_STYLE,
   LibraryDraperyTab,
   countDraperyMatches,
   type StudioDrapeStyle,
 } from "./library/library-drapery-tab";
+import {
+  LibraryCeilingTab,
+  countCeilingMatches,
+} from "./library/library-ceiling-tab";
 import {
   LibraryFurnitureTab,
   countFurnitureMatches,
@@ -46,11 +51,12 @@ type StudioLeftRailProps = {
   idPrefix: string;
 };
 
-type LibraryTab = "room" | "drapery" | "furniture" | "layouts";
+type LibraryTab = "room" | "drapery" | "ceiling" | "furniture" | "layouts";
 
 const TABS: Array<{ value: LibraryTab; label: string; icon: LucideIcon }> = [
   { value: "room", label: "Room", icon: Ruler },
   { value: "drapery", label: "Drapery", icon: GalleryVerticalEnd },
+  { value: "ceiling", label: "Ceiling", icon: LampCeiling },
   { value: "furniture", label: "Furniture", icon: Armchair },
   { value: "layouts", label: "Layouts", icon: LayoutGrid },
 ];
@@ -84,7 +90,7 @@ export function StudioLeftRail({
   onSelect,
   idPrefix,
 }: StudioLeftRailProps) {
-  const editor = useOptionalStudioEditor();
+  const editor = useOptionalStudioEditorActions();
   const [tab, setTab] = useState<LibraryTab>("room");
   const [query, setQuery] = useState("");
   const [drapeStyle, setDrapeStyle] = useState<StudioDrapeStyle>(DEFAULT_DRAPE_STYLE);
@@ -107,12 +113,13 @@ export function StudioLeftRail({
     ? {
         room: filterVenuePresets(query).length,
         drapery: countDraperyMatches(query),
+        ceiling: countCeilingMatches(query),
         furniture: countFurnitureMatches(query),
         layouts: countLayoutMatches(query),
       }
     : null;
   const total = counts
-    ? counts.room + counts.drapery + counts.furniture + counts.layouts
+    ? counts.room + counts.drapery + counts.ceiling + counts.furniture + counts.layouts
     : 0;
 
   const drapery = (
@@ -126,6 +133,20 @@ export function StudioLeftRail({
       onStyleChange={setDrapeStyle}
       query={query}
       idPrefix={`${idPrefix}-drapery`}
+      onOpenCeiling={() => {
+        setQuery("");
+        setTab("ceiling");
+      }}
+    />
+  );
+  const ceiling = (
+    <LibraryCeilingTab
+      design={design}
+      onChange={onChange}
+      selection={selection}
+      onSelect={onSelect}
+      query={query}
+      idPrefix={`${idPrefix}-ceiling`}
     />
   );
   const furniture = (
@@ -182,7 +203,7 @@ export function StudioLeftRail({
               onKeyDown={(event) => {
                 if (event.key === "Escape") setQuery("");
               }}
-              placeholder="Search tables, drapes, venues…"
+              placeholder="Search tables, drapes, ceilings…"
               aria-label="Search the studio library"
               className="h-8 w-full rounded-xl border border-border/50 bg-background/55 pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring/30 [&::-webkit-search-cancel-button]:hidden"
             />
@@ -200,7 +221,7 @@ export function StudioLeftRail({
 
           {!searching ? (
             <div
-              className="grid grid-cols-4 gap-1 rounded-xl border border-border/40 bg-background/40 p-1"
+              className="grid grid-cols-5 gap-1 rounded-xl border border-border/40 bg-background/40 p-1"
               role="tablist"
               aria-label="Library sections"
             >
@@ -273,6 +294,9 @@ export function StudioLeftRail({
               <SearchGroup label="Drapery" count={counts.drapery}>
                 {drapery}
               </SearchGroup>
+              <SearchGroup label="Ceiling" count={counts.ceiling}>
+                {ceiling}
+              </SearchGroup>
               <SearchGroup label="Furniture" count={counts.furniture}>
                 {furniture}
               </SearchGroup>
@@ -289,6 +313,8 @@ export function StudioLeftRail({
           />
         ) : tab === "drapery" ? (
           drapery
+        ) : tab === "ceiling" ? (
+          ceiling
         ) : tab === "furniture" ? (
           furniture
         ) : (

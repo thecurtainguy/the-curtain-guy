@@ -12,8 +12,10 @@ import {
   BoxSelect,
   Camera,
   Check,
+  Cpu,
   Crown,
   Feather,
+  Gauge,
   Gem,
   GlassWater,
   LampCeiling,
@@ -26,19 +28,41 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
-  useOptionalStudioEditor,
+  useOptionalStudioEditorActions,
+  useOptionalStudioSelection,
+  useOptionalStudioSettings,
+  type StudioCameraView,
   type StudioQuality,
 } from "./editor/studio-editor-context";
 import type { StudioEditorProps } from "./studio-types";
 import { useStudioCameraMode } from "./three/camera/camera-view-store";
 import { StudioViewChips } from "./three/camera/view-chips";
-import { StudioWalkHud } from "./three/camera/walk-hud";
-import { STUDIO_QUALITY_PRESETS, getStudioQualityPreset } from "./three/engine-quality";
+import { StudioWalkHud, showsWalkHud } from "./three/camera/walk-hud";
+import { getRecommendedStudioQuality, getStudioDeviceProfile } from "./three/device-tier";
+import {
+  STUDIO_QUALITY_PRESETS,
+  computeStudioDpr,
+  getStudioQualityPreset,
+  usesStudioComposer,
+} from "./three/engine-quality";
 import { STUDIO_LIGHTING_MOOD_LABELS } from "./three/lighting-moods";
+import {
+  configureStudioGovernor,
+  recordStudioFrame,
+  resetStudioGovernorLevel,
+  resetStudioGovernorSamples,
+  useStudioGovernor,
+  type StudioGovernorStep,
+} from "./three/perf-governor";
+import { setStudioSnapshotRendering } from "./three/post-processing";
 import { RoomScene } from "./three/room-scene";
+import {
+  registerStudioShadowRenderer,
+  requestStudioShadowUpdate,
+} from "./three/shadow-refresh";
 
 const CANVAS_CAMERA = {
   position: [0, 5.5, 20] as [number, number, number],
@@ -46,14 +70,20 @@ const CANVAS_CAMERA = {
   near: 0.1,
   far: 1000,
 };
-const CANVAS_GL = {
-  antialias: true,
-  alpha: false,
-  stencil: false,
-  powerPreference: "high-performance" as const,
-};
-const CANVAS_SHADOWS = { enabled: true, type: THREE.PCFShadowMap };
+/* Shadow maps re-render only on request (see three/shadow-refresh.ts); R3F re-applies this each configure. */
+const CANVAS_SHADOWS = { enabled: true, type: THREE.PCFShadowMap, autoUpdate: false };
+const CANVAS_NO_SHADOWS = { enabled: false, type: THREE.PCFShadowMap, autoUpdate: false };
+/** Never hold the veil longer than this on drivers that stall shader compiles. */
+const SHADER_WARMUP_TIMEOUT_MS = 5000;
 const SNAPSHOT_FILENAME = "curtain-guy-studio.png";
+const SOFTWARE_HINT_KEY = "tcg-studio-software-hint-dismissed";
+
+const GOVERNOR_STEP_LABELS: Record<StudioGovernorStep, string> = {
+  ao: "soft shadows",
+  dpr: "resolution",
+  bloom: "glow",
+  shadow: "shadow detail",
+};
 
 const QUALITY_OPTIONS: Array<{ value: StudioQuality; icon: LucideIcon }> = [
   { value: "draft", icon: Feather },
@@ -73,29 +103,120 @@ const WALL_OPTIONS: Array<{
   { value: "glass", label: "Glass", description: "See-through", icon: GlassWater },
 ];
 
-/** Registers a render-on-capture PNG snapshot for the editor. */
-function SnapshotBridge({
+/** Temporarily raises shadow-casting lights to `size` (same softness); returns a restore. */
+function boostShadowMaps(scene: THREE.Scene, size: number) {
+  const boosted: Array<{ shadow: THREE.LightShadow; size: number; radius: number }> = [];
+  scene.traverse((object) => {
+    const light = object as THREE.DirectionalLight;
+    if (!light.isLight || !light.castShadow || !light.shadow) return;
+    const shadow = light.shadow;
+    const current = shadow.mapSize.x;
+    if (current >= size) return;
+    boosted.push({ shadow, size: current, radius: shadow.radius });
+    shadow.mapSize.set(size, size);
+    shadow.radius *= size / current;
+    shadow.map?.dispose();
+    shadow.map = null;
+  });
+  return () => {
+    for (const entry of boosted) {
+      entry.shadow.mapSize.set(entry.size, entry.size);
+      entry.shadow.radius = entry.radius;
+      entry.shadow.map?.dispose();
+      entry.shadow.map = null;
+    }
+  };
+}
+
+/**
+ * Registers a render-on-capture PNG snapshot for the editor. Stills render
+ * with every pass the preset has (AO even if governed off) and the preset's
+ * snapshot shadow-map size, then drop back to interactive settings.
+ */
+const SnapshotBridge = memo(function SnapshotBridge({
   onRegister,
+  shadowMapSize,
 }: {
   onRegister: (capture: (() => string | null) | null) => void;
+  shadowMapSize: number;
 }) {
   const get = useThree((state) => state.get);
+  const shadowSize = useRef(shadowMapSize);
+  useEffect(() => {
+    shadowSize.current = shadowMapSize;
+  }, [shadowMapSize]);
+
   useEffect(() => {
     onRegister(() => {
+      const state = get();
+      const maxSize = state.gl.capabilities.maxTextureSize || 4096;
+      const restoreShadows = boostShadowMaps(state.scene, Math.min(maxSize, shadowSize.current));
+      setStudioSnapshotRendering(true);
       try {
-        const state = get();
+        requestStudioShadowUpdate(state.gl);
         state.advance(performance.now(), true);
         return state.gl.domElement.toDataURL("image/png");
       } catch {
         return null;
+      } finally {
+        setStudioSnapshotRendering(false);
+        restoreShadows();
+        requestStudioShadowUpdate(state.gl);
+        state.invalidate();
       }
     });
     return () => onRegister(null);
   }, [get, onRegister]);
   return null;
-}
+});
 
-function FirstFrameSignal({ onReady }: { onReady: () => void }) {
+/**
+ * Registers the renderer for on-demand shadow refreshes and feeds frame
+ * pacing to the adaptive-quality governor.
+ */
+const RenderPipelineBridge = memo(function RenderPipelineBridge() {
+  const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => registerStudioShadowRenderer(gl, invalidate), [gl, invalidate]);
+  useFrame(() => recordStudioFrame(performance.now()));
+  return null;
+});
+
+/**
+ * Compiles every shader in the mounted scene (in parallel where the driver
+ * supports KHR_parallel_shader_compile) while the canvas is paused behind the
+ * loading veil, then starts the demand frameloop — no first-orbit hitch.
+ */
+const ShaderWarmup = memo(function ShaderWarmup({ onDone }: { onDone: () => void }) {
+  const get = useThree((state) => state.get);
+  useEffect(() => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      const state = get();
+      state.setFrameloop("demand");
+      requestStudioShadowUpdate(state.gl);
+      state.invalidate();
+      onDone();
+    };
+    const timer = window.setTimeout(finish, SHADER_WARMUP_TIMEOUT_MS);
+    try {
+      const { gl, scene, camera } = get();
+      gl.compileAsync(scene, camera).then(finish, finish);
+    } catch {
+      finish();
+    }
+    return () => {
+      settled = true;
+      window.clearTimeout(timer);
+    };
+  }, [get, onDone]);
+  return null;
+});
+
+const FirstFrameSignal = memo(function FirstFrameSignal({ onReady }: { onReady: () => void }) {
   const fired = useRef(false);
   useFrame(() => {
     if (fired.current) return;
@@ -103,7 +224,7 @@ function FirstFrameSignal({ onReady }: { onReady: () => void }) {
     window.requestAnimationFrame(() => onReady());
   });
   return null;
-}
+});
 
 function SelectionRing({ selected, size = "md" }: { selected: boolean; size?: "sm" | "md" }) {
   return (
@@ -130,6 +251,8 @@ function SceneOptionTile({
   onSelect,
   stacked = false,
   role = "radio",
+  badge,
+  badgeTitle,
 }: {
   icon: LucideIcon;
   label: string;
@@ -138,12 +261,16 @@ function SceneOptionTile({
   onSelect: () => void;
   stacked?: boolean;
   role?: "radio" | "checkbox";
+  /** Tiny gold tag under the description (e.g. "Auto" for the device's suggestion). */
+  badge?: string;
+  badgeTitle?: string;
 }) {
   return (
     <button
       type="button"
       role={role}
       aria-checked={selected}
+      aria-description={badgeTitle}
       onClick={onSelect}
       className={cn(
         "group relative flex w-full rounded-xl border text-left transition-all duration-200 motion-reduce:transition-none",
@@ -174,6 +301,15 @@ function SceneOptionTile({
         {description ? (
           <span className="mt-0.5 block truncate text-[0.65rem] text-muted-foreground">
             {description}
+          </span>
+        ) : null}
+        {badge ? (
+          <span
+            title={badgeTitle}
+            className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-px text-[0.55rem] font-semibold tracking-[0.14em] text-primary uppercase"
+          >
+            <span aria-hidden className="size-1 rounded-full bg-primary" />
+            {badge}
           </span>
         ) : null}
       </span>
@@ -224,30 +360,105 @@ export function Studio3DViewer({
   onChange,
   selection,
   onSelect,
-}: StudioEditorProps) {
-  const editor = useOptionalStudioEditor();
+  presenting = false,
+}: StudioEditorProps & {
+  /** Present mode: the floating present bar takes the top-left corner. */
+  presenting?: boolean;
+}) {
+  const actions = useOptionalStudioEditorActions();
+  const settings = useOptionalStudioSettings();
+  const selectedCount = useOptionalStudioSelection()?.selectedIds.length ?? 0;
   const { resolvedTheme } = useTheme();
   const darkTheme = resolvedTheme !== "light";
   const materials = getStudioMaterials(design);
-  const quality = editor?.settings.quality ?? "high";
+  const quality = settings?.quality ?? "high";
   const preset = getStudioQualityPreset(quality);
   const wallDisplay = getStudioWallDisplay(design.view);
   const showCeiling = Boolean(design.view.showCeiling);
-  const autoRotate = editor?.settings.autoRotate ?? false;
-  const hasSelection = Boolean(selection) || (editor?.selectedIds.length ?? 0) > 0;
+  const autoRotate = settings?.autoRotate ?? false;
+  const hasSelection = Boolean(selection) || selectedCount > 0;
   const isEmpty =
     design.drapeRuns.length === 0 && design.treatments.length === 0;
 
-  const [ready, setReady] = useState(false);
+  const [deviceProfile] = useState(getStudioDeviceProfile);
+  const [recommendedQuality] = useState(getRecommendedStudioQuality);
+  /* Context MSAA only when nothing post-processes (Draft) and the GPU is real hardware.
+     It's a context-creation attribute, so flipping it remounts the canvas (rare; the camera view is kept). */
+  const contextAntialias =
+    preset.contextAntialias && !usesStudioComposer(preset) && !deviceProfile.software;
+  const canvasKey = contextAntialias ? "msaa" : "post";
+  const glOptions = useMemo(
+    () => ({
+      antialias: contextAntialias,
+      alpha: false,
+      stencil: false,
+      powerPreference: preset.powerPreference,
+    }),
+    [contextAntialias, preset.powerPreference]
+  );
+
+  const governor = useStudioGovernor();
+  const governed = governor.quality === quality;
+  useEffect(() => configureStudioGovernor(quality, preset), [preset, quality]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({ width: 0, height: 0, deviceDpr: 1 });
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      const next = {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        deviceDpr: window.devicePixelRatio || 1,
+      };
+      setViewport((previous) =>
+        previous.width === next.width &&
+        previous.height === next.height &&
+        previous.deviceDpr === next.deviceDpr
+          ? previous
+          : next
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+  const dpr = viewport.width
+    ? computeStudioDpr(
+        preset,
+        viewport.width,
+        viewport.height,
+        viewport.deviceDpr,
+        governed ? governor.dprScale : 1
+      )
+    : 1;
+
+  /* Keyed by canvas so a context swap shows the veil (and re-warms shaders) again. */
+  const [warmKey, setWarmKey] = useState<string | null>(null);
+  const [readyKey, setReadyKey] = useState<string | null>(null);
+  const ready = readyKey === canvasKey;
+  const [softwareHintDismissed, setSoftwareHintDismissed] = useState(() => {
+    try {
+      return window.sessionStorage.getItem(SOFTWARE_HINT_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
   const [panelOpen, setPanelOpen] = useState(false);
   const cameraMode = useStudioCameraMode();
   const [captured, setCaptured] = useState(false);
   const captureRef = useRef<(() => string | null) | null>(null);
   const capturedTimer = useRef<number | null>(null);
 
-  const registerEditorSnapshot = editor?.registerSnapshot;
-  const sendCanvasCommand = editor?.sendCanvasCommand;
-  const updateSettings = editor?.updateSettings;
+  const registerEditorSnapshot = actions?.registerSnapshot;
+  const sendCanvasCommand = actions?.sendCanvasCommand;
+  const updateSettings = actions?.updateSettings;
 
   const handleRegister = useCallback(
     (capture: (() => string | null) | null) => {
@@ -256,7 +467,23 @@ export function Studio3DViewer({
     },
     [registerEditorSnapshot]
   );
-  const handleReady = useCallback(() => setReady(true), []);
+  const handleWarm = useCallback(() => setWarmKey(canvasKey), [canvasKey]);
+  const handleReady = useCallback(() => {
+    resetStudioGovernorSamples();
+    setReadyKey(canvasKey);
+  }, [canvasKey]);
+  const dismissSoftwareHint = () => {
+    setSoftwareHintDismissed(true);
+    try {
+      window.sessionStorage.setItem(SOFTWARE_HINT_KEY, "1");
+    } catch {
+      // Dismissal is best-effort.
+    }
+  };
+  const easedSteps =
+    governed && governor.level > 0
+      ? governor.steps.slice(0, governor.level).map((step) => GOVERNOR_STEP_LABELS[step])
+      : [];
 
   useEffect(
     () => () => {
@@ -265,13 +492,23 @@ export function Studio3DViewer({
     []
   );
 
-  const toggleShowcase = () => {
+  /* Stable so the memoized view chips skip the per-frame renders of a drag. */
+  const toggleShowcase = useCallback(() => {
     if (autoRotate) {
       updateSettings?.({ autoRotate: false });
       return;
     }
     sendCanvasCommand?.({ type: "camera", view: "showcase" });
-  };
+  }, [autoRotate, sendCanvasCommand, updateSettings]);
+  const selectView = useCallback(
+    (view: StudioCameraView) => sendCanvasCommand?.({ type: "camera", view }),
+    [sendCanvasCommand]
+  );
+  const fitView = useCallback(() => sendCanvasCommand?.({ type: "fit" }), [sendCanvasCommand]);
+  const focusView = useCallback(
+    () => sendCanvasCommand?.({ type: "focus_selection" }),
+    [sendCanvasCommand]
+  );
 
   const downloadSnapshot = () => {
     const url = captureRef.current?.();
@@ -311,15 +548,17 @@ export function Studio3DViewer({
 
   return (
     <div
+      ref={containerRef}
       className="@container relative h-full min-h-[420px] overflow-hidden bg-[oklch(0.13_0.006_70)]"
       aria-label={`Interactive 3D view of ${design.room.name}`}
     >
       <Canvas
-        frameloop="demand"
-        dpr={preset.dpr}
-        shadows={CANVAS_SHADOWS}
+        key={canvasKey}
+        frameloop={warmKey === canvasKey ? "demand" : "never"}
+        dpr={dpr}
+        shadows={preset.shadows ? CANVAS_SHADOWS : CANVAS_NO_SHADOWS}
         camera={CANVAS_CAMERA}
-        gl={CANVAS_GL}
+        gl={glOptions}
         className="touch-none"
         onPointerMissed={() => onSelect(null)}
       >
@@ -329,14 +568,24 @@ export function Studio3DViewer({
           onSelect={onSelect}
           darkTheme={darkTheme}
         />
-        <SnapshotBridge onRegister={handleRegister} />
+        <RenderPipelineBridge />
+        <SnapshotBridge
+          onRegister={handleRegister}
+          shadowMapSize={preset.snapshotShadowMapSize}
+        />
+        <ShaderWarmup onDone={handleWarm} />
         <FirstFrameSignal onReady={handleReady} />
       </Canvas>
 
       <LoadingVeil visible={!ready} />
 
       {/* Scene summary / empty-state callout */}
-      <div className="pointer-events-none absolute top-3 left-3 z-10 max-w-[min(19rem,calc(100%-12rem))]">
+      <div
+        className={cn(
+          "pointer-events-none absolute top-3 left-3 z-10 max-w-[min(19rem,calc(100%-12rem))]",
+          presenting && "hidden"
+        )}
+      >
         {isEmpty ? (
           <div className="rounded-2xl border border-primary/25 bg-background/80 p-3 shadow-lg backdrop-blur-md">
             <div className="flex gap-2.5">
@@ -381,6 +630,33 @@ export function Studio3DViewer({
             ) : null}
           </div>
         )}
+        {deviceProfile.software && !softwareHintDismissed ? (
+          <div
+            role="note"
+            className="pointer-events-auto mt-2 flex gap-2.5 rounded-2xl border border-primary/25 bg-background/80 p-3 shadow-lg backdrop-blur-md"
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+              <Cpu className="size-4" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.62rem] font-semibold tracking-[0.18em] text-primary uppercase">
+                Smoother 3D
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-foreground/80">
+                Your browser is drawing 3D without the graphics card. Turn on hardware
+                acceleration in its settings for a fluid preview.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={dismissSoftwareHint}
+              className="flex size-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
+              aria-label="Dismiss hardware acceleration tip"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {/* Top-right actions */}
@@ -454,9 +730,33 @@ export function Studio3DViewer({
                       selected={quality === option.value}
                       onSelect={() => updateSettings({ quality: option.value })}
                       stacked
+                      badge={option.value === recommendedQuality ? "Auto" : undefined}
+                      badgeTitle={
+                        option.value === recommendedQuality
+                          ? "Suggested for this device"
+                          : undefined
+                      }
                     />
                   ))}
                 </div>
+                {easedSteps.length > 0 ? (
+                  <div className="mt-2 flex items-center gap-2.5 rounded-xl border border-primary/20 bg-primary/5 p-2">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                      <Gauge className="size-3.5" aria-hidden />
+                    </span>
+                    <p className="min-w-0 flex-1 text-[0.65rem] leading-snug text-muted-foreground">
+                      <span className="font-medium text-foreground">Adaptive smoothing</span>{" "}
+                      eased {easedSteps.join(", ")} to keep motion fluid.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resetStudioGovernorLevel}
+                      className="shrink-0 rounded-lg border border-primary/30 px-2 py-1 text-[0.62rem] font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
+                    >
+                      Restore
+                    </button>
+                  </div>
+                ) : null}
               </div>
             ) : null}
             <div>
@@ -489,17 +789,17 @@ export function Studio3DViewer({
         </section>
       ) : null}
 
-      {cameraMode === "walk" && ready ? <StudioWalkHud /> : null}
+      {showsWalkHud(cameraMode) && ready ? <StudioWalkHud /> : null}
 
       {sendCanvasCommand ? (
         <StudioViewChips
           mode={cameraMode}
           spinning={autoRotate}
           hasSelection={hasSelection}
-          onSelect={(view) => sendCanvasCommand({ type: "camera", view })}
+          onSelect={selectView}
           onToggleShowcase={toggleShowcase}
-          onFit={() => sendCanvasCommand({ type: "fit" })}
-          onFocus={() => sendCanvasCommand({ type: "focus_selection" })}
+          onFit={fitView}
+          onFocus={focusView}
         />
       ) : null}
     </div>

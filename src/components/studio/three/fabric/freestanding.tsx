@@ -7,10 +7,11 @@ import {
   DrapeAssembly,
   FabricMesh,
   useFabricEditorState,
+  useSettledFabricProfile,
 } from "./drape-assembly";
 import { canopyCenterY, createCanopyGeometry } from "./geometry";
 import { useDisposeGeometry } from "./hardware";
-import { getFabricMaterial, getHardwareMaterial } from "./materials";
+import { getFabricMaterialForQuality, getHardwareMaterial } from "./materials";
 
 const SCALE = 1 / 12;
 
@@ -57,6 +58,10 @@ export function CeilingDrapeModel({
   const top = wallHeight - 0.02;
   const fullness = object.fullness ?? 2;
   const seed = useMemo(() => hashSeed(object.id), [object.id]);
+  const profile = useSettledFabricProfile(
+    `${width}|${depth}|${top}|${drop}|${fullness}|${seed}`,
+    quality
+  );
 
   const geometry = useMemo(
     () =>
@@ -67,15 +72,17 @@ export function CeilingDrapeModel({
         drop,
         fullness,
         seed,
-        quality,
+        quality: profile,
       }),
-    [depth, drop, fullness, quality, seed, top, width]
+    [depth, drop, fullness, profile, seed, top, width]
   );
   useDisposeGeometry(geometry);
 
-  const material = getFabricMaterial(
+  const material = getFabricMaterialForQuality(
     object.fabric ?? "chiffon",
-    object.drapeColor ?? "white"
+    object.drapeColor ?? "white",
+    null,
+    quality
   );
   const centerY = canopyCenterY(top, drop);
   const gold = getHardwareMaterial("gold");

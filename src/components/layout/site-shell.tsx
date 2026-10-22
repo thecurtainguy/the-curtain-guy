@@ -6,6 +6,7 @@ import { BackToTop } from "@/components/layout/back-to-top";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
+import { useStudioFullscreenMode } from "@/components/studio/editor/studio-display-store";
 import { isAuthEntryPath } from "@/lib/i18n/path-locale";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       (pathname.startsWith("/studio/") && pathname !== "/studio"));
 
   const studioWorkspace = isStudioWorkspace(pathname);
+  const siteChrome = useStudioFullscreenMode() === "off";
 
   const progress = (
     <Suspense fallback={null}>
@@ -45,14 +47,16 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
     return (
       <>
         {progress}
-        <Header />
-        <BackToTop />
+        {siteChrome ? <Header /> : null}
+        {siteChrome ? <BackToTop /> : null}
         <div className="flex min-w-0 flex-1 flex-col overflow-x-clip">
-          <div
-            className="shrink-0 lg:hidden"
-            style={{ height: "calc(4rem + env(safe-area-inset-top, 0px))" }}
-            aria-hidden
-          />
+          {siteChrome ? (
+            <div
+              className="shrink-0 lg:hidden"
+              style={{ height: "calc(4rem + env(safe-area-inset-top, 0px))" }}
+              aria-hidden
+            />
+          ) : null}
           <main className="flex-1">{children}</main>
         </div>
       </>

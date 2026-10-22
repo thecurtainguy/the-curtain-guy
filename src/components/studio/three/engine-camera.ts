@@ -4,7 +4,8 @@
  * view and selection focus. In-room presets live in `camera/interior-poses`.
  * Inputs are design inches; poses are world feet.
  */
-import type { StudioDesignJson } from "@/data/studio";
+import { getCeilingDrapes, type StudioDesignJson } from "@/data/studio";
+import { ceilingLowestDrop, getCeilingLayout } from "@/lib/studio-ceiling";
 import {
   getPointAlongWall,
   getWallSegments,
@@ -338,6 +339,17 @@ export function getSelectionBox(
       sill,
       sill + openingHeight
     );
+  }
+  const ceilingY = design.room.wallHeight * SCALE;
+  for (const drape of getCeilingDrapes(design)) {
+    if (!allIds.has(drape.id)) continue;
+    const layout = getCeilingLayout(drape, design.room.floor);
+    const lowest = Math.max(0, ceilingY - ceilingLowestDrop(drape) * SCALE);
+    for (const point of [...layout.outline, ...layout.drops]) {
+      const world = toWorld(point.x, point.z);
+      box.expandByPoint(new THREE.Vector3(world.x, ceilingY, world.z));
+      box.expandByPoint(new THREE.Vector3(world.x, lowest, world.z));
+    }
   }
   return box.isEmpty() ? null : box;
 }

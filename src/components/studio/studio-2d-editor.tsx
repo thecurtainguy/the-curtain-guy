@@ -1,14 +1,17 @@
 "use client";
 
 import {
+  STUDIO_MAX_CEILING_DRAPES,
   STUDIO_MAX_OBJECTS,
   STUDIO_OBJECT_TYPES,
   createStudioObject,
+  getCeilingDrapes,
   getStudioObjectOption,
   type StudioObject,
   type StudioObjectType,
   type StudioPoint,
 } from "@/data/studio";
+import { addCeilingDrape, createCeilingDrape, pointInCeilingPolygon } from "@/lib/studio-ceiling";
 import { getObjectsBounds, nudgeStudioItems, rotateStudioItemsAsGroup } from "@/lib/studio-commands";
 import { getStudioBounds, inchesToFeetLabel } from "@/lib/studio-geometry";
 import {
@@ -18,7 +21,7 @@ import {
   snapStudioValue,
   type StudioResizeHandle,
 } from "@/lib/studio-interactions";
-import { cn } from "@/lib/utils";
+import { Crosshair } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -27,7 +30,16 @@ import {
   useRef,
   useState,
 } from "react";
-import { useStudioEditor } from "./editor/studio-editor-context";
+import { disarmCeilingPlacement, useCeilingPlacement } from "./editor/ceiling-placement-store";
+import {
+  useStudioCanvasCommand,
+  useStudioEditorActions,
+  useStudioSelection,
+  useStudioSettings,
+} from "./editor/studio-editor-context";
+import { CeilingLayer2D, cachedCeilingLayout, type CeilingGhost } from "./plan/ceiling-layer";
+import { setPlanSurface, usePlanSurface, type PlanSurface } from "./plan/ceiling-plan-store";
+import { ceilingAnchor } from "./plan/ceiling-symbols";
 import { DimensionLine, SmartGuidesLayer, WallDistanceLayer } from "./plan/dimension-line";
 import { MarqueeLayer, marqueeRect } from "./plan/marquee";
 import { MeasureLayer, type PlanMeasurement } from "./plan/measure-tool";
@@ -49,15 +61,16 @@ import {
 } from "./plan/object-geometry";
 import { ObjectLabelsLayer } from "./plan/object-labels";
 import { PlanObjectSymbol, PlanSymbolDefs } from "./plan/object-symbols";
+import { PlanObjectsLayer, type PlanObjectPointerHandler } from "./plan/objects-layer";
 import { PlanGrid } from "./plan/plan-grid";
-import type { PlanLayerProps } from "./plan/plan-types";
+import { PlanSurfaceToggle } from "./plan/plan-surface-toggle";
+import type { PlanDragFeedback, PlanLayerProps } from "./plan/plan-types";
 import { RoomLayer2D } from "./plan/room-layer";
 import { PlanRulers, PLAN_RULER_SIZE } from "./plan/rulers";
 import {
   GroupSelectionBox,
   ObjectStatusOutlines,
   SingleSelectionHandles,
-  type ObjectStatus,
   type PlanObjectHandle,
 } from "./plan/selection-overlay";
 import {
@@ -70,6 +83,7 @@ import {
   centeredCamera,
   fitCamera,
   getVisiblePlanRect,
+  quantizeZoom,
   rectContains,
   zoomCameraAt,
   type PlanCamera,
@@ -100,6 +114,15 @@ const FLOOR_LEVEL_TYPES: ReadonlySet<StudioObjectType> = new Set([
 const OVERHEAD_TYPES: ReadonlySet<StudioObjectType> = new Set(["chandelier", "ceiling_drape"]);
 
 type ClientPoint = { x: number; y: number };
+
+/** Latest pointer sample of a gesture, applied once per animation frame. */
+type PointerSample = {
+  pointerId: number;
+  clientX: number;
+  clientY: number;
+  altKey: boolean;
+  shiftKey: boolean;
+};
 
 type Session =
   | { kind: "pan"; pointerId: number; startClient: ClientPoint; startCamera: PlanCamera; moved: boolean; isTouch: boolean }
@@ -146,13 +169,7 @@ type Session =
     }
   | { kind: "measure"; pointerId: number; start: StudioPoint };
 
-type DragFeedback = {
-  label: string;
-  mode: string;
-  guides: SmartGuide[];
-  box: PlanRect | null;
-  angleLabel: string | null;
-};
+type DragFeedback = PlanDragFeedback;
 
 type DropGhost = { type: StudioObjectType | null; point: StudioPoint };
 
@@ -180,20 +197,18 @@ function layerOrder(type: StudioObjectType): number {
 export function Studio2DEditor(props: StudioEditorProps) {
   const { design } = props;
   const {
-    settings,
-    selectedIds,
     select,
     selectIds,
-    hoveredId,
-    setHoveredId,
     beginTransaction,
     preview,
     endTransaction,
     cancelTransaction,
     commit,
-    canvasCommand,
     updateSettings,
-  } = useStudioEditor();
+  } = useStudioEditorActions();
+  const settings = useStudioSettings();
+  const { selectedIds } = useStudioSelection();
+  const canvasCommand = useStudioCanvasCommand();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -203,6 +218,18 @@ export function Studio2DEditor(props: StudioEditorProps) {
   const pointerInsideRef = useRef(false);
   const dragTypeRef = useRef<StudioObjectType | null>(null);
   const sizeRef = useRef<PlanSize | null>(null);
+  /** Cached svg client rect; cleared on resize/scroll and at every pointerdown. */
+  const svgRectRef = useRef<DOMRect | null>(null);
+  // Pointer/wheel input is stashed here and applied once per animation frame.
+  const frameRef = useRef(0);
+  const pendingMoveRef = useRef<PointerSample | null>(null);
+  /** Newest camera, ahead of state until the frame that applies it commits. */
+  const pendingCameraRef = useRef<PlanCamera | null>(null);
+  const cameraDirtyRef = useRef(false);
+  const actionsRef = useRef<{
+    processMove: (sample: PointerSample) => void;
+    objectPointerDown: PlanObjectPointerHandler;
+  }>({ processMove: () => undefined, objectPointerDown: () => undefined });
 
   const [size, setSize] = useState<PlanSize | null>(null);
   const [camera, setCamera] = useState<PlanCamera | null>(null);
@@ -213,6 +240,10 @@ export function Studio2DEditor(props: StudioEditorProps) {
   const [measurement, setMeasurement] = useState<PlanMeasurement | null>(null);
   const [dropGhost, setDropGhost] = useState<DropGhost | null>(null);
   const [showRulers, setShowRulers] = useState(true);
+  const [placePoint, setPlacePoint] = useState<StudioPoint | null>(null);
+  const surface = usePlanSurface();
+  const ceilingMode = surface === "ceiling";
+  const armed = useCeilingPlacement();
 
   const floor = design.room.floor;
   const roomRect = useMemo<PlanRect>(() => {
@@ -244,6 +275,50 @@ export function Studio2DEditor(props: StudioEditorProps) {
     [design.objects, floor, settings.layers.objects]
   );
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const rawCeilingDrapes = design.ceilingDrapes;
+  const ceilingDrapes = useMemo(
+    () => getCeilingDrapes({ ceilingDrapes: rawCeilingDrapes }),
+    [rawCeilingDrapes]
+  );
+  const ceilingIds = useMemo(
+    () => new Set(ceilingDrapes.map((drape) => drape.id)),
+    [ceilingDrapes]
+  );
+
+  // Follow the selection: ceiling-only → Ceiling mode, floor-only → Floor mode.
+  const selectionKey = selectedIds.join("|");
+  const selectionSurface: PlanSurface | null =
+    selectedIds.length === 0
+      ? null
+      : selectedIds.every((id) => ceilingIds.has(id))
+        ? "ceiling"
+        : selectedIds.some((id) => ceilingIds.has(id))
+          ? null
+          : "floor";
+  useEffect(() => {
+    if (selectionSurface) setPlanSurface(selectionSurface);
+  }, [selectionKey, selectionSurface]);
+  useEffect(() => {
+    if (armed) setPlanSurface("ceiling");
+  }, [armed]);
+
+  const ghost = useMemo<CeilingGhost | null>(() => {
+    if (!armed || !placePoint) return null;
+    const drape = createCeilingDrape(armed.style, floor, {
+      ...armed.overrides,
+      hubX: placePoint.x,
+      hubZ: placePoint.z,
+      x: placePoint.x,
+      z: placePoint.z,
+    });
+    return {
+      drape: { ...drape, id: "ceiling-placement-ghost" },
+      point: placePoint,
+      inside: pointInCeilingPolygon(floor, placePoint.x, placePoint.z),
+    };
+  }, [armed, floor, placePoint]);
+  const ceilingFull = ceilingDrapes.length >= STUDIO_MAX_CEILING_DRAPES;
+
   const selectedObjects = useMemo(
     () => visibleObjects.filter((object) => selectedSet.has(object.id)),
     [selectedSet, visibleObjects]
@@ -271,7 +346,15 @@ export function Studio2DEditor(props: StudioEditorProps) {
     else if (canvasCommand.type === "zoom") {
       setCamera(zoomCameraAt(cam, canvasCommand.direction === "in" ? 1.25 : 0.8, center));
     } else if (canvasCommand.type === "focus_selection") {
-      const target = selectedObjects.length > 0 ? getObjectsBounds(selectedObjects) : roomRect;
+      const ceilingOutline = ceilingDrapes
+        .filter((drape) => selectedSet.has(drape.id))
+        .flatMap((drape) => cachedCeilingLayout(drape, floor).outline);
+      const target =
+        ceilingOutline.length > 0 && (ceilingMode || selectedObjects.length === 0)
+          ? getPointsBox(ceilingOutline)
+          : selectedObjects.length > 0
+            ? getObjectsBounds(selectedObjects)
+            : roomRect;
       const pad = 48;
       setCamera(
         fitCamera(
@@ -282,16 +365,35 @@ export function Studio2DEditor(props: StudioEditorProps) {
     }
   }
 
-  // ---- live values for native listeners -----------------------------------
-  const liveRef = useRef({ cam, tool: settings.tool });
+  // A toolbar command wins over wheel/pinch input still queued for the next frame.
   useLayoutEffect(() => {
-    liveRef.current = { cam, tool: settings.tool };
+    pendingCameraRef.current = null;
+    cameraDirtyRef.current = false;
+  }, [handledNonce]);
+
+  // ---- live values for native listeners -----------------------------------
+  const liveRef = useRef({ cam, tool: settings.tool, armed: Boolean(armed) });
+  useLayoutEffect(() => {
+    liveRef.current = { cam, tool: settings.tool, armed: Boolean(armed) };
+    // The applied camera has committed; drop it unless newer input is queued.
+    if (!cameraDirtyRef.current) pendingCameraRef.current = null;
   });
 
   useLayoutEffect(() => {
+    const invalidateRect = () => {
+      svgRectRef.current = null;
+    };
+    window.addEventListener("scroll", invalidateRect, { capture: true, passive: true });
+    window.addEventListener("resize", invalidateRect);
     const element = containerRef.current;
-    if (!element || typeof ResizeObserver === "undefined") return;
+    if (!element || typeof ResizeObserver === "undefined") {
+      return () => {
+        window.removeEventListener("scroll", invalidateRect, { capture: true });
+        window.removeEventListener("resize", invalidateRect);
+      };
+    }
     const observer = new ResizeObserver((entries) => {
+      invalidateRect();
       const rect = entries[0]?.contentRect;
       if (!rect || rect.width <= 0 || rect.height <= 0) return;
       const previous = sizeRef.current;
@@ -312,30 +414,107 @@ export function Studio2DEditor(props: StudioEditorProps) {
       }
     });
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", invalidateRect, { capture: true });
+      window.removeEventListener("resize", invalidateRect);
+    };
   }, []);
 
-  const toPlanPoint = useCallback((event: { clientX: number; clientY: number }) => {
+  const getSvgRect = useCallback(() => {
+    const cached = svgRectRef.current;
+    if (cached) return cached;
     const svg = svgRef.current;
     if (!svg) return null;
     const rect = svg.getBoundingClientRect();
-    const current = liveRef.current.cam;
-    return {
-      x: current.x + (event.clientX - rect.left) / current.zoom,
-      z: current.z + (event.clientY - rect.top) / current.zoom,
-    };
+    svgRectRef.current = rect;
+    return rect;
   }, []);
+
+  /** Camera including input not yet committed to state. */
+  const currentCamera = useCallback(
+    () => pendingCameraRef.current ?? liveRef.current.cam,
+    []
+  );
+
+  const toPlanPoint = useCallback(
+    (event: { clientX: number; clientY: number }) => {
+      const rect = getSvgRect();
+      if (!rect) return null;
+      const current = currentCamera();
+      return {
+        x: current.x + (event.clientX - rect.left) / current.zoom,
+        z: current.z + (event.clientY - rect.top) / current.zoom,
+      };
+    },
+    [currentCamera, getSvgRect]
+  );
+
+  /** Applies the latest queued pointer sample and camera (one render per frame). */
+  const flushFrame = useCallback(() => {
+    if (frameRef.current) {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+    }
+    const move = pendingMoveRef.current;
+    pendingMoveRef.current = null;
+    if (move) actionsRef.current.processMove(move);
+    if (frameRef.current && !pendingMoveRef.current) {
+      // Camera queued by the move itself is applied right below.
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+    }
+    const nextCamera = pendingCameraRef.current;
+    if (cameraDirtyRef.current && nextCamera) {
+      cameraDirtyRef.current = false;
+      setCamera(nextCamera);
+    }
+  }, []);
+
+  const requestFrame = useCallback(() => {
+    if (frameRef.current) return;
+    frameRef.current = window.requestAnimationFrame(() => {
+      frameRef.current = 0;
+      flushFrame();
+    });
+  }, [flushFrame]);
+
+  const scheduleCamera = useCallback(
+    (next: PlanCamera) => {
+      pendingCameraRef.current = next;
+      cameraDirtyRef.current = true;
+      requestFrame();
+    },
+    [requestFrame]
+  );
+
+  /** Immediate camera change (buttons, commands) that overrides queued input. */
+  const applyCamera = useCallback((next: PlanCamera | null) => {
+    pendingCameraRef.current = null;
+    cameraDirtyRef.current = false;
+    setCamera(next);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+    },
+    []
+  );
 
   const clearSessionUi = useCallback(() => {
     setFeedback(null);
     setMarquee(null);
     setPanning(false);
   }, []);
+  const showCeilingFeedback = useCallback((next: DragFeedback | null) => setFeedback(next), []);
 
   const abortSession = useCallback(() => {
     const session = sessionRef.current;
     if (!session) return;
     sessionRef.current = null;
+    pendingMoveRef.current = null;
     if (
       (session.kind === "move" || session.kind === "resize" || session.kind === "rotate") &&
       session.moved
@@ -354,37 +533,37 @@ export function Studio2DEditor(props: StudioEditorProps) {
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
+    // Every wheel event folds into the queued camera; state updates once per frame.
     function handleWheel(event: WheelEvent) {
       event.preventDefault();
-      const target = svgRef.current;
-      if (!target) return;
-      const rect = target.getBoundingClientRect();
+      const rect = getSvgRect();
+      if (!rect) return;
       const screen = { x: event.clientX - rect.left, y: event.clientY - rect.top };
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1;
       const dx = event.deltaX * unit;
       const dy = event.deltaY * unit;
-      const base = liveRef.current.cam;
+      const current = currentCamera();
       if (event.ctrlKey || event.metaKey) {
-        const factor = Math.exp(-dy * 0.01);
-        setCamera((previous) => zoomCameraAt(previous ?? base, factor, screen));
+        scheduleCamera(zoomCameraAt(current, Math.exp(-dy * 0.01), screen));
         return;
       }
       const trackpadPan = event.deltaMode === 0 && Math.abs(dx) > 0.5;
       if (event.shiftKey || trackpadPan) {
         const panX = event.shiftKey && !trackpadPan ? dy : dx;
         const panZ = event.shiftKey && !trackpadPan ? 0 : dy;
-        setCamera((previous) => {
-          const current = previous ?? base;
-          return { ...current, x: current.x + panX / current.zoom, z: current.z + panZ / current.zoom };
+        scheduleCamera({
+          ...current,
+          x: current.x + panX / current.zoom,
+          z: current.z + panZ / current.zoom,
         });
         return;
       }
       const factor = Math.min(2, Math.max(0.5, Math.exp(-dy * 0.0015)));
-      setCamera((previous) => zoomCameraAt(previous ?? base, factor, screen));
+      scheduleCamera(zoomCameraAt(current, factor, screen));
     }
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => svg.removeEventListener("wheel", handleWheel);
-  }, []);
+  }, [currentCamera, getSvgRect, scheduleCamera]);
 
   // Space-drag panning and Escape cancelling an in-flight gesture.
   useEffect(() => {
@@ -394,6 +573,12 @@ export function Studio2DEditor(props: StudioEditorProps) {
           event.preventDefault();
           event.stopImmediatePropagation();
           abortSession();
+          return;
+        }
+        if (liveRef.current.armed) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          disarmCeilingPlacement();
           return;
         }
         if (liveRef.current.tool === "measure") {
@@ -448,6 +633,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
 
   // ---- helpers --------------------------------------------------------------
   const zoom = cam.zoom;
+  const steppedZoom = quantizeZoom(zoom);
   const handleRadius = HANDLE_PX / zoom;
   const labelSize = LABEL_PX / zoom;
   const snapOptions = { snapIncrement: settings.snapIncrement };
@@ -474,7 +660,44 @@ export function Studio2DEditor(props: StudioEditorProps) {
     if (!camera) setCamera(cam);
   }
 
+  function ceilingMarqueeHits(rect: PlanRect): string[] {
+    if (!settings.layers.ceiling) return [];
+    return ceilingDrapes
+      .filter((drape) => {
+        if (drape.hidden || drape.locked) return false;
+        const layout = cachedCeilingLayout(drape, floor);
+        const outline = layout.outline;
+        const anchor = ceilingAnchor(layout);
+        return (
+          rectContains(rect, { minX: anchor.x, maxX: anchor.x, minZ: anchor.z, maxZ: anchor.z }, 0) ||
+          outline.some((point, index) =>
+            segmentIntersectsRect(point, outline[(index + 1) % outline.length], rect)
+          )
+        );
+      })
+      .map((drape) => drape.id);
+  }
+
+  function placeCeiling(point: StudioPoint) {
+    if (!armed || ceilingFull || !pointInCeilingPolygon(floor, point.x, point.z)) return;
+    const drape = createCeilingDrape(armed.style, floor, {
+      ...armed.overrides,
+      hubX: point.x,
+      hubZ: point.z,
+      x: point.x,
+      z: point.z,
+    });
+    commit(addCeilingDrape(design, drape));
+    if (!settings.layers.ceiling) {
+      updateSettings({ layers: { ...settings.layers, ceiling: true } });
+    }
+    select({ kind: "ceiling", id: drape.id });
+    disarmCeilingPlacement();
+    setPlacePoint(null);
+  }
+
   function marqueeHits(rect: PlanRect): string[] {
+    if (ceilingMode) return ceilingMarqueeHits(rect);
     const ids = visibleObjects
       .filter((object) => !object.locked && objectIntersectsRect(object, rect))
       .map((object) => object.id);
@@ -596,6 +819,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
 
   // ---- pointer: canvas ----------------------------------------------------------
   function handlePointerDownCapture(event: React.PointerEvent<SVGSVGElement>) {
+    svgRectRef.current = null;
     concretizeCamera();
     if (event.pointerType !== "touch") return;
     const touches = touchesRef.current;
@@ -604,12 +828,12 @@ export function Studio2DEditor(props: StudioEditorProps) {
       event.stopPropagation();
       abortSession();
       const [a, b] = [...touches.values()];
-      const rect = event.currentTarget.getBoundingClientRect();
+      const rect = getSvgRect() ?? event.currentTarget.getBoundingClientRect();
       sessionRef.current = {
         kind: "pinch",
         startDistance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)),
         startMid: { x: (a.x + b.x) / 2 - rect.left, y: (a.y + b.y) / 2 - rect.top },
-        startCamera: cam,
+        startCamera: currentCamera(),
       };
       for (const id of touches.keys()) capture(id);
     }
@@ -626,19 +850,24 @@ export function Studio2DEditor(props: StudioEditorProps) {
       event.button === 1 ||
       settings.tool === "pan" ||
       spaceRef.current ||
-      (isTouch && settings.tool === "select")
+      (isTouch && settings.tool === "select" && !armed)
     ) {
       event.preventDefault();
       sessionRef.current = {
         kind: "pan",
         pointerId: event.pointerId,
         startClient,
-        startCamera: cam,
+        startCamera: currentCamera(),
         moved: false,
         isTouch,
       };
       setPanning(true);
       capture(event.pointerId);
+      return;
+    }
+    if (armed) {
+      event.preventDefault();
+      placeCeiling(snapPoint(point, event.altKey));
       return;
     }
     if (settings.tool === "measure") {
@@ -670,20 +899,49 @@ export function Studio2DEditor(props: StudioEditorProps) {
     touchesRef.current.delete(event.pointerId);
   }
 
+  function trackPlacement(event: PointerSample) {
+    const point = toPlanPoint(event);
+    if (!point) return;
+    const snapped = snapPoint(point, event.altKey);
+    setPlacePoint((previous) =>
+      previous && previous.x === snapped.x && previous.z === snapped.z ? previous : snapped
+    );
+  }
+
   function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
     const session = sessionRef.current;
-    if (!session) return;
+    if (session ? "pointerId" in session && session.pointerId !== event.pointerId : !armed) {
+      return;
+    }
+    pendingMoveRef.current = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+    };
+    requestFrame();
+  }
+
+  /** Applies one (coalesced) pointer sample to the active gesture. */
+  function processMove(event: PointerSample) {
+    const session = sessionRef.current;
+    if (!session) {
+      if (armed) trackPlacement(event);
+      return;
+    }
 
     if (session.kind === "pinch") {
       const touches = [...touchesRef.current.values()];
       if (touches.length < 2) return;
       const [a, b] = touches;
-      const rect = event.currentTarget.getBoundingClientRect();
+      const rect = getSvgRect();
+      if (!rect) return;
       const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
       const mid = { x: (a.x + b.x) / 2 - rect.left, y: (a.y + b.y) / 2 - rect.top };
       const start = session.startCamera;
       const scaled = zoomCameraAt(start, distance / session.startDistance, session.startMid);
-      setCamera({
+      scheduleCamera({
         ...scaled,
         x: scaled.x - (mid.x - session.startMid.x) / scaled.zoom,
         z: scaled.z - (mid.y - session.startMid.y) / scaled.zoom,
@@ -697,7 +955,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
       const dy = event.clientY - session.startClient.y;
       if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) session.moved = true;
       const start = session.startCamera;
-      setCamera({ ...start, x: start.x - dx / start.zoom, z: start.z - dy / start.zoom });
+      scheduleCamera({ ...start, x: start.x - dx / start.zoom, z: start.z - dy / start.zoom });
       return;
     }
 
@@ -837,6 +1095,9 @@ export function Studio2DEditor(props: StudioEditorProps) {
   }
 
   function handlePointerUp(event: React.PointerEvent<SVGSVGElement>) {
+    if (!sessionRef.current) return;
+    // Apply the last queued sample so the committed result matches the pointer.
+    flushFrame();
     const session = sessionRef.current;
     if (!session) return;
     if (session.kind === "pinch") {
@@ -934,6 +1195,20 @@ export function Studio2DEditor(props: StudioEditorProps) {
     };
   }, [ghostType]);
 
+  // ---- stable callbacks for memoized layers -------------------------------
+  useLayoutEffect(() => {
+    actionsRef.current = { processMove, objectPointerDown: handleObjectPointerDown };
+  });
+  const onObjectPointerDown = useCallback<PlanObjectPointerHandler>(
+    (event, object) => actionsRef.current.objectPointerDown(event, object),
+    []
+  );
+  const onObjectActivate = useCallback(
+    (object: StudioObject, additive: boolean) =>
+      select({ kind: "object", id: object.id }, { additive }),
+    [select]
+  );
+
   // ---- render -------------------------------------------------------------
   const visible = getVisiblePlanRect(cam, viewSize);
   const gridRect: PlanRect = {
@@ -942,30 +1217,21 @@ export function Studio2DEditor(props: StudioEditorProps) {
     maxX: visible.maxX + 24,
     maxZ: visible.maxZ + 24,
   };
-  const layerProps: PlanLayerProps = {
-    design,
-    toPlanPoint,
-    pixelsPerInch: zoom,
-    handleRadius,
-    labelSize,
-  };
-  const emphasized = new Set(selectedIds);
-  if (hoveredId) emphasized.add(hoveredId);
-  const statusOf = (object: StudioObject): ObjectStatus | null => {
-    const conflict = conflicts.has(object.id);
-    if (selectedSet.has(object.id)) return conflict ? "conflict-selected" : "selected";
-    if (conflict) return "conflict";
-    if (hoveredId === object.id) return "hovered";
-    return null;
-  };
+  // Pans only move the viewBox: layers keep identical props and skip rendering.
+  const layerProps = useMemo<PlanLayerProps>(
+    () => ({ design, toPlanPoint, pixelsPerInch: zoom, handleRadius, labelSize }),
+    [design, toPlanPoint, zoom, handleRadius, labelSize]
+  );
   const wallDistances =
-    feedback?.box && settings.layers.objects ? getWallDistances(feedback.box, floor) : [];
+    feedback?.box && (settings.layers.objects || ceilingMode)
+      ? getWallDistances(feedback.box, floor)
+      : [];
   const roomVisible = rectContains(visible, roomRect, 1 / zoom);
   const cursor = panning
     ? "grabbing"
     : spaceHeld || settings.tool === "pan"
       ? "grab"
-      : settings.tool === "measure"
+      : settings.tool === "measure" || armed
         ? "crosshair"
         : "default";
   const hint =
@@ -973,7 +1239,20 @@ export function Studio2DEditor(props: StudioEditorProps) {
       ? "Drag to measure · Shift = 45° · Esc to exit"
       : settings.tool === "pan"
         ? "Drag to pan · Wheel to zoom"
-        : "Drag to move · Shift-click to multi-select · Space-drag to pan · Alt = free";
+        : ceilingMode
+          ? "Ceiling plan · Click fabric to select · Drag to move · Gold handles reshape · Shift = add / free"
+          : "Drag to move · Shift-click to multi-select · Space-drag to pan · Alt = free";
+  const floorDim = ceilingMode ? 0.35 : 1;
+  const floorPointer = ceilingMode ? ("none" as const) : undefined;
+  const chromeTop = (showRulers ? PLAN_RULER_SIZE : 0) + 10;
+
+  function changeSurface(next: PlanSurface) {
+    setPlanSurface(next);
+    if (next === "ceiling" && !settings.layers.ceiling) {
+      updateSettings({ layers: { ...settings.layers, ceiling: true } });
+    }
+    if (next === "floor") disarmCeilingPlacement();
+  }
 
   return (
     <div
@@ -982,9 +1261,11 @@ export function Studio2DEditor(props: StudioEditorProps) {
       style={{ cursor }}
       onPointerEnter={() => {
         pointerInsideRef.current = true;
+        svgRectRef.current = null;
       }}
       onPointerLeave={() => {
         pointerInsideRef.current = false;
+        setPlacePoint(null);
       }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -1012,11 +1293,11 @@ export function Studio2DEditor(props: StudioEditorProps) {
           if (sessionRef.current) event.preventDefault();
         }}
       >
-        <title id="studio-plan-title">{`${design.room.name} floor plan editor`}</title>
+        <title id="studio-plan-title">{`${design.room.name} ${ceilingMode ? "reflected ceiling plan" : "floor plan"} editor`}</title>
         <desc id="studio-plan-description">
-          Interactive top-down plan. Tab to room objects and press Enter or Space
-          to select; Shift adds to the selection. Drag to move, use the gold
-          handles to resize or rotate, and scroll to zoom.
+          {ceilingMode
+            ? "Reflected ceiling plan. Tab to ceiling drape designs and press Enter or Space to select; Shift adds to the selection. Drag to move, use the gold handles to move the hub, resize, rotate or turn the run direction, and scroll to zoom."
+            : "Interactive top-down plan. Tab to room objects and press Enter or Space to select; Shift adds to the selection. Drag to move, use the gold handles to resize or rotate, and scroll to zoom."}
         </desc>
         <defs>
           <PlanSymbolDefs />
@@ -1026,89 +1307,46 @@ export function Studio2DEditor(props: StudioEditorProps) {
           <PlanGrid visible={gridRect} zoom={zoom} snapIncrement={settings.snapIncrement} />
         ) : null}
 
-        <RoomLayer2D {...layerProps} />
-
-        <g aria-label="Room objects">
-          {visibleObjects.map((object) => {
-            const selected = selectedSet.has(object.id);
-            const circular = isCircularObjectType(object.type);
-            const overhead = object.type === "ceiling_drape";
-            const hitProps = overhead
-              ? {
-                  fill: "none",
-                  stroke: "transparent",
-                  strokeWidth: 14 / zoom,
-                  pointerEvents: "stroke" as const,
-                }
-              : { fill: "transparent" };
-            return (
-              <g
-                key={object.id}
-                role="button"
-                tabIndex={0}
-                aria-pressed={selected}
-                aria-label={`${object.label}${object.locked ? ", locked" : ""}`}
-                className={cn(
-                  "touch-none outline-none focus-visible:[&_.studio-focus]:opacity-100",
-                  settings.tool === "select" && !spaceHeld
-                    ? object.locked
-                      ? "cursor-pointer"
-                      : "cursor-move"
-                    : undefined
-                )}
-                onPointerDown={(event) => handleObjectPointerDown(event, object)}
-                onPointerEnter={() => setHoveredId(object.id)}
-                onPointerLeave={() => setHoveredId(null)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    select({ kind: "object", id: object.id }, { additive: event.shiftKey });
-                  }
-                }}
-              >
-                <g pointerEvents="none">
-                  <PlanObjectSymbol object={object} showSeating={settings.showSeating} />
-                </g>
-                <g transform={`translate(${object.x} ${object.z}) rotate(${object.rotation})`}>
-                  {circular ? (
-                    <ellipse rx={object.width / 2} ry={object.depth / 2} {...hitProps} />
-                  ) : (
-                    <rect
-                      x={-object.width / 2}
-                      y={-object.depth / 2}
-                      width={object.width}
-                      height={object.depth}
-                      {...hitProps}
-                    />
-                  )}
-                  {overhead ? <circle r={Math.min(object.width, object.depth) * 0.08 + 4 / zoom} fill="transparent" /> : null}
-                  <rect
-                    className="studio-focus pointer-events-none opacity-0"
-                    x={-object.width / 2 - 4 / zoom}
-                    y={-object.depth / 2 - 4 / zoom}
-                    width={object.width + 8 / zoom}
-                    height={object.depth + 8 / zoom}
-                    rx={4 / zoom}
-                    fill="none"
-                    stroke="var(--ring)"
-                    strokeWidth={3}
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </g>
-              </g>
-            );
-          })}
+        <g pointerEvents={floorPointer}>
+          <RoomLayer2D {...layerProps} />
         </g>
 
-        <WallItemsLayer2D {...layerProps} />
+        <g opacity={floorDim} pointerEvents={floorPointer}>
+          <PlanObjectsLayer
+            objects={visibleObjects}
+            selectedIds={selectedSet}
+            ceilingMode={ceilingMode}
+            grabbable={settings.tool === "select" && !spaceHeld}
+            zoom={steppedZoom}
+            showSeating={settings.showSeating}
+            onObjectPointerDown={onObjectPointerDown}
+            onObjectActivate={onObjectActivate}
+          />
 
-        <ObjectStatusOutlines objects={visibleObjects} status={statusOf} pad={3 / zoom} />
-        <ObjectLabelsLayer
-          objects={visibleObjects}
-          zoom={zoom}
-          labelSize={labelSize}
-          showLabels={settings.showLabels}
-          emphasized={emphasized}
+          <WallItemsLayer2D {...layerProps} />
+
+          <ObjectStatusOutlines
+            objects={visibleObjects}
+            selectedIds={selectedSet}
+            conflicts={conflicts}
+            pad={3 / steppedZoom}
+          />
+          <ObjectLabelsLayer
+            objects={visibleObjects}
+            zoom={zoom}
+            labelSize={labelSize}
+            showLabels={settings.showLabels}
+            selectedIds={selectedSet}
+          />
+        </g>
+
+        <CeilingLayer2D
+          {...layerProps}
+          interactive={ceilingMode && settings.tool === "select" && !spaceHeld && !armed}
+          faint={!ceilingMode}
+          roomBounds={roomRect}
+          ghost={ghost}
+          onFeedback={showCeilingFeedback}
         />
 
         {feedback ? <SmartGuidesLayer guides={feedback.guides} labelSize={labelSize} /> : null}
@@ -1116,7 +1354,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
           <WallDistanceLayer distances={wallDistances} labelSize={labelSize} />
         ) : null}
 
-        {settings.tool === "select" && singleObject && !singleObject.locked ? (
+        {!ceilingMode && settings.tool === "select" && singleObject && !singleObject.locked ? (
           <SingleSelectionHandles
             object={singleObject}
             handleRadius={handleRadius}
@@ -1127,7 +1365,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
             onRotateStart={handleRotateStart}
           />
         ) : null}
-        {settings.tool === "select" && groupBox ? (
+        {!ceilingMode && settings.tool === "select" && groupBox ? (
           <GroupSelectionBox
             box={groupBox}
             pad={6 / zoom}
@@ -1185,7 +1423,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
 
       {feedback ? (
         <div
-          className="pointer-events-none absolute top-8 left-1/2 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-full border border-primary/35 bg-background/90 px-3 py-1.5 text-xs shadow-lg backdrop-blur"
+          className="pointer-events-none absolute top-8 left-1/2 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-full border border-primary/35 bg-background/95 px-3 py-1.5 text-xs shadow-lg"
           role="status"
         >
           <span className="font-semibold text-foreground tabular-nums">{feedback.label}</span>
@@ -1194,13 +1432,44 @@ export function Studio2DEditor(props: StudioEditorProps) {
       ) : null}
 
       {dropGhost ? (
-        <div className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 rounded-full border border-primary/35 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg backdrop-blur">
+        <div className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 rounded-full border border-primary/35 bg-background/95 px-3 py-1.5 text-xs font-medium text-foreground shadow-lg">
           {ghostObject ? `Drop ${ghostObject.label}` : "Drop to place"}
           <span className="ml-2 text-primary">
             {inchesToFeetLabel(dropGhost.point.x)}, {inchesToFeetLabel(dropGhost.point.z)}
           </span>
         </div>
       ) : null}
+
+      {armed && !feedback ? (
+        <div
+          className="pointer-events-none absolute left-1/2 flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 items-center gap-2 rounded-full border border-primary/35 bg-background/95 px-3 py-1.5 text-xs shadow-lg"
+          style={{ top: chromeTop + 46 }}
+          role="status"
+        >
+          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+            <Crosshair className="size-3.5" aria-hidden />
+          </span>
+          {ceilingFull ? (
+            <span className="font-medium text-foreground">
+              Ceiling design limit reached ({STUDIO_MAX_CEILING_DRAPES})
+            </span>
+          ) : (
+            <span className="truncate text-muted-foreground">
+              Click inside the room to place{" "}
+              <span className="font-semibold text-foreground">{armed.label}</span>
+            </span>
+          )}
+          <span className="whitespace-nowrap text-primary">Esc to cancel</span>
+        </div>
+      ) : null}
+
+      <div className="pointer-events-none absolute right-3" style={{ top: chromeTop }}>
+        <PlanSurfaceToggle
+          value={surface}
+          ceilingCount={ceilingDrapes.length}
+          onChange={changeSurface}
+        />
+      </div>
 
       <div
         className="pointer-events-none absolute bottom-3 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2"
@@ -1214,7 +1483,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
             camera={cam}
             size={size}
             onNavigate={(center) =>
-              setCamera({
+              applyCamera({
                 ...cam,
                 x: center.x - viewSize.width / 2 / zoom,
                 z: center.z - viewSize.height / 2 / zoom,
@@ -1222,7 +1491,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
             }
           />
         ) : null}
-        <div className="hidden rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[0.65rem] text-muted-foreground shadow-sm backdrop-blur sm:block">
+        <div className="hidden rounded-full border border-border/60 bg-background/92 px-3 py-1 text-[0.65rem] text-muted-foreground shadow-sm sm:block">
           {hint}
         </div>
       </div>
@@ -1231,13 +1500,13 @@ export function Studio2DEditor(props: StudioEditorProps) {
         <PlanZoomControls
           zoom={zoom}
           onZoomIn={() =>
-            setCamera(zoomCameraAt(cam, 1.25, { x: viewSize.width / 2, y: viewSize.height / 2 }))
+            applyCamera(zoomCameraAt(cam, 1.25, { x: viewSize.width / 2, y: viewSize.height / 2 }))
           }
           onZoomOut={() =>
-            setCamera(zoomCameraAt(cam, 0.8, { x: viewSize.width / 2, y: viewSize.height / 2 }))
+            applyCamera(zoomCameraAt(cam, 0.8, { x: viewSize.width / 2, y: viewSize.height / 2 }))
           }
-          onReset={() => setCamera(centeredCamera(roomRect, viewSize, 1))}
-          onFit={() => setCamera(null)}
+          onReset={() => applyCamera(centeredCamera(roomRect, viewSize, 1))}
+          onFit={() => applyCamera(null)}
           rulers={showRulers}
           onToggleRulers={() => setShowRulers((value) => !value)}
         />

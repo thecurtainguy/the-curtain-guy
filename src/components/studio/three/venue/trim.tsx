@@ -1,10 +1,11 @@
 "use client";
 
 import type { StudioBounds } from "@/lib/studio-geometry";
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { WallFinishAppearance } from "../scene-finishes";
+import { disposeLater } from "./dispose-later";
 import {
   SCALE,
   WALL_THICKNESS_IN,
@@ -132,7 +133,11 @@ function mergeOrNull(parts: THREE.BufferGeometry[]): THREE.BufferGeometry | null
   return merged;
 }
 
-export function VenueTrim({
+/**
+ * Baseboard, crown, chair rail and cut-wall cap rails. Memoised: only rebuilt
+ * when the wall solids, finish or room bounds change (not on object edits).
+ */
+export const VenueTrim = memo(function VenueTrim({
   walls,
   fullTop,
   appearance,
@@ -205,13 +210,7 @@ export function VenueTrim({
     }),
     [appearance, glass]
   );
-  useEffect(
-    () => () => {
-      materials.trim.dispose();
-      materials.cap.dispose();
-    },
-    [materials]
-  );
+  useEffect(() => () => disposeLater(Object.values(materials)), [materials]);
 
   return (
     <>
@@ -223,4 +222,4 @@ export function VenueTrim({
       ) : null}
     </>
   );
-}
+});

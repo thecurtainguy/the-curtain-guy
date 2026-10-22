@@ -40,10 +40,22 @@ export function armCeilingPlacement(request: CeilingPlacementRequest) {
   emit();
 }
 
+let disarmedAt = -Infinity;
+
 export function disarmCeilingPlacement() {
   if (!armed) return;
   armed = null;
+  disarmedAt = performance.now();
   emit();
+}
+
+/**
+ * True right after a disarm. Several Escape listeners disarm placement in no
+ * guaranteed order; the global Escape shortcut uses this so cancelling a
+ * placement doesn't also clear the selection.
+ */
+export function ceilingPlacementJustDisarmed(withinMs = 80) {
+  return performance.now() - disarmedAt < withinMs;
 }
 
 export function getCeilingPlacement(): CeilingPlacementRequest | null {

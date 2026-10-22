@@ -13,7 +13,7 @@ import {
   MAT,
   rugTexture,
 } from "./materials";
-import { FloralCluster, Part } from "./part";
+import { FloralCluster, Group, Part } from "./part";
 import { TableClusterTables } from "./tables";
 import { genericFinish, isDetailed, type ModelProps } from "./types";
 
@@ -64,7 +64,7 @@ export function SofaBody({
       {Array.from({ length: seats }, (_, i) => {
         const x = -innerW / 2 + cushionW * (i + 0.5);
         return (
-          <group key={i}>
+          <Group key={i}>
             <Part
               geometry={roundedBox(cushionW - 0.03, 0.26, seatD, 0.1, round + 1)}
               material={fabric}
@@ -94,7 +94,7 @@ export function SofaBody({
                   ))
                 )
               : null}
-          </group>
+          </Group>
         );
       })}
       <Part
@@ -103,7 +103,7 @@ export function SofaBody({
         position={[0, seatTop - 0.3 + (backH + 0.3) / 2, -d / 2 + backT / 2]}
       />
       {[-1, 1].map((s) => (
-        <group key={s} position={[s * (w / 2 - armW / 2), 0, 0]}>
+        <Group key={s} position={[s * (w / 2 - armW / 2), 0, 0]}>
           <Part
             geometry={roundedBox(armW, armH - legH, d, 0.1, round)}
             material={fabric}
@@ -116,7 +116,7 @@ export function SofaBody({
             rotation={[Math.PI / 2, 0, 0]}
             scale={[armW * 0.58, d - 0.02, armW * 0.5]}
           />
-        </group>
+        </Group>
       ))}
       {[-1, 1].flatMap((sx) =>
         [-1, 1].map((sz) => (
@@ -192,25 +192,25 @@ export function LoungeAreaModel({ object, w, d, h, quality }: ModelProps) {
         position={[0, 0.016, 0]}
         cast={false}
       />
-      <group position={[0, 0, sofaZ]}>
+      <Group position={[0, 0, sofaZ]}>
         <SofaBody w={sofaW} d={sofaD} h={sofaH} color={color} quality={quality} />
-      </group>
+      </Group>
       {second ? (
-        <group position={[0, 0, -sofaZ]} rotation={[0, Math.PI, 0]}>
+        <Group position={[0, 0, -sofaZ]} rotation={[0, Math.PI, 0]}>
           <SofaBody w={sofaW} d={sofaD} h={sofaH} color={color} quality={quality} />
-        </group>
+        </Group>
       ) : null}
       {[-1, 1].map((s) => (
-        <group key={s} position={[s * chairX, 0, second ? 0 : 0.6]} rotation={[0, -s * (Math.PI / 2), 0]}>
+        <Group key={s} position={[s * chairX, 0, second ? 0 : 0.6]} rotation={[0, -s * (Math.PI / 2), 0]}>
           <SofaBody w={chairSize} d={chairSize} h={sofaH} color={color} quality={quality} />
-        </group>
+        </Group>
       ))}
-      <group position={[0, 0, second ? 0 : 0.6]}>
+      <Group position={[0, 0, second ? 0 : 0.6]}>
         <CoffeeTable w={tableW} d={tableD} />
         {isDetailed(quality) ? (
           <FloralCluster radius={0.32} height={0.3} seed={9} palette="ivory" position={[0, 1.36, 0]} />
         ) : null}
-      </group>
+      </Group>
     </>
   );
 }
@@ -266,7 +266,7 @@ export function CeremonyModel({ object, w, d, quality }: ModelProps) {
       ) : null}
       {aisle > 1.5 && isDetailed(quality)
         ? [-1, 1].map((s) => (
-            <group key={s} position={[s * (aisle / 2 - 0.15), 0, -d / 2 - 0.2]}>
+            <Group key={s} position={[s * (aisle / 2 - 0.15), 0, -d / 2 - 0.2]}>
               <Part
                 geometry={UNIT.taper(0.6, 20)}
                 material={MAT.gold()}
@@ -274,7 +274,7 @@ export function CeremonyModel({ object, w, d, quality }: ModelProps) {
                 scale={[0.18, 1.2, 0.18]}
               />
               <FloralCluster radius={0.42} height={0.4} seed={12 + s} palette="romantic" position={[0, 1.2, 0]} />
-            </group>
+            </Group>
           ))
         : null}
     </>

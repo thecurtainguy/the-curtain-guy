@@ -4,10 +4,11 @@ import type { StudioLightingMood } from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
 import { Edges } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { memo, useEffect, useMemo, type ReactNode } from "react";
 import * as THREE from "three";
 import type { StudioSelection } from "../../studio-types";
 import type { WallFinishAppearance } from "../scene-finishes";
+import { disposeLater } from "./dispose-later";
 import {
   getDaylightTexture,
   getFoyerTexture,
@@ -144,10 +145,7 @@ export function useOpeningMaterials(
     () => createOpeningMaterials(appearance, envMap, tone),
     [appearance, envMap, tone]
   );
-  useEffect(
-    () => () => Object.values(materials).forEach((m) => m.dispose()),
-    [materials]
-  );
+  useEffect(() => () => disposeLater(Object.values(materials)), [materials]);
   return materials;
 }
 
@@ -746,7 +744,7 @@ function WindowAssembly(props: AssemblyProps) {
   );
 }
 
-export function VenueOpening({
+export const VenueOpening = memo(function VenueOpening({
   span,
   frame,
   bounds,
@@ -837,4 +835,4 @@ export function VenueOpening({
       ) : null}
     </group>
   );
-}
+});

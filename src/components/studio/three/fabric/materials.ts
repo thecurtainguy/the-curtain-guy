@@ -9,12 +9,16 @@ import {
   type StudioFrameFinish,
 } from "@/data/studio";
 import * as THREE from "three";
+import type { StudioQuality } from "../../editor/studio-editor-context";
+import { getStudioQualityPreset } from "../engine-quality";
 import {
+  FABRIC_TEXTURE_ANISOTROPY,
   getGauzeTextures,
   getPolyTextures,
   getSatinTextures,
   getSequinTextures,
   getVelvetTextures,
+  textureWithAnisotropy,
   type FabricTextureSet,
 } from "./textures";
 
@@ -134,14 +138,13 @@ export function getFabricMaterial(
       break;
     }
     case "sequin": {
-      material.color = new THREE.Color("#ffffff");
       material.metalness = 0.6;
       material.roughness = 0.75;
       material.clearcoat = 0.3;
       material.clearcoatRoughness = 0.2;
       material.emissive = base.clone().lerp(new THREE.Color("#ffffff"), 0.45);
       material.emissiveIntensity = 0.4;
-      applyTextures(material, getSequinTextures(hex));
+      applyTextures(material, getSequinTextures());
       break;
     }
   }
@@ -160,6 +163,77 @@ export function getFabricMaterial(
   }
 
   fabricCache.set(key, material);
+  return material;
+}
+
+const TEXTURE_SLOTS = ["map", "normalMap", "roughnessMap", "emissiveMap"] as const;
+
+function retargetTextures(material: THREE.MeshStandardMaterial, anisotropy: number) {
+  for (const slot of TEXTURE_SLOTS) {
+    const texture = material[slot];
+    if (texture) material[slot] = textureWithAnisotropy(texture, anisotropy);
+  }
+}
+
+/** Sheen-free stand-in: lifts the base toward the sheen tint so velvet doesn't go flat. */
+function standardFrom(source: THREE.MeshPhysicalMaterial) {
+  const material = new THREE.MeshStandardMaterial({
+    color: source.color
+      .clone()
+      .lerp(source.sheenColor, Math.min(0.18, source.sheen * 0.15)),
+    roughness: source.roughness,
+    metalness: source.metalness,
+    map: source.map,
+    normalMap: source.normalMap,
+    normalScale: source.normalScale.clone(),
+    roughnessMap: source.roughnessMap,
+    emissive: source.emissive.clone(),
+    emissiveMap: source.emissiveMap,
+    emissiveIntensity: source.emissiveIntensity,
+    transparent: source.transparent,
+    opacity: source.opacity,
+    depthWrite: source.depthWrite,
+    side: source.side,
+  });
+  material.name = `${source.name}:standard`;
+  return material;
+}
+
+const qualityCache = new Map<string, THREE.MeshStandardMaterial>();
+
+/**
+ * `getFabricMaterial` tuned to a Studio quality preset: plain
+ * MeshStandardMaterial at draft, physical without satin anisotropy at High
+ * (sheen and clearcoat stay), the full material at Ultra. Texture
+ * anisotropy follows the preset. Cached per fabric + colour + glow + quality.
+ */
+export function getFabricMaterialForQuality(
+  fabric: DrapeFabric,
+  color: DrapeColor | string,
+  glow: DrapeColor | null | undefined,
+  quality: StudioQuality | undefined
+): THREE.MeshStandardMaterial {
+  const preset = getStudioQualityPreset(quality);
+  const base = getFabricMaterial(fabric, color, glow);
+  const standard = preset.fabricStandardMaterial;
+  const dropAnisotropy = !standard && preset.fabricProfile !== "ultra" && base.anisotropy > 0;
+  if (!standard && !dropAnisotropy && preset.anisotropy === FABRIC_TEXTURE_ANISOTROPY) {
+    return base;
+  }
+  const key = `${base.name}|${standard ? "standard" : dropAnisotropy ? "no-aniso" : "full"}|${preset.anisotropy}`;
+  const cached = qualityCache.get(key);
+  if (cached) return cached;
+  let material: THREE.MeshStandardMaterial;
+  if (standard) {
+    material = standardFrom(base);
+  } else {
+    const physical = base.clone();
+    physical.name = `${base.name}:${preset.fabricProfile}`;
+    if (dropAnisotropy) physical.anisotropy = 0;
+    material = physical;
+  }
+  retargetTextures(material, preset.anisotropy);
+  qualityCache.set(key, material);
   return material;
 }
 

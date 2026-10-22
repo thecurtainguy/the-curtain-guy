@@ -21,7 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import { mix, shade } from "../texture-utils";
+import { mix, shade } from "../color-utils";
 
 export const HARDWARE_META: Record<
   DrapeHardware,

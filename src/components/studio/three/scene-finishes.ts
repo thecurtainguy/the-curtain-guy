@@ -1,11 +1,11 @@
 import type { StudioFloorFinish, StudioWallFinish } from "@/data/studio";
 
 export {
-  getFloorTextures,
-  getWallTextures,
+  acquireVenueTextures,
+  useVenueTextures,
   type VenueQuality,
   type VenueTextureSet,
-} from "./venue/textures";
+} from "./venue/texture-cache";
 
 export type FloorFinishAppearance = {
   /** Representative swatch colour (the texture carries the real colour). */

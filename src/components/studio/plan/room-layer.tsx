@@ -17,8 +17,12 @@ import {
   removeRoomVertex,
   type StudioRoomGuide,
 } from "@/lib/studio-room-editing";
-import { useId, useMemo, useState } from "react";
-import { useStudioEditor } from "../editor/studio-editor-context";
+import { memo, useId, useMemo, useState } from "react";
+import {
+  useStudioEditorActions,
+  useStudioSelection,
+  useStudioSettings,
+} from "../editor/studio-editor-context";
 import type { PlanLayerProps } from "./plan-types";
 import {
   CornerAngleMarkers,
@@ -30,6 +34,7 @@ import {
   getDimensionPlacement,
   pointsAttr,
 } from "./room-walls";
+import { selectionHalo } from "./selection-overlay";
 import { PlanBadge } from "./wall-plan-badge";
 import {
   activateOnKey,
@@ -74,14 +79,16 @@ function signedFeet(value: number): string {
  * on every wall, "+" handles / double-click to add corners, Alt-click or
  * right-click to remove a corner.
  */
-export function RoomLayer2D({
+export const RoomLayer2D = memo(function RoomLayer2D({
   design,
   toPlanPoint,
   pixelsPerInch,
   handleRadius,
   labelSize,
 }: PlanLayerProps) {
-  const { selection, select, commit, preview, settings } = useStudioEditor();
+  const { select, commit, preview } = useStudioEditorActions();
+  const { selection } = useStudioSelection();
+  const settings = useStudioSettings();
   const startDrag = usePlanPointerDrag(toPlanPoint);
   const idPrefix = `studio-room-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const [hoveredWall, setHoveredWall] = useState<number | null>(null);
@@ -296,7 +303,8 @@ export function RoomLayer2D({
     if (next !== design) commit(next, { coalesceKey: `room-wall-${wallIndex}` });
   }
 
-  const badgeWalls = new Set(drag?.walls ?? []);
+  const dragWalls = drag?.walls;
+  const badgeWalls = useMemo(() => new Set(dragWalls ?? []), [dragWalls]);
   const highlightWall =
     drag?.kind === "wall" ? (drag.wallIndex ?? null) : (hoveredWall ?? selectedWall);
   const snapDetail = drag
@@ -365,6 +373,18 @@ export function RoomLayer2D({
               strokeWidth={Math.max(16, WALL * ppi + 10)}
               vectorEffect="non-scaling-stroke"
             />
+            {selected
+              ? selectionHalo().map((halo, index) => (
+                  <line
+                    key={`halo-${index}`}
+                    x1={wall.start.x}
+                    y1={wall.start.z}
+                    x2={wall.end.x}
+                    y2={wall.end.z}
+                    {...halo}
+                  />
+                ))
+              : null}
             {selected || hovered ? (
               <line
                 x1={wall.start.x}
@@ -375,7 +395,6 @@ export function RoomLayer2D({
                 strokeWidth={selected ? 3 : 2}
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
-                filter={selected ? `url(#${idPrefix}-glow)` : undefined}
                 pointerEvents="none"
               />
             ) : null}
@@ -687,4 +706,4 @@ export function RoomLayer2D({
         : null}
     </g>
   );
-}
+});

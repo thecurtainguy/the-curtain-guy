@@ -1,14 +1,24 @@
 "use client";
 
-import type { StudioDesignJson } from "@/data/studio";
+import {
+  getCeilingDrapes,
+  getStudioMaterials,
+  type StudioCeilingFinish,
+  type StudioDesignJson,
+  type StudioPoint,
+  type StudioWallFinish,
+} from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import {
   DEFAULT_STUDIO_EDITOR_SETTINGS,
-  useOptionalStudioEditor,
+  useOptionalStudioEditorActions,
+  useOptionalStudioSelection,
+  useOptionalStudioSettings,
+  useStudioCanvasCommand,
   type StudioCanvasCommand,
 } from "../editor/studio-editor-context";
 import type { StudioSelection } from "../studio-types";
@@ -17,13 +27,16 @@ import {
   getStudioCameraMode,
   getStudioHeadBob,
   isInteriorMode,
+  mouseLookAvailable,
   publishCameraRigState,
   setStudioCameraMode,
   setStudioCameraMounted,
   subscribeCameraRig,
   useStudioCameraMode,
+  useStudioMouseLook,
   type StudioCameraMode,
 } from "./camera/camera-view-store";
+import { getCeilingDesignPose, getCeilingViewPose } from "./camera/ceiling-poses";
 import {
   DEFAULT_PIVOT_DISTANCE,
   MAX_PITCH_DOWN,
@@ -32,7 +45,6 @@ import {
   clampEye,
   clampHeight,
   clampPivot,
-  getInteriorCeilingPose,
   getInteriorCornerPose,
   getInteriorGuestPose,
   getInteriorShowcasePose,
@@ -40,6 +52,7 @@ import {
   getWalkPose,
   interiorFov,
   maxEyeHeight,
+  MIN_CAMERA_HEIGHT,
 } from "./camera/interior-poses";
 import {
   clampToFootprint,
@@ -48,7 +61,9 @@ import {
   planInteriorPath,
   type RoomFootprint,
 } from "./camera/room-footprint";
+import { hasFlag, isSolidHit } from "./camera/scene-hits";
 import { useInteriorInput } from "./camera/use-interior-input";
+import { usePointerLook } from "./camera/use-pointer-look";
 import {
   fitDistance,
   getCameraRange,
@@ -60,6 +75,11 @@ import {
   getTopPose,
   type StudioCameraPose,
 } from "./engine-camera";
+import { setStudioInteraction } from "./interaction-store";
+import {
+  ceilingArchitectureHangIn,
+  resolveCeilingArchitecture,
+} from "./venue/ceiling-architecture";
 
 type ControlsImpl = React.ComponentRef<typeof OrbitControls>;
 
@@ -94,6 +114,9 @@ type LookState = {
   eyeGoal: number;
   bobPhase: number;
   bobOffset: number;
+  /** "Lie back": eye dropped low, gazing straight up; `restoreEye` is where to return. */
+  lyingBack: boolean;
+  restoreEye: number;
 };
 
 const TWEEN_SECONDS = 0.9;
@@ -106,6 +129,26 @@ const RISE_SPEED = 3;
 const SHOWCASE_SPIN = 0.065;
 const ORBIT_GAIN = 1.6;
 const LOOK_UP_PITCH = THREE.MathUtils.degToRad(55);
+const LIE_BACK_PITCH = THREE.MathUtils.degToRad(84);
+/** Near plane inside the room: fabric can hang within inches of a raised eye. */
+const INTERIOR_NEAR = 0.04;
+const EXTERIOR_NEAR = 0.1;
+/** Room resizes refit the camera once they settle, or straight away past this fraction. */
+const ROOM_REFIT_SETTLE_MS = 400;
+const ROOM_REFIT_JUMP = 0.1;
+/** OrbitControls keeps coasting (damping) after release; motion ends once changes stop. */
+const ORBIT_COAST_MS = 120;
+/** A rig remounted within this window (e.g. render-context swap) resumes the same view. */
+const PARKED_POSE_MS = 4000;
+
+let parkedPose: { pose: StudioCameraPose; framed: boolean; at: number } | null = null;
+
+function takeParkedPose() {
+  const parked = parkedPose;
+  parkedPose = null;
+  if (!parked || performance.now() - parked.at > PARKED_POSE_MS) return null;
+  return parked;
+}
 
 /* Per-frame scratch; only one Studio canvas renders at a time. */
 const scratch = {
@@ -138,26 +181,6 @@ function shortestAngle(from: number, to: number) {
 
 function isInsideRoom(footprint: RoomFootprint, point: THREE.Vector3) {
   return point.y < footprint.height && isInsideFootprint(footprint, point.x, point.z);
-}
-
-function hasFlag(object: THREE.Object3D | null, flag: string) {
-  for (let node = object; node; node = node.parent) {
-    if (node.userData?.[flag]) return true;
-  }
-  return false;
-}
-
-function isSolidHit(object: THREE.Object3D) {
-  for (let node: THREE.Object3D | null = object; node; node = node.parent) {
-    if (!node.visible) return false;
-  }
-  const material = (object as THREE.Mesh).material as
-    | THREE.Material
-    | THREE.Material[]
-    | undefined;
-  if (!material) return false;
-  const list = Array.isArray(material) ? material : [material];
-  return list.some((entry) => entry.visible && !(entry.transparent && entry.opacity < 0.6));
 }
 
 /** Unit view direction for a yaw (0 = −Z, + turns left) and pitch (+ looks up). */
@@ -200,13 +223,55 @@ export function StudioCameraControls({
   design: StudioDesignJson;
   bounds: StudioBounds;
 }) {
-  const editor = useOptionalStudioEditor();
-  const command = editor?.canvasCommand ?? null;
-  const autoRotate = editor?.settings.autoRotate ?? false;
-  const layers = editor?.settings.layers ?? DEFAULT_STUDIO_EDITOR_SETTINGS.layers;
-  const updateSettings = editor?.updateSettings;
-  const selection: StudioSelection = editor?.selection ?? null;
-  const selectedIds = editor?.selectedIds;
+  const designRef = useRef(design);
+  useLayoutEffect(() => {
+    designRef.current = design;
+  }, [design]);
+  const getDesign = useCallback(() => designRef.current, []);
+  const materials = getStudioMaterials(design);
+  return (
+    <CameraRig
+      getDesign={getDesign}
+      bounds={bounds}
+      floor={design.room.floor}
+      wallHeight={design.room.wallHeight}
+      showCeiling={design.view.showCeiling !== false}
+      ceilingFinish={materials.ceiling ?? "auto"}
+      wallFinish={materials.walls}
+    />
+  );
+}
+
+/**
+ * Memoized on room-level inputs only, so item drags (new design every frame)
+ * never re-render the rig or re-bind OrbitControls. Handlers read the live
+ * design through `getDesign`.
+ */
+const CameraRig = memo(function CameraRig({
+  getDesign,
+  bounds,
+  floor,
+  wallHeight,
+  showCeiling,
+  ceilingFinish,
+  wallFinish,
+}: {
+  getDesign: () => StudioDesignJson;
+  bounds: StudioBounds;
+  floor: StudioPoint[];
+  wallHeight: number;
+  showCeiling: boolean;
+  ceilingFinish: StudioCeilingFinish;
+  wallFinish: StudioWallFinish;
+}) {
+  const command = useStudioCanvasCommand();
+  const settings = useOptionalStudioSettings();
+  const autoRotate = settings?.autoRotate ?? false;
+  const layers = settings?.layers ?? DEFAULT_STUDIO_EDITOR_SETTINGS.layers;
+  const updateSettings = useOptionalStudioEditorActions()?.updateSettings;
+  const selectionState = useOptionalStudioSelection();
+  const selection: StudioSelection = selectionState?.selection ?? null;
+  const selectedIds = selectionState?.selectedIds;
   const mode = useStudioCameraMode();
   const interior = isInteriorMode(mode);
   const walk = mode === "walk";
@@ -232,21 +297,30 @@ export function StudioCameraControls({
     eyeGoal: 5.5,
     bobPhase: 0,
     bobOffset: 0,
+    lyingBack: false,
+    restoreEye: 5.5,
   });
   const handledNonce = useRef(command?.nonce ?? 0);
-  const wallHeight = design.room.wallHeight;
   const range = useMemo(
     () => getCameraRange(bounds, wallHeight),
     [bounds, wallHeight]
   );
-  const floor = design.room.floor;
+  const ceilingHangIn = useMemo(
+    () =>
+      showCeiling
+        ? ceilingArchitectureHangIn(
+            resolveCeilingArchitecture(ceilingFinish, wallFinish, floor, bounds, wallHeight),
+            wallHeight
+          )
+        : 0,
+    [bounds, ceilingFinish, floor, showCeiling, wallFinish, wallHeight]
+  );
   const footprint = useMemo(
-    () => createRoomFootprint(floor, wallHeight, bounds),
-    [bounds, floor, wallHeight]
+    () => createRoomFootprint(floor, wallHeight, bounds, ceilingHangIn),
+    [bounds, ceilingHangIn, floor, wallHeight]
   );
 
   const latest = useRef({
-    design,
     bounds,
     footprint,
     layers,
@@ -256,7 +330,6 @@ export function StudioCameraControls({
   });
   useLayoutEffect(() => {
     latest.current = {
-      design,
       bounds,
       footprint,
       layers,
@@ -264,20 +337,46 @@ export function StudioCameraControls({
       selectedIds: selectedIds ?? [],
       autoRotate,
     };
-  }, [autoRotate, bounds, design, footprint, layers, selectedIds, selection]);
+  }, [autoRotate, bounds, footprint, layers, selectedIds, selection]);
+
+  /* Last rendered orbit target; refs to the controls are gone by unmount cleanup. */
+  const lastTarget = useRef(new THREE.Vector3());
+  const motionFlags = useRef({ tween: false, walk: false, orbit: false });
+  const setMotionFlag = useCallback((source: "tween" | "walk" | "orbit", on: boolean) => {
+    if (motionFlags.current[source] === on) return;
+    motionFlags.current[source] = on;
+    setStudioInteraction(source, on);
+  }, []);
+  const orbitCoast = useRef(0);
 
   useEffect(() => {
     setStudioCameraMounted(true);
-    return () => setStudioCameraMounted(false);
-  }, []);
+    const flags = motionFlags.current;
+    const target = lastTarget.current;
+    return () => {
+      setStudioCameraMounted(false);
+      window.clearTimeout(orbitCoast.current);
+      for (const source of ["tween", "walk", "orbit"] as const) {
+        if (flags[source]) setStudioInteraction(source, false);
+        flags[source] = false;
+      }
+      if (!framedRoom.current) return;
+      const camera = getCamera();
+      parkedPose = {
+        pose: { position: camera.position.clone(), target: target.clone(), fov: camera.fov },
+        framed: framing.current !== null,
+        at: performance.now(),
+      };
+    };
+  }, [getCamera]);
 
   useEffect(() => {
     const camera = getCamera();
-    camera.near = 0.1;
+    camera.near = interior ? INTERIOR_NEAR : EXTERIOR_NEAR;
     camera.far = range.far;
     camera.updateProjectionMatrix();
     invalidate();
-  }, [getCamera, invalidate, range.far]);
+  }, [getCamera, interior, invalidate, range.far]);
 
   const moveTo = useCallback(
     (pose: StudioCameraPose, duration = TWEEN_SECONDS) => {
@@ -286,6 +385,7 @@ export function StudioCameraControls({
       const camera = getCamera();
       look.current.synced = false;
       look.current.bobOffset = 0;
+      look.current.lyingBack = false;
       if (duration <= 0 || prefersReducedMotion()) {
         tween.current = null;
         control.target.copy(pose.target);
@@ -353,7 +453,7 @@ export function StudioCameraControls({
   /** Pose factory for a preset, evaluated per aspect so resizes can refit. */
   const presetFor = useCallback(
     (next: StudioCameraMode): PoseFactory => {
-      const ctx = () => latest.current;
+      const ctx = () => ({ ...latest.current, design: getDesign() });
       switch (next) {
         case "guest":
           return (a) => {
@@ -370,11 +470,13 @@ export function StudioCameraControls({
             const c = ctx();
             return getInteriorCornerPose(c.design, c.bounds, c.footprint, c.layers, a);
           };
-        case "ceiling":
+        case "ceiling": {
+          const ceilingSelection = latest.current.selection;
           return (a) => {
             const c = ctx();
-            return getInteriorCeilingPose(c.design, c.bounds, c.footprint, c.layers, a);
+            return getCeilingViewPose(c.design, c.bounds, c.footprint, c.layers, a, ceilingSelection);
           };
+        }
         case "showcase":
           return (a) => {
             const c = ctx();
@@ -401,12 +503,12 @@ export function StudioCameraControls({
           };
         }
         case "top":
-          return (a) => getTopPose(ctx().bounds, ctx().design.room.wallHeight, a);
+          return (a) => getTopPose(latest.current.bounds, getDesign().room.wallHeight, a);
         case "dollhouse":
-          return (a) => getHeroPose(ctx().bounds, ctx().design.room.wallHeight, a);
+          return (a) => getHeroPose(latest.current.bounds, getDesign().room.wallHeight, a);
       }
     },
-    [currentPose]
+    [currentPose, getDesign]
   );
 
   const goToMode = useCallback(
@@ -481,16 +583,37 @@ export function StudioCameraControls({
     isPaused: () => !(controls.current?.enabled ?? false),
   });
 
+  const mouseLook = useStudioMouseLook();
+  usePointerLook(domElement, mode, {
+    available: mouseLookAvailable(mode, mouseLook),
+    getState,
+    onTurn: motion.addTurn,
+    onActivity: takeOver,
+  });
+
   /* Eye-height and look-up requests from the walk HUD. */
   useEffect(
     () =>
       subscribeCameraRig((request) => {
         const state = look.current;
         const room = latest.current.footprint;
-        if (request.type === "eye") state.eyeGoal = clampHeight(room, request.feet);
-        else if (request.type === "eye_step") {
-          state.eyeGoal = clampHeight(room, state.eyeGoal + request.feet);
-        } else state.goalPitch = request.up ? LOOK_UP_PITCH : 0;
+        if (request.type === "lie_back") {
+          if (request.on && !state.lyingBack) {
+            state.restoreEye = state.eyeGoal;
+            state.eyeGoal = clampHeight(room, MIN_CAMERA_HEIGHT);
+            state.goalPitch = LIE_BACK_PITCH;
+          } else if (!request.on && state.lyingBack) {
+            state.eyeGoal = clampHeight(room, state.restoreEye);
+            state.goalPitch = 0;
+          }
+          state.lyingBack = request.on;
+        } else {
+          state.lyingBack = false;
+          if (request.type === "eye") state.eyeGoal = clampHeight(room, request.feet);
+          else if (request.type === "eye_step") {
+            state.eyeGoal = clampHeight(room, state.eyeGoal + request.feet);
+          } else state.goalPitch = request.up ? LOOK_UP_PITCH : 0;
+        }
         framing.current = null;
         invalidate();
       }),
@@ -522,7 +645,7 @@ export function StudioCameraControls({
           const probe = camera.clone();
           probe.position.copy(camera.position).sub(control.target);
           const origin = new THREE.Vector3();
-          const height = latest.current.design.room.wallHeight;
+          const height = getDesign().room.wallHeight;
           framing.current = (a) =>
             getFitPose(latest.current.bounds, height, a, probe, origin);
           moveTo(framing.current(aspect));
@@ -555,7 +678,27 @@ export function StudioCameraControls({
           return;
         }
         case "focus_selection": {
-          const { design: d, bounds: b, selectedIds: ids, selection: s } = latest.current;
+          const { bounds: b, selectedIds: ids, selection: s } = latest.current;
+          const d = getDesign();
+          if (s?.kind === "ceiling" && ids.every((id) => id === s.id)) {
+            const drape = getCeilingDrapes(d).find((item) => item.id === s.id);
+            const pose = drape
+              ? getCeilingDesignPose(d, b, room, drape, aspect, {
+                  from: { x: camera.position.x, z: camera.position.z },
+                })
+              : null;
+            if (!pose) return;
+            stopSpin();
+            framing.current = null;
+            look.current.lyingBack = false;
+            if (current === "walk") {
+              moveTo({ position: camera.position.clone(), target: pose.target, fov: camera.fov });
+              return;
+            }
+            setStudioCameraMode("ceiling");
+            moveTo(pose);
+            return;
+          }
           const box = getSelectionBox(d, b, ids, s);
           if (!box) return;
           stopSpin();
@@ -593,6 +736,7 @@ export function StudioCameraControls({
     },
     [
       getCamera,
+      getDesign,
       goToMode,
       invalidate,
       motion,
@@ -621,36 +765,72 @@ export function StudioCameraControls({
     invalidate();
   }, [autoRotate, goToMode, invalidate]);
 
-  /* Initial guest framing, then a gentle refit whenever the room is resized. */
-  const roomKey = `${Math.round(bounds.width)}x${Math.round(bounds.depth)}x${Math.round(wallHeight)}`;
-  const framedRoomKey = useRef<string | null>(null);
+  /* Initial guest framing, then a gentle refit once a room resize settles
+     (or jumps by >10%), so live resize previews don't restart the tween every frame. */
+  const roomWidth = Math.round(bounds.width);
+  const roomDepth = Math.round(bounds.depth);
+  const roomHeight = Math.round(wallHeight);
+  const roomKey = `${roomWidth}x${roomDepth}x${roomHeight}`;
+  const framedRoom = useRef<{ key: string; width: number; depth: number; height: number } | null>(
+    null
+  );
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
+    const previous = framedRoom.current;
+    if (previous?.key === roomKey) return;
+    const change = previous
+      ? Math.max(
+          Math.abs(roomWidth - previous.width) / Math.max(1, previous.width),
+          Math.abs(roomDepth - previous.depth) / Math.max(1, previous.depth),
+          Math.abs(roomHeight - previous.height) / Math.max(1, previous.height)
+        )
+      : 1;
+    let frame = 0;
+    const refit = () => {
       const control = controls.current;
       if (!control) return;
       const camera = getCamera();
       const aspect = camera.aspect || 1;
-      if (framedRoomKey.current === null) {
-        framing.current = presetFor(getStudioCameraMode());
-        moveTo(framing.current(aspect), 0);
-      } else if (framedRoomKey.current !== roomKey) {
-        if (framing.current) {
-          moveTo(framing.current(aspect), 0.8);
-        } else if (isInteriorMode(getStudioCameraMode())) {
-          const position = camera.position.clone();
-          const shift = position.clone();
-          clampEye(latest.current.footprint, position);
-          shift.subVectors(position, shift);
-          moveTo({ position, target: control.target.clone().add(shift), fov: camera.fov }, 0.6);
+      if (framedRoom.current === null) {
+        const parked = takeParkedPose();
+        if (parked && !parked.framed) {
+          framing.current = null;
+          moveTo(parked.pose, 0);
         } else {
-          const { bounds: b, design: d } = latest.current;
-          moveTo(getFitPose(b, d.room.wallHeight, aspect, camera, control.target), 0.8);
+          framing.current = presetFor(getStudioCameraMode());
+          moveTo(framing.current(aspect), 0);
         }
+      } else if (framing.current) {
+        moveTo(framing.current(aspect), 0.8);
+      } else if (isInteriorMode(getStudioCameraMode())) {
+        const position = camera.position.clone();
+        const shift = position.clone();
+        clampEye(latest.current.footprint, position);
+        shift.subVectors(position, shift);
+        moveTo({ position, target: control.target.clone().add(shift), fov: camera.fov }, 0.6);
+      } else {
+        moveTo(
+          getFitPose(latest.current.bounds, getDesign().room.wallHeight, aspect, camera, control.target),
+          0.8
+        );
       }
-      framedRoomKey.current = roomKey;
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [getCamera, moveTo, presetFor, roomKey]);
+      framedRoom.current = {
+        key: roomKey,
+        width: roomWidth,
+        depth: roomDepth,
+        height: roomHeight,
+      };
+    };
+    const timer = window.setTimeout(
+      () => {
+        frame = window.requestAnimationFrame(refit);
+      },
+      change > ROOM_REFIT_JUMP ? 0 : ROOM_REFIT_SETTLE_MS
+    );
+    return () => {
+      window.clearTimeout(timer);
+      window.cancelAnimationFrame(frame);
+    };
+  }, [getCamera, getDesign, moveTo, presetFor, roomDepth, roomHeight, roomKey, roomWidth]);
 
   const viewportWidth = useThree((state) => state.size.width);
   const viewportHeight = useThree((state) => state.size.height);
@@ -676,10 +856,10 @@ export function StudioCameraControls({
   const constrainExterior = useCallback(() => {
     const control = controls.current;
     if (!control || tween.current || isInteriorMode(getStudioCameraMode())) return;
-    const { bounds: b, design: d } = latest.current;
+    const b = latest.current.bounds;
     const halfWidth = b.width / 24 + 4;
     const halfDepth = b.depth / 24 + 4;
-    const top = d.room.wallHeight / 12 + 2;
+    const top = getDesign().room.wallHeight / 12 + 2;
     const target = control.target;
     const clamped = new THREE.Vector3(
       THREE.MathUtils.clamp(target.x, -halfWidth, halfWidth),
@@ -690,7 +870,7 @@ export function StudioCameraControls({
     const shift = clamped.clone().sub(target);
     target.copy(clamped);
     control.object.position.add(shift);
-  }, []);
+  }, [getDesign]);
 
   useFrame((state, rawDelta) => {
     const camera = state.camera as THREE.PerspectiveCamera;
@@ -698,6 +878,7 @@ export function StudioCameraControls({
     if (!control) return;
     const delta = Math.min(rawDelta, 1 / 20);
     const active = tween.current;
+    setMotionFlag("tween", active !== null);
     if (active) {
       active.elapsed += Math.min(rawDelta, 1 / 30);
       const progress = Math.min(1, active.elapsed / active.duration);
@@ -717,13 +898,18 @@ export function StudioCameraControls({
       camera.updateProjectionMatrix();
       camera.lookAt(control.target);
       control.update();
+      lastTarget.current.copy(control.target);
       if (progress >= 1) tween.current = null;
       state.invalidate();
       return;
     }
 
+    lastTarget.current.copy(control.target);
     const current = getStudioCameraMode();
-    if (!isInteriorMode(current) || !control.enabled) return;
+    if (!isInteriorMode(current) || !control.enabled) {
+      setMotionFlag("walk", false);
+      return;
+    }
     const room = latest.current.footprint;
     const rig = look.current;
     const { base, forward, flat, right, move, pivot, offset, spherical } = scratch;
@@ -742,12 +928,22 @@ export function StudioCameraControls({
     }
 
     let busy = false;
+    /* The showcase spin keeps rendering but isn't user motion: AO stays on for it. */
+    let spinning = false;
     const radiansPerPixel = THREE.MathUtils.degToRad(camera.fov) / Math.max(1, state.size.height);
 
     const lookDrag = motion.takeLook();
     if (lookDrag.x || lookDrag.y) {
       rig.goalYaw += lookDrag.x * radiansPerPixel;
       rig.goalPitch = clampPitch(rig.goalPitch + lookDrag.y * radiansPerPixel);
+    }
+    const turn = motion.takeTurn();
+    if (turn.yaw || turn.pitch) {
+      rig.yaw += turn.yaw;
+      rig.goalYaw += turn.yaw;
+      rig.pitch = clampPitch(rig.pitch + turn.pitch);
+      rig.goalPitch = clampPitch(rig.goalPitch + turn.pitch);
+      busy = true;
     }
 
     base.copy(camera.position);
@@ -783,7 +979,7 @@ export function StudioCameraControls({
       base.copy(pivot).add(offset);
       rig.yaw -= SHOWCASE_SPIN * delta;
       rig.goalYaw -= SHOWCASE_SPIN * delta;
-      busy = true;
+      spinning = true;
     }
 
     const damping = 1 - Math.exp(-delta * 16);
@@ -827,6 +1023,7 @@ export function StudioCameraControls({
 
     if (rise) {
       rig.eyeGoal = clampHeight(room, rig.eyeGoal + rise * RISE_SPEED * delta);
+      rig.lyingBack = false;
       busy = true;
     }
     rig.eyeGoal = clampHeight(room, rig.eyeGoal);
@@ -853,10 +1050,38 @@ export function StudioCameraControls({
     camera.position.set(base.x, base.y + bob, base.z);
     control.target.copy(camera.position).addScaledVector(forward, rig.pivotDistance);
     camera.lookAt(control.target);
-    publishCameraRigState(base.y, maxEyeHeight(room), rig.pitch > 0.6);
+    publishCameraRigState(base.y, maxEyeHeight(room), rig.pitch > 0.6, rig.lyingBack);
 
-    if (busy || ahead || side || rise || dolly) state.invalidate();
+    const moving = busy || Boolean(ahead || side || rise || dolly);
+    setMotionFlag("walk", moving);
+    if (moving || spinning) state.invalidate();
   });
+
+  const endOrbit = useCallback(() => {
+    orbitCoast.current = 0;
+    setMotionFlag("orbit", false);
+  }, [setMotionFlag]);
+
+  /* Stable so drei's OrbitControls doesn't re-bind its listeners on re-render. */
+  const handleOrbitStart = useCallback(() => {
+    window.clearTimeout(orbitCoast.current);
+    orbitCoast.current = 0;
+    setMotionFlag("orbit", true);
+    markUserMoved();
+    if (latest.current.autoRotate) updateSettings?.({ autoRotate: false });
+  }, [markUserMoved, setMotionFlag, updateSettings]);
+  const handleOrbitEnd = useCallback(() => {
+    window.clearTimeout(orbitCoast.current);
+    orbitCoast.current = window.setTimeout(endOrbit, ORBIT_COAST_MS);
+  }, [endOrbit]);
+  const handleOrbitChange = useCallback(() => {
+    constrainExterior();
+    /* Still coasting from damping: keep motion on until it settles. */
+    if (orbitCoast.current) {
+      window.clearTimeout(orbitCoast.current);
+      orbitCoast.current = window.setTimeout(endOrbit, ORBIT_COAST_MS);
+    }
+  }, [constrainExterior, endOrbit]);
 
   const exterior = !interior;
   return (
@@ -879,11 +1104,9 @@ export function StudioCameraControls({
       maxPolarAngle={exterior ? Math.PI / 2 - 0.015 : Math.PI}
       autoRotate={autoRotate && exterior}
       autoRotateSpeed={-0.55}
-      onStart={() => {
-        markUserMoved();
-        if (latest.current.autoRotate) updateSettings?.({ autoRotate: false });
-      }}
-      onChange={constrainExterior}
+      onStart={handleOrbitStart}
+      onEnd={handleOrbitEnd}
+      onChange={handleOrbitChange}
     />
   );
-}
+});

@@ -8,7 +8,7 @@ import {
   Ruler,
   type LucideIcon,
 } from "lucide-react";
-import { useOptionalStudioEditor } from "./editor/studio-editor-context";
+import { useOptionalStudioEditorActions } from "./editor/studio-editor-context";
 
 const TIPS: Array<{ icon: LucideIcon; title: string; body: string }> = [
   { icon: MousePointerClick, title: "Click to inspect", body: "Shift-click to add more" },
@@ -17,7 +17,7 @@ const TIPS: Array<{ icon: LucideIcon; title: string; body: string }> = [
 ];
 
 export function StudioEmptyState() {
-  const editor = useOptionalStudioEditor();
+  const editor = useOptionalStudioEditorActions();
   return (
     <div className="relative overflow-hidden rounded-2xl border border-dashed border-primary/30 bg-primary/[0.04] p-4">
       <div

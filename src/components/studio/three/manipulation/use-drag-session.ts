@@ -3,6 +3,7 @@
 import { useThree, type ThreeEvent } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { setStudioInteraction } from "../interaction-store";
 
 export type DragModifiers = {
   /** Shift or Alt — bypass snapping. */
@@ -115,6 +116,7 @@ export function useDragSession() {
         controls.enabled = current.controlsWasEnabled;
       }
       if (current.active) {
+        setStudioInteraction("drag", false);
         current.handlers.onEnd?.(commit);
         setCursor(current.handlers.cursorAfter?.() ?? "");
         if (suppressClick) {
@@ -181,6 +183,7 @@ export function useDragSession() {
         const current = session.current;
         if (!current || current.active) return;
         current.active = true;
+        setStudioInteraction("drag", true);
         setCursor(handlers.cursor ?? "grabbing");
         handlers.onActivate?.(modifiers);
       };

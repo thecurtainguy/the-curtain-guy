@@ -39,7 +39,11 @@ import {
   TriangleAlert,
   Users,
 } from "lucide-react";
-import { useStudioEditor } from "../editor/studio-editor-context";
+import {
+  useStudioEditorActions,
+  useStudioSettings,
+  type StudioCommitOptions,
+} from "../editor/studio-editor-context";
 import {
   ChoiceTile,
   InspectorSection,
@@ -69,10 +73,10 @@ export function ObjectInspector({
 }: {
   design: StudioDesignJson;
   object: StudioObject;
-  onChange: (design: StudioDesignJson) => void;
+  onChange: (design: StudioDesignJson, options?: StudioCommitOptions) => void;
 }) {
-  const { settings, beginTransaction, preview, endTransaction } =
-    useStudioEditor();
+  const settings = useStudioSettings();
+  const { beginTransaction, preview, endTransaction } = useStudioEditorActions();
   const option = getStudioObjectOption(object.type);
   const minimums = STUDIO_OBJECT_MIN_DIMENSIONS[object.type];
   const bounds = getStudioObjectBoundsResult(object, design.room.floor);
@@ -95,7 +99,11 @@ export function ObjectInspector({
       ),
     };
   }
-  const update = (patch: Partial<StudioObject>) => onChange(withPatch(patch));
+  /** Typing and slider drags coalesce into one undo step per field. */
+  const update = (patch: Partial<StudioObject>) =>
+    onChange(withPatch(patch), {
+      coalesceKey: `object:${object.id}:${Object.keys(patch).join(",")}`,
+    });
 
   const linenValue =
     object.linenColor === undefined

@@ -290,29 +290,72 @@ function settingParts(quality: StudioQuality): Part[] {
 
 /* ---- Instanced rendering ---- */
 
+/**
+ * Packed column-major 4x4 instance matrices, 16 floats each. The array sits in
+ * a private field so React's dev-mode prop logging doesn't walk every float.
+ */
+export class InstanceMatrices {
+  readonly #array: Float32Array;
+
+  constructor(array: Float32Array) {
+    this.#array = array;
+  }
+
+  get array() {
+    return this.#array;
+  }
+
+  get count() {
+    return this.#array.length / 16;
+  }
+}
+
 const capacityFor = (count: number) =>
   Math.max(16, 2 ** Math.ceil(Math.log2(Math.max(1, count))));
 
+/**
+ * Uploads only the span of instance matrices that differs from what the GPU
+ * already has; one dragged table rewrites its own chairs, an unchanged layout
+ * uploads nothing and doesn't request a frame.
+ */
 function InstancedPart({
   part,
   matrices,
   castShadow,
 }: {
   part: Part;
-  matrices: THREE.Matrix4[];
+  matrices: InstanceMatrices;
   castShadow: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const invalidate = useThree((state) => state.invalidate);
-  const capacity = capacityFor(matrices.length);
+  const capacity = capacityFor(matrices.count);
   useLayoutEffect(() => {
     const mesh = ref.current;
     if (!mesh) return;
-    const count = Math.min(matrices.length, mesh.instanceMatrix.count);
-    for (let i = 0; i < count; i++) mesh.setMatrixAt(i, matrices[i]);
+    const source = matrices.array;
+    const attribute = mesh.instanceMatrix;
+    const target = attribute.array as Float32Array;
+    const count = Math.min(matrices.count, attribute.count);
+    const length = count * 16;
+    let first = -1;
+    let last = -1;
+    for (let i = 0; i < length; i++) {
+      if (target[i] !== source[i]) {
+        if (first < 0) first = i;
+        last = i;
+      }
+    }
+    if (first < 0 && mesh.count === count) return;
+    if (first >= 0) {
+      const from = first - (first % 16);
+      const to = last - (last % 16) + 16;
+      target.set(source.subarray(from, to), from);
+      attribute.addUpdateRange(from, to - from);
+      attribute.needsUpdate = true;
+    }
     mesh.count = count;
-    mesh.instanceMatrix.needsUpdate = true;
-    mesh.computeBoundingSphere();
+    mesh.boundingSphere = null;
     invalidate();
   }, [matrices, capacity, part, invalidate]);
   return (
@@ -333,10 +376,10 @@ export function ChairInstances({
   quality,
 }: {
   style: StudioChairStyle;
-  matrices: THREE.Matrix4[];
+  matrices: InstanceMatrices;
   quality: StudioQuality;
 }) {
-  if (matrices.length === 0 || style === "none") return null;
+  if (matrices.count === 0 || style === "none") return null;
   const parts = chairParts(style, quality);
   return (
     <>
@@ -345,7 +388,7 @@ export function ChairInstances({
           key={part.key}
           part={part}
           matrices={matrices}
-          castShadow={quality !== "draft" || matrices.length < 400}
+          castShadow={quality !== "draft" || matrices.count < 400}
         />
       ))}
     </>
@@ -356,10 +399,10 @@ export function PlaceSettingInstances({
   matrices,
   quality,
 }: {
-  matrices: THREE.Matrix4[];
+  matrices: InstanceMatrices;
   quality: StudioQuality;
 }) {
-  if (matrices.length === 0 || quality === "draft") return null;
+  if (matrices.count === 0 || quality === "draft") return null;
   return (
     <>
       {settingParts(quality).map((part) => (

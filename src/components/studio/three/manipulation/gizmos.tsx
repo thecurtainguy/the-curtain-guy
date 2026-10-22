@@ -93,6 +93,7 @@ export function RotationGizmo({
   radius,
   knobAngle,
   size,
+  height = 0.05,
   setCursor,
   onPointerDown,
 }: {
@@ -101,10 +102,12 @@ export function RotationGizmo({
   /** Plan angle (radians, clockwise in plan) of the knob. */
   knobAngle: number;
   size: number;
+  /** World y (feet) of the ring plane; floor by default. */
+  height?: number;
   setCursor: (cursor: string) => void;
   onPointerDown: GizmoPointerDown;
 }) {
-  const y = 0.05;
+  const y = height;
   const knobX = Math.cos(knobAngle) * radius;
   const knobZ = Math.sin(knobAngle) * radius;
   const band = Math.max(0.035, size * 0.16);
@@ -176,12 +179,15 @@ export function ResizeHandles({
   corners,
   rotationY,
   size,
+  height,
   setCursor,
   onPointerDown,
 }: {
   corners: [number, number][];
   rotationY: number;
   size: number;
+  /** World y (feet) of the grips; just above the floor by default. */
+  height?: number;
   setCursor: (cursor: string) => void;
   onPointerDown: (event: ThreeEvent<PointerEvent>, index: number) => void;
 }) {
@@ -193,7 +199,7 @@ export function ResizeHandles({
           cursor={index % 2 === 0 ? "nwse-resize" : "nesw-resize"}
           setCursor={setCursor}
           onPointerDown={(event) => onPointerDown(event, index)}
-          position={[x, size * 0.55, z]}
+          position={[x, height ?? size * 0.55, z]}
           rotation={[0, rotationY, 0]}
           pick={<boxGeometry args={[size * 3, size * 2.4, size * 3]} />}
         >
@@ -314,5 +320,70 @@ export function SpanHandles({
         </Grip>
       ))}
     </group>
+  );
+}
+
+const MOVE_ARROW_ANGLES = [0, Math.PI / 2, Math.PI, (Math.PI * 3) / 2];
+
+/**
+ * Four-way grip for sliding a point across a horizontal plane (ceiling hub,
+ * area centre). `hub` draws a gold ball, `center` a flat diamond.
+ */
+export function MoveHandle({
+  position,
+  size,
+  variant,
+  setCursor,
+  onPointerDown,
+}: {
+  position: [number, number, number];
+  size: number;
+  variant: "hub" | "center";
+  setCursor: (cursor: string) => void;
+  onPointerDown: GizmoPointerDown;
+}) {
+  const reach = size * 2.1;
+  return (
+    <Grip
+      cursor="move"
+      setCursor={setCursor}
+      onPointerDown={onPointerDown}
+      position={position}
+      pick={<sphereGeometry args={[size * 2.8, 16, 12]} />}
+    >
+      {(hovered) => (
+        <group scale={hovered ? 1.18 : 1}>
+          {variant === "hub" ? (
+            <mesh renderOrder={GIZMO_RENDER_ORDER + 1}>
+              <sphereGeometry args={[size * 0.95, 24, 16]} />
+              <GoldMaterial hovered />
+            </mesh>
+          ) : (
+            <mesh
+              rotation={[-Math.PI / 2, 0, Math.PI / 4]}
+              renderOrder={GIZMO_RENDER_ORDER + 1}
+            >
+              <planeGeometry args={[size * 1.3, size * 1.3]} />
+              <GoldMaterial hovered />
+            </mesh>
+          )}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={GIZMO_RENDER_ORDER}>
+            <ringGeometry args={[size * 1.35, size * 1.6, 40]} />
+            <GoldMaterial hovered={hovered} opacity={0.85} />
+          </mesh>
+          {MOVE_ARROW_ANGLES.map((angle) => (
+            <mesh
+              key={angle}
+              position={[Math.cos(angle) * reach, 0, Math.sin(angle) * reach]}
+              rotation={[0, -angle, -Math.PI / 2]}
+              renderOrder={GIZMO_RENDER_ORDER + 1}
+            >
+              <coneGeometry args={[size * 0.38, size * 0.7, 14]} />
+              <GoldMaterial hovered={hovered} />
+            </mesh>
+          ))}
+        </group>
+      )}
+    </Grip>
   );
 }

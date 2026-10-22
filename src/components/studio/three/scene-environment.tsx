@@ -3,7 +3,7 @@
 import type { StudioLightingMood } from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { LIGHTING_MOODS, type StudioLightingRig } from "./lighting-moods";
@@ -11,6 +11,8 @@ import { mix, rng } from "./texture-utils";
 import { useCameraInsideRoom } from "./venue/camera-inside-store";
 
 const SCALE = 1 / 12;
+/** Light + dark backdrop for the current mood, plus room for a mood switch. */
+const BACKDROP_CACHE_SIZE = 4;
 
 /** RoomEnvironment with its softboxes and shell tinted for the mood. */
 function createVenueEnvironment(tints: StudioLightingRig["environment"]) {
@@ -101,7 +103,7 @@ function createRadialAlpha() {
  * HDRs), the gradient backdrop, mood haze and a soft ground plane that keeps
  * the room from floating in a void. Also owns tone-mapping exposure.
  */
-export function StudioSceneEnvironment({
+export const StudioSceneEnvironment = memo(function StudioSceneEnvironment({
   mood,
   darkTheme,
   bounds,
@@ -144,14 +146,36 @@ export function StudioSceneEnvironment({
     invalidate();
   }, [environmentIntensity, getState, invalidate]);
 
+  /* Walking through a doorway flips the palette; keep the few backdrops we've painted. */
+  const backdrops = useRef<Map<string, THREE.Texture> | null>(null);
+  useEffect(() => {
+    const cache = (backdrops.current ??= new Map());
+    return () => {
+      for (const texture of cache.values()) texture.dispose();
+      cache.clear();
+    };
+  }, []);
+
   useEffect(() => {
     const { scene } = getState();
-    const texture = createBackdropTexture(palette.center, palette.edge);
+    const cache = (backdrops.current ??= new Map());
+    const key = `${palette.center}|${palette.edge}`;
+    let texture = cache.get(key);
+    if (texture) {
+      cache.delete(key);
+    } else {
+      texture = createBackdropTexture(palette.center, palette.edge);
+    }
+    cache.set(key, texture);
+    for (const [staleKey, stale] of cache) {
+      if (cache.size <= BACKDROP_CACHE_SIZE) break;
+      cache.delete(staleKey);
+      stale.dispose();
+    }
     scene.background = texture;
     invalidate();
     return () => {
       if (scene.background === texture) scene.background = null;
-      texture.dispose();
     };
   }, [getState, invalidate, palette.center, palette.edge]);
 
@@ -222,4 +246,4 @@ export function StudioSceneEnvironment({
       />
     </mesh>
   );
-}
+});

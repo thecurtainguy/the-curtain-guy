@@ -40,8 +40,10 @@ export function RotationControl({
 }) {
   const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
+  // Drives the dial while dragging; the inspector's design lags during gestures.
+  const [dragAngle, setDragAngle] = useState<number | null>(null);
   const dragging = useRef(false);
-  const angle = normalizeRotation(value);
+  const angle = normalizeRotation(dragAngle ?? value);
   const radians = (angle * Math.PI) / 180;
   const center = DIAL_SIZE / 2;
   const knobRadius = center - 12;
@@ -84,21 +86,28 @@ export function RotationControl({
             event.currentTarget.setPointerCapture(event.pointerId);
             dragging.current = true;
             onGestureStart();
-            onGesturePreview(angleFromPointer(event));
+            const next = angleFromPointer(event);
+            setDragAngle(next);
+            onGesturePreview(next);
           }}
           onPointerMove={(event) => {
             if (!dragging.current) return;
-            onGesturePreview(angleFromPointer(event));
+            const next = angleFromPointer(event);
+            if (next === dragAngle) return;
+            setDragAngle(next);
+            onGesturePreview(next);
           }}
           onPointerUp={(event) => {
             if (!dragging.current) return;
             dragging.current = false;
             event.currentTarget.releasePointerCapture(event.pointerId);
+            setDragAngle(null);
             onGestureEnd();
           }}
           onPointerCancel={() => {
             if (!dragging.current) return;
             dragging.current = false;
+            setDragAngle(null);
             onGestureEnd();
           }}
           onKeyDown={(event) => {

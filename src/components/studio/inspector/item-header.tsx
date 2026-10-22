@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useId, useState } from "react";
-import { useStudioEditor } from "../editor/studio-editor-context";
+import { useStudioEditorActions } from "../editor/studio-editor-context";
 import { IconAction } from "./inspector-ui";
 
 /** Selected-item hero: gold type badge, editable label, status chips, actions. */
@@ -35,7 +35,7 @@ export function ItemHeader({
   hidden?: boolean;
   canDuplicate?: boolean;
 }) {
-  const { commands } = useStudioEditor();
+  const { commands } = useStudioEditorActions();
   const labelId = useId();
   // Saved designs reject empty labels, so blanks stay local until blur reverts them.
   const [draft, setDraft] = useState<string | null>(null);

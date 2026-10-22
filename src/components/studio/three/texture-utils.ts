@@ -4,15 +4,7 @@
  */
 import * as THREE from "three";
 
-export function rng(seed: number) {
-  return () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { rng, wrapDraw } from "./venue/noise";
 
 export function hashSeed(text: string) {
   let h = 2166136261;
@@ -20,30 +12,7 @@ export function hashSeed(text: string) {
   return h >>> 0;
 }
 
-export const rgbOf = (hex: string): [number, number, number] => {
-  const n = parseInt(hex.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-};
-
-/** `hex` scaled by k as an `rgb()` string. */
-export const shade = (hex: string, k: number) => {
-  const f = (v: number) => Math.max(0, Math.min(255, Math.round(v * k)));
-  const [r, g, b] = rgbOf(hex);
-  return `rgb(${f(r)},${f(g)},${f(b)})`;
-};
-
-export const alpha = (hex: string, a: number) => {
-  const [r, g, b] = rgbOf(hex);
-  return `rgba(${r},${g},${b},${a})`;
-};
-
-/** `hex` moved `t` (0..1) toward `toward`, as `#rrggbb`. */
-export const mix = (hex: string, toward: string, t: number) => {
-  const a = rgbOf(hex);
-  const b = rgbOf(toward);
-  const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
-  return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-};
+export { alpha, mix, rgbOf, shade } from "./color-utils";
 
 export type Ctx2D = CanvasRenderingContext2D;
 
@@ -57,23 +26,6 @@ export function makeCanvas(
   c.height = h;
   draw(c.getContext("2d")!, w, h);
   return c;
-}
-
-/** Calls `fn` at (x, y) and its wrapped copies so tiles repeat seamlessly. */
-export function wrapDraw(
-  size: number,
-  x: number,
-  y: number,
-  r: number,
-  fn: (x: number, y: number) => void
-) {
-  for (const dx of [-size, 0, size]) {
-    for (const dy of [-size, 0, size]) {
-      const X = x + dx;
-      const Y = y + dy;
-      if (X > -r && X < size + r && Y > -r && Y < size + r) fn(X, Y);
-    }
-  }
 }
 
 /**
@@ -104,11 +56,15 @@ export function normalMapFromHeight(source: HTMLCanvasElement, strength = 3) {
   });
 }
 
+/** Most-recently-used canvas textures kept; older ones are GPU-disposed and forgotten. */
+const CANVAS_TEXTURE_CAP = 96;
 const textureCache = new Map<string, THREE.CanvasTexture>();
 
 /**
- * Cached repeat-wrapped CanvasTexture. Textures live for the page lifetime and
- * are shared across canvases — never dispose them from a component.
+ * Cached repeat-wrapped CanvasTexture, shared across components — never
+ * dispose one from a component. Past `CANVAS_TEXTURE_CAP` keys (e.g. many
+ * monogram / colour variants) the least recently requested is GPU-disposed;
+ * a material still holding it simply re-uploads from the retained canvas.
  */
 export function cachedCanvasTexture(
   key: string,
@@ -116,7 +72,11 @@ export function cachedCanvasTexture(
   { srgb = true, anisotropy = 8 }: { srgb?: boolean; anisotropy?: number } = {}
 ): THREE.CanvasTexture {
   const cached = textureCache.get(key);
-  if (cached) return cached;
+  if (cached) {
+    textureCache.delete(key);
+    textureCache.set(key, cached);
+    return cached;
+  }
   const texture = new THREE.CanvasTexture(build());
   if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
@@ -124,5 +84,10 @@ export function cachedCanvasTexture(
   texture.anisotropy = anisotropy;
   texture.needsUpdate = true;
   textureCache.set(key, texture);
+  if (textureCache.size > CANVAS_TEXTURE_CAP) {
+    const [oldestKey, oldest] = textureCache.entries().next().value!;
+    textureCache.delete(oldestKey);
+    oldest.dispose();
+  }
   return texture;
 }

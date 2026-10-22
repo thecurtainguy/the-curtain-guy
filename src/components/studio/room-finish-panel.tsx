@@ -2,12 +2,14 @@
 
 import {
   DRAPE_COLORS,
+  STUDIO_CEILING_FINISHES,
   STUDIO_FLOOR_FINISHES,
   STUDIO_LIGHTING_MOODS,
   STUDIO_WALL_DISPLAYS,
   STUDIO_WALL_FINISHES,
   getStudioMaterials,
   getStudioWallDisplay,
+  type StudioCeilingFinish,
   type StudioDesignJson,
   type StudioFloorFinish,
   type StudioLightingMood,
@@ -20,6 +22,7 @@ import {
   Ban,
   Box,
   Eye,
+  Grid3x3,
   Fence,
   Layers3,
   Lightbulb,
@@ -135,6 +138,120 @@ const WALL_DISPLAY_META: Record<
   glass: { label: "Glass", icon: Eye },
 };
 
+const CEILING_TILE_LABELS: Record<StudioCeilingFinish, string> = {
+  auto: "Venue",
+  flat: "Flat",
+  tray: "Tray",
+  coffered: "Coffered",
+  beams: "Beams",
+  truss: "Industrial",
+  black: "Black-out",
+};
+
+const PLASTER_BG = "linear-gradient(180deg, #ebe6dc, #cfc8bb)";
+
+function CanDot({ x, y, dim = false }: { x: number; y: number; dim?: boolean }) {
+  return (
+    <>
+      <circle cx={x} cy={y} r={dim ? 2.6 : 3.8} fill="rgba(255,226,160,0.32)" />
+      <circle cx={x} cy={y} r={dim ? 0.9 : 1.4} fill={dim ? "#f3d9a4" : "#fffbea"} />
+    </>
+  );
+}
+
+/** Looking-up thumbnail of each ceiling architecture. */
+function CeilingPreview({ finish }: { finish: StudioCeilingFinish }) {
+  const backgrounds: Record<StudioCeilingFinish, string> = {
+    auto: PLASTER_BG,
+    flat: PLASTER_BG,
+    tray: "linear-gradient(180deg, #c4bcae, #a9a092)",
+    coffered: "linear-gradient(180deg, #d6cfc2, #b9b1a3)",
+    beams:
+      "repeating-linear-gradient(180deg, #e6e0d4 0 3px, #cfc6b6 3px 3.6px), linear-gradient(180deg, #e6e0d4, #d2c9b8)",
+    truss: "repeating-linear-gradient(180deg, #2b2c30 0 2px, #1f2023 2px 4px)",
+    black: "radial-gradient(ellipse at 50% 30%, #1d1d20, #0a0a0b 75%)",
+  };
+  return (
+    <span
+      className="relative block h-8 overflow-hidden rounded-lg border border-white/10 shadow-inner"
+      style={{ background: backgrounds[finish] }}
+    >
+      <svg viewBox="0 0 64 32" className="absolute inset-0 size-full" aria-hidden>
+        {finish === "auto" ? (
+          <>
+            <rect x="9" y="6" width="46" height="20" rx="2" fill="none" stroke="oklch(0.76 0.15 88)" strokeWidth="1" strokeDasharray="3 2" opacity="0.85" />
+            <path d="M32 10 L33.6 14.4 L38 16 L33.6 17.6 L32 22 L30.4 17.6 L26 16 L30.4 14.4 Z" fill="oklch(0.76 0.15 88)" />
+          </>
+        ) : null}
+        {finish === "flat" ? (
+          <>
+            <rect x="0.5" y="0.5" width="63" height="31" fill="none" stroke="rgba(0,0,0,0.12)" />
+            {[14, 32, 50].map((x) => (
+              <g key={x}>
+                <CanDot x={x} y={10} />
+                <CanDot x={x} y={22} />
+              </g>
+            ))}
+          </>
+        ) : null}
+        {finish === "tray" ? (
+          <>
+            <rect x="9" y="6" width="46" height="20" fill="#ece7dd" />
+            <rect x="9" y="6" width="46" height="20" fill="none" stroke="oklch(0.82 0.13 80)" strokeWidth="2.2" opacity="0.75" />
+            <CanDot x={22} y={16} />
+            <CanDot x={42} y={16} />
+          </>
+        ) : null}
+        {finish === "coffered" ? (
+          <>
+            {[0, 1, 2, 3].map((i) =>
+              [0, 1].map((j) => (
+                <g key={`${i}-${j}`}>
+                  <rect x={4 + i * 14.5} y={4 + j * 13} width="12" height="11" fill="#efeae1" stroke="rgba(60,50,40,0.28)" strokeWidth="1.4" />
+                  <CanDot x={10 + i * 14.5} y={9.5 + j * 13} dim />
+                </g>
+              ))
+            )}
+          </>
+        ) : null}
+        {finish === "beams" ? (
+          <>
+            {[8, 22, 36, 50].map((x) => (
+              <g key={x}>
+                <rect x={x} y="0" width="5" height="32" fill="#5b3d26" />
+                <rect x={x} y="0" width="1.2" height="32" fill="rgba(0,0,0,0.3)" />
+              </g>
+            ))}
+          </>
+        ) : null}
+        {finish === "truss" ? (
+          <>
+            <rect x="0" y="3" width="64" height="5" rx="2.5" fill="#a3a8ad" />
+            <rect x="0" y="4" width="64" height="1" fill="rgba(255,255,255,0.35)" />
+            <line x1="0" y1="13" x2="64" y2="13" stroke="#c9ccd0" strokeWidth="1" />
+            <line x1="0" y1="19" x2="64" y2="19" stroke="#c9ccd0" strokeWidth="1" />
+            <polyline
+              points={Array.from({ length: 17 }, (_, i) => `${i * 4},${i % 2 ? 19 : 13}`).join(" ")}
+              fill="none"
+              stroke="#c9ccd0"
+              strokeWidth="0.6"
+            />
+            {[12, 32, 52].map((x) => (
+              <CanDot key={x} x={x} y={26} />
+            ))}
+          </>
+        ) : null}
+        {finish === "black" ? (
+          <>
+            <CanDot x={20} y={16} dim />
+            <CanDot x={44} y={16} dim />
+          </>
+        ) : null}
+      </svg>
+    </span>
+  );
+}
+
 function FinishGroup({
   icon: Icon,
   label,
@@ -173,6 +290,7 @@ export function RoomFinishPanel({
   idPrefix,
 }: RoomFinishPanelProps) {
   const materials = getStudioMaterials(design);
+  const ceiling = materials.ceiling ?? "auto";
   const wallDisplay = getStudioWallDisplay(design.view);
   const showCeiling = Boolean(design.view.showCeiling);
   const uplight = materials.uplightColor ?? null;
@@ -267,6 +385,28 @@ export function RoomFinishPanel({
                     style={{ background: WALL_SWATCHES[option.value].background }}
                   />
                 }
+              />
+            ))}
+          </div>
+        </FinishGroup>
+
+        <FinishGroup
+          icon={Grid3x3}
+          label="Ceiling"
+          value={
+            STUDIO_CEILING_FINISHES.find((option) => option.value === ceiling)?.label ?? ""
+          }
+          id={gid("ceiling")}
+        >
+          <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-labelledby={gid("ceiling")}>
+            {STUDIO_CEILING_FINISHES.map((option) => (
+              <ChoiceTile
+                key={option.value}
+                compact
+                selected={ceiling === option.value}
+                onSelect={() => updateMaterials({ ceiling: option.value })}
+                label={CEILING_TILE_LABELS[option.value]}
+                preview={<CeilingPreview finish={option.value} />}
               />
             ))}
           </div>

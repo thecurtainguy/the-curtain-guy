@@ -3,8 +3,10 @@
 import { Textarea } from "@/components/ui/textarea";
 import {
   STUDIO_NOTES_MAX_LENGTH,
+  getCeilingDrapes,
   type StudioDesignJson,
 } from "@/data/studio";
+import { estimateCeilingFabric } from "@/lib/studio-ceiling";
 import {
   calculateDrapeLength,
   calculateRoomAreaSquareFeet,
@@ -12,13 +14,16 @@ import {
 } from "@/lib/studio-geometry";
 import {
   Box,
+  LampCeiling,
   MoveVertical,
   NotebookPen,
+  Ruler,
   ScissorsLineDashed,
   Sparkles,
   SquareDashed,
   Users,
 } from "lucide-react";
+import { useMemo } from "react";
 import { RoomFinishPanel } from "../room-finish-panel";
 import { StudioEmptyState } from "../studio-empty-state";
 import { InspectorSection, StatTile } from "./inspector-ui";
@@ -35,6 +40,16 @@ export function DesignBrief({
   const guests = design.objects.reduce(
     (sum, object) => sum + (object.seatingCount ?? 0),
     0
+  );
+  const ceilings = getCeilingDrapes(design);
+  const floor = design.room.floor;
+  const ceilingYards = useMemo(
+    () =>
+      ceilings.reduce(
+        (sum, drape) => sum + estimateCeilingFabric(drape, floor).linearYards,
+        0
+      ),
+    [ceilings, floor]
   );
   return (
     <div className="space-y-3">
@@ -65,6 +80,16 @@ export function DesignBrief({
           value={guests.toLocaleString()}
         />
         <StatTile icon={Box} label="Objects" value={design.objects.length} />
+        {ceilings.length > 0 ? (
+          <>
+            <StatTile icon={LampCeiling} label="Ceiling designs" value={ceilings.length} />
+            <StatTile
+              icon={Ruler}
+              label="Ceiling fabric"
+              value={`${(Math.round(ceilingYards * 10) / 10).toLocaleString()} yd`}
+            />
+          </>
+        ) : null}
       </div>
 
       <StudioEmptyState />

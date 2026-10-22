@@ -89,22 +89,90 @@ function isLocked(design: StudioDesignJson, id: string): boolean {
   return Boolean(findStudioItem(design, id)?.item.locked);
 }
 
+function shallowEqual<T extends object>(a: T, b: T): boolean {
+  if (a === b) return true;
+  const keysA = Object.keys(a) as Array<keyof T>;
+  if (keysA.length !== Object.keys(b).length) return false;
+  return keysA.every(
+    (key) => Object.prototype.hasOwnProperty.call(b, key) && a[key] === b[key]
+  );
+}
+
+/**
+ * `items.map(fn)` that keeps the original array (and original items whose
+ * result is shallow-equal) when nothing changed, so downstream memos keyed on
+ * collection identity (3D walls, trim, seating) skip untouched collections.
+ */
+export function mapIfChanged<T extends object>(
+  items: readonly T[],
+  fn: (item: T) => T
+): T[] {
+  let result: T[] | null = null;
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    const mapped = fn(item);
+    const next = mapped === item || shallowEqual(mapped, item) ? item : mapped;
+    if (result) result.push(next);
+    else if (next !== item) {
+      result = items.slice(0, index);
+      result.push(next);
+    }
+  }
+  return result ?? (items as T[]);
+}
+
+/** `items.filter(keep)` that returns the original array when nothing is dropped. */
+export function filterIfChanged<T>(
+  items: readonly T[],
+  keep: (item: T) => boolean
+): T[] {
+  const next = items.filter(keep);
+  return next.length === items.length ? (items as T[]) : next;
+}
+
+function appendIfAny<T>(items: readonly T[], added: readonly T[]): T[] {
+  return added.length === 0 ? (items as T[]) : [...items, ...added];
+}
+
+type StudioCollections = Pick<
+  StudioDesignJson,
+  "objects" | "drapeRuns" | "treatments" | "openings"
+> & { ceilingDrapes: StudioCeilingDrape[] };
+
+/** Applies collection updates; returns `design` itself when none changed identity. */
+function withCollections(
+  design: StudioDesignJson,
+  next: Partial<StudioCollections>
+): StudioDesignJson {
+  const changed =
+    (next.objects !== undefined && next.objects !== design.objects) ||
+    (next.drapeRuns !== undefined && next.drapeRuns !== design.drapeRuns) ||
+    (next.treatments !== undefined && next.treatments !== design.treatments) ||
+    (next.openings !== undefined && next.openings !== design.openings) ||
+    (next.ceilingDrapes !== undefined &&
+      next.ceilingDrapes !== getCeilingDrapes(design));
+  if (!changed) return design;
+  return {
+    ...design,
+    ...next,
+    ceilingDrapes: next.ceilingDrapes ?? getCeilingDrapes(design),
+  };
+}
+
 export function removeStudioItems(
   design: StudioDesignJson,
   ids: readonly string[]
 ): StudioDesignJson {
   const remove = new Set(ids.filter((id) => !isLocked(design, id)));
   if (remove.size === 0) return design;
-  return {
-    ...design,
-    objects: design.objects.filter((item) => !remove.has(item.id)),
-    drapeRuns: design.drapeRuns.filter((item) => !remove.has(item.id)),
-    treatments: design.treatments.filter((item) => !remove.has(item.id)),
-    openings: design.openings.filter((item) => !remove.has(item.id)),
-    ceilingDrapes: getCeilingDrapes(design).filter(
-      (item) => !remove.has(item.id)
-    ),
-  };
+  const keep = (item: { id: string }) => !remove.has(item.id);
+  return withCollections(design, {
+    objects: filterIfChanged(design.objects, keep),
+    drapeRuns: filterIfChanged(design.drapeRuns, keep),
+    treatments: filterIfChanged(design.treatments, keep),
+    openings: filterIfChanged(design.openings, keep),
+    ceilingDrapes: filterIfChanged(getCeilingDrapes(design), keep),
+  });
 }
 
 export function copyStudioItems(
@@ -210,14 +278,13 @@ export function pasteStudioItems(
     };
   });
   return {
-    design: {
-      ...design,
-      objects: [...design.objects, ...objects],
-      drapeRuns: [...design.drapeRuns, ...drapeRuns],
-      treatments: [...design.treatments, ...treatments],
-      openings: [...design.openings, ...openings],
-      ceilingDrapes: [...getCeilingDrapes(design), ...ceilingDrapes],
-    },
+    design: withCollections(design, {
+      objects: appendIfAny(design.objects, objects),
+      drapeRuns: appendIfAny(design.drapeRuns, drapeRuns),
+      treatments: appendIfAny(design.treatments, treatments),
+      openings: appendIfAny(design.openings, openings),
+      ceilingDrapes: appendIfAny(getCeilingDrapes(design), ceilingDrapes),
+    }),
     ids,
   };
 }
@@ -241,18 +308,22 @@ export function nudgeStudioItems(
   dz: number
 ): StudioDesignJson {
   const set = new Set(ids);
-  const walls = getWallSegments(design.room.floor);
+  if (set.size === 0) return design;
+  let walls: ReturnType<typeof getWallSegments> | null = null;
+  const wallAt = (wallIndex: number) => {
+    walls ??= getWallSegments(design.room.floor);
+    return walls[wallIndex];
+  };
   const along = (wallIndex: number) => {
-    const wall = walls[wallIndex];
+    const wall = wallAt(wallIndex);
     if (!wall || wall.length <= 0) return 0;
     return (
       (dx * (wall.end.x - wall.start.x) + dz * (wall.end.z - wall.start.z)) /
       wall.length
     );
   };
-  return {
-    ...design,
-    objects: design.objects.map((object) =>
+  return withCollections(design, {
+    objects: mapIfChanged(design.objects, (object) =>
       set.has(object.id) && !object.locked
         ? {
             ...object,
@@ -261,9 +332,9 @@ export function nudgeStudioItems(
           }
         : object
     ),
-    drapeRuns: design.drapeRuns.map((run) => {
+    drapeRuns: mapIfChanged(design.drapeRuns, (run) => {
       if (!set.has(run.id) || run.locked) return run;
-      const wall = walls[run.wallIndex];
+      const wall = wallAt(run.wallIndex);
       if (!wall) return run;
       const span = run.endOffset - run.startOffset;
       const start = clampFinite(
@@ -273,9 +344,9 @@ export function nudgeStudioItems(
       );
       return { ...run, startOffset: start, endOffset: start + span };
     }),
-    treatments: design.treatments.map((treatment) => {
+    treatments: mapIfChanged(design.treatments, (treatment) => {
       if (!set.has(treatment.id) || treatment.locked) return treatment;
-      const wall = walls[treatment.anchor.wallIndex];
+      const wall = wallAt(treatment.anchor.wallIndex);
       if (!wall) return treatment;
       const span = treatment.anchor.endOffset - treatment.anchor.startOffset;
       const start = clampFinite(
@@ -283,12 +354,12 @@ export function nudgeStudioItems(
         0,
         Math.max(0, wall.length - span)
       );
-      return {
-        ...treatment,
-        anchor: { ...treatment.anchor, startOffset: start, endOffset: start + span },
-      };
+      const anchor = { ...treatment.anchor, startOffset: start, endOffset: start + span };
+      return shallowEqual(anchor, treatment.anchor)
+        ? treatment
+        : { ...treatment, anchor };
     }),
-    openings: design.openings.map((opening) =>
+    openings: mapIfChanged(design.openings, (opening) =>
       set.has(opening.id) && !opening.locked
         ? clampOpeningToWall(
             { ...opening, offset: opening.offset + along(opening.wallIndex) },
@@ -296,7 +367,7 @@ export function nudgeStudioItems(
           )
         : opening
     ),
-    ceilingDrapes: getCeilingDrapes(design).map((drape) =>
+    ceilingDrapes: mapIfChanged(getCeilingDrapes(design), (drape) =>
       set.has(drape.id) && !drape.locked
         ? {
             ...drape,
@@ -307,7 +378,7 @@ export function nudgeStudioItems(
           }
         : drape
     ),
-  };
+  });
 }
 
 export function normalizeRotation(degrees: number): number {
@@ -323,19 +394,18 @@ export function rotateStudioItems(
   degrees: number
 ): StudioDesignJson {
   const set = new Set(ids);
-  return {
-    ...design,
-    objects: design.objects.map((object) =>
+  return withCollections(design, {
+    objects: mapIfChanged(design.objects, (object) =>
       set.has(object.id) && !object.locked
         ? { ...object, rotation: normalizeRotation(object.rotation + degrees) }
         : object
     ),
-    ceilingDrapes: getCeilingDrapes(design).map((drape) =>
+    ceilingDrapes: mapIfChanged(getCeilingDrapes(design), (drape) =>
       set.has(drape.id) && !drape.locked
         ? { ...drape, rotation: normalizeRotation(drape.rotation + degrees) }
         : drape
     ),
-  };
+  });
 }
 
 /** Rotates the selected objects as a group around their shared center. */
@@ -355,20 +425,31 @@ export function rotateStudioItemsAsGroup(
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
   const set = new Set(objects.map((object) => object.id));
-  return {
-    ...design,
-    objects: design.objects.map((object) => {
+  const spin = (x: number, z: number) => ({
+    x: cx + (x - cx) * cos - (z - cz) * sin,
+    z: cz + (x - cx) * sin + (z - cz) * cos,
+  });
+  return withCollections(design, {
+    objects: mapIfChanged(design.objects, (object) => {
       if (!set.has(object.id)) return object;
-      const rx = object.x - cx;
-      const rz = object.z - cz;
       return {
         ...object,
-        x: cx + rx * cos - rz * sin,
-        z: cz + rx * sin + rz * cos,
+        ...spin(object.x, object.z),
         rotation: normalizeRotation(object.rotation + degrees),
       };
     }),
-  };
+    ceilingDrapes: mapIfChanged(getCeilingDrapes(design), (drape) => {
+      if (!ids.includes(drape.id) || drape.locked) return drape;
+      const hub = spin(drape.hubX, drape.hubZ);
+      return {
+        ...drape,
+        ...spin(drape.x, drape.z),
+        hubX: hub.x,
+        hubZ: hub.z,
+        rotation: normalizeRotation(drape.rotation + degrees),
+      };
+    }),
+  });
 }
 
 export function getObjectsBounds(objects: readonly StudioObject[]) {
@@ -414,10 +495,9 @@ export function alignStudioObjects(
       dz = (group.minZ + group.maxZ) / 2 - (box.minZ + box.maxZ) / 2;
     moved.set(object.id, { ...object, x: object.x + dx, z: object.z + dz });
   }
-  return {
-    ...design,
-    objects: design.objects.map((object) => moved.get(object.id) ?? object),
-  };
+  return withCollections(design, {
+    objects: mapIfChanged(design.objects, (object) => moved.get(object.id) ?? object),
+  });
 }
 
 /** Evenly spaces selected object centers between the outermost two (needs 3+). */
@@ -442,10 +522,9 @@ export function distributeStudioObjects(
       axis === "x" ? { ...object, x: value } : { ...object, z: value }
     );
   });
-  return {
-    ...design,
-    objects: design.objects.map((object) => moved.get(object.id) ?? object),
-  };
+  return withCollections(design, {
+    objects: mapIfChanged(design.objects, (object) => moved.get(object.id) ?? object),
+  });
 }
 
 /** Sets `locked` or `hidden` on every matching item of any kind. */
@@ -459,14 +538,13 @@ export function setStudioItemsFlag(
   const apply = <T extends { id: string; locked?: boolean; hidden?: boolean }>(
     item: T
   ): T => (set.has(item.id) ? { ...item, [flag]: value } : item);
-  return {
-    ...design,
-    objects: design.objects.map(apply),
-    drapeRuns: design.drapeRuns.map(apply),
-    treatments: design.treatments.map(apply),
-    openings: design.openings.map(apply),
-    ceilingDrapes: getCeilingDrapes(design).map(apply),
-  };
+  return withCollections(design, {
+    objects: mapIfChanged(design.objects, apply),
+    drapeRuns: mapIfChanged(design.drapeRuns, apply),
+    treatments: mapIfChanged(design.treatments, apply),
+    openings: mapIfChanged(design.openings, apply),
+    ceilingDrapes: mapIfChanged(getCeilingDrapes(design), apply),
+  });
 }
 
 /** Lays out `count` copies of an object in a grid centred on (cx, cz). */

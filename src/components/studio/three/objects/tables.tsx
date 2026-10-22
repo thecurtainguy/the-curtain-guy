@@ -19,7 +19,7 @@ import {
   spandexMaterial,
   trimMaterial,
 } from "./materials";
-import { CandleGroup, FloralCluster, Part, seedOf } from "./part";
+import { CandleGroup, FloralCluster, Group, Part, seedOf } from "./part";
 import { genericFinish, isDetailed, resolveLinen, type ModelProps } from "./types";
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -220,12 +220,15 @@ function Centerpiece({
   quality: StudioQuality;
 }) {
   const size = clamp(radius * 0.32, 0.35, 0.95);
+  // One arrangement per variant, turned per table: identical tables then share
+  // instanced geometry while the room still reads as hand-placed.
   const variant = seed % 3;
+  const yaw = ((seed >>> 2) % 24) * (Math.PI / 12);
   const y = height + 0.02;
   if (variant === 1 && radius >= 2) {
     const stemH = clamp(radius * 0.7, 1.2, 2.2);
     return (
-      <group position={[0, y, 0]}>
+      <Group position={[0, y, 0]} rotation={[0, yaw, 0]}>
         <Part
           geometry={lathe(
             "pedestal-vase",
@@ -245,11 +248,12 @@ function Centerpiece({
           )}
           material={MAT.gold()}
           scale={[1, stemH, 1]}
+          cast
         />
         <FloralCluster
           radius={size * 0.75}
           height={size * 0.9}
-          seed={seed % 5}
+          seed={2}
           palette="romantic"
           position={[0, stemH * 1.02 - 0.1, 0]}
         />
@@ -262,12 +266,12 @@ function Centerpiece({
             votive: true,
           }))}
         />
-      </group>
+      </Group>
     );
   }
   if (variant === 2) {
     return (
-      <group position={[0, y, 0]}>
+      <Group position={[0, y, 0]} rotation={[0, yaw, 0]}>
         <Part
           geometry={UNIT.cylinder(40)}
           material={MAT.silver()}
@@ -286,16 +290,16 @@ function Centerpiece({
         <FloralCluster
           radius={size}
           height={0.18}
-          seed={(seed % 5) + 7}
+          seed={8}
           palette="ivory"
           density={0.7}
           position={[0, 0.02, 0]}
         />
-      </group>
+      </Group>
     );
   }
   return (
-    <group position={[0, y, 0]}>
+    <Group position={[0, y, 0]} rotation={[0, yaw, 0]}>
       <Part
         geometry={UNIT.cylinder(40)}
         material={MAT.gold()}
@@ -306,7 +310,7 @@ function Centerpiece({
       <FloralCluster
         radius={size}
         height={size * 0.65}
-        seed={seed % 5}
+        seed={1}
         palette="romantic"
         position={[0, 0.02, 0]}
       />
@@ -319,7 +323,7 @@ function Centerpiece({
           votive: true,
         }))}
       />
-    </group>
+    </Group>
   );
 }
 
@@ -334,7 +338,7 @@ function ThreeTierCake({ radius, height, quality }: { radius: number; height: nu
   const standH = 0.3;
   let y = standH;
   return (
-    <group position={[0, height + 0.02, 0]} scale={scale}>
+    <Group position={[0, height + 0.02, 0]} scale={scale}>
       <Part
         geometry={lathe(
           "cake-stand",
@@ -356,7 +360,7 @@ function ThreeTierCake({ radius, height, quality }: { radius: number; height: nu
         const base = y;
         y += tier.h;
         return (
-          <group key={index}>
+          <Group key={index}>
             <Part
               geometry={UNIT.cylinder(seg)}
               material={MAT.whiteResin()}
@@ -370,7 +374,7 @@ function ThreeTierCake({ radius, height, quality }: { radius: number; height: nu
               scale={[tier.r + 0.006, 0.05, tier.r + 0.006]}
               cast={false}
             />
-          </group>
+          </Group>
         );
       })}
       {isDetailed(quality) ? (
@@ -386,7 +390,7 @@ function ThreeTierCake({ radius, height, quality }: { radius: number; height: nu
           />
         </>
       ) : null}
-    </group>
+    </Group>
   );
 }
 
@@ -398,7 +402,7 @@ function ChafingDishes({ w, height }: { w: number; height: number }) {
       {Array.from({ length: count }, (_, i) => {
         const x = count === 1 ? 0 : -span / 2 + (i * span) / (count - 1);
         return (
-          <group key={i} position={[x, height + 0.02, 0]}>
+          <Group key={i} position={[x, height + 0.02, 0]}>
             <Part geometry={roundedBox(1.7, 0.18, 1.1, 0.04, 2)} material={MAT.silver()} position={[0, 0.28, 0]} />
             <Part
               geometry={UNIT.cylinder(24)}
@@ -416,7 +420,7 @@ function ChafingDishes({ w, height }: { w: number; height: number }) {
                 scale={[0.04, 0.2, 0.9]}
               />
             ))}
-          </group>
+          </Group>
         );
       })}
     </>
@@ -594,7 +598,7 @@ export function CocktailTableModel({ object, w, d, h, quality }: ModelProps) {
   const seg = segmentsFor(quality, 48);
   const sashColor = MAT.velvet("#b98b3d");
   return (
-    <group scale={[hx / R, 1, hz / R]}>
+    <Group scale={[hx / R, 1, hz / R]}>
       <Part
         geometry={lathe(`spandex:${q(R)}:${q(h)}:${samples}`, profile, seg)}
         material={spandexMaterial(linen)}
@@ -606,7 +610,7 @@ export function CocktailTableModel({ object, w, d, h, quality }: ModelProps) {
         scale={[waist + 0.03, 0.16, waist + 0.03]}
       />
       {isDetailed(quality) ? (
-        <group position={[0, waistY, waist + 0.04]}>
+        <Group position={[0, waistY, waist + 0.04]}>
           {[-1, 1].map((s) => (
             <Part
               key={s}
@@ -627,9 +631,9 @@ export function CocktailTableModel({ object, w, d, h, quality }: ModelProps) {
               scale={[0.08, 0.6, 0.015]}
             />
           ))}
-        </group>
+        </Group>
       ) : null}
-    </group>
+    </Group>
   );
 }
 
@@ -642,7 +646,7 @@ export function TableClusterTables({ object, h, quality }: ModelProps) {
   return (
     <>
       {tables.map((table, index) => (
-        <group key={index} position={[table.x, 0, table.z]}>
+        <Group key={index} position={[table.x, 0, table.z]}>
           <RoundTableBody
             hx={table.radius}
             hz={table.radius}
@@ -653,7 +657,7 @@ export function TableClusterTables({ object, h, quality }: ModelProps) {
             quality={quality}
             centerpieceSeed={seed + index}
           />
-        </group>
+        </Group>
       ))}
     </>
   );

@@ -61,6 +61,39 @@ function collectLines(
   return lines;
 }
 
+type SnapLines = {
+  room: { bounds: PlanRect; floor: readonly StudioPoint[] };
+  linesX: Line[];
+  linesZ: Line[];
+};
+
+/** Drags reuse one targets array per gesture, so its guide lines are built once. */
+const linesCache = new WeakMap<readonly SmartSnapTarget[], SnapLines>();
+
+function snapLines(
+  targets: readonly SmartSnapTarget[],
+  room: { bounds: PlanRect; floor: readonly StudioPoint[] }
+): SnapLines {
+  const hit = linesCache.get(targets);
+  if (
+    hit &&
+    hit.room.floor === room.floor &&
+    hit.room.bounds.minX === room.bounds.minX &&
+    hit.room.bounds.maxX === room.bounds.maxX &&
+    hit.room.bounds.minZ === room.bounds.minZ &&
+    hit.room.bounds.maxZ === room.bounds.maxZ
+  ) {
+    return hit;
+  }
+  const entry = {
+    room,
+    linesX: collectLines("x", targets, room),
+    linesZ: collectLines("z", targets, room),
+  };
+  linesCache.set(targets, entry);
+  return entry;
+}
+
 function snapAxis(
   axis: "x" | "z",
   moving: PlanRect,
@@ -117,8 +150,7 @@ export function computeSmartSnap({
   room: { bounds: PlanRect; floor: readonly StudioPoint[] };
   threshold: number;
 }): SmartSnapResult {
-  const linesX = collectLines("x", targets, room);
-  const linesZ = collectLines("z", targets, room);
+  const { linesX, linesZ } = snapLines(targets, room);
   const x = snapAxis("x", moving, linesX, threshold);
   const z = snapAxis("z", moving, linesZ, threshold);
   const snappedBox: PlanRect = {

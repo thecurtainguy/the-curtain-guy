@@ -2,19 +2,24 @@
 
 import type { StudioFloorFinish, StudioPoint } from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
-import { MeshReflectorMaterial } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { lazy, memo, Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { getStudioQualityPreset } from "./engine-quality";
 import {
   FLOOR_FINISHES,
-  getFloorTextures,
+  useVenueTextures,
   type VenueQuality,
+  type VenueTextureSet,
 } from "./scene-finishes";
 import { buildBandGeometry } from "./venue/band-geometry";
 import { getVenueEnvironment } from "./venue/environment";
 import { getGlowFadeTexture } from "./venue/textures";
 import { SCALE } from "./venue/wall-geometry";
+
+const IdleReflectorMaterial = lazy(() =>
+  import("./venue/idle-reflector").then((module) => ({ default: module.IdleReflectorMaterial }))
+);
 
 /** Width (inches) of the soft occlusion band where floor meets wall. */
 const CONTACT_BAND_IN = 22;
@@ -26,11 +31,45 @@ const REFLECTOR_STRENGTH: Partial<Record<StudioFloorFinish, number>> = {
   black_event: 1.3,
 };
 
+const REFLECTOR_BLUR: [number, number] = [200, 80];
+
+function FloorPhysicalMaterial({
+  finish,
+  textures,
+  normalScale,
+  envMap,
+}: {
+  finish: StudioFloorFinish;
+  textures: VenueTextureSet;
+  normalScale: THREE.Vector2;
+  envMap: THREE.Texture;
+}) {
+  const appearance = FLOOR_FINISHES[finish];
+  return (
+    <meshPhysicalMaterial
+      map={textures.map}
+      normalMap={textures.normalMap}
+      normalScale={normalScale}
+      roughnessMap={textures.roughnessMap}
+      roughness={1}
+      metalness={appearance.metalness}
+      clearcoat={appearance.clearcoat}
+      clearcoatRoughness={appearance.clearcoatRoughness}
+      sheen={appearance.sheen ?? 0}
+      sheenRoughness={0.8}
+      sheenColor="#d8d2c8"
+      envMap={envMap}
+      envMapIntensity={appearance.envMapIntensity}
+    />
+  );
+}
+
 /**
  * Room floor. UVs are world feet (ShapeGeometry uses shape coordinates), so
- * the procedural maps land at true plank / tile scale.
+ * the procedural maps land at true plank / tile scale. Maps refine in place
+ * (flat colour → preview → full size) as the texture worker delivers them.
  */
-export function StudioFloor({
+export const StudioFloor = memo(function StudioFloor({
   floor,
   bounds,
   finish,
@@ -45,6 +84,7 @@ export function StudioFloor({
 }) {
   const gl = useThree((state) => state.gl);
   const envMap = useMemo(() => getVenueEnvironment(gl), [gl]);
+  const meshRef = useRef<THREE.Mesh>(null);
 
   const geometry = useMemo(() => {
     const shape = new THREE.Shape();
@@ -71,19 +111,29 @@ export function StudioFloor({
   }, [geometry, contact]);
 
   const appearance = FLOOR_FINISHES[finish];
-  const textures = getFloorTextures(finish, quality);
+  const preset = getStudioQualityPreset(quality);
+  const textures = useVenueTextures({ group: "floor", finish }, quality);
   const normalScale = useMemo(
     () => new THREE.Vector2(appearance.normalScale, appearance.normalScale),
     [appearance.normalScale],
   );
   const reflector =
-    quality === "ultra" && appearance.reflective
+    preset.reflector === "idle" && appearance.reflective
       ? (REFLECTOR_STRENGTH[finish] ?? 1)
       : null;
+  const physical = (
+    <FloorPhysicalMaterial
+      finish={finish}
+      textures={textures}
+      normalScale={normalScale}
+      envMap={envMap}
+    />
+  );
 
   return (
     <>
       <mesh
+        ref={meshRef}
         geometry={geometry}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
@@ -93,43 +143,27 @@ export function StudioFloor({
         }}
       >
         {reflector !== null ? (
-          <MeshReflectorMaterial
-            key={`reflector-${finish}`}
-            map={textures.map}
-            normalMap={textures.normalMap}
-            normalScale={normalScale}
-            roughnessMap={textures.roughnessMap}
-            roughness={1}
-            metalness={0}
-            envMap={envMap}
-            envMapIntensity={appearance.envMapIntensity * 0.6}
-            resolution={1024}
-            blur={[320, 110]}
-            mixBlur={0.9}
-            mixStrength={reflector}
-            mixContrast={1}
-            mirror={0}
-            depthScale={0.5}
-            minDepthThreshold={0.35}
-            maxDepthThreshold={1.25}
-          />
+          <Suspense fallback={physical}>
+            <IdleReflectorMaterial
+              target={meshRef}
+              map={textures.map}
+              normalMap={textures.normalMap}
+              normalScale={normalScale}
+              roughnessMap={textures.roughnessMap}
+              envMap={envMap}
+              envMapIntensity={appearance.envMapIntensity * 0.6}
+              resolution={preset.reflectorResolution}
+              blur={REFLECTOR_BLUR}
+              mixBlur={0.9}
+              mixStrength={reflector}
+              mixContrast={1}
+              depthScale={0.5}
+              minDepthThreshold={0.35}
+              maxDepthThreshold={1.25}
+            />
+          </Suspense>
         ) : (
-          <meshPhysicalMaterial
-            key={`physical-${finish}`}
-            map={textures.map}
-            normalMap={textures.normalMap}
-            normalScale={normalScale}
-            roughnessMap={textures.roughnessMap}
-            roughness={1}
-            metalness={appearance.metalness}
-            clearcoat={appearance.clearcoat}
-            clearcoatRoughness={appearance.clearcoatRoughness}
-            sheen={appearance.sheen ?? 0}
-            sheenRoughness={0.8}
-            sheenColor="#d8d2c8"
-            envMap={envMap}
-            envMapIntensity={appearance.envMapIntensity}
-          />
+          physical
         )}
       </mesh>
       {contact ? (
@@ -148,4 +182,4 @@ export function StudioFloor({
       ) : null}
     </>
   );
-}
+});

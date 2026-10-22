@@ -112,7 +112,10 @@ type RoomContext = {
   center: StudioPoint;
 };
 
-function roomContext(design: StudioDesignJson): RoomContext {
+/** Layouts only depend on the room outline. */
+type StudioLayoutRoom = { room: Pick<StudioDesignJson["room"], "floor"> };
+
+function roomContext(design: StudioLayoutRoom): RoomContext {
   const floor = design.room.floor;
   const bounds = getStudioBounds(floor);
   const centroid = getPolygonCentroid(floor);
@@ -585,7 +588,7 @@ function gala(ctx: RoomContext, guests: number, spacing: number) {
 }
 
 export function generateStudioLayout(
-  design: StudioDesignJson,
+  design: StudioLayoutRoom,
   key: StudioLayoutKey,
   count: number,
   spacing: number

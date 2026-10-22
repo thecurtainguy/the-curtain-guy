@@ -1,14 +1,19 @@
 "use client";
 
-import { useOptionalStudioEditor } from "@/components/studio/editor/studio-editor-context";
+import { useIsStudioHovered } from "@/components/studio/editor/hover-store";
+import {
+  useOptionalStudioSelection,
+  useOptionalStudioSettings,
+} from "@/components/studio/editor/studio-editor-context";
 import type {
   DrapeColor,
   DrapeFabric,
   DrapeHardware,
   StudioPoint,
 } from "@/data/studio";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
+import { getStudioQualityPreset } from "../engine-quality";
 import {
   bayBreaks,
   createPleatedRunGeometry,
@@ -25,7 +30,7 @@ import {
   useDisposeGeometry,
 } from "./hardware";
 import {
-  getFabricMaterial,
+  getFabricMaterialForQuality,
   getRimMaterial,
   isTranslucentFabric,
   type FabricQuality,
@@ -38,18 +43,48 @@ export function useFabricEditorState(
   id: string,
   fallbackSelected = false
 ): { highlight: FabricHighlight; quality: FabricQuality } {
-  const editor = useOptionalStudioEditor();
-  const selected = editor ? editor.selectedIds.includes(id) : fallbackSelected;
-  const hovered = editor?.hoveredId === id;
+  const selection = useOptionalStudioSelection();
+  const settings = useOptionalStudioSettings();
+  const selected = selection ? selection.selectedIds.includes(id) : fallbackSelected;
+  const hovered = useIsStudioHovered(selection ? id : null);
   return {
     highlight: selected ? "selected" : hovered ? "hover" : null,
-    quality: editor?.settings.quality ?? "high",
+    quality: settings?.quality ?? "high",
   };
 }
 
+/** A geometry rebuild landing within this window of the previous one is "live". */
+const SETTLE_MS = 120;
+
+/**
+ * Tessellation profile for a Studio quality, dropping to draft density while
+ * `key` (the geometry inputs) keeps changing — e.g. an inspector slider drag —
+ * and rebuilding at full density once it has been still for SETTLE_MS. A
+ * single discrete change builds at full density straight away.
+ */
+export function useSettledFabricProfile(key: string, quality: FabricQuality): FabricQuality {
+  const profile = getStudioQualityPreset(quality).fabricProfile;
+  const [track, setTrack] = useState({ key, stable: key, live: false });
+  let current = track;
+  if (track.key !== key) {
+    current = { key, stable: track.stable, live: track.live || track.key !== track.stable };
+    setTrack(current);
+  }
+  const pending = current.live || current.key !== current.stable;
+  useEffect(() => {
+    if (!pending) return;
+    const timer = window.setTimeout(
+      () => setTrack((state) => ({ key: state.key, stable: state.key, live: false })),
+      SETTLE_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [pending, current.key]);
+  return current.live ? "draft" : profile;
+}
+
 export function useFabricLayerVisible(layer: "drapes" | "treatments") {
-  const editor = useOptionalStudioEditor();
-  return editor ? editor.settings.layers[layer] !== false : true;
+  const settings = useOptionalStudioSettings();
+  return settings ? settings.layers[layer] !== false : true;
 }
 
 /** +1 when the floor polygon winds so that each wall's local +Z faces inside. */
@@ -205,6 +240,10 @@ export function DrapeAssembly({
   const crossbarY = pipe ? height - CROSSBAR_RADIUS - 0.012 : height;
   const frontZ = assemblyFrontZ(hardware, baseZ);
   const amplitude = foldDepth(fullness);
+  const profile = useSettledFabricProfile(
+    `${length}|${height}|${fullness}|${hardware}|${puddle}|${seed}|${maxBay}|${baseZ}`,
+    quality
+  );
 
   const geometry = useMemo(
     () =>
@@ -214,17 +253,17 @@ export function DrapeAssembly({
         height: pipe ? pocketTopY(crossbarY, CROSSBAR_RADIUS) : height,
         fullness,
         seed,
-        quality,
+        quality: profile,
         z: frontZ,
         pipeRadius: pipe ? CROSSBAR_RADIUS : undefined,
         sagPerBay,
         puddle: puddle ? 0.8 : 0,
       }),
-    [crossbarY, frontZ, fullness, height, length, maxBay, pipe, puddle, quality, sagPerBay, seed]
+    [crossbarY, frontZ, fullness, height, length, maxBay, pipe, puddle, profile, sagPerBay, seed]
   );
   useDisposeGeometry(geometry);
 
-  const material = getFabricMaterial(fabric, color, uplightColor);
+  const material = getFabricMaterialForQuality(fabric, color, uplightColor, quality);
   const translucent = isTranslucentFabric(fabric);
 
   return (

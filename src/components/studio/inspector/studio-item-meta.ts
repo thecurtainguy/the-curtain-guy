@@ -1,6 +1,8 @@
 import {
+  CEILING_DRAPE_STYLES,
   STUDIO_OBJECT_CATEGORIES,
   getDrapeColorHex,
+  type CeilingDrapeStyle,
   getStudioObjectOption,
   type DanceFloorFinish,
   type DrapeFabric,
@@ -97,6 +99,10 @@ export const STUDIO_OPENING_META: Record<
   entrance: { label: "Entrance", description: "Open guest arrival", icon: DoorOpen },
   window: { label: "Window", description: "Raised glazing", icon: AppWindow },
 };
+
+export function getCeilingStyleLabel(style: CeilingDrapeStyle): string {
+  return CEILING_DRAPE_STYLES.find((option) => option.value === style)?.label ?? style;
+}
 
 export function getObjectTypeLabel(type: StudioObjectType): string {
   return getStudioObjectOption(type)?.label ?? type.replaceAll("_", " ");

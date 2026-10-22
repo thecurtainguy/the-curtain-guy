@@ -28,7 +28,9 @@ export function cameraModeFromView(view: StudioCameraView): StudioCameraMode {
 export type CameraRigCommand =
   | { type: "eye"; feet: number }
   | { type: "eye_step"; feet: number }
-  | { type: "look_up"; up: boolean };
+  | { type: "look_up"; up: boolean }
+  /** Lie back on the floor and gaze straight up at the ceiling (toggle restores the eye). */
+  | { type: "lie_back"; on: boolean };
 
 type Snapshot = {
   mode: StudioCameraMode;
@@ -37,7 +39,12 @@ type Snapshot = {
   /** Ceiling height minus the soffit clearance, feet. */
   maxEyeHeight: number;
   lookingUp: boolean;
+  lyingBack: boolean;
   headBob: boolean;
+  /** Click-to-mouse-look outside Walk (Walk always offers it). */
+  mouseLook: boolean;
+  /** The canvas holds the pointer lock: the mouse turns the head. */
+  pointerLocked: boolean;
 };
 
 let state: Snapshot = {
@@ -45,7 +52,10 @@ let state: Snapshot = {
   eyeHeight: 5.5,
   maxEyeHeight: 10.5,
   lookingUp: false,
+  lyingBack: false,
   headBob: false,
+  mouseLook: false,
+  pointerLocked: false,
 };
 let mounted = false;
 const listeners = new Set<() => void>();
@@ -77,11 +87,17 @@ export function setStudioCameraMode(next: StudioCameraMode) {
 }
 
 /** Published by the rig; rounded so the HUD only re-renders on visible changes. */
-export function publishCameraRigState(eyeHeight: number, maxEyeHeight: number, lookingUp: boolean) {
+export function publishCameraRigState(
+  eyeHeight: number,
+  maxEyeHeight: number,
+  lookingUp: boolean,
+  lyingBack = false
+) {
   update({
     eyeHeight: Math.round(eyeHeight * 12) / 12,
     maxEyeHeight: Math.round(maxEyeHeight * 12) / 12,
     lookingUp,
+    lyingBack,
   });
 }
 
@@ -93,11 +109,33 @@ export function setStudioHeadBob(next: boolean) {
   update({ headBob: next });
 }
 
+/** Whether a click on empty canvas grabs the mouse in this mode. */
+export function mouseLookAvailable(mode: StudioCameraMode, mouseLook: boolean): boolean {
+  return isInteriorMode(mode) && (mode === "walk" || mouseLook);
+}
+
+export function getStudioMouseLook() {
+  return state.mouseLook;
+}
+
+export function setStudioMouseLook(next: boolean) {
+  update({ mouseLook: next });
+}
+
+export function isStudioPointerLocked() {
+  return state.pointerLocked;
+}
+
+/** Published by the rig on `pointerlockchange`. */
+export function setStudioPointerLocked(next: boolean) {
+  update({ pointerLocked: next });
+}
+
 /** Called by the camera rig so keyboard guards only apply while it is live. */
 export function setStudioCameraMounted(next: boolean) {
   if (next === mounted) return;
   mounted = next;
-  if (!next) state = { ...state, mode: DEFAULT_CAMERA_MODE };
+  if (!next) state = { ...state, mode: DEFAULT_CAMERA_MODE, pointerLocked: false };
   listeners.forEach((listener) => listener());
 }
 
@@ -122,6 +160,22 @@ export function useStudioCameraMode(): StudioCameraMode {
     subscribe,
     () => state.mode,
     () => DEFAULT_CAMERA_MODE
+  );
+}
+
+export function useStudioMouseLook(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => state.mouseLook,
+    () => false
+  );
+}
+
+export function useStudioPointerLocked(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => state.pointerLocked,
+    () => false
   );
 }
 

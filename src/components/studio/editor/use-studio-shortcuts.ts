@@ -2,7 +2,23 @@
 
 import { useEffect, useRef } from "react";
 import { isStudioWalkActive } from "../three/camera/camera-view-store";
-import type { StudioEditorContextValue } from "./studio-editor-context";
+import {
+  ceilingPlacementJustDisarmed,
+  disarmCeilingPlacement,
+  getCeilingPlacement,
+} from "./ceiling-placement-store";
+import type { StudioEditorState } from "./studio-editor-context";
+import {
+  exitStudioFullscreen,
+  getStudioFullscreenMode,
+  toggleStudioFullscreen,
+} from "./studio-display-store";
+
+type StudioShortcutOptions = {
+  onSave: () => void;
+  presenting?: boolean;
+  onTogglePresent?: () => void;
+};
 
 function isTypingTarget(target: EventTarget | null): boolean {
   return (
@@ -15,17 +31,21 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 /** Global Studio keyboard map. Ignored while typing in form fields or dialogs. */
 export function useStudioKeyboardShortcuts(
-  editor: StudioEditorContextValue,
-  { onSave }: { onSave: () => void }
+  editor: StudioEditorState,
+  options: StudioShortcutOptions
 ) {
-  const latest = useRef({ editor, onSave });
+  const latest = useRef({ editor, options });
   useEffect(() => {
-    latest.current = { editor, onSave };
-  }, [editor, onSave]);
+    latest.current = { editor, options };
+  }, [editor, options]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      const { editor: current, onSave: save } = latest.current;
+      const {
+        editor: { actions: current, selection: selectionState, settings },
+        options: { onSave: save, presenting = false, onTogglePresent },
+      } = latest.current;
+      const { selection, selectedIds } = selectionState;
       const mod = event.metaKey || event.ctrlKey;
       const key = event.key.toLowerCase();
 
@@ -35,6 +55,30 @@ export function useStudioKeyboardShortcuts(
         return;
       }
       if (isTypingTarget(event.target)) return;
+
+      if (mod && event.shiftKey && !event.altKey && key === "f") {
+        event.preventDefault();
+        toggleStudioFullscreen();
+        return;
+      }
+      if (presenting) {
+        // Present is a read-only walkthrough: only view keys apply.
+        if (mod || event.altKey) return;
+        if (event.key === "Escape") {
+          if (getCeilingPlacement()) {
+            disarmCeilingPlacement();
+            return;
+          }
+          if (!ceilingPlacementJustDisarmed() && !event.defaultPrevented) {
+            onTogglePresent?.();
+          }
+          return;
+        }
+        if (key === "p") onTogglePresent?.();
+        else if (key === "f") current.sendCanvasCommand({ type: "fit" });
+        else if (event.key === "?") current.setShortcutsOpen(true);
+        return;
+      }
 
       if (mod && key === "z") {
         event.preventDefault();
@@ -69,11 +113,25 @@ export function useStudioKeyboardShortcuts(
       if (mod || event.altKey) return;
 
       if (event.key === "Escape") {
+        if (getCeilingPlacement()) {
+          disarmCeilingPlacement();
+          return;
+        }
+        if (ceilingPlacementJustDisarmed()) return;
+        if (
+          !selection &&
+          selectedIds.length === 0 &&
+          !event.defaultPrevented &&
+          getStudioFullscreenMode() === "focus"
+        ) {
+          exitStudioFullscreen();
+          return;
+        }
         current.select(null);
         return;
       }
       if (event.key === "Delete" || event.key === "Backspace") {
-        if (current.selectedIds.length > 0) {
+        if (selectedIds.length > 0) {
           event.preventDefault();
           current.commands.remove();
         }
@@ -81,12 +139,12 @@ export function useStudioKeyboardShortcuts(
       }
       if (event.key.startsWith("Arrow")) {
         if (isStudioWalkActive()) return;
-        if (current.selectedIds.length === 0) return;
+        if (selectedIds.length === 0) return;
         event.preventDefault();
         const step = event.shiftKey
           ? 1
-          : current.settings.snapEnabled
-            ? current.settings.snapIncrement
+          : settings.snapEnabled
+            ? settings.snapIncrement
             : 6;
         const dx =
           event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0;
@@ -96,9 +154,9 @@ export function useStudioKeyboardShortcuts(
         return;
       }
       if (key === "r") {
-        if (current.selectedIds.length === 0) return;
+        if (selectedIds.length === 0) return;
         event.preventDefault();
-        const step = current.settings.rotationSnap || 15;
+        const step = settings.rotationSnap || 15;
         current.commands.rotate(event.shiftKey ? -step : step);
         return;
       }
@@ -111,11 +169,15 @@ export function useStudioKeyboardShortcuts(
         return;
       }
       if (key === "g") {
-        current.updateSettings({ snapEnabled: !current.settings.snapEnabled });
+        current.updateSettings({ snapEnabled: !settings.snapEnabled });
         return;
       }
       if (key === "f") {
         current.sendCanvasCommand({ type: "fit" });
+        return;
+      }
+      if (key === "p") {
+        onTogglePresent?.();
         return;
       }
       if (key === "1") current.setViewMode("2d");

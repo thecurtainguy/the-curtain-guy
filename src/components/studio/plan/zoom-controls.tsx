@@ -25,7 +25,7 @@ export function PlanZoomControls({
 }) {
   return (
     <div
-      className="pointer-events-auto flex items-center gap-0.5 rounded-2xl border border-border/60 bg-background/85 p-1 shadow-lg backdrop-blur"
+      className="pointer-events-auto flex items-center gap-0.5 rounded-2xl border border-border/60 bg-background/95 p-1 shadow-lg"
       role="toolbar"
       aria-label="Plan zoom"
     >

@@ -631,6 +631,25 @@ export const MAT = {
     ),
 } as const;
 
+/**
+ * Petals for a whole palette in one draw: blossom colours come from vertex
+ * colours, the sheen from the palette's average (they are all near-white).
+ */
+export function petalMixMaterial(colors: readonly string[]) {
+  return cachedMaterial(`petal-mix:${colors.join(",")}`, () => {
+    const average = new THREE.Color(0, 0, 0);
+    for (const hex of colors) average.add(new THREE.Color(hex));
+    average.multiplyScalar(1 / Math.max(1, colors.length));
+    return new THREE.MeshPhysicalMaterial({
+      color: "#ffffff",
+      vertexColors: true,
+      roughness: 0.68,
+      sheen: 0.7,
+      sheenColor: average.lerp(new THREE.Color("#ffffff"), 0.6),
+    });
+  });
+}
+
 /** Floor-length table linen: soft woven fabric with a satin-like sheen. */
 export function linenMaterial(color: DrapeColor | string) {
   const hex = color.startsWith("#") ? color : getDrapeColorHex(color);

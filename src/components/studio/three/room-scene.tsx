@@ -3,27 +3,29 @@
 import { useThree } from "@react-three/fiber";
 import { getStudioMaterials, type StudioDesignJson } from "@/data/studio";
 import { getStudioBounds } from "@/lib/studio-geometry";
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import {
   DEFAULT_STUDIO_EDITOR_SETTINGS,
-  useOptionalStudioEditor,
+  useOptionalStudioSettings,
 } from "../editor/studio-editor-context";
 import type { StudioSelection } from "../studio-types";
 import { StudioCameraControls } from "./camera-controls";
 import { StudioCeilingDrapes } from "./ceiling";
 import { StudioDrapes } from "./drapes";
-import { getStudioQualityPreset } from "./engine-quality";
+import { getStudioQualityPreset, usesStudioComposer } from "./engine-quality";
 import { LIGHTING_MOODS } from "./lighting-moods";
 import { StudioManipulationLayer } from "./manipulation-layer";
 import { StudioObjects } from "./objects";
+import { governStudioPreset, useStudioGovernor } from "./perf-governor";
 import { StudioPostProcessing } from "./post-processing";
 import { StudioSceneEnvironment } from "./scene-environment";
 import { StudioSceneLighting } from "./scene-lighting";
+import { requestStudioShadowUpdate } from "./shadow-refresh";
 import { StudioTreatments } from "./treatments";
 import { StudioVenue } from "./venue";
 import { useCameraInsideRoom } from "./venue/camera-inside-store";
 
-export function RoomScene({
+export const RoomScene = memo(function RoomScene({
   design,
   selection,
   onSelect,
@@ -38,11 +40,17 @@ export function RoomScene({
     () => getStudioBounds(design.room.floor),
     [design.room.floor]
   );
-  const editor = useOptionalStudioEditor();
-  const settings = editor?.settings ?? DEFAULT_STUDIO_EDITOR_SETTINGS;
+  const settings = useOptionalStudioSettings() ?? DEFAULT_STUDIO_EDITOR_SETTINGS;
   const preset = getStudioQualityPreset(settings.quality);
+  const { shadowHalf } = useStudioGovernor();
+  /* Only the lighting sees the governed preset; the composer reads governor flags per frame. */
+  const lightingPreset = useMemo(
+    () => governStudioPreset(preset, { shadowHalf }),
+    [preset, shadowHalf]
+  );
   const materials = getStudioMaterials(design);
   const mood = materials.lighting;
+  const gl = useThree((state) => state.gl);
   const invalidate = useThree((state) => state.invalidate);
   const inside = useCameraInsideRoom();
   const moodBloom = LIGHTING_MOODS[mood].bloom;
@@ -59,9 +67,11 @@ export function RoomScene({
     [inside, moodBloom]
   );
 
+  /* Parent effects run after the lighting/content effects, so the map re-renders with their changes. */
   useEffect(() => {
+    requestStudioShadowUpdate(gl);
     invalidate();
-  }, [darkTheme, design, invalidate, selection, settings]);
+  }, [darkTheme, design, gl, inside, invalidate, lightingPreset, selection, settings]);
 
   return (
     <>
@@ -75,7 +85,7 @@ export function RoomScene({
         design={design}
         bounds={bounds}
         mood={mood}
-        preset={preset}
+        preset={lightingPreset}
         layers={settings.layers}
       />
 
@@ -107,7 +117,7 @@ export function RoomScene({
       />
       <StudioManipulationLayer design={design} bounds={bounds} />
       <StudioCameraControls design={design} bounds={bounds} />
-      {preset.bloom || preset.ao || preset.smaa ? (
+      {usesStudioComposer(preset) ? (
         <StudioPostProcessing
           preset={preset}
           bloom={bloom}
@@ -115,4 +125,4 @@ export function RoomScene({
       ) : null}
     </>
   );
-}
+});

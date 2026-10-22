@@ -1,16 +1,25 @@
 "use client";
 
 import { useThree, type ThreeEvent } from "@react-three/fiber";
-import type { StudioDesignJson, StudioObject } from "@/data/studio";
+import {
+  getCeilingDrapes,
+  type StudioCeilingDrape,
+  type StudioDesignJson,
+  type StudioObject,
+} from "@/data/studio";
 import {
   getWallSegments,
   type StudioBounds,
 } from "@/lib/studio-geometry";
 import { getStudioObjectCorners } from "@/lib/studio-interactions";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useCeilingPlacement } from "../editor/ceiling-placement-store";
+import { useStudioHoveredId } from "../editor/hover-store";
 import {
-  useOptionalStudioEditor,
-  type StudioEditorContextValue,
+  useOptionalStudioEditorActions,
+  useStudioSelection,
+  useStudioSettings,
+  type StudioEditorActions,
 } from "../editor/studio-editor-context";
 import type { StudioSelection } from "../studio-types";
 import {
@@ -57,6 +66,14 @@ import {
   type ClaimOptions,
 } from "./manipulation/use-manipulation-controllers";
 import type { DragHandlers } from "./manipulation/use-drag-session";
+import { CeilingGizmos } from "./manipulation/ceiling/ceiling-gizmos";
+import { CeilingPlacement } from "./manipulation/ceiling/ceiling-placement";
+import {
+  CeilingOutline,
+  CeilingProxy,
+  getCachedCeilingLayout,
+} from "./manipulation/ceiling/ceiling-proxies";
+import { useCeilingControllers } from "./manipulation/ceiling/use-ceiling-controllers";
 
 const WALL_ITEM_KINDS: WallItemKind[] = ["drape", "treatment", "opening"];
 /** Touch long-press (ms) that grabs an unselected item instead of the camera. */
@@ -79,34 +96,30 @@ const LAYER_FOR_KIND: Record<
  * Invisible pick proxies + gizmos for selecting, dragging, rotating and
  * sliding items directly in the 3D scene.
  */
-export function StudioManipulationLayer(props: {
+export const StudioManipulationLayer = memo(function StudioManipulationLayer(props: {
   design: StudioDesignJson;
   bounds: StudioBounds;
 }) {
-  const editor = useOptionalStudioEditor();
-  if (!editor) return null;
-  return <ManipulationLayer {...props} editor={editor} />;
-}
+  const actions = useOptionalStudioEditorActions();
+  if (!actions) return null;
+  return <ManipulationLayer {...props} actions={actions} />;
+});
 
 function ManipulationLayer({
   design,
   bounds,
-  editor,
+  actions,
 }: {
   design: StudioDesignJson;
   bounds: StudioBounds;
-  editor: StudioEditorContextValue;
+  actions: StudioEditorActions;
 }) {
   const invalidate = useThree((state) => state.invalidate);
   const { start: rawStartSession, setCursor } = useDragSession();
-  const {
-    settings,
-    selectedIds,
-    select,
-    hoveredId,
-    setHoveredId,
-    sendCanvasCommand,
-  } = editor;
+  const settings = useStudioSettings();
+  const { selectedIds } = useStudioSelection();
+  const { select, setHoveredId, sendCanvasCommand } = actions;
+  const hoveredId = useStudioHoveredId();
   const cameraMode = useStudioCameraMode();
 
   const floor = design.room.floor;
@@ -126,11 +139,9 @@ function ManipulationLayer({
     if (current.type === "gizmo") return current.cursor;
     const { target } = current;
     const selected = selectedIdsRef.current.includes(target.id);
-    if (isInteriorMode(getStudioCameraMode())) {
-      if (!selected) return "pointer";
-      return target.locked ? "not-allowed" : "grab";
-    }
-    return target.locked ? "not-allowed" : "grab";
+    if (isInteriorMode(getStudioCameraMode()) && !selected) return "pointer";
+    if (target.locked) return "not-allowed";
+    return target.movable === false ? "pointer" : "grab";
   }, []);
 
   const startSession = useCallback(
@@ -144,15 +155,29 @@ function ManipulationLayer({
     bounds,
     walls,
     frames,
-    editor,
+    actions,
+    settings,
+    selectedIds,
     startSession,
+  });
+  const ceilingControllers = useCeilingControllers({
+    design,
+    bounds,
+    preview: actions.preview,
+    settings,
+    selectedIds,
+    startSession,
+    gesture: controllers.gesture,
   });
   const { overlay, isDragging } = controllers;
   const mode = overlay?.mode ?? null;
+  /* "Place on ceiling" armed: presses look around, clicks place. */
+  const placement = useCeilingPlacement();
+  const armed = placement !== null;
 
   useEffect(() => {
     invalidate();
-  }, [invalidate, overlay, selectedIds, hoveredId]);
+  }, [armed, invalidate, overlay, selectedIds, hoveredId]);
 
   useEffect(() => {
     selectedIdsRef.current = selectedIds;
@@ -172,12 +197,12 @@ function ManipulationLayer({
     if (!isDragging()) setCursor(cursor);
   };
 
-  const proxyEvents: ProxyEvents = {
+  const latestProxyEvents: ProxyEvents = {
     onHover: (target: ProxyTarget | null) => {
       hover.current = target ? { type: "proxy", target } : null;
       if (isDragging()) return;
       setHoveredId(target?.id ?? null);
-      setCursor(resolveCursor());
+      if (!armed) setCursor(resolveCursor());
     },
     onClick: (event, target) => {
       if (event.delta > 4) return;
@@ -196,7 +221,7 @@ function ManipulationLayer({
      */
     onPointerDown: (event: ThreeEvent<PointerEvent>, target) => {
       const native = event.nativeEvent;
-      if (native.button !== 0 || target.locked) return false;
+      if (native.button !== 0 || target.locked || armed) return false;
       if (settings.tool !== "select") return false;
       const selected = selectedIds.includes(target.id);
       const interior = isInteriorMode(getStudioCameraMode());
@@ -210,6 +235,9 @@ function ManipulationLayer({
         claim = { threshold: 0 };
       }
       if (!claim) return false;
+      if (target.kind === "ceiling") {
+        return ceilingControllers.startCeilingDrag(event, target.id, claim);
+      }
       if (target.kind === "object") {
         controllers.startObjectDrag(event, target.id, claim);
       } else {
@@ -218,6 +246,22 @@ function ManipulationLayer({
       return true;
     },
   };
+  /* Proxies are memoized; hand them one stable object that forwards to this render's handlers. */
+  const proxyEventsRef = useRef(latestProxyEvents);
+  useLayoutEffect(() => {
+    proxyEventsRef.current = latestProxyEvents;
+  });
+  const proxyEvents = useMemo<ProxyEvents>(
+    () => ({
+      onHover: (target) => proxyEventsRef.current.onHover(target),
+      onClick: (event, target) => proxyEventsRef.current.onClick(event, target),
+      onDoubleClick: (event, target) =>
+        proxyEventsRef.current.onDoubleClick(event, target),
+      onPointerDown: (event, target) =>
+        proxyEventsRef.current.onPointerDown(event, target),
+    }),
+    []
+  );
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const visibleObjects = settings.layers.objects
@@ -314,8 +358,26 @@ function ManipulationLayer({
         ]
       : null;
 
+  const ceilingEntries = settings.layers.ceiling
+    ? getCeilingDrapes(design)
+        .filter((drape) => !drape.hidden)
+        .map((drape) => ({ drape, layout: getCachedCeilingLayout(drape, floor) }))
+    : [];
+  const singleCeiling =
+    selectedIds.length === 1
+      ? (ceilingEntries.find(
+          (entry) => entry.drape.id === selectedIds[0] && !entry.drape.locked
+        ) ?? null)
+      : null;
+  const ceilingHighlight = (drape: StudioCeilingDrape) =>
+    selectedSet.has(drape.id)
+      ? "selected"
+      : hoveredId === drape.id && !overlay
+        ? "hover"
+        : null;
+
   const showGizmo = (gizmo: "rotate" | "resize" | "elevate" | "span") =>
-    mode === null || mode === gizmo;
+    !armed && (mode === null || mode === gizmo);
 
   return (
     <group name="studio-manipulation">
@@ -350,6 +412,30 @@ function ManipulationLayer({
               })
           : []
       )}
+      {ceilingEntries.map(({ drape, layout }) => (
+        <CeilingProxy
+          key={drape.id}
+          drape={drape}
+          layout={layout}
+          bounds={bounds}
+          wallHeight={wallHeight}
+          events={proxyEvents}
+        />
+      ))}
+
+      {/* Ceiling coverage outlines (selected / hovered) */}
+      {ceilingEntries.map(({ drape, layout }) => {
+        const variant = ceilingHighlight(drape);
+        return variant ? (
+          <CeilingOutline
+            key={`outline-${drape.id}`}
+            outline={layout.outline}
+            bounds={bounds}
+            wallHeight={wallHeight}
+            variant={variant}
+          />
+        ) : null;
+      })}
 
       {/* Multi-selection frame (per-object highlights live in objects.tsx) */}
       {groupRect ? <SelectionBox bounds={bounds} rect={groupRect} /> : null}
@@ -413,12 +499,38 @@ function ManipulationLayer({
         />
       ) : null}
 
+      {singleCeiling && !armed ? (
+        <CeilingGizmos
+          drape={singleCeiling.drape}
+          layout={singleCeiling.layout}
+          bounds={bounds}
+          wallHeight={wallHeight}
+          size={handleSize}
+          overlay={overlay}
+          setCursor={hoverCursor}
+          controllers={ceilingControllers}
+        />
+      ) : null}
+
       {/* Live drag feedback */}
       {overlay?.ghosts?.map((corners, index) => (
         <GhostFootprint key={`ghost-${index}`} bounds={bounds} corners={corners} />
       ))}
+      {overlay?.ceilingGhosts?.map((outline, index) => (
+        <CeilingOutline
+          key={`ceiling-ghost-${index}`}
+          outline={outline}
+          bounds={bounds}
+          wallHeight={wallHeight}
+          variant="ghost"
+        />
+      ))}
       {overlay?.guides && overlay.guides.length > 0 ? (
-        <GuideLines bounds={bounds} guides={overlay.guides} />
+        <GuideLines
+          bounds={bounds}
+          guides={overlay.guides}
+          height={overlay.guidesHeight}
+        />
       ) : null}
       {overlay?.wallGhost ? (
         <WallSpanLine
@@ -440,6 +552,16 @@ function ManipulationLayer({
           position={overlay.readout.position}
           title={overlay.readout.title}
           detail={overlay.readout.detail}
+        />
+      ) : null}
+
+      {placement ? (
+        <CeilingPlacement
+          design={design}
+          bounds={bounds}
+          request={placement}
+          actions={actions}
+          settings={settings}
         />
       ) : null}
     </group>

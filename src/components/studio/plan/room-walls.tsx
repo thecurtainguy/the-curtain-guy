@@ -10,6 +10,7 @@ import {
   getRoomInteriorAngles,
   getWallInwardNormal,
 } from "@/lib/studio-room-editing";
+import { memo } from "react";
 import { uprightAngle } from "./wall-plan-badge";
 
 export type RoomOutlineGeometry = {
@@ -99,8 +100,8 @@ export function getFloorFill(finish: StudioFloorFinish): string {
   return `color-mix(in oklch, var(--card) ${100 - style.mix}%, ${style.tint} ${style.mix}%)`;
 }
 
-/** Floor-finish patterns, wall poché hatch and the selection glow filter. */
-export function RoomDefs({
+/** Floor-finish patterns and the wall poché hatch. */
+export const RoomDefs = memo(function RoomDefs({
   idPrefix,
   finish,
   pixelsPerInch,
@@ -184,25 +185,11 @@ export function RoomDefs({
           <path d="M2 8L3 5M6 4L7 1M8 9L8.6 6.5" stroke={style.line} strokeOpacity={0.35} strokeWidth={hair} />
         </pattern>
       ) : null}
-      <filter
-        id={`${idPrefix}-glow`}
-        x="-20%"
-        y="-20%"
-        width="140%"
-        height="140%"
-        filterUnits="objectBoundingBox"
-      >
-        <feGaussianBlur stdDeviation={3 / pixelsPerInch} result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
     </defs>
   );
-}
+});
 
-export function RoomFloor({
+export const RoomFloor = memo(function RoomFloor({
   floor,
   finish,
   idPrefix,
@@ -229,10 +216,10 @@ export function RoomFloor({
       />
     </g>
   );
-}
+});
 
 /** Architectural walls: poché band between floor edge and mitered outer face. */
-export function WallPoche({
+export const WallPoche = memo(function WallPoche({
   floor,
   geometry,
   idPrefix,
@@ -268,7 +255,7 @@ export function WallPoche({
       />
     </g>
   );
-}
+});
 
 /** Where a wall's dimension line and label sit (outside the wall face). */
 export function getDimensionPlacement(
@@ -291,7 +278,7 @@ export function getDimensionPlacement(
 }
 
 /** CAD-style dimension strings with extension lines and tick marks. */
-export function WallDimensions({
+export const WallDimensions = memo(function WallDimensions({
   geometry,
   thickness,
   labelSize,
@@ -381,7 +368,7 @@ export function WallDimensions({
       })}
     </g>
   );
-}
+});
 
 function rotate(vector: StudioPoint, radians: number): StudioPoint {
   const cos = Math.cos(radians);
@@ -390,7 +377,7 @@ function rotate(vector: StudioPoint, radians: number): StudioPoint {
 }
 
 /** Interior-angle arcs on corners that are not square (or straight). */
-export function CornerAngleMarkers({
+export const CornerAngleMarkers = memo(function CornerAngleMarkers({
   floor,
   angles,
   labelSize,
@@ -464,4 +451,4 @@ export function CornerAngleMarkers({
       })}
     </g>
   );
-}
+});

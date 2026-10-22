@@ -45,7 +45,10 @@ import {
   LoaderCircle,
   Magnet,
   Map as PlanIcon,
+  Maximize2,
   Menu,
+  Minimize2,
+  MonitorPlay,
   MousePointer2,
   PanelRight,
   Redo2,
@@ -61,13 +64,18 @@ import {
   View,
   type LucideIcon,
 } from "lucide-react";
+import { memo } from "react";
 import {
   STUDIO_SNAP_INCREMENTS,
-  useStudioEditor,
+  useStudioEditorActions,
+  useStudioHistory,
+  useStudioSettings,
+  useStudioView,
   type StudioEditorSettings,
   type StudioQuality,
   type StudioTool,
 } from "./editor/studio-editor-context";
+import { preloadStudio3D } from "./studio-3d-lazy";
 import { StudioShortcutsDialog } from "./studio-shortcuts-dialog";
 import type {
   StudioAccessMode,
@@ -89,6 +97,10 @@ type StudioToolbarProps = {
   titleEditable?: boolean;
   eventTypeLabel?: string;
   saveHidden?: boolean;
+  fullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+  presenting?: boolean;
+  onTogglePresent?: () => void;
 };
 
 const VIEW_MODES: Array<{
@@ -101,6 +113,8 @@ const VIEW_MODES: Array<{
   { value: "3d", label: "3D", icon: Box, key: "2" },
   { value: "split", label: "Split", icon: Columns2, key: "3" },
 ];
+
+const warm3D = () => void preloadStudio3D();
 
 const TOOLS: Array<{
   value: StudioTool;
@@ -145,7 +159,8 @@ function slugify(value: string): string {
     .slice(0, 60);
 }
 
-export function StudioToolbar({
+/** Memoized: re-renders on toolbar props, settings, history or view changes — not on drag frames. */
+export const StudioToolbar = memo(function StudioToolbar({
   title,
   onTitleChange,
   viewMode,
@@ -159,20 +174,16 @@ export function StudioToolbar({
   titleEditable = true,
   eventTypeLabel,
   saveHidden = false,
+  fullscreen = false,
+  onToggleFullscreen,
+  presenting = false,
+  onTogglePresent,
 }: StudioToolbarProps) {
-  const editor = useStudioEditor();
-  const {
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    settings,
-    updateSettings,
-    sendCanvasCommand,
-    takeSnapshot,
-    canSnapshot,
-    setShortcutsOpen,
-  } = editor;
+  const { undo, redo, updateSettings, sendCanvasCommand, takeSnapshot, setShortcutsOpen } =
+    useStudioEditorActions();
+  const { canUndo, canRedo } = useStudioHistory();
+  const settings = useStudioSettings();
+  const { canSnapshot } = useStudioView();
   const saving = saveState === "saving";
   const threeVisible = viewMode !== "2d";
   const snapshotReady = threeVisible && canSnapshot;
@@ -246,6 +257,8 @@ export function StudioToolbar({
                       type="button"
                       aria-pressed={active}
                       onClick={() => onViewModeChange(mode.value)}
+                      onPointerEnter={mode.value === "2d" ? undefined : warm3D}
+                      onFocus={mode.value === "2d" ? undefined : warm3D}
                       className={cn(
                         "flex h-7 items-center gap-1 rounded-xl px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
                         active
@@ -325,6 +338,29 @@ export function StudioToolbar({
             </ToolbarGroup>
           ) : null}
 
+          {onTogglePresent || onToggleFullscreen ? (
+            <ToolbarGroup label="Display" className="hidden sm:flex">
+              {onTogglePresent ? (
+                <ToolButton
+                  icon={MonitorPlay}
+                  label={presenting ? "Exit present" : "Present"}
+                  shortcut="P"
+                  active={presenting}
+                  onClick={onTogglePresent}
+                />
+              ) : null}
+              {onToggleFullscreen ? (
+                <ToolButton
+                  icon={fullscreen ? Minimize2 : Maximize2}
+                  label={fullscreen ? "Exit full screen" : "Full screen"}
+                  shortcut="Ctrl ⇧ F"
+                  active={fullscreen}
+                  onClick={onToggleFullscreen}
+                />
+              ) : null}
+            </ToolbarGroup>
+          ) : null}
+
           <ToolButton
             icon={Keyboard}
             label="Keyboard shortcuts"
@@ -350,6 +386,29 @@ export function StudioToolbar({
               <TooltipContent side="bottom">More controls</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="end" className="w-64">
+              {onTogglePresent || onToggleFullscreen ? (
+                <DropdownMenuGroup className="sm:hidden">
+                  <DropdownMenuLabel>Display</DropdownMenuLabel>
+                  {onTogglePresent ? (
+                    <DropdownMenuItem onSelect={onTogglePresent}>
+                      <MonitorPlay aria-hidden="true" />
+                      {presenting ? "Exit present" : "Present"}
+                      <DropdownMenuShortcut>P</DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                  ) : null}
+                  {onToggleFullscreen ? (
+                    <DropdownMenuItem onSelect={onToggleFullscreen}>
+                      {fullscreen ? (
+                        <Minimize2 aria-hidden="true" />
+                      ) : (
+                        <Maximize2 aria-hidden="true" />
+                      )}
+                      {fullscreen ? "Exit full screen" : "Full screen"}
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuSeparator />
+                </DropdownMenuGroup>
+              ) : null}
               <DropdownMenuGroup className="md:hidden">
                 <DropdownMenuLabel>Tool</DropdownMenuLabel>
                 <DropdownMenuRadioGroup
@@ -547,7 +606,7 @@ export function StudioToolbar({
       <StudioShortcutsDialog />
     </TooltipProvider>
   );
-}
+});
 
 function ToolbarGroup({
   label,
@@ -637,7 +696,8 @@ function Kbd({ children }: { children: React.ReactNode }) {
 }
 
 function SnapPopover() {
-  const { settings, updateSettings } = useStudioEditor();
+  const settings = useStudioSettings();
+  const { updateSettings } = useStudioEditorActions();
   return (
     <Popover>
       <Tooltip>
@@ -829,7 +889,8 @@ function SwitchTrack({ checked }: { checked: boolean }) {
 }
 
 function QualityMenu() {
-  const { settings, updateSettings } = useStudioEditor();
+  const settings = useStudioSettings();
+  const { updateSettings } = useStudioEditorActions();
   const current = QUALITIES.find((quality) => quality.value === settings.quality);
   return (
     <DropdownMenu>

@@ -24,7 +24,10 @@ import {
 } from "@/lib/studio-interactions";
 import { useCallback, useRef, useState } from "react";
 import * as THREE from "three";
-import type { StudioEditorContextValue } from "../../editor/studio-editor-context";
+import type {
+  StudioEditorActions,
+  StudioEditorSettings,
+} from "../../editor/studio-editor-context";
 import type { StudioSelection } from "../../studio-types";
 import {
   CIRCULAR_OBJECT_TYPES,
@@ -64,12 +67,20 @@ export type ManipulationMode =
   | "resize"
   | "elevate"
   | "slide"
-  | "span";
+  | "span"
+  | "hub"
+  | "drop";
 
 export type ManipulationOverlay = {
   mode: ManipulationMode;
   ghosts?: StudioPoint[][];
   guides?: GuideLine[];
+  /** World y (feet) for `guides`; floor when omitted. */
+  guidesHeight?: number;
+  /** Ceiling outlines where the dragged designs started (plan inches). */
+  ceilingGhosts?: StudioPoint[][];
+  /** Which of several same-mode grips is being dragged (e.g. a drop field). */
+  activeHandle?: string;
   wallGhost?: [StudioPoint, StudioPoint];
   targetWall?: [StudioPoint, StudioPoint];
   /** Live group-rotation knob angle (radians). */
@@ -90,10 +101,17 @@ const RESIZE_HANDLES: StudioResizeHandle[] = [
   "south_west",
 ];
 
-type StartSession = (
+export type StartSession = (
   event: ThreeEvent<PointerEvent>,
   handlers: DragHandlers
 ) => void;
+
+/** Shared gesture plumbing handed to sibling controllers (ceiling). */
+export type GestureApi = {
+  begin: (initial: ManipulationOverlay, selection?: StudioSelection) => void;
+  finish: (commit: boolean) => void;
+  setOverlay: (overlay: ManipulationOverlay | null) => void;
+};
 
 /** How a proxy drag claims the pointer (threshold / long-press). */
 export type ClaimOptions = Pick<DragHandlers, "threshold" | "holdToClaim">;
@@ -120,27 +138,24 @@ export function useManipulationControllers({
   bounds,
   walls,
   frames,
-  editor,
+  actions,
+  settings,
+  selectedIds,
   startSession,
 }: {
   design: StudioDesignJson;
   bounds: StudioBounds;
   walls: StudioWallSegment[];
   frames: WallFrame[];
-  editor: StudioEditorContextValue;
+  actions: StudioEditorActions;
+  settings: StudioEditorSettings;
+  selectedIds: string[];
   startSession: StartSession;
 }) {
   const [overlay, setOverlay] = useState<ManipulationOverlay | null>(null);
   const dragging = useRef(false);
-  const {
-    settings,
-    selectedIds,
-    select,
-    beginTransaction,
-    preview,
-    endTransaction,
-    cancelTransaction,
-  } = editor;
+  const { select, beginTransaction, preview, endTransaction, cancelTransaction } =
+    actions;
   const wallHeight = design.room.wallHeight;
   const increment = Math.max(1, settings.snapIncrement);
 
@@ -684,9 +699,16 @@ export function useManipulationControllers({
     });
   };
 
+  const gesture: GestureApi = {
+    begin: beginGesture,
+    finish: finishGesture,
+    setOverlay,
+  };
+
   return {
     overlay,
     isDragging,
+    gesture,
     startObjectDrag,
     startWallDrag,
     startRotate,

@@ -28,6 +28,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -35,6 +36,8 @@ import {
   useState,
 } from "react";
 import type { StudioSelection, StudioViewMode } from "../studio-types";
+import { getRecommendedStudioQuality } from "../three/device-tier";
+import { setStudioHoveredId } from "./hover-store";
 
 export type StudioQuality = "draft" | "high" | "ultra";
 export type StudioTool = "select" | "pan" | "measure";
@@ -71,6 +74,12 @@ export type StudioEditorSettings = {
   showSeating: boolean;
   layers: Record<StudioLayerKey, boolean>;
   quality: StudioQuality;
+  /**
+   * True once the user picked a quality. Until then `quality` follows the
+   * device tier on every load. `updateSettings({ quality })` sets it unless
+   * the patch passes `qualityExplicit: false` (automatic adjustments).
+   */
+  qualityExplicit?: boolean;
   tool: StudioTool;
   /** 3D: slowly orbit the room. */
   autoRotate: boolean;
@@ -98,6 +107,8 @@ export const DEFAULT_STUDIO_EDITOR_SETTINGS: StudioEditorSettings = {
 };
 
 export const STUDIO_SNAP_INCREMENTS = [1, 3, 6, 12, 24] as const;
+
+const STUDIO_QUALITIES: readonly StudioQuality[] = ["draft", "high", "ultra"];
 
 export type StudioCanvasCommand =
   | { type: "fit"; nonce: number }
@@ -135,10 +146,15 @@ export type StudioEditorCommands = {
   selectAll: () => void;
 };
 
-export type StudioEditorContextValue = {
-  design: StudioDesignJson;
+export type StudioCommitOptions = {
+  /** Commits with the same key within 450 ms merge into one undo step. */
+  coalesceKey?: string;
+};
+
+/** Every callback is identity-stable for the lifetime of the Studio. */
+export type StudioEditorActions = {
   /** Records an undoable change. Rapid successive commits coalesce. */
-  commit: (next: StudioDesignJson, options?: { coalesceKey?: string }) => void;
+  commit: (next: StudioDesignJson, options?: StudioCommitOptions) => void;
   /** Start a gesture (drag). Use `preview` during it, then `endTransaction`. */
   beginTransaction: () => void;
   /** Applies a change without creating history (during a transaction). */
@@ -149,50 +165,95 @@ export type StudioEditorContextValue = {
   cancelTransaction: () => void;
   undo: () => void;
   redo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
+  select: (selection: StudioSelection, options?: StudioSelectOptions) => void;
+  selectIds: (ids: string[]) => void;
+  /** Writes the hover store (`editor/hover-store.ts`); read hover via its hooks. */
+  setHoveredId: (id: string | null) => void;
+  updateSettings: (patch: Partial<StudioEditorSettings>) => void;
+  toggleLayer: (layer: StudioLayerKey) => void;
+  setViewMode: (mode: StudioViewMode) => void;
+  sendCanvasCommand: (command: CanvasCommandInput) => void;
+  /** The 3D viewer registers a capture function; returns a PNG data URL. */
+  registerSnapshot: (capture: (() => string | null) | null) => void;
+  takeSnapshot: () => string | null;
+  setShortcutsOpen: (open: boolean) => void;
+  commands: StudioEditorCommands;
+  /** Latest design, including in-flight previews. For handlers only — not render. */
+  getDesign: () => StudioDesignJson;
+};
 
+export type StudioSelectionState = {
   /** Primary selection — drives the inspector. */
   selection: StudioSelection;
   /** Every selected item id (objects, drapes, treatments, openings). */
   selectedIds: string[];
-  select: (selection: StudioSelection, options?: StudioSelectOptions) => void;
-  selectIds: (ids: string[]) => void;
+  /** Changes identity with `selectedIds`. */
   isSelected: (id: string) => boolean;
-  hoveredId: string | null;
-  setHoveredId: (id: string | null) => void;
+};
 
-  settings: StudioEditorSettings;
-  updateSettings: (patch: Partial<StudioEditorSettings>) => void;
-  toggleLayer: (layer: StudioLayerKey) => void;
+export type StudioHistoryState = {
+  canUndo: boolean;
+  canRedo: boolean;
+};
 
+export type StudioViewState = {
   viewMode: StudioViewMode;
-  setViewMode: (mode: StudioViewMode) => void;
-
-  canvasCommand: StudioCanvasCommand | null;
-  sendCanvasCommand: (command: CanvasCommandInput) => void;
-
-  /** The 3D viewer registers a capture function; returns a PNG data URL. */
-  registerSnapshot: (capture: (() => string | null) | null) => void;
-  takeSnapshot: () => string | null;
   canSnapshot: boolean;
-
   shortcutsOpen: boolean;
-  setShortcutsOpen: (open: boolean) => void;
+};
 
-  commands: StudioEditorCommands;
+/** Everything at once. Changes identity on every design/selection/settings change. */
+export type StudioEditorContextValue = StudioEditorActions &
+  StudioSelectionState &
+  StudioHistoryState &
+  StudioViewState & {
+    /** A gesture (drag/dial) is in flight: `beginTransaction`/`preview` until end/cancel. */
+    transacting: boolean;
+    design: StudioDesignJson;
+    settings: StudioEditorSettings;
+    canvasCommand: StudioCanvasCommand | null;
+  };
+
+/** Returned by `useStudioEditorState`; pass to `StudioEditorProvider`. */
+export type StudioEditorState = {
+  full: StudioEditorContextValue;
+  actions: StudioEditorActions;
+  design: StudioDesignJson;
+  selection: StudioSelectionState;
+  settings: StudioEditorSettings;
+  history: StudioHistoryState;
+  transacting: boolean;
+  view: StudioViewState;
+  canvasCommand: StudioCanvasCommand | null;
 };
 
 const StudioEditorContext = createContext<StudioEditorContextValue | null>(
   null
 );
+const StudioActionsContext = createContext<StudioEditorActions | null>(null);
+const StudioDesignContext = createContext<StudioDesignJson | null>(null);
+const StudioSelectionContext = createContext<StudioSelectionState | null>(null);
+const StudioSettingsContext = createContext<StudioEditorSettings | null>(null);
+const StudioHistoryContext = createContext<StudioHistoryState | null>(null);
+const StudioTransactingContext = createContext(false);
+const StudioViewContext = createContext<StudioViewState | null>(null);
+const StudioCanvasCommandContext = createContext<StudioCanvasCommand | null>(
+  null
+);
 
-export function useStudioEditor(): StudioEditorContextValue {
-  const value = useContext(StudioEditorContext);
-  if (!value) {
-    throw new Error("useStudioEditor must be used inside StudioEditorProvider");
+function required<T>(value: T | null, hook: string): T {
+  if (value === null) {
+    throw new Error(`${hook} must be used inside StudioEditorProvider`);
   }
   return value;
+}
+
+/**
+ * The whole editor. Re-renders on every design preview (each drag frame) —
+ * prefer the narrow hooks below in anything that is not the canvas.
+ */
+export function useStudioEditor(): StudioEditorContextValue {
+  return required(useContext(StudioEditorContext), "useStudioEditor");
 }
 
 /** For components that also render outside the Studio (e.g. event builder). */
@@ -200,7 +261,167 @@ export function useOptionalStudioEditor(): StudioEditorContextValue | null {
   return useContext(StudioEditorContext);
 }
 
-export const StudioEditorProvider = StudioEditorContext.Provider;
+/** Stable callbacks only — never re-renders the caller. */
+export function useStudioEditorActions(): StudioEditorActions {
+  return required(useContext(StudioActionsContext), "useStudioEditorActions");
+}
+
+export function useOptionalStudioEditorActions(): StudioEditorActions | null {
+  return useContext(StudioActionsContext);
+}
+
+/** Live design; re-renders on every drag frame. */
+export function useStudioDesign(): StudioDesignJson {
+  return required(useContext(StudioDesignContext), "useStudioDesign");
+}
+
+/** Re-renders only when the selection changes. */
+export function useStudioSelection(): StudioSelectionState {
+  return required(useContext(StudioSelectionContext), "useStudioSelection");
+}
+
+export function useOptionalStudioSelection(): StudioSelectionState | null {
+  return useContext(StudioSelectionContext);
+}
+
+/** Re-renders only when settings change. */
+export function useStudioSettings(): StudioEditorSettings {
+  return required(useContext(StudioSettingsContext), "useStudioSettings");
+}
+
+export function useOptionalStudioSettings(): StudioEditorSettings | null {
+  return useContext(StudioSettingsContext);
+}
+
+/** Undo/redo availability. */
+export function useStudioHistory(): StudioHistoryState {
+  return required(useContext(StudioHistoryContext), "useStudioHistory");
+}
+
+/** True while a gesture (drag, dial) is in flight; false outside the Studio. */
+export function useStudioTransacting(): boolean {
+  return useContext(StudioTransactingContext);
+}
+
+/** View mode, snapshot availability, shortcuts dialog. */
+export function useStudioView(): StudioViewState {
+  return required(useContext(StudioViewContext), "useStudioView");
+}
+
+export function useOptionalStudioView(): StudioViewState | null {
+  return useContext(StudioViewContext);
+}
+
+/** Latest canvas command (fit, zoom, camera…); null until one is sent. */
+export function useStudioCanvasCommand(): StudioCanvasCommand | null {
+  return useContext(StudioCanvasCommandContext);
+}
+
+const RAIL_SAMPLE_MS = 125;
+
+/**
+ * Design for side panels. Live normally; while a gesture is in flight it is
+ * sampled ~8×/s and deferred, so drags never wait on rails/inspectors yet
+ * their readouts keep moving. Call in a thin wrapper and pass the result to a
+ * memoized child — the wrapper itself still renders every frame.
+ */
+export function useStudioRailDesign(design: StudioDesignJson): StudioDesignJson {
+  const transacting = useContext(StudioTransactingContext);
+  const latest = useRef(design);
+  useEffect(() => {
+    latest.current = design;
+  }, [design]);
+  const [sampled, setSampled] = useState(design);
+  const [sampling, setSampling] = useState(transacting);
+  if (sampling !== transacting) {
+    setSampling(transacting);
+    if (transacting) setSampled(design);
+  }
+  useEffect(() => {
+    if (!transacting) return;
+    const timer = window.setInterval(
+      () => setSampled(latest.current),
+      RAIL_SAMPLE_MS
+    );
+    return () => window.clearInterval(timer);
+  }, [transacting]);
+  const deferred = useDeferredValue(transacting ? sampled : design);
+  return transacting ? deferred : design;
+}
+
+const NO_IDS: string[] = [];
+const ignore = () => {};
+const PRESENT_SELECTION: StudioSelectionState = {
+  selection: null,
+  selectedIds: NO_IDS,
+  isSelected: () => false,
+};
+
+/**
+ * Provides the full context plus the narrow slices. `presenting` turns the
+ * Studio into a read-only walkthrough: no selection, hover or drag tool.
+ */
+export function StudioEditorProvider({
+  state,
+  presenting = false,
+  children,
+}: {
+  state: StudioEditorState;
+  presenting?: boolean;
+  children: React.ReactNode;
+}) {
+  const full = useMemo<StudioEditorContextValue>(
+    () =>
+      presenting
+        ? {
+            ...state.full,
+            ...PRESENT_SELECTION,
+            select: ignore,
+            selectIds: ignore,
+            setHoveredId: ignore,
+            settings: { ...state.full.settings, tool: "pan" },
+          }
+        : state.full,
+    [presenting, state.full]
+  );
+  const actions = useMemo<StudioEditorActions>(
+    () =>
+      presenting
+        ? {
+            ...state.actions,
+            select: ignore,
+            selectIds: ignore,
+            setHoveredId: ignore,
+          }
+        : state.actions,
+    [presenting, state.actions]
+  );
+  const settings = useMemo<StudioEditorSettings>(
+    () => (presenting ? { ...state.settings, tool: "pan" } : state.settings),
+    [presenting, state.settings]
+  );
+  const selection = presenting ? PRESENT_SELECTION : state.selection;
+
+  return (
+    <StudioActionsContext value={actions}>
+      <StudioSettingsContext value={settings}>
+        <StudioViewContext value={state.view}>
+          <StudioHistoryContext value={state.history}>
+            <StudioTransactingContext value={state.transacting}>
+              <StudioSelectionContext value={selection}>
+                <StudioCanvasCommandContext value={state.canvasCommand}>
+                  <StudioDesignContext value={state.design}>
+                    <StudioEditorContext value={full}>{children}</StudioEditorContext>
+                  </StudioDesignContext>
+                </StudioCanvasCommandContext>
+              </StudioSelectionContext>
+            </StudioTransactingContext>
+          </StudioHistoryContext>
+        </StudioViewContext>
+      </StudioSettingsContext>
+    </StudioActionsContext>
+  );
+}
 
 const SETTINGS_STORAGE_KEY = "tcg-studio-editor-settings-v1";
 const HISTORY_LIMIT = 120;
@@ -208,10 +429,24 @@ const COALESCE_MS = 450;
 
 function loadSettings(): StudioEditorSettings {
   if (typeof window === "undefined") return DEFAULT_STUDIO_EDITOR_SETTINGS;
+  const recommended = (): StudioEditorSettings => ({
+    ...DEFAULT_STUDIO_EDITOR_SETTINGS,
+    quality: getRecommendedStudioQuality(),
+    qualityExplicit: false,
+  });
   try {
     const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) return DEFAULT_STUDIO_EDITOR_SETTINGS;
+    if (!raw) return recommended();
     const parsed = JSON.parse(raw) as Partial<StudioEditorSettings>;
+    const storedQuality =
+      parsed.quality && STUDIO_QUALITIES.includes(parsed.quality)
+        ? parsed.quality
+        : undefined;
+    // Settings saved before `qualityExplicit` existed always held "high" by
+    // default, so only a non-default stored quality proves a user choice.
+    const explicit =
+      storedQuality !== undefined &&
+      (parsed.qualityExplicit ?? storedQuality !== "high");
     return {
       ...DEFAULT_STUDIO_EDITOR_SETTINGS,
       ...parsed,
@@ -219,11 +454,13 @@ function loadSettings(): StudioEditorSettings {
         ...DEFAULT_STUDIO_EDITOR_SETTINGS.layers,
         ...(parsed.layers ?? {}),
       },
+      quality: explicit ? storedQuality : getRecommendedStudioQuality(),
+      qualityExplicit: explicit,
       tool: "select",
       autoRotate: false,
     };
   } catch {
-    return DEFAULT_STUDIO_EDITOR_SETTINGS;
+    return recommended();
   }
 }
 
@@ -243,17 +480,18 @@ function selectionForId(
 
 /**
  * Owns undo/redo, selection, settings and canvas signals for one Studio.
- * `onDesignChange` must be the designer's raw state setter (marks dirty).
+ * `onDesignChange` must be the designer's raw state setter (marks dirty) and
+ * should be identity-stable so the actions stay stable.
  */
 export function useStudioEditorState({
   design,
   onDesignChange,
-  initialViewMode = "3d",
+  initialViewMode = "2d",
 }: {
   design: StudioDesignJson;
   onDesignChange: (next: StudioDesignJson) => void;
   initialViewMode?: StudioViewMode;
-}): StudioEditorContextValue {
+}): StudioEditorState {
   const designRef = useRef(design);
   useLayoutEffect(() => {
     designRef.current = design;
@@ -262,15 +500,19 @@ export function useStudioEditorState({
   const future = useRef<StudioDesignJson[]>([]);
   const lastCommit = useRef<{ at: number; key: string }>({ at: 0, key: "" });
   const transactionBase = useRef<StudioDesignJson | null>(null);
-  const [historyState, setHistoryState] = useState({
+  const [history, setHistoryState] = useState<StudioHistoryState>({
     canUndo: false,
     canRedo: false,
   });
+  const [transacting, setTransacting] = useState(false);
   const bumpHistory = useCallback(
     () =>
-      setHistoryState({
-        canUndo: past.current.length > 0,
-        canRedo: future.current.length > 0,
+      setHistoryState((current) => {
+        const canUndo = past.current.length > 0;
+        const canRedo = future.current.length > 0;
+        return current.canUndo === canUndo && current.canRedo === canRedo
+          ? current
+          : { canUndo, canRedo };
       }),
     []
   );
@@ -287,7 +529,6 @@ export function useStudioEditorState({
     },
     []
   );
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [settings, setSettings] = useState<StudioEditorSettings>(
     DEFAULT_STUDIO_EDITOR_SETTINGS
   );
@@ -327,7 +568,7 @@ export function useStudioEditorState({
     future.current = [];
   }, []);
 
-  const commitRef = useRef<StudioEditorContextValue["commit"] | null>(null);
+  const commitRef = useRef<StudioEditorActions["commit"] | null>(null);
   useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
     const hook = {
@@ -348,7 +589,7 @@ export function useStudioEditorState({
     };
   }, []);
 
-  const commit = useCallback<StudioEditorContextValue["commit"]>(
+  const commit = useCallback<StudioEditorActions["commit"]>(
     (next, options) => {
       const current = designRef.current;
       if (next === current) return;
@@ -377,12 +618,18 @@ export function useStudioEditorState({
   }, [commit]);
 
   const beginTransaction = useCallback(() => {
-    if (!transactionBase.current) transactionBase.current = designRef.current;
+    if (transactionBase.current) return;
+    transactionBase.current = designRef.current;
+    setTransacting(true);
   }, []);
 
   const preview = useCallback(
     (next: StudioDesignJson) => {
-      if (!transactionBase.current) transactionBase.current = designRef.current;
+      if (!transactionBase.current) {
+        transactionBase.current = designRef.current;
+        setTransacting(true);
+      }
+      if (next === designRef.current) return;
       designRef.current = next;
       onDesignChange(next);
     },
@@ -392,6 +639,7 @@ export function useStudioEditorState({
   const endTransaction = useCallback(() => {
     const base = transactionBase.current;
     transactionBase.current = null;
+    setTransacting(false);
     if (base && base !== designRef.current) {
       pushPast(base);
       lastCommit.current = { at: 0, key: "" };
@@ -402,6 +650,7 @@ export function useStudioEditorState({
   const cancelTransaction = useCallback(() => {
     const base = transactionBase.current;
     transactionBase.current = null;
+    setTransacting(false);
     if (base && base !== designRef.current) {
       designRef.current = base;
       onDesignChange(base);
@@ -430,16 +679,16 @@ export function useStudioEditorState({
     bumpHistory();
   }, [bumpHistory, onDesignChange]);
 
-  const select = useCallback<StudioEditorContextValue["select"]>(
+  const select = useCallback<StudioEditorActions["select"]>(
     (next, options) => {
       if (!next) {
         setSelection(null);
-        setSelectedIds([]);
+        setSelectedIds(NO_IDS);
         return;
       }
       if (next.kind === "wall") {
         setSelection(next);
-        setSelectedIds([]);
+        setSelectedIds(NO_IDS);
         return;
       }
       if (options?.additive) {
@@ -455,8 +704,14 @@ export function useStudioEditorState({
         setSelection(next);
         return;
       }
-      setSelection(next);
-      setSelectedIds([next.id]);
+      setSelection((current) =>
+        current && current.kind === next.kind && selectionId(current) === next.id
+          ? current
+          : next
+      );
+      setSelectedIds((current) =>
+        current.length === 1 && current[0] === next.id ? current : [next.id]
+      );
     },
     [setSelectedIds]
   );
@@ -474,6 +729,7 @@ export function useStudioEditorState({
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       setSelectedIds((current) => {
+        if (current.length === 0) return current;
         const filtered = current.filter((id) =>
           Boolean(findStudioItem(design, id))
         );
@@ -501,7 +757,13 @@ export function useStudioEditorState({
 
   const updateSettings = useCallback(
     (patch: Partial<StudioEditorSettings>) =>
-      setSettings((current) => ({ ...current, ...patch })),
+      setSettings((current) => {
+        const next = { ...current, ...patch };
+        if (patch.quality !== undefined && patch.qualityExplicit === undefined) {
+          next.qualityExplicit = true;
+        }
+        return next;
+      }),
     []
   );
 
@@ -528,6 +790,7 @@ export function useStudioEditorState({
     []
   );
   const takeSnapshot = useCallback(() => snapshotRef.current?.() ?? null, []);
+  const getDesign = useCallback(() => designRef.current, []);
 
   const selectionRef = useRef<StudioSelection>(null);
   useLayoutEffect(() => {
@@ -553,7 +816,7 @@ export function useStudioEditorState({
         if (ids.length === 0) return;
         commit(removeStudioItems(designRef.current, ids));
         setSelection(null);
-        setSelectedIds([]);
+        setSelectedIds(NO_IDS);
       },
       nudge(dx, dz) {
         const ids = activeIds();
@@ -618,9 +881,8 @@ export function useStudioEditorState({
     [activeIds, commit, selectIds, setSelectedIds]
   );
 
-  return useMemo<StudioEditorContextValue>(
+  const actions = useMemo<StudioEditorActions>(
     () => ({
-      design,
       commit,
       beginTransaction,
       preview,
@@ -628,57 +890,75 @@ export function useStudioEditorState({
       cancelTransaction,
       undo,
       redo,
-      canUndo: historyState.canUndo,
-      canRedo: historyState.canRedo,
-      selection,
-      selectedIds,
       select,
       selectIds,
-      isSelected,
-      hoveredId,
-      setHoveredId,
-      settings,
+      setHoveredId: setStudioHoveredId,
       updateSettings,
       toggleLayer,
-      viewMode,
       setViewMode,
-      canvasCommand,
       sendCanvasCommand,
       registerSnapshot,
       takeSnapshot,
-      canSnapshot,
-      shortcutsOpen,
       setShortcutsOpen,
       commands,
+      getDesign,
     }),
     [
       beginTransaction,
       cancelTransaction,
-      canSnapshot,
-      canvasCommand,
       commands,
       commit,
-      design,
       endTransaction,
-      historyState,
-      hoveredId,
-      isSelected,
+      getDesign,
       preview,
       redo,
       registerSnapshot,
       select,
       selectIds,
-      selectedIds,
-      selection,
       sendCanvasCommand,
-      settings,
-      shortcutsOpen,
       takeSnapshot,
       toggleLayer,
       undo,
       updateSettings,
-      viewMode,
     ]
+  );
+
+  const selectionState = useMemo<StudioSelectionState>(
+    () => ({ selection, selectedIds, isSelected }),
+    [isSelected, selectedIds, selection]
+  );
+  const view = useMemo<StudioViewState>(
+    () => ({ viewMode, canSnapshot, shortcutsOpen }),
+    [canSnapshot, shortcutsOpen, viewMode]
+  );
+
+  const full = useMemo<StudioEditorContextValue>(
+    () => ({
+      ...actions,
+      ...selectionState,
+      ...history,
+      ...view,
+      transacting,
+      design,
+      settings,
+      canvasCommand,
+    }),
+    [actions, canvasCommand, design, history, selectionState, settings, transacting, view]
+  );
+
+  return useMemo<StudioEditorState>(
+    () => ({
+      full,
+      actions,
+      design,
+      selection: selectionState,
+      settings,
+      history,
+      transacting,
+      view,
+      canvasCommand,
+    }),
+    [actions, canvasCommand, design, full, history, selectionState, settings, transacting, view]
   );
 }
 

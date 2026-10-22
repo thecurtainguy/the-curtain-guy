@@ -18,6 +18,9 @@ function tiled(texture: THREE.CanvasTexture, tileFeet: number) {
   return texture;
 }
 
+/** Anisotropy every fabric texture is created with (see `textureWithAnisotropy`). */
+export const FABRIC_TEXTURE_ANISOTROPY = 8;
+
 /** Velvet / velour pile: vertical nap streaks, soft crush blotches, fine grain. */
 function velvetHeight(seed: number, crush: number) {
   const rand = rng(seed);
@@ -146,16 +149,18 @@ function forEachSequin(
   }
 }
 
-function sequinColor(hex: string) {
+/** Greyscale sequin albedo; the material colour supplies the tint. */
+function sequinAlbedo() {
+  const white = "#ffffff";
   return makeCanvas(SEQUIN_PX, SEQUIN_PX, (g, s) => {
-    g.fillStyle = shade(hex, 0.25);
+    g.fillStyle = shade(white, 0.25);
     g.fillRect(0, 0, s, s);
     forEachSequin(41, (x, y, k) => {
       wrapDraw(s, x, y, SEQUIN_R, (X, Y) => {
         const grd = g.createRadialGradient(X - 2, Y - 3, 0.5, X, Y, SEQUIN_R);
-        grd.addColorStop(0, shade(hex, k * 1.3));
-        grd.addColorStop(0.7, shade(hex, k * 0.95));
-        grd.addColorStop(1, shade(hex, k * 0.55));
+        grd.addColorStop(0, shade(white, k * 1.3));
+        grd.addColorStop(0.7, shade(white, k * 0.95));
+        grd.addColorStop(1, shade(white, k * 0.55));
         g.fillStyle = grd;
         g.beginPath();
         g.arc(X, Y, SEQUIN_R, 0, Math.PI * 2);
@@ -227,7 +232,10 @@ export type FabricTextureSet = {
 };
 
 const normalTex = (key: string, tileFeet: number, build: () => HTMLCanvasElement) =>
-  tiled(cachedCanvasTexture(key, build, { srgb: false }), tileFeet);
+  tiled(
+    cachedCanvasTexture(key, build, { srgb: false, anisotropy: FABRIC_TEXTURE_ANISOTROPY }),
+    tileFeet
+  );
 
 export function getVelvetTextures(velour: boolean): FabricTextureSet {
   return {
@@ -269,10 +277,13 @@ export function getGauzeTextures(chiffon: boolean): FabricTextureSet {
 
 const SEQUIN_TILE_FEET = 0.5;
 
-export function getSequinTextures(hex: string): FabricTextureSet {
+/** One shared set for every colour: the albedo is greyscale (tint via `material.color`). */
+export function getSequinTextures(): FabricTextureSet {
   return {
     map: tiled(
-      cachedCanvasTexture(`fabric:sequin-color:${hex}`, () => sequinColor(hex)),
+      cachedCanvasTexture("fabric:sequin-albedo", sequinAlbedo, {
+        anisotropy: FABRIC_TEXTURE_ANISOTROPY,
+      }),
       SEQUIN_TILE_FEET
     ),
     normal: normalTex("fabric:sequin-normal", SEQUIN_TILE_FEET, () =>
@@ -280,14 +291,40 @@ export function getSequinTextures(hex: string): FabricTextureSet {
     ),
     normalScale: 0.9,
     roughness: tiled(
-      cachedCanvasTexture("fabric:sequin-roughness", sequinRoughness, { srgb: false }),
+      cachedCanvasTexture("fabric:sequin-roughness", sequinRoughness, {
+        srgb: false,
+        anisotropy: FABRIC_TEXTURE_ANISOTROPY,
+      }),
       SEQUIN_TILE_FEET
     ),
     emissive: tiled(
-      cachedCanvasTexture("fabric:sequin-sparkle", sequinSparkle),
+      cachedCanvasTexture("fabric:sequin-sparkle", sequinSparkle, {
+        anisotropy: FABRIC_TEXTURE_ANISOTROPY,
+      }),
       SEQUIN_TILE_FEET
     ),
   };
+}
+
+const anisotropyVariants = new Map<string, THREE.Texture>();
+
+/**
+ * The same texture (shared canvas source and repeat) at another anisotropy
+ * level. One clone per texture per level, so the cache stays tiny.
+ */
+export function textureWithAnisotropy<T extends THREE.Texture>(
+  texture: T,
+  anisotropy: number
+): T {
+  if (texture.anisotropy === anisotropy) return texture;
+  const key = `${texture.uuid}:${anisotropy}`;
+  let variant = anisotropyVariants.get(key);
+  if (!variant) {
+    variant = texture.clone();
+    variant.anisotropy = anisotropy;
+    anisotropyVariants.set(key, variant);
+  }
+  return variant as T;
 }
 
 /** Soft vertical light-wash sprite (white; tinted by the material colour). */

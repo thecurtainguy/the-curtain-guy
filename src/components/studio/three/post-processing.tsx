@@ -1,7 +1,7 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
@@ -11,7 +11,9 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import type { StudioQualityPreset } from "./engine-quality";
+import { isStudioInteracting, subscribeStudioInteraction } from "./interaction-store";
 import type { StudioLightingRig } from "./lighting-moods";
+import { getStudioGovernor, subscribeStudioGovernor } from "./perf-governor";
 
 type AnyMaterial = THREE.Material & { opacity: number };
 
@@ -72,12 +74,29 @@ class StudioAOPass extends GTAOPass {
   }
 }
 
+/** Delay after the last orbit/drag/walk input before AO refines the frame. */
+const AO_SETTLE_MS = 180;
+
+let snapshotRendering = false;
+
+/**
+ * While on, the next rendered frames use every pass the preset has (AO even
+ * mid-interaction or governed off) — for print-grade snapshots. Pair with
+ * `false` right after the capture.
+ */
+export function setStudioSnapshotRendering(on: boolean) {
+  snapshotRendering = on;
+}
+
 /**
  * EffectComposer chain — render → GTAO → bloom → output (tone map + sRGB) →
  * SMAA — that takes over rendering via a priority-1 frame callback. Works
  * with `frameloop="demand"`: it only renders when R3F schedules a frame.
+ *
+ * AO pauses while the user moves (`preset.aoIdleOnly`) and the governor may
+ * switch AO / bloom off; both only flip `pass.enabled`, never reallocate.
  */
-export function StudioPostProcessing({
+export const StudioPostProcessing = memo(function StudioPostProcessing({
   preset,
   bloom,
 }: {
@@ -93,7 +112,37 @@ export function StudioPostProcessing({
   const invalidate = useThree((state) => state.invalidate);
   const composerRef = useRef<EffectComposer | null>(null);
   const bloomRef = useRef<UnrealBloomPass | null>(null);
+  const aoRef = useRef<StudioAOPass | null>(null);
   const bloomSettings = useRef(bloom);
+  /* False while moving (and AO_SETTLE_MS after); AO renders only when settled. */
+  const aoSettled = useRef(!isStudioInteracting());
+
+  useEffect(() => {
+    if (!preset.aoIdleOnly) {
+      aoSettled.current = true;
+      return;
+    }
+    let timer = 0;
+    const sync = () => {
+      window.clearTimeout(timer);
+      if (isStudioInteracting()) {
+        aoSettled.current = false;
+        return;
+      }
+      timer = window.setTimeout(() => {
+        aoSettled.current = true;
+        invalidate();
+      }, AO_SETTLE_MS);
+    };
+    aoSettled.current = !isStudioInteracting();
+    const unsubscribe = subscribeStudioInteraction(sync);
+    return () => {
+      unsubscribe();
+      window.clearTimeout(timer);
+    };
+  }, [invalidate, preset.aoIdleOnly]);
+
+  useEffect(() => subscribeStudioGovernor(() => invalidate()), [invalidate]);
 
   useEffect(() => {
     bloomSettings.current = bloom;
@@ -141,7 +190,7 @@ export function StudioPostProcessing({
         samples: preset.ao.denoiseSamples,
       });
       ao.blendIntensity = 0.9;
-      add(ao);
+      aoRef.current = add(ao);
     }
     if (preset.bloom) {
       const { strength, radius, threshold } = bloomSettings.current;
@@ -161,6 +210,7 @@ export function StudioPostProcessing({
     return () => {
       composerRef.current = null;
       bloomRef.current = null;
+      aoRef.current = null;
       for (const pass of passes) pass.dispose();
       composer.dispose();
       invalidate();
@@ -177,9 +227,19 @@ export function StudioPostProcessing({
 
   useFrame((_, delta) => {
     const composer = composerRef.current;
-    if (composer) composer.render(delta);
-    else gl.render(scene, camera);
+    if (!composer) {
+      gl.render(scene, camera);
+      return;
+    }
+    const governor = getStudioGovernor();
+    const ao = aoRef.current;
+    if (ao) {
+      ao.enabled = snapshotRendering || (aoSettled.current && !governor.aoOff);
+    }
+    const bloomPass = bloomRef.current;
+    if (bloomPass) bloomPass.enabled = snapshotRendering || !governor.bloomOff;
+    composer.render(delta);
   }, 1);
 
   return null;
-}
+});

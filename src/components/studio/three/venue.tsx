@@ -8,8 +8,13 @@ import {
 } from "@/data/studio";
 import type { StudioBounds } from "@/lib/studio-geometry";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect } from "react";
-import { useOptionalStudioEditor } from "../editor/studio-editor-context";
+import { useCallback, useEffect } from "react";
+import { getStudioHoveredId, useStudioHoveredId } from "../editor/hover-store";
+import {
+  useOptionalStudioEditorActions,
+  useOptionalStudioSelection,
+  useOptionalStudioSettings,
+} from "../editor/studio-editor-context";
 import type { StudioSelection } from "../studio-types";
 import { StudioFloor } from "./floor";
 import {
@@ -61,11 +66,22 @@ export function StudioVenue({
   selection: StudioSelection;
   onSelect: (selection: StudioSelection) => void;
 }) {
-  const editor = useOptionalStudioEditor();
-  const quality = editor?.settings.quality ?? "high";
-  const showOpenings = editor?.settings.layers.openings ?? true;
-  const setHoveredId = editor?.setHoveredId;
+  const settings = useOptionalStudioSettings();
+  const editorSelection = useOptionalStudioSelection();
+  const quality = settings?.quality ?? "high";
+  const showOpenings = settings?.layers.openings ?? true;
+  const setHoveredId = useOptionalStudioEditorActions()?.setHoveredId;
+  const hoveredId = useStudioHoveredId();
   const materials = getStudioMaterials(design);
+  const clearSelection = useCallback(() => onSelect(null), [onSelect]);
+  const hoverOpening = useCallback(
+    (id: string | null) => {
+      if (!setHoveredId) return;
+      if (id) setHoveredId(id);
+      else if (getStudioHoveredId()) setHoveredId(null);
+    },
+    [setHoveredId]
+  );
   const inside = useCameraInsideRoom();
   const requestedDisplay = getStudioWallDisplay(design.view);
   const wallDisplay = inside
@@ -95,7 +111,7 @@ export function StudioVenue({
         bounds={bounds}
         finish={materials.floor}
         quality={quality}
-        onClearSelection={() => onSelect(null)}
+        onClearSelection={clearSelection}
       />
       <StudioWalls
         design={design}
@@ -107,17 +123,10 @@ export function StudioVenue({
         lighting={materials.lighting}
         quality={quality}
         showOpenings={showOpenings}
-        selectedIds={editor?.selectedIds}
-        hoveredId={editor?.hoveredId}
+        selectedIds={editorSelection?.selectedIds}
+        hoveredId={hoveredId}
         cameraInside={inside}
-        onHoverOpening={
-          setHoveredId
-            ? (id) => {
-                if (id) setHoveredId(id);
-                else if (editor?.hoveredId) setHoveredId(null);
-              }
-            : undefined
-        }
+        onHoverOpening={setHoveredId ? hoverOpening : undefined}
       />
       {showCeiling ? (
         <VenueCeiling
@@ -125,6 +134,7 @@ export function StudioVenue({
           bounds={bounds}
           wallHeightIn={design.room.wallHeight}
           wallFinish={materials.walls}
+          ceilingFinish={materials.ceiling}
           lighting={materials.lighting}
           quality={quality}
         />

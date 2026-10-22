@@ -6,7 +6,7 @@
  */
 import {
   getDrapeColorHex,
-  getStudioMaterials,
+  type DrapeColor,
   type StudioDesignJson,
   type StudioObject,
 } from "@/data/studio";
@@ -186,10 +186,52 @@ function treatmentOffsets(start: number, end: number): number[] {
   return evenOffsets(start, end, Math.max(2, Math.round(spanFeet / 5)));
 }
 
+/** The only object fields the rig reads; anything else (chairs, tables) never rebuilds it. */
+export type StudioLightObject = Pick<
+  StudioObject,
+  "id" | "x" | "z" | "width" | "depth" | "height" | "elevation" | "lightColor"
+> & { type: "uplight" | "chandelier" };
+
+/**
+ * Stable string for the visible light-source objects, so callers can memo the
+ * rig on it instead of on `design.objects` (which changes on every drag frame).
+ */
+export function getStudioLightObjectsKey(objects: StudioObject[]): string {
+  const sources: StudioLightObject[] = [];
+  for (const object of objects) {
+    if (object.hidden) continue;
+    if (object.type !== "uplight" && object.type !== "chandelier") continue;
+    sources.push({
+      id: object.id,
+      type: object.type,
+      x: object.x,
+      z: object.z,
+      width: object.width,
+      depth: object.depth,
+      height: object.height,
+      elevation: object.elevation,
+      lightColor: object.lightColor,
+    });
+  }
+  return JSON.stringify(sources);
+}
+
+export function parseStudioLightObjectsKey(key: string): StudioLightObject[] {
+  return JSON.parse(key) as StudioLightObject[];
+}
+
 type BuildInput = {
-  design: StudioDesignJson;
+  floor: StudioDesignJson["room"]["floor"];
+  /** Inches. */
+  wallHeight: number;
+  drapeRuns: StudioDesignJson["drapeRuns"];
+  treatments: StudioDesignJson["treatments"];
+  openings: StudioDesignJson["openings"];
+  /** Perimeter uplight colour (`materials.uplightColor`). */
+  uplightColor: DrapeColor | null | undefined;
+  lightObjects: StudioLightObject[];
   bounds: StudioBounds;
-  layers: Record<StudioLayerKey, boolean>;
+  layers: Pick<Record<StudioLayerKey, boolean>, "drapes" | "treatments" | "objects">;
 };
 
 export type StudioLightRig = {
@@ -198,20 +240,24 @@ export type StudioLightRig = {
 };
 
 export function buildStudioLightRig({
-  design,
+  floor,
+  wallHeight: wallHeightInches,
+  drapeRuns,
+  treatments,
+  openings,
+  uplightColor,
+  lightObjects,
   bounds,
   layers,
 }: BuildInput): StudioLightRig {
-  const floor = design.room.floor;
   const walls = getWallSegments(floor);
   const sign = getInteriorSign(floor);
   const frames = walls.map((wall) => createWallFrame(wall, sign, bounds));
-  const wallHeight = design.room.wallHeight * SCALE;
-  const materials = getStudioMaterials(design);
+  const wallHeight = wallHeightInches * SCALE;
   const fixtures: StudioUplightFixture[] = [];
 
   const visibleRuns = layers.drapes
-    ? design.drapeRuns.filter((run) => !run.hidden)
+    ? drapeRuns.filter((run) => !run.hidden)
     : [];
 
   /* Drape runs with their own uplighting */
@@ -225,7 +271,7 @@ export function buildStudioLightRig({
     const spanFeet = (end - start) * SCALE;
     const count = Math.max(1, Math.round(spanFeet / 6));
     const spacing = spanFeet / count;
-    const surfaceHeight = Math.min(run.height, design.room.wallHeight) * SCALE;
+    const surfaceHeight = Math.min(run.height, wallHeightInches) * SCALE;
     evenOffsets(start, end, count).forEach((offset, index) => {
       fixtures.push({
         key: `drape:${run.id}:${index}`,
@@ -250,7 +296,7 @@ export function buildStudioLightRig({
 
   /* Treatments with uplighting */
   if (layers.treatments) {
-    for (const treatment of design.treatments) {
+    for (const treatment of treatments) {
       if (treatment.hidden || !treatment.uplightColor) continue;
       const frame = frames[treatment.anchor.wallIndex];
       if (!frame) continue;
@@ -261,7 +307,7 @@ export function buildStudioLightRig({
       const offsets = treatmentOffsets(start, end);
       const spacing = ((end - start) * SCALE) / offsets.length;
       const surfaceHeight =
-        Math.min(treatment.height, design.room.wallHeight) * SCALE;
+        Math.min(treatment.height, wallHeightInches) * SCALE;
       offsets.forEach((offset, index) => {
         fixtures.push({
           key: `treatment:${treatment.id}:${index}`,
@@ -290,9 +336,9 @@ export function buildStudioLightRig({
   }
 
   /* Perimeter uplighting along every wall */
-  if (materials.uplightColor) {
-    const color = getStudioLightHex(materials.uplightColor);
-    const blockedOpenings = design.openings
+  if (uplightColor) {
+    const color = getStudioLightHex(uplightColor);
+    const blockedOpenings = openings
       .filter((opening) => !opening.hidden)
       .map((opening) => clampOpeningToWall(opening, floor));
     for (const frame of frames) {
@@ -346,13 +392,12 @@ export function buildStudioLightRig({
 
   const practicals: StudioPracticalLight[] = [];
   if (layers.objects) {
-    for (const object of design.objects) {
-      if (object.hidden) continue;
+    for (const object of lightObjects) {
       if (object.type === "uplight") {
         fixtures.push(
-          buildObjectUplight(object, frames, bounds, wallHeight, design)
+          buildObjectUplight(object, frames, bounds, wallHeight, drapeRuns)
         );
-      } else if (object.type === "chandelier") {
+      } else {
         const elevation = object.elevation ?? 96;
         practicals.push({
           key: `chandelier:${object.id}`,
@@ -372,11 +417,11 @@ export function buildStudioLightRig({
 }
 
 function buildObjectUplight(
-  object: StudioObject,
+  object: StudioLightObject,
   frames: WallFrame[],
   bounds: StudioBounds,
   wallHeight: number,
-  design: StudioDesignJson
+  drapeRuns: StudioDesignJson["drapeRuns"]
 ): StudioUplightFixture {
   const color = getStudioLightHex(object.lightColor ?? "gold");
   const x = (object.x - bounds.centerX) * SCALE;
@@ -424,7 +469,7 @@ function buildObjectUplight(
   }
 
   const { frame, offset } = nearest;
-  const covered = design.drapeRuns.some(
+  const covered = drapeRuns.some(
     (run) =>
       !run.hidden &&
       run.wallIndex === frame.wall.index &&
@@ -588,4 +633,28 @@ function averageVec(points: Vec3[]): Vec3 {
 export function bucketLightCount(count: number, step: number, max: number): number {
   if (count <= 0) return 0;
   return Math.min(max, Math.ceil(count / step) * step);
+}
+
+/**
+ * Pool size for a real-light budget: at most two or three distinct sizes per
+ * tier (e.g. 0/3/6 at High, 0/4/8/12 at Ultra), so editing a design almost
+ * never changes the scene's light count and recompiles every shader.
+ */
+export function getLightPoolSize(count: number, budget: number): number {
+  if (budget <= 0) return 0;
+  const step = Math.max(2, Math.ceil(budget / (budget > 8 ? 3 : 2)));
+  return bucketLightCount(count, step, budget);
+}
+
+/** Scene share of a tier's total light budget (the rest is reserved for ceiling designs). */
+export function getSceneLightBudgets(preset: {
+  spotBudget: number;
+  pointBudget: number;
+  ceilingSpotBudget: number;
+  ceilingPointBudget: number;
+}): { spots: number; points: number } {
+  return {
+    spots: Math.max(0, preset.spotBudget - preset.ceilingSpotBudget),
+    points: Math.max(0, preset.pointBudget - preset.ceilingPointBudget),
+  };
 }

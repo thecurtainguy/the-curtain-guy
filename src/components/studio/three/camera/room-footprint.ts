@@ -16,6 +16,8 @@ export type RoomFootprint = {
   centroid: FootPoint;
   /** Wall height, feet. */
   height: number;
+  /** How far ceiling architecture (soffits, beams, truss) hangs below `height`, feet. */
+  ceilingHang: number;
   /** Floor diagonal, feet. */
   diagonal: number;
   /** Wall clearance the camera keeps, shrunk for very narrow rooms. */
@@ -25,7 +27,8 @@ export type RoomFootprint = {
 export function createRoomFootprint(
   floor: StudioDesignJson["room"]["floor"],
   wallHeightInches: number,
-  bounds: StudioBounds
+  bounds: StudioBounds,
+  ceilingHangInches = 0
 ): RoomFootprint {
   const points = floor.map((point) => ({
     x: (point.x - bounds.centerX) * SCALE,
@@ -54,6 +57,7 @@ export function createRoomFootprint(
     sign: area >= 0 ? 1 : -1,
     centroid,
     height: wallHeightInches * SCALE,
+    ceilingHang: Math.max(0, ceilingHangInches) * SCALE,
     diagonal: Math.hypot(width, depth),
     margin: Math.min(1.5, Math.max(0.35, Math.min(width, depth) * 0.3)),
   };

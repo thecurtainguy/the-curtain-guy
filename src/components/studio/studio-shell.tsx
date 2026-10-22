@@ -30,6 +30,11 @@ type StudioShellProps = {
   onToolsOpenChange: (open: boolean) => void;
   propertiesOpen: boolean;
   onPropertiesOpenChange: (open: boolean) => void;
+  /** Fill the whole viewport over the site chrome (fullscreen or focus fallback). */
+  fullscreen?: boolean;
+  /** Hide the toolbar and rails; `presentBar` floats over the canvas. */
+  presenting?: boolean;
+  presentBar?: React.ReactNode;
   className?: string;
 };
 
@@ -80,6 +85,27 @@ function useRailState() {
   return { leftOpen: rails[0] === "1", rightOpen: rails[1] === "1", toggle };
 }
 
+/** Tailwind `lg` — where the desktop rails are visible. */
+const DESKTOP_QUERY = "(min-width: 64rem)";
+
+function subscribeDesktop(onChange: () => void) {
+  const query = window.matchMedia(DESKTOP_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/**
+ * Desktop rails only mount at `lg`+ so phones/tablets don't render them
+ * hidden alongside the sheet copies. Server render assumes desktop.
+ */
+function useDesktopRails(): boolean {
+  return useSyncExternalStore(
+    subscribeDesktop,
+    () => window.matchMedia(DESKTOP_QUERY).matches,
+    () => true
+  );
+}
+
 export function StudioShell({
   toolbar,
   leftRail,
@@ -91,31 +117,45 @@ export function StudioShell({
   onToolsOpenChange,
   propertiesOpen,
   onPropertiesOpenChange,
+  fullscreen = false,
+  presenting = false,
+  presentBar,
   className,
 }: StudioShellProps) {
   const { leftOpen, rightOpen, toggle } = useRailState();
+  const desktop = useDesktopRails();
 
   return (
     <section
       className={cn(
         "relative flex h-full min-h-[560px] w-full min-w-0 flex-col overflow-hidden rounded-4xl border border-border/60 bg-background text-foreground shadow-[0_24px_80px_-36px_rgba(0,0,0,0.65)] lg:min-h-0",
-        className
+        className,
+        // z-50 ties with Radix portals, which come later in <body> and stay on top.
+        fullscreen &&
+          "fixed inset-0 z-50 m-0 h-dvh max-h-none min-h-0 w-full max-w-none rounded-none border-0 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] shadow-none"
       )}
+      data-studio-display={presenting ? "present" : fullscreen ? "fullscreen" : undefined}
       aria-label="Curtain Studio designer"
     >
-      {toolbar}
+      <div className={presenting ? "hidden" : "contents"}>{toolbar}</div>
       <div
         className="relative grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] transition-[grid-template-columns] duration-300 ease-out motion-reduce:transition-none lg:grid-cols-[var(--studio-left-rail)_minmax(0,1fr)_var(--studio-right-rail)]"
         style={
           {
-            "--studio-left-rail": leftOpen ? "320px" : "44px",
-            "--studio-right-rail": rightOpen ? "340px" : "44px",
+            "--studio-left-rail": presenting ? "0px" : leftOpen ? "320px" : "44px",
+            "--studio-right-rail": presenting ? "0px" : rightOpen ? "340px" : "44px",
           } as React.CSSProperties
         }
       >
-        <div className="relative hidden min-h-0 overflow-hidden border-r border-border/60 lg:block">
+        <div
+          inert={presenting}
+          className={cn(
+            "relative hidden min-h-0 overflow-hidden border-r border-border/60 lg:block",
+            presenting && "border-r-0"
+          )}
+        >
           {leftOpen ? (
-            <div className="h-full min-h-0">{leftRail}</div>
+            <div className="h-full min-h-0">{desktop ? leftRail : null}</div>
           ) : (
             <CollapsedRail
               label="Design tools"
@@ -127,10 +167,17 @@ export function StudioShell({
         </div>
         <main className="relative h-full min-h-0 min-w-0 overflow-hidden">
           {children}
+          {presenting ? presentBar : null}
         </main>
-        <div className="relative hidden min-h-0 overflow-hidden border-l border-border/60 lg:block">
+        <div
+          inert={presenting}
+          className={cn(
+            "relative hidden min-h-0 overflow-hidden border-l border-border/60 lg:block",
+            presenting && "border-l-0"
+          )}
+        >
           {rightOpen ? (
-            <div className="h-full min-h-0">{rightRail}</div>
+            <div className="h-full min-h-0">{desktop ? rightRail : null}</div>
           ) : (
             <CollapsedRail
               label="Inspector"
@@ -140,18 +187,22 @@ export function StudioShell({
             />
           )}
         </div>
-        <RailToggle
-          side="left"
-          label={leftOpen ? "Collapse design tools" : "Expand design tools"}
-          icon={leftOpen ? PanelLeftClose : PanelLeftOpen}
-          onClick={() => toggle("left")}
-        />
-        <RailToggle
-          side="right"
-          label={rightOpen ? "Collapse inspector" : "Expand inspector"}
-          icon={rightOpen ? PanelRightClose : PanelRightOpen}
-          onClick={() => toggle("right")}
-        />
+        {presenting ? null : (
+          <>
+            <RailToggle
+              side="left"
+              label={leftOpen ? "Collapse design tools" : "Expand design tools"}
+              icon={leftOpen ? PanelLeftClose : PanelLeftOpen}
+              onClick={() => toggle("left")}
+            />
+            <RailToggle
+              side="right"
+              label={rightOpen ? "Collapse inspector" : "Expand inspector"}
+              icon={rightOpen ? PanelRightClose : PanelRightOpen}
+              onClick={() => toggle("right")}
+            />
+          </>
+        )}
       </div>
 
       <Sheet open={toolsOpen} onOpenChange={onToolsOpenChange}>

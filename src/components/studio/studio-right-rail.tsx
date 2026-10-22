@@ -1,7 +1,7 @@
 "use client";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { StudioDesignJson } from "@/data/studio";
+import { getCeilingDrapes, type StudioDesignJson } from "@/data/studio";
 import { getWallSegments, inchesToFeetLabel } from "@/lib/studio-geometry";
 import { cn } from "@/lib/utils";
 import {
@@ -14,9 +14,13 @@ import {
   Sparkles,
   TriangleAlert,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DrapeRunEditor } from "./drape-run-editor";
-import { useStudioEditor } from "./editor/studio-editor-context";
+import {
+  useStudioSelection,
+  type StudioCommitOptions,
+} from "./editor/studio-editor-context";
+import { CeilingInspector } from "./inspector/ceiling-inspector";
 import { DesignBrief } from "./inspector/design-brief";
 import { ItemHeader, StatusChip } from "./inspector/item-header";
 import { MultiInspector } from "./inspector/multi-inspector";
@@ -29,7 +33,7 @@ import type { StudioSaveState, StudioSelection } from "./studio-types";
 
 type StudioRightRailProps = {
   design: StudioDesignJson;
-  onChange: (design: StudioDesignJson) => void;
+  onChange: (design: StudioDesignJson, options?: StudioCommitOptions) => void;
   selection: StudioSelection;
   onSelect: (selection: StudioSelection) => void;
   saveState: StudioSaveState;
@@ -54,9 +58,10 @@ export function StudioRightRail({
   saveState,
   idPrefix,
 }: StudioRightRailProps) {
-  const { selectedIds } = useStudioEditor();
+  const { selectedIds } = useStudioSelection();
   const [tab, setTab] = useState<RailTab>("inspect");
-  const walls = getWallSegments(design.room.floor);
+  const floor = design.room.floor;
+  const walls = useMemo(() => getWallSegments(floor), [floor]);
   const multi = selectedIds.length > 1;
   const selectedDrape =
     !multi && selection?.kind === "drape"
@@ -74,13 +79,19 @@ export function StudioRightRail({
     !multi && selection?.kind === "opening"
       ? design.openings.find((opening) => opening.id === selection.id)
       : undefined;
+  const ceilingDrapes = getCeilingDrapes(design);
+  const selectedCeiling =
+    !multi && selection?.kind === "ceiling"
+      ? ceilingDrapes.find((drape) => drape.id === selection.id)
+      : undefined;
   const selectedWall =
     !multi && selection?.kind === "wall" ? walls[selection.index] : undefined;
   const itemCount =
     design.objects.length +
     design.drapeRuns.length +
     design.treatments.length +
-    design.openings.length;
+    design.openings.length +
+    ceilingDrapes.length;
 
   const title = multi
     ? `${selectedIds.length} selected`
@@ -92,7 +103,9 @@ export function StudioRightRail({
           ? "Room object"
           : selectedOpening
             ? "Opening"
-            : selectedWall
+            : selectedCeiling
+              ? "Ceiling design"
+              : selectedWall
               ? `Wall ${selectedWall.index + 1}`
               : "Design brief";
 
@@ -197,6 +210,12 @@ export function StudioRightRail({
             <OpeningInspector
               design={design}
               opening={selectedOpening}
+              onChange={onChange}
+            />
+          ) : selectedCeiling ? (
+            <CeilingInspector
+              design={design}
+              drape={selectedCeiling}
               onChange={onChange}
             />
           ) : selectedWall ? (

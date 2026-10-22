@@ -3,11 +3,13 @@
 import {
   STUDIO_LABEL_MAX_LENGTH,
   STUDIO_OBJECT_CATEGORIES,
+  getCeilingDrapes,
   getDrapeColorHex,
   getStudioObjectOption,
   type StudioDesignJson,
 } from "@/data/studio";
 import {
+  mapIfChanged,
   setStudioItemsFlag,
   type StudioItemKind,
 } from "@/lib/studio-commands";
@@ -19,6 +21,7 @@ import {
   DoorOpen,
   Eye,
   EyeOff,
+  LampCeiling,
   Lock,
   LockOpen,
   ScissorsLineDashed,
@@ -28,14 +31,18 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIsStudioHovered } from "./editor/hover-store";
 import {
-  useStudioEditor,
+  useStudioEditorActions,
+  useStudioSelection,
+  useStudioSettings,
   type StudioLayerKey,
 } from "./editor/studio-editor-context";
 import {
   STUDIO_OBJECT_ICONS,
   STUDIO_OPENING_META,
+  getCeilingStyleLabel,
 } from "./inspector/studio-item-meta";
 
 type LayerRow = {
@@ -66,13 +73,21 @@ function renameStudioItem(
 ): StudioDesignJson {
   const apply = <T extends { id: string; label: string }>(item: T): T =>
     item.id === id ? { ...item, label } : item;
-  return {
-    ...design,
-    objects: design.objects.map(apply),
-    drapeRuns: design.drapeRuns.map(apply),
-    treatments: design.treatments.map(apply),
-    openings: design.openings.map(apply),
+  const ceilings = getCeilingDrapes(design);
+  const next = {
+    objects: mapIfChanged(design.objects, apply),
+    drapeRuns: mapIfChanged(design.drapeRuns, apply),
+    treatments: mapIfChanged(design.treatments, apply),
+    openings: mapIfChanged(design.openings, apply),
+    ceilingDrapes: mapIfChanged(ceilings, apply),
   };
+  const unchanged =
+    next.objects === design.objects &&
+    next.drapeRuns === design.drapeRuns &&
+    next.treatments === design.treatments &&
+    next.openings === design.openings &&
+    next.ceilingDrapes === ceilings;
+  return unchanged ? design : { ...design, ...next };
 }
 
 function buildGroups(design: StudioDesignJson): LayerGroup[] {
@@ -99,6 +114,21 @@ function buildGroups(design: StudioDesignJson): LayerGroup[] {
     locked: Boolean(treatment.locked),
     hidden: Boolean(treatment.hidden),
     search: `${treatment.label} ${treatment.type} ${treatment.color} treatment`,
+  }));
+  const ceilings: LayerRow[] = getCeilingDrapes(design).map((drape) => ({
+    kind: "ceiling",
+    id: drape.id,
+    label: drape.label,
+    meta: `${getCeilingStyleLabel(drape.type)} · ${
+      drape.coverage === "room"
+        ? "Whole room"
+        : `${inchesToFeetLabel(drape.width)} × ${inchesToFeetLabel(drape.depth)}`
+    }`,
+    icon: LampCeiling,
+    swatch: getDrapeColorHex(drape.color),
+    locked: Boolean(drape.locked),
+    hidden: Boolean(drape.hidden),
+    search: `${drape.label} ${drape.type} ${drape.color} ${drape.fabric} ceiling`,
   }));
   const openings: LayerRow[] = design.openings.map((opening) => ({
     kind: "opening",
@@ -145,6 +175,7 @@ function buildGroups(design: StudioDesignJson): LayerGroup[] {
     },
     { key: "drapes", layer: "drapes", label: "Drapery runs", icon: ScissorsLineDashed, rows: drapes },
     { key: "treatments", layer: "treatments", label: "Treatments", icon: Sparkles, rows: treatments },
+    { key: "ceiling", layer: "ceiling", label: "Ceiling drapery", icon: LampCeiling, rows: ceilings },
     { key: "openings", layer: "openings", label: "Openings", icon: DoorOpen, rows: openings },
   ];
 }
@@ -156,13 +187,16 @@ export function StudioLayersPanel({
   design: StudioDesignJson;
   onChange: (design: StudioDesignJson) => void;
 }) {
-  const { settings, toggleLayer, selectIds, selectedIds } = useStudioEditor();
+  const settings = useStudioSettings();
+  const { toggleLayer, selectIds, getDesign } = useStudioEditorActions();
+  const { selectedIds } = useStudioSelection();
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const needle = query.trim().toLowerCase();
   const matches = (row: LayerRow) =>
     !needle || row.search.toLowerCase().includes(needle);
-  const groups = buildGroups(design);
+  const groups = useMemo(() => buildGroups(design), [design]);
   const total = groups.reduce((sum, group) => sum + group.rows.length, 0);
   const visibleTotal = groups.reduce(
     (sum, group) => sum + group.rows.filter(matches).length,
@@ -172,12 +206,17 @@ export function StudioLayersPanel({
   const toggleCollapsed = (key: string) =>
     setCollapsed((current) => ({ ...current, [key]: !current[key] }));
 
-  const rowProps = {
-    onRename: (id: string, label: string) =>
-      onChange(renameStudioItem(design, id, label)),
-    onToggleFlag: (id: string, flag: "locked" | "hidden", value: boolean) =>
-      onChange(setStudioItemsFlag(design, [id], flag, value)),
-  };
+  const onRename = useCallback(
+    (id: string, label: string) =>
+      onChange(renameStudioItem(getDesign(), id, label)),
+    [getDesign, onChange]
+  );
+  const onToggleFlag = useCallback(
+    (id: string, flag: "locked" | "hidden", value: boolean) =>
+      onChange(setStudioItemsFlag(getDesign(), [id], flag, value)),
+    [getDesign, onChange]
+  );
+  const rowProps = { onRename, onToggleFlag };
 
   return (
     <div className="space-y-3">
@@ -219,7 +258,7 @@ export function StudioLayersPanel({
           <BoxSelect className="mx-auto size-5 text-primary" aria-hidden="true" />
           <p className="mt-2 font-heading text-sm">Nothing placed yet</p>
           <p className="mt-1 text-[0.68rem] text-muted-foreground">
-            Add drapes, treatments and furniture from the tools rail — they
+            Add drapes, ceilings and furniture from the library — they
             will be listed here.
           </p>
         </div>
@@ -312,7 +351,13 @@ export function StudioLayersPanel({
                         </button>
                         {!subCollapsed
                           ? subRows.map((row) => (
-                              <LayerRowItem key={row.id} row={row} indent {...rowProps} />
+                              <LayerRowItem
+                                key={row.id}
+                                row={row}
+                                indent
+                                selected={selectedSet.has(row.id)}
+                                {...rowProps}
+                              />
                             ))
                           : null}
                       </div>
@@ -320,7 +365,12 @@ export function StudioLayersPanel({
                   })
                 ) : (
                   rows.map((row) => (
-                    <LayerRowItem key={row.id} row={row} {...rowProps} />
+                    <LayerRowItem
+                      key={row.id}
+                      row={row}
+                      selected={selectedSet.has(row.id)}
+                      {...rowProps}
+                    />
                   ))
                 )}
               </div>
@@ -366,20 +416,21 @@ function HeaderButton({
   );
 }
 
-function LayerRowItem({
+const LayerRowItem = memo(function LayerRowItem({
   row,
   indent,
+  selected,
   onRename,
   onToggleFlag,
 }: {
   row: LayerRow;
   indent?: boolean;
+  selected: boolean;
   onRename: (id: string, label: string) => void;
   onToggleFlag: (id: string, flag: "locked" | "hidden", value: boolean) => void;
 }) {
-  const { select, isSelected, hoveredId, setHoveredId } = useStudioEditor();
-  const selected = isSelected(row.id);
-  const hovered = hoveredId === row.id;
+  const { select, setHoveredId } = useStudioEditorActions();
+  const hovered = useIsStudioHovered(row.id);
   const [draft, setDraft] = useState<string | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
   const Icon = row.icon;
@@ -482,7 +533,7 @@ function LayerRowItem({
       />
     </div>
   );
-}
+});
 
 function RowIcon({
   icon: Icon,

@@ -140,6 +140,16 @@ const ROOM_REFIT_SETTLE_MS = 400;
 const ROOM_REFIT_JUMP = 0.1;
 /** OrbitControls keeps coasting (damping) after release; motion ends once changes stop. */
 const ORBIT_COAST_MS = 120;
+/**
+ * In-room motion counts as over only after this long at rest, so the gaps
+ * between slow mouse moves don't flip AO, reflections and twinkle on and off.
+ */
+const WALK_COAST_MS = 200;
+/**
+ * The demand frameloop reports the whole idle gap on the first frame back;
+ * that frame advances one nominal step instead of jumping.
+ */
+const RESUME_DELTA = 1 / 60;
 /** A rig remounted within this window (e.g. render-context swap) resumes the same view. */
 const PARKED_POSE_MS = 4000;
 
@@ -350,6 +360,24 @@ const CameraRig = memo(function CameraRig({
     setStudioInteraction(source, on);
   }, []);
   const orbitCoast = useRef(0);
+  const walkCoast = useRef(0);
+  const setWalking = useCallback(
+    (on: boolean) => {
+      if (on) {
+        window.clearTimeout(walkCoast.current);
+        walkCoast.current = 0;
+        setMotionFlag("walk", true);
+      } else if (motionFlags.current.walk && !walkCoast.current) {
+        walkCoast.current = window.setTimeout(() => {
+          walkCoast.current = 0;
+          setMotionFlag("walk", false);
+        }, WALK_COAST_MS);
+      }
+    },
+    [setMotionFlag]
+  );
+  /* Whether the last rendered frame left the in-room rig at rest. */
+  const rigIdle = useRef(true);
 
   useEffect(() => {
     setStudioCameraMounted(true);
@@ -358,6 +386,7 @@ const CameraRig = memo(function CameraRig({
     return () => {
       setStudioCameraMounted(false);
       window.clearTimeout(orbitCoast.current);
+      window.clearTimeout(walkCoast.current);
       for (const source of ["tween", "walk", "orbit"] as const) {
         if (flags[source]) setStudioInteraction(source, false);
         flags[source] = false;
@@ -877,11 +906,13 @@ const CameraRig = memo(function CameraRig({
     const camera = state.camera as THREE.PerspectiveCamera;
     const control = controls.current;
     if (!control) return;
-    const delta = Math.min(rawDelta, 1 / 20);
+    const frameDelta = rigIdle.current ? Math.min(rawDelta, RESUME_DELTA) : rawDelta;
+    const delta = Math.min(frameDelta, 1 / 20);
     const active = tween.current;
     setMotionFlag("tween", active !== null);
     if (active) {
-      active.elapsed += Math.min(rawDelta, 1 / 30);
+      rigIdle.current = false;
+      active.elapsed += Math.min(frameDelta, 1 / 30);
       const progress = Math.min(1, active.elapsed / active.duration);
       const k = easeInOutCubic(progress);
       control.target.lerpVectors(active.fromTarget, active.toTarget, k);
@@ -900,7 +931,10 @@ const CameraRig = memo(function CameraRig({
       camera.lookAt(control.target);
       control.update();
       lastTarget.current.copy(control.target);
-      if (progress >= 1) tween.current = null;
+      if (progress >= 1) {
+        tween.current = null;
+        rigIdle.current = true;
+      }
       state.invalidate();
       return;
     }
@@ -908,7 +942,8 @@ const CameraRig = memo(function CameraRig({
     lastTarget.current.copy(control.target);
     const current = getStudioCameraMode();
     if (!isInteriorMode(current) || !control.enabled) {
-      setMotionFlag("walk", false);
+      rigIdle.current = true;
+      setWalking(false);
       return;
     }
     const room = latest.current.footprint;
@@ -1052,7 +1087,8 @@ const CameraRig = memo(function CameraRig({
     publishCameraRigState(base.y, maxEyeHeight(room), rig.pitch > 0.6, rig.lyingBack);
 
     const moving = busy || Boolean(ahead || side || rise || dolly);
-    setMotionFlag("walk", moving);
+    rigIdle.current = !moving && !spinning;
+    setWalking(moving);
     if (moving || spinning) state.invalidate();
   });
 

@@ -232,7 +232,7 @@ function selectionForId(
 export function useStudioEditorState({
   design,
   onDesignChange,
-  initialViewMode = "2d",
+  initialViewMode = "3d",
 }: {
   design: StudioDesignJson;
   onDesignChange: (next: StudioDesignJson) => void;

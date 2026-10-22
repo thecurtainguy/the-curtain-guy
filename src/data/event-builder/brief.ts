@@ -568,10 +568,6 @@ export function openStudioEventMode(): void {
   window.open("/studio/new?mode=event", "_blank", "noopener,noreferrer");
 }
 
-export function openStudioDesignerMode(): void {
-  window.open("/studio/new?mode=designer", "_blank", "noopener,noreferrer");
-}
-
 export function openGetEstimateFromEventBuilder(): void {
   window.open("/get-estimate", "_blank", "noopener,noreferrer");
 }

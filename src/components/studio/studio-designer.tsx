@@ -26,6 +26,7 @@ import { Studio2DEditor } from "./studio-2d-editor";
 import { Studio3DViewer } from "./studio-3d-lazy";
 import { StudioHoverTip } from "./studio-hover-tip";
 import { StudioLeftRail } from "./studio-left-rail";
+import { setLibraryTab } from "./rails/library-browser-store";
 import { StudioPresentBar } from "./studio-present-bar";
 import { StudioRightRail } from "./studio-right-rail";
 import { StudioShell } from "./studio-shell";
@@ -54,8 +55,7 @@ import {
 } from "./editor/studio-display-store";
 import { useStudioKeyboardShortcuts } from "./editor/use-studio-shortcuts";
 import type { EventBuilderBrief } from "@/data/event-builder/brief";
-import { EventPresetLibrary } from "@/components/event-builder/event-preset-library";
-import { EventBriefPanel } from "@/components/event-builder/event-brief-panel";
+import type { EventPlanContext } from "@/components/event-builder/event-plan-card";
 import { getEnglishOptionLabel } from "@/data/estimate";
 import {
   EMPTY_STUDIO_EVENT_DETAILS,
@@ -169,8 +169,6 @@ function lastEditedLabel(iso: string): string {
 
 const MemoStudioLeftRail = memo(StudioLeftRail);
 const MemoStudioRightRail = memo(StudioRightRail);
-const MemoEventPresetLibrary = memo(EventPresetLibrary);
-const MemoEventBriefPanel = memo(EventBriefPanel);
 
 /**
  * Feeds a memoized rail the rail design (deferred during drags) so canvas
@@ -754,7 +752,32 @@ export function StudioDesigner(props: StudioDesignerProps) {
     onTogglePresent: togglePresent,
   });
 
-  const isEventMode = mode === "event" && eventBrief;
+  const eventModeBrief = mode === "event" ? eventBrief : undefined;
+  const isEventMode = eventModeBrief !== undefined;
+  const eventPlan = useMemo<EventPlanContext | undefined>(
+    () =>
+      eventModeBrief
+        ? {
+            brief: eventModeBrief,
+            defaultName: eventContactDefaults?.name,
+            defaultEmail: eventContactDefaults?.email,
+            defaultPhone: eventContactDefaults?.phone,
+          }
+        : undefined,
+    [
+      eventModeBrief,
+      eventContactDefaults?.name,
+      eventContactDefaults?.email,
+      eventContactDefaults?.phone,
+    ]
+  );
+
+  // Event-builder visitors land on their own setups first.
+  useEffect(() => {
+    if (!isEventMode) return;
+    setLibraryTab("event");
+    return () => setLibraryTab("room");
+  }, [isEventMode]);
   const eventTypeLabel = eventBrief
     ? getEnglishOptionLabel("eventTypes", eventBrief.eventType) ??
       eventBrief.eventType
@@ -762,54 +785,31 @@ export function StudioDesigner(props: StudioDesignerProps) {
 
   const renderLeftRail = (idPrefix: string) => (
     <StudioRailSlot design={design}>
-      {(railDesign) =>
-        isEventMode ? (
-          <MemoEventPresetLibrary
-            design={railDesign}
-            onChange={commit}
-            selection={selection}
-            onSelect={setSelection}
-            brief={eventBrief}
-          />
-        ) : (
-          <MemoStudioLeftRail
-            design={railDesign}
-            onChange={commit}
-            selection={selection}
-            onSelect={setSelection}
-            idPrefix={idPrefix}
-          />
-        )
-      }
+      {(railDesign) => (
+        <MemoStudioLeftRail
+          design={railDesign}
+          onChange={commit}
+          selection={selection}
+          onSelect={setSelection}
+          idPrefix={idPrefix}
+          eventBrief={eventModeBrief}
+        />
+      )}
     </StudioRailSlot>
   );
   const renderRightRail = (idPrefix: string) => (
     <StudioRailSlot design={design}>
-      {(railDesign) =>
-        isEventMode ? (
-          <MemoEventBriefPanel
-            brief={eventBrief}
-            design={railDesign}
-            onChange={commit}
-            selection={selection}
-            onSelect={setSelection}
-            saveState={saveState}
-            defaultName={eventContactDefaults?.name}
-            defaultEmail={eventContactDefaults?.email}
-            defaultPhone={eventContactDefaults?.phone}
-            idPrefix={idPrefix}
-          />
-        ) : (
-          <MemoStudioRightRail
-            design={railDesign}
-            onChange={commit}
-            selection={selection}
-            onSelect={setSelection}
-            saveState={saveState}
-            idPrefix={idPrefix}
-          />
-        )
-      }
+      {(railDesign) => (
+        <MemoStudioRightRail
+          design={railDesign}
+          onChange={commit}
+          selection={selection}
+          onSelect={setSelection}
+          saveState={saveState}
+          idPrefix={idPrefix}
+          eventPlan={eventPlan}
+        />
+      )}
     </StudioRailSlot>
   );
   const split = viewMode === "split";

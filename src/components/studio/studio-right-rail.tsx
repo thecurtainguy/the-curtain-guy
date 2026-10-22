@@ -1,5 +1,6 @@
 "use client";
 
+import { EventPlanCard, type EventPlanContext } from "@/components/event-builder/event-plan-card";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getCeilingDrapes, type StudioDesignJson } from "@/data/studio";
 import { getDrapeRunHungLength } from "@/lib/studio-door-gaps";
@@ -44,6 +45,8 @@ type StudioRightRailProps = {
   onSelect: (selection: StudioSelection) => void;
   saveState: StudioSaveState;
   idPrefix: string;
+  /** Opened from the event builder: pins the event plan and submit above the inspector. */
+  eventPlan?: EventPlanContext;
 };
 
 type RailTab = "inspect" | "layers";
@@ -63,6 +66,7 @@ export function StudioRightRail({
   onSelect,
   saveState,
   idPrefix,
+  eventPlan,
 }: StudioRightRailProps) {
   const { selectedIds } = useStudioSelection();
   const [tab, setTab] = useState<RailTab>("inspect");
@@ -121,6 +125,7 @@ export function StudioRightRail({
   return (
     <TooltipProvider delayDuration={250}>
       <aside className="flex h-full min-h-0 flex-col bg-card/35">
+        {eventPlan ? <EventPlanCard {...eventPlan} design={design} /> : null}
         <div className="shrink-0 space-y-3 border-b border-border/40 bg-[radial-gradient(ellipse_at_top_right,color-mix(in_oklch,var(--primary)_10%,transparent),transparent_70%)] px-4 pt-4 pb-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">

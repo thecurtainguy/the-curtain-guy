@@ -32,7 +32,6 @@ import {
   getBriefUplightColor,
   getBriefVenuePreset,
   openGetEstimateFromEventBuilder,
-  openStudioDesignerMode,
   openStudioEventMode,
   saveEstimatePrefillFromEventBuilder,
   saveEventBuilderBrief,
@@ -462,15 +461,6 @@ export function EventStepReview({
             <Button type="button" size="lg" onClick={() => persistAnd(openStudioEventMode)}>
               <Box className="size-4" />
               {t("step4.ctaStudio")}
-              <ExternalLink className="size-3.5 opacity-70" aria-hidden />
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              variant="outline"
-              onClick={() => persistAnd(openStudioDesignerMode)}
-            >
-              {t("step4.ctaAdvanced")}
               <ExternalLink className="size-3.5 opacity-70" aria-hidden />
             </Button>
             <Button type="button" variant="ghost" className="min-h-10" onClick={handoffToEstimate}>

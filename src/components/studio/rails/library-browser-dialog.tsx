@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useCeilingPlacement } from "../editor/ceiling-placement-store";
 import { StudioTip } from "../studio-tip";
 import type { LibraryTab } from "./library-browser-store";
-import { LibrarySearchField, LibraryTabBar } from "./library-controls";
+import { LibrarySearchField, LibraryTabBar, type LibraryTabOption } from "./library-controls";
 
 const NOTICE_MS = 2600;
 
@@ -51,6 +51,7 @@ export function LibraryBrowserDialog({
   searchSummary,
   idPrefix,
   renderBody,
+  tabs,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -64,6 +65,7 @@ export function LibraryBrowserDialog({
   searchSummary: React.ReactNode | null;
   idPrefix: string;
   renderBody: (onChange: (design: StudioDesignJson) => void) => React.ReactNode;
+  tabs?: LibraryTabOption[];
 }) {
   const [notice, setNotice] = useState<{ key: number; text: string } | null>(null);
   const placement = useCeilingPlacement();
@@ -167,6 +169,7 @@ export function LibraryBrowserDialog({
                 idPrefix={idPrefix}
                 panelId={panelId}
                 size="wide"
+                tabs={tabs}
               />
             ) : (
               <p className="text-xs text-muted-foreground" role="status">

@@ -2,7 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 
-export type LibraryTab = "room" | "drapery" | "ceiling" | "furniture" | "layouts";
+/** `event` only exists when the studio is opened from the event builder. */
+export type LibraryTab = "event" | "room" | "drapery" | "ceiling" | "furniture" | "layouts";
 
 type LibraryBrowserState = {
   /** Full-screen "Expand library" dialog. */

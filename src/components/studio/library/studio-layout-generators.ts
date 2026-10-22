@@ -579,7 +579,13 @@ function placeBackBar(ctx: RoomContext, objects: StudioObject[], reserved: Rect[
   const bar = settle(ctx, { x: ctx.center.x, z: backZ(ctx, 30) }, 48, 15);
   if (!bar) return;
   objects.push(place("bar", bar, { rotation: 180 }));
-  reserved.push(inflate(rectAround(bar.x, bar.z, 48, 15), 72));
+  // The queue forms in front of the bar; its ends only need a walkway.
+  reserved.push({
+    minX: bar.x - 48 - 36,
+    maxX: bar.x + 48 + 36,
+    minZ: bar.z - 15 - 72,
+    maxZ: bar.z + 15 + 36,
+  });
 }
 
 /** Square dance floor sized for roughly 45% of guests dancing at once, in 3′ panels. */
@@ -592,28 +598,77 @@ function danceFloorSide(ctx: RoomContext, guests: number) {
   );
 }
 
-/** 60″ rounds seating eight, packed around `focus` outside the reserved zones. */
+const PACK_STEP = 6;
+
+/**
+ * Greedy packing outward from `focus`: the nearest open spot first, each kept
+ * `spacing` from those already placed, so tables flow around reserved zones
+ * that leave gaps a fixed lattice cannot use.
+ */
+function packAround(
+  ctx: RoomContext,
+  focus: StudioPoint,
+  count: number,
+  spacing: number,
+  half: number,
+  reserved: Rect[]
+): StudioPoint[] {
+  const { bounds } = ctx;
+  const candidates: Array<{ point: StudioPoint; distance: number }> = [];
+  const iMin = Math.ceil((bounds.minX - focus.x) / PACK_STEP);
+  const iMax = Math.floor((bounds.maxX - focus.x) / PACK_STEP);
+  const jMin = Math.ceil((bounds.minZ - focus.z) / PACK_STEP);
+  const jMax = Math.floor((bounds.maxZ - focus.z) / PACK_STEP);
+  for (let j = jMin; j <= jMax; j += 1) {
+    for (let i = iMin; i <= iMax; i += 1) {
+      const x = focus.x + i * PACK_STEP;
+      const z = focus.z + j * PACK_STEP;
+      if (!fits(ctx, x, z, half, half)) continue;
+      const rect = rectAround(x, z, half, half);
+      if (reserved.some((zone) => intersects(rect, zone))) continue;
+      candidates.push({ point: { x, z }, distance: Math.hypot(i, j) });
+    }
+  }
+  candidates.sort((a, b) => a.distance - b.distance || a.point.z - b.point.z || a.point.x - b.point.x);
+  const chosen: StudioPoint[] = [];
+  for (const { point } of candidates) {
+    if (chosen.length >= count) break;
+    if (chosen.every((other) => Math.hypot(other.x - point.x, other.z - point.z) >= spacing)) {
+      chosen.push(point);
+    }
+  }
+  return chosen.sort((a, b) => a.z - b.z || a.x - b.x);
+}
+
+/**
+ * Rounds around `focus` outside the reserved zones: a tidy lattice when it
+ * seats everyone, otherwise whichever of lattice or packing fits more.
+ */
 function roundsAround(
   ctx: RoomContext,
   focus: StudioPoint,
   tables: number,
   spacing: number,
-  reserved: Rect[]
+  reserved: Rect[],
+  half = 52
 ) {
-  return pickCentral(
+  const lattice = pickCentral(
     ctx,
     latticePoints(ctx, {
       anchor: focus,
       spacingX: spacing,
       spacingZ: spacing,
-      halfX: 52,
-      halfZ: 52,
+      halfX: half,
+      halfZ: half,
       reserved,
     }),
     focus,
     tables,
     "radial"
   );
+  if (lattice.length >= tables) return lattice;
+  const packed = packAround(ctx, focus, tables, spacing, half, reserved);
+  return packed.length > lattice.length ? packed : lattice;
 }
 
 function cocktail(ctx: RoomContext, count: number, spacing: number) {
@@ -697,22 +752,7 @@ function gala(ctx: RoomContext, guests: number, spacing: number) {
     reserved.push(inflate(rectAround(dance.x, dance.z, danceSide / 2, danceSide / 2), 30));
   }
 
-  const tables = Math.ceil(guests / 10);
-  const focus = dance ?? ctx.center;
-  const points = pickCentral(
-    ctx,
-    latticePoints(ctx, {
-      anchor: focus,
-      spacingX: spacing,
-      spacingZ: spacing,
-      halfX: 58,
-      halfZ: 58,
-      reserved,
-    }),
-    focus,
-    tables,
-    "radial"
-  );
+  const points = roundsAround(ctx, dance ?? ctx.center, Math.ceil(guests / 10), spacing, reserved, 58);
   objects.push(
     ...numbered(
       points.map((point) =>

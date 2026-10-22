@@ -8,18 +8,28 @@ import {
   LayoutGrid,
   Ruler,
   Search,
+  Sparkles,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { StudioTip } from "../studio-tip";
 import type { LibraryTab } from "./library-browser-store";
 
-export const LIBRARY_TABS: Array<{
+export type LibraryTabOption = {
   value: LibraryTab;
   label: string;
   icon: LucideIcon;
   hint: string;
-}> = [
+};
+
+export const EVENT_LIBRARY_TAB: LibraryTabOption = {
+  value: "event",
+  label: "Event",
+  icon: Sparkles,
+  hint: "Setups in your event look",
+};
+
+export const LIBRARY_TABS: LibraryTabOption[] = [
   { value: "room", label: "Room", icon: Ruler, hint: "Venue, shape & size" },
   { value: "drapery", label: "Drapery", icon: GalleryVerticalEnd, hint: "Walls & treatments" },
   { value: "ceiling", label: "Ceiling", icon: LampCeiling, hint: "Swags & canopies" },
@@ -95,24 +105,27 @@ export function LibraryTabBar({
   idPrefix,
   panelId,
   size = "rail",
+  tabs = LIBRARY_TABS,
 }: {
   tab: LibraryTab;
   onTabChange: (tab: LibraryTab) => void;
   idPrefix: string;
   panelId: string;
   size?: Size;
+  tabs?: LibraryTabOption[];
 }) {
   const wide = size === "wide";
   return (
     <div
       className={cn(
-        "grid grid-cols-5 border border-border/40 bg-background/40",
+        "grid border border-border/40 bg-background/40",
+        tabs.length > 5 ? "grid-cols-6" : "grid-cols-5",
         wide ? "gap-1.5 rounded-2xl p-1.5" : "gap-1 rounded-xl p-1"
       )}
       role="tablist"
       aria-label="Library sections"
     >
-      {LIBRARY_TABS.map((item) => {
+      {tabs.map((item) => {
         const active = tab === item.value;
         const Icon = item.icon;
         return (

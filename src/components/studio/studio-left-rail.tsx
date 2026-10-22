@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { EventPresetLibrary } from "@/components/event-builder/event-preset-library";
+import type { EventBuilderBrief } from "@/data/event-builder/brief";
 import type { StudioDesignJson } from "@/data/studio";
 import { findStudioItem } from "@/lib/studio-commands";
 import { Building2, Maximize2, SearchX } from "lucide-react";
@@ -35,7 +37,12 @@ import {
   setLibraryTab,
   useLibraryBrowser,
 } from "./rails/library-browser-store";
-import { LibrarySearchField, LibraryTabBar } from "./rails/library-controls";
+import {
+  EVENT_LIBRARY_TAB,
+  LIBRARY_TABS,
+  LibrarySearchField,
+  LibraryTabBar,
+} from "./rails/library-controls";
 import { useIsDesktopRail } from "./rails/rail-chrome-context";
 import { RoomSetupPanel } from "./room-setup-panel";
 import { StudioTip } from "./studio-tip";
@@ -47,7 +54,11 @@ type StudioLeftRailProps = {
   selection: StudioSelection;
   onSelect: (selection: StudioSelection) => void;
   idPrefix: string;
+  /** Opened from the event builder: adds the "Event" tab of brief-styled setups. */
+  eventBrief?: EventBuilderBrief;
 };
+
+const EVENT_TABS = [EVENT_LIBRARY_TAB, ...LIBRARY_TABS];
 
 function SearchGroup({
   label,
@@ -77,10 +88,13 @@ export function StudioLeftRail({
   selection,
   onSelect,
   idPrefix,
+  eventBrief,
 }: StudioLeftRailProps) {
   const editor = useOptionalStudioEditorActions();
   const desktopRail = useIsDesktopRail();
-  const { open: expanded, tab, query } = useLibraryBrowser();
+  const { open: expanded, tab: storedTab, query } = useLibraryBrowser();
+  const tabs = eventBrief ? EVENT_TABS : LIBRARY_TABS;
+  const tab = storedTab === "event" && !eventBrief ? "room" : storedTab;
   const [drapeStyle, setDrapeStyle] = useState<StudioDrapeStyle>(DEFAULT_DRAPE_STYLE);
   const searching = query.trim().length > 0;
 
@@ -199,6 +213,18 @@ export function StudioLeftRail({
         </div>
       );
     }
+    if (tab === "event" && eventBrief) {
+      return (
+        <EventPresetLibrary
+          design={design}
+          onChange={change}
+          selection={selection}
+          onSelect={onSelect}
+          brief={eventBrief}
+          idPrefix={`${prefix}-event`}
+        />
+      );
+    }
     if (tab === "room") {
       return <RoomSetupPanel design={design} onChange={change} idPrefix={`${prefix}-room`} />;
     }
@@ -252,6 +278,7 @@ export function StudioLeftRail({
               onTabChange={setLibraryTab}
               idPrefix={idPrefix}
               panelId={`${idPrefix}-panel`}
+              tabs={tabs}
             />
           ) : (
             <p className="text-[0.62rem] text-muted-foreground" role="status">
@@ -282,6 +309,7 @@ export function StudioLeftRail({
           query={query}
           onQueryChange={setLibraryQuery}
           searchSummary={searchSummary}
+          tabs={tabs}
           idPrefix={`${idPrefix}-expanded`}
           renderBody={(change) => renderBody(`${idPrefix}-expanded`, change)}
         />

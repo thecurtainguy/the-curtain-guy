@@ -25,6 +25,7 @@ export function DrapeColorCard({
       role="radio"
       aria-checked={selected}
       aria-label={label}
+      data-value={value}
       onClick={onSelect}
       className={cn(
         "group relative flex flex-col items-center gap-2 rounded-2xl border p-3 transition-all duration-200 motion-reduce:transition-none",

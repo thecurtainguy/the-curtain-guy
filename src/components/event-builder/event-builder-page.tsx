@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { StudioDesigner } from "@/components/studio/studio-designer";
 import {
@@ -8,6 +8,28 @@ import {
   type EventBuilderBrief,
 } from "@/data/event-builder/brief";
 import { buildStarterDesignFromBrief } from "@/lib/event-builder/build-starter-design";
+
+const briefSnapshot: { key: string; brief: EventBuilderBrief | null } = { key: "", brief: null };
+
+function subscribeToBrief(): () => void {
+  return () => {};
+}
+
+/** Stable per stored value so `useSyncExternalStore` does not loop. */
+function readBriefSnapshot(): EventBuilderBrief | null {
+  const brief = readEventBuilderBrief();
+  const key = brief ? JSON.stringify(brief) : "";
+  if (key !== briefSnapshot.key) {
+    briefSnapshot.key = key;
+    briefSnapshot.brief = brief;
+  }
+  return briefSnapshot.brief;
+}
+
+/** `undefined` until the client has read session storage. */
+function readServerBriefSnapshot(): EventBuilderBrief | null | undefined {
+  return undefined;
+}
 
 type EventBuilderPageProps = {
   accessMode: "guest" | "customer" | "admin";
@@ -31,25 +53,25 @@ export function EventBuilderPage({
   className,
 }: EventBuilderPageProps) {
   const router = useRouter();
-  const [brief, setBrief] = useState<EventBuilderBrief | null>(null);
-  const [ready, setReady] = useState(false);
+  const stored = useSyncExternalStore<EventBuilderBrief | null | undefined>(
+    subscribeToBrief,
+    readBriefSnapshot,
+    readServerBriefSnapshot
+  );
+  const brief = stored?.eventType ? stored : null;
 
   useEffect(() => {
-    const stored = readEventBuilderBrief();
-    if (!stored?.eventType) {
+    if (stored !== undefined && !stored?.eventType) {
       router.replace("/studio/build");
-      return;
     }
-    setBrief(stored);
-    setReady(true);
-  }, [router]);
+  }, [stored, router]);
 
   const initialDesign = useMemo(
     () => (brief ? buildStarterDesignFromBrief(brief) : undefined),
     [brief]
   );
 
-  if (!ready || !brief || !initialDesign) {
+  if (!brief || !initialDesign) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
         Loading your event plan…

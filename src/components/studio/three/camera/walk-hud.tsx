@@ -18,6 +18,11 @@ import {
   RotateCcw,
   type LucideIcon,
 } from "lucide-react";
+import {
+  MinimizedOverlayChip,
+  OverlayMinimizeButton,
+  useStudioOverlayMinimized,
+} from "../../overlay/minimizable-overlay";
 import { StudioTip } from "../../studio-tip";
 import {
   MOUSE_LOOK_SPEED_DEFAULT,
@@ -231,6 +236,7 @@ function MouseLookRow({
 /** Walk / Ceiling view eye-height and look controls, floating over the 3D canvas. */
 export const StudioWalkHud = memo(function StudioWalkHud() {
   const rig = useStudioCameraRig();
+  const minimized = useStudioOverlayMinimized("walk-hud");
   const walk = rig.mode === "walk";
   const top = rig.maxEyeHeight;
   const presets = [
@@ -240,10 +246,21 @@ export const StudioWalkHud = memo(function StudioWalkHud() {
   ];
   const setEye = (feet: number) => sendCameraRigCommand({ type: "eye", feet });
 
+  if (minimized) {
+    return (
+      <MinimizedOverlayChip
+        id="walk-hud"
+        icon={Eye}
+        label="eye height & look controls"
+        value={formatFeet(rig.eyeHeight)}
+      />
+    );
+  }
+
   return (
     <section
       aria-label="Walk controls"
-      className="absolute top-[4.25rem] left-3 z-20 w-[15rem] overflow-hidden rounded-2xl border border-border/40 bg-background/75 shadow-2xl backdrop-blur-xl"
+      className="pointer-events-auto w-[15rem] shrink-0 overflow-hidden rounded-2xl border border-border/40 bg-background/75 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none"
     >
       <header className="flex items-center gap-2 border-b border-border/40 bg-[linear-gradient(135deg,oklch(0.76_0.15_88/12%),transparent_70%)] px-2.5 py-2">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -278,6 +295,7 @@ export const StudioWalkHud = memo(function StudioWalkHud() {
               <Plus className="size-3.5" aria-hidden />
             </button>
           </StudioTip>
+          <OverlayMinimizeButton id="walk-hud" label="eye height controls" />
         </div>
       </header>
       <div className="space-y-1.5 p-2">

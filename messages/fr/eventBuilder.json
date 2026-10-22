@@ -43,51 +43,6 @@
     "lookDesc": "Tissu, couleur, plénitude",
     "reviewDesc": "Confirmer et soumettre"
   },
-  "step1": {
-    "eyebrow": "Étape 1",
-    "title": "Événement et salle",
-    "eventType": "Type d'événement",
-    "roomShape": "Forme de la salle",
-    "rectangle": "Rectangle",
-    "lShape": "Forme en L",
-    "width": "Largeur (pi)",
-    "length": "Longueur (pi)",
-    "ceiling": "Hauteur sous plafond (pi)",
-    "cutoutWidth": "Largeur du retrait (pi)",
-    "cutoutDepth": "Profondeur du retrait (pi)",
-    "eventDate": "Date (optionnel)",
-    "venue": "Lieu (optionnel)",
-    "city": "Ville / région (optionnel)",
-    "previewLabel": "Aperçu de la salle",
-    "roomDimensions": "Salle {width}′ × {length}′",
-    "inputModeFields": "Entrer les dimensions",
-    "inputModeDraw": "Dessiner sur le plan",
-    "drawHint": "Glissez les poignées dorées pour ajuster l'empreinte. Revenez aux champs à tout moment.",
-    "drawCanvasTitle": "Dessinez l'empreinte de la salle",
-    "inputModeFieldsHint": "Entrez largeur, longueur et hauteur sous plafond",
-    "inputModeDrawHint": "Glissez les poignées sur l'aperçu de la salle",
-    "bundleHint": "Ajoute les installations recommandées en un clic",
-    "upsellWedding": "Les mariages de cette taille ajoutent souvent un arrière-plan et une entrée drapée.",
-    "upsellCorporate": "Les événements corporatifs adoucissent souvent deux murs et ajoutent un fond de scène.",
-    "upsellDefault": "Brief de planification — notre équipe vous contactera pour une estimation."
-  },
-  "step2": {
-    "eyebrow": "Étape 2",
-    "title": "Catalogue visuel",
-    "description": "Touchez les cartes pour ajouter des installations. Ce n'est pas un panier — juste votre brief.",
-    "categoryLabel": "Parcourir par catégorie",
-    "categorySelectedCount": "{count} sélectionné(s) dans cette catégorie"
-  },
-  "step3": {
-    "eyebrow": "Étape 3",
-    "title": "Style et options",
-    "description": "Direction du tissu, couleur et plénitude. Aucun prix affiché.",
-    "fabricDirection": "Direction du tissu",
-    "primaryColor": "Couleur principale",
-    "fullness": "Plénitude",
-    "addOns": "Options supplémentaires",
-    "noPricing": "Brief de planification seulement — pas un prix final."
-  },
   "step4": {
     "eyebrow": "Étape 4",
     "title": "Révisez votre brief",
@@ -263,17 +218,6 @@
         "imageAlt": "Aperçu drapé superposé — bientôt dans Studio"
       }
     }
-  },
-  "livePlan": {
-    "summaryAria": "Résumé de votre plan d'événement",
-    "title": "Votre plan d'événement",
-    "setups": "{count, plural, one {# installation} other {# installations}}",
-    "clearAll": "Tout effacer",
-    "empty": "Touchez les cartes photo pour ajouter arrière-plans, entrées et drapage périmétrique.",
-    "eventPrefix": "Événement",
-    "yourPlan": "Votre plan",
-    "selected": "{count, plural, one {# installation choisie} other {# installations choisies}}",
-    "review": "Révision"
   },
   "colors": {
     "ivory": "Ivoire",

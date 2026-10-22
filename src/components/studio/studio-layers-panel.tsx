@@ -14,6 +14,7 @@ import {
   setStudioItemsFlag,
   type StudioItemKind,
 } from "@/lib/studio-commands";
+import { getDrapeRunHungLength } from "@/lib/studio-door-gaps";
 import { inchesToFeetLabel } from "@/lib/studio-geometry";
 import { cn } from "@/lib/utils";
 import {
@@ -45,6 +46,7 @@ import {
   STUDIO_OBJECT_ICONS,
   STUDIO_OPENING_META,
   getCeilingStyleLabel,
+  getOpeningDisplay,
 } from "./inspector/studio-item-meta";
 import { StudioTip } from "./studio-tip";
 
@@ -98,7 +100,9 @@ function buildGroups(design: StudioDesignJson): LayerGroup[] {
     kind: "drape",
     id: run.id,
     label: run.label,
-    meta: `Wall ${run.wallIndex + 1} · ${inchesToFeetLabel(run.endOffset - run.startOffset)}`,
+    meta: `Wall ${run.wallIndex + 1} · ${inchesToFeetLabel(
+      getDrapeRunHungLength(run, design.openings)
+    )}`,
     icon: ScissorsLineDashed,
     swatch: getDrapeColorHex(run.color),
     locked: Boolean(run.locked),
@@ -133,16 +137,19 @@ function buildGroups(design: StudioDesignJson): LayerGroup[] {
     hidden: Boolean(drape.hidden),
     search: `${drape.label} ${drape.type} ${drape.color} ${drape.fabric} ceiling`,
   }));
-  const openings: LayerRow[] = design.openings.map((opening) => ({
-    kind: "opening",
-    id: opening.id,
-    label: opening.label,
-    meta: `${STUDIO_OPENING_META[opening.type].label} · Wall ${opening.wallIndex + 1}`,
-    icon: STUDIO_OPENING_META[opening.type].icon,
-    locked: Boolean(opening.locked),
-    hidden: Boolean(opening.hidden),
-    search: `${opening.label} ${opening.type} opening`,
-  }));
+  const openings: LayerRow[] = design.openings.map((opening) => {
+    const display = getOpeningDisplay(opening);
+    return {
+      kind: "opening",
+      id: opening.id,
+      label: opening.label,
+      meta: `${display.label} · Wall ${opening.wallIndex + 1}`,
+      icon: STUDIO_OPENING_META[opening.type].icon,
+      locked: Boolean(opening.locked),
+      hidden: Boolean(opening.hidden),
+      search: `${opening.label} ${display.label} ${opening.type} opening`,
+    };
+  });
   const objectRows = design.objects.map((object) => {
     const option = getStudioObjectOption(object.type);
     return {

@@ -2,6 +2,7 @@
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getCeilingDrapes, type StudioDesignJson } from "@/data/studio";
+import { getDrapeRunHungLength } from "@/lib/studio-door-gaps";
 import { getWallSegments, inchesToFeetLabel } from "@/lib/studio-geometry";
 import { cn } from "@/lib/utils";
 import {
@@ -9,6 +10,8 @@ import {
   Clock3,
   Layers,
   LoaderCircle,
+  PanelRightClose,
+  PanelRightOpen,
   ScissorsLineDashed,
   SlidersHorizontal,
   Sparkles,
@@ -27,7 +30,10 @@ import { MultiInspector } from "./inspector/multi-inspector";
 import { ObjectInspector } from "./inspector/object-inspector";
 import { OpeningInspector } from "./inspector/opening-inspector";
 import { WallInspector } from "./inspector/wall-inspector";
+import { useIsDesktopRail } from "./rails/rail-chrome-context";
+import { setWideInspector, useWideInspector } from "./rails/wide-inspector-store";
 import { StudioLayersPanel } from "./studio-layers-panel";
+import { StudioTip } from "./studio-tip";
 import { TreatmentEditor } from "./treatment-editor";
 import type { StudioSaveState, StudioSelection } from "./studio-types";
 
@@ -60,6 +66,9 @@ export function StudioRightRail({
 }: StudioRightRailProps) {
   const { selectedIds } = useStudioSelection();
   const [tab, setTab] = useState<RailTab>("inspect");
+  const desktopRail = useIsDesktopRail();
+  const wideSetting = useWideInspector();
+  const wide = desktopRail && wideSetting;
   const floor = design.room.floor;
   const walls = useMemo(() => getWallSegments(floor), [floor]);
   const multi = selectedIds.length > 1;
@@ -122,7 +131,34 @@ export function StudioRightRail({
                 {tab === "layers" ? "Layers" : title}
               </h2>
             </div>
-            <SavePill state={saveState} />
+            <div className="flex shrink-0 items-center gap-1.5">
+              <SavePill state={saveState} />
+              {desktopRail ? (
+                <StudioTip
+                  label={wide ? "Standard inspector width" : "Wide inspector — two columns"}
+                  side="bottom"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setWideInspector(!wide)}
+                    aria-label="Wide inspector"
+                    aria-pressed={wide}
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                      wide
+                        ? "border-primary/45 bg-primary/15 text-primary"
+                        : "border-border/50 bg-background/50 text-muted-foreground hover:border-primary/40 hover:text-primary"
+                    )}
+                  >
+                    {wide ? (
+                      <PanelRightClose className="size-3.5" aria-hidden="true" />
+                    ) : (
+                      <PanelRightOpen className="size-3.5" aria-hidden="true" />
+                    )}
+                  </button>
+                </StudioTip>
+              ) : null}
+            </div>
           </div>
           <div
             role="tablist"
@@ -145,83 +181,92 @@ export function StudioRightRail({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+        <div className="@container min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
           {tab === "layers" ? (
             <StudioLayersPanel design={design} onChange={onChange} />
-          ) : multi ? (
-            <MultiInspector design={design} onChange={onChange} />
-          ) : selectedDrape ? (
-            <div className="space-y-3">
-              <ItemHeader
-                icon={ScissorsLineDashed}
-                eyebrow={`Drape run · Wall ${selectedDrape.wallIndex + 1}`}
-                label={selectedDrape.label}
-                locked={selectedDrape.locked}
-                hidden={selectedDrape.hidden}
-                meta={
-                  <StatusChip>
-                    {inchesToFeetLabel(
-                      selectedDrape.endOffset - selectedDrape.startOffset
-                    )}{" "}
-                    run
-                  </StatusChip>
-                }
-              />
-              <DrapeRunEditor
-                design={design}
-                run={selectedDrape}
-                onChange={onChange}
-                idPrefix={`${idPrefix}-drape`}
-              />
-            </div>
-          ) : selectedTreatment ? (
-            <div className="space-y-3">
-              <ItemHeader
-                icon={Sparkles}
-                eyebrow={`Treatment · Wall ${selectedTreatment.anchor.wallIndex + 1}`}
-                label={selectedTreatment.label}
-                locked={selectedTreatment.locked}
-                hidden={selectedTreatment.hidden}
-                meta={
-                  <StatusChip>
-                    {inchesToFeetLabel(
-                      selectedTreatment.anchor.endOffset -
-                        selectedTreatment.anchor.startOffset
-                    )}{" "}
-                    wide
-                  </StatusChip>
-                }
-              />
-              <TreatmentEditor
-                design={design}
-                treatment={selectedTreatment}
-                onChange={onChange}
-                onSelect={onSelect}
-                idPrefix={`${idPrefix}-treatment`}
-              />
-            </div>
-          ) : selectedObject ? (
-            <ObjectInspector
-              design={design}
-              object={selectedObject}
-              onChange={onChange}
-            />
-          ) : selectedOpening ? (
-            <OpeningInspector
-              design={design}
-              opening={selectedOpening}
-              onChange={onChange}
-            />
-          ) : selectedCeiling ? (
-            <CeilingInspector
-              design={design}
-              drape={selectedCeiling}
-              onChange={onChange}
-            />
-          ) : selectedWall ? (
-            <WallInspector design={design} wallIndex={selectedWall.index} />
           ) : (
-            <DesignBrief design={design} onChange={onChange} idPrefix={idPrefix} />
+            <div
+              className={cn(
+                wide &&
+                  "@xl:columns-2 @xl:gap-3 [&_.rounded-2xl]:break-inside-avoid [&_section]:break-inside-avoid"
+              )}
+            >
+              {multi ? (
+                <MultiInspector design={design} onChange={onChange} />
+              ) : selectedDrape ? (
+                <div className="space-y-3">
+                  <ItemHeader
+                    icon={ScissorsLineDashed}
+                    eyebrow={`Drape run · Wall ${selectedDrape.wallIndex + 1}`}
+                    label={selectedDrape.label}
+                    locked={selectedDrape.locked}
+                    hidden={selectedDrape.hidden}
+                    meta={
+                      <StatusChip>
+                        {inchesToFeetLabel(
+                          getDrapeRunHungLength(selectedDrape, design.openings)
+                        )}{" "}
+                        run
+                      </StatusChip>
+                    }
+                  />
+                  <DrapeRunEditor
+                    design={design}
+                    run={selectedDrape}
+                    onChange={onChange}
+                    idPrefix={`${idPrefix}-drape`}
+                  />
+                </div>
+              ) : selectedTreatment ? (
+                <div className="space-y-3">
+                  <ItemHeader
+                    icon={Sparkles}
+                    eyebrow={`Treatment · Wall ${selectedTreatment.anchor.wallIndex + 1}`}
+                    label={selectedTreatment.label}
+                    locked={selectedTreatment.locked}
+                    hidden={selectedTreatment.hidden}
+                    meta={
+                      <StatusChip>
+                        {inchesToFeetLabel(
+                          selectedTreatment.anchor.endOffset -
+                            selectedTreatment.anchor.startOffset
+                        )}{" "}
+                        wide
+                      </StatusChip>
+                    }
+                  />
+                  <TreatmentEditor
+                    design={design}
+                    treatment={selectedTreatment}
+                    onChange={onChange}
+                    onSelect={onSelect}
+                    idPrefix={`${idPrefix}-treatment`}
+                  />
+                </div>
+              ) : selectedObject ? (
+                <ObjectInspector
+                  design={design}
+                  object={selectedObject}
+                  onChange={onChange}
+                />
+              ) : selectedOpening ? (
+                <OpeningInspector
+                  design={design}
+                  opening={selectedOpening}
+                  onChange={onChange}
+                />
+              ) : selectedCeiling ? (
+                <CeilingInspector
+                  design={design}
+                  drape={selectedCeiling}
+                  onChange={onChange}
+                />
+              ) : selectedWall ? (
+                <WallInspector design={design} wallIndex={selectedWall.index} />
+              ) : (
+                <DesignBrief design={design} onChange={onChange} idPrefix={idPrefix} />
+              )}
+            </div>
           )}
         </div>
       </aside>

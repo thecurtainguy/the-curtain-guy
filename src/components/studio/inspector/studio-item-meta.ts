@@ -9,8 +9,10 @@ import {
   type GenericStudioObjectFinish,
   type StudioChairStyle,
   type StudioObjectType,
+  type StudioOpening,
   type StudioOpeningType,
 } from "@/data/studio";
+import { getOpeningStylePreset } from "@/data/studio-openings";
 import type { StudioItemKind } from "@/lib/studio-commands";
 import {
   AppWindow,
@@ -99,6 +101,14 @@ export const STUDIO_OPENING_META: Record<
   entrance: { label: "Entrance", description: "Open guest arrival", icon: DoorOpen },
   window: { label: "Window", description: "Raised glazing", icon: AppWindow },
 };
+
+/** Style-level label and size line, e.g. "Grand arched" / "8′ × 10′ · arched head". */
+export function getOpeningDisplay(
+  opening: Pick<StudioOpening, "type" | "style">
+): { label: string; description: string } {
+  const preset = getOpeningStylePreset(opening);
+  return { label: preset.label, description: preset.description };
+}
 
 export function getCeilingStyleLabel(style: CeilingDrapeStyle): string {
   return CEILING_DRAPE_STYLES.find((option) => option.value === style)?.label ?? style;

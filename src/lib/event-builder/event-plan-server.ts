@@ -14,6 +14,10 @@ import {
   validateStudioDesign,
   type StudioDesignJson,
 } from "@/data/studio";
+import {
+  STUDIO_GUEST_COUNT_MAX,
+  STUDIO_LEAD_TEXT_MAX,
+} from "@/data/studio-leads";
 
 export const EVENT_PLAN_MAX_PAYLOAD_BYTES = 512 * 1024;
 
@@ -29,6 +33,11 @@ export type EventPlanSubmitPayload = {
   brief: EventBuilderBrief;
   design: StudioDesignJson;
   website?: string;
+  /** Client-claimed studio row; the route verifies ownership before storing it. */
+  studioDesignId?: string;
+  /** Studio "Your event" values, which override the wizard brief when set. */
+  eventName?: string;
+  guestCount?: number;
 };
 
 export type EventPlanValidation = {
@@ -80,7 +89,34 @@ export function parseEventPlanPayload(payload: unknown): EventPlanSubmitPayload 
     brief,
     design: raw.design as StudioDesignJson,
     website: asString(raw.website),
+    studioDesignId: asString(raw.studioDesignId) || undefined,
+    eventName: parseEventName(raw.eventName),
+    guestCount: parseGuestCount(raw.guestCount),
   };
+}
+
+function parseEventName(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().replace(/\s+/g, " ").slice(0, STUDIO_LEAD_TEXT_MAX);
+  return trimmed || undefined;
+}
+
+function parseGuestCount(value: unknown): number | undefined {
+  const count = typeof value === "string" ? Number(value) : value;
+  return typeof count === "number" &&
+    Number.isInteger(count) &&
+    count >= 1 &&
+    count <= STUDIO_GUEST_COUNT_MAX
+    ? count
+    : undefined;
+}
+
+function resolveEventName(payload: EventPlanSubmitPayload): string | null {
+  return payload.eventName ?? parseEventName(payload.brief.eventName) ?? null;
+}
+
+function resolveGuestCount(payload: EventPlanSubmitPayload): number | null {
+  return payload.guestCount ?? parseGuestCount(payload.brief.guestCount) ?? null;
 }
 
 export function validateEventPlanSubmission(
@@ -141,6 +177,8 @@ export function buildEventPlanInsertRow(
     contact_phone: payload.contact.phone?.trim() || null,
     event_type: payload.brief.eventType || null,
     event_date: parseEventDate(payload.brief.eventDate),
+    event_name: resolveEventName(payload),
+    guest_count: resolveGuestCount(payload),
     venue_name: payload.brief.venueName?.trim() || null,
     city_area: payload.brief.cityArea?.trim() || null,
     brief_json: payload.brief,
@@ -166,6 +204,8 @@ export function buildEventPlanUpdateRow(payload: EventPlanSubmitPayload) {
     contact_phone: payload.contact.phone?.trim() || null,
     event_type: payload.brief.eventType || null,
     event_date: parseEventDate(payload.brief.eventDate),
+    event_name: resolveEventName(payload),
+    guest_count: resolveGuestCount(payload),
     venue_name: payload.brief.venueName?.trim() || null,
     city_area: payload.brief.cityArea?.trim() || null,
     brief_json: payload.brief,

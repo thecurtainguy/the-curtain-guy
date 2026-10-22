@@ -1,6 +1,7 @@
 "use client";
 
 import type { StudioDesignJson, StudioDrapeRun } from "@/data/studio";
+import { getDrapeRunSegments, type DrapeSegment } from "@/lib/studio-door-gaps";
 import {
   getPointAlongWall,
   getWallSegments,
@@ -20,14 +21,33 @@ import { hashSeed } from "./texture-utils";
 
 const SCALE = 1 / 12;
 
+/**
+ * Hung spans as a primitive key, so a run only re-renders when its own spans
+ * change — not when a door moves on another wall.
+ */
+function segmentsKey(segments: DrapeSegment[]): string {
+  return segments.map((segment) => `${segment.start}:${segment.end}`).join("|");
+}
+
+function parseSegmentsKey(key: string): DrapeSegment[] {
+  if (!key) return [];
+  return key.split("|").map((pair) => {
+    const [start, end] = pair.split(":").map(Number);
+    return { start, end };
+  });
+}
+
 const DrapeRunModel = memo(function DrapeRunModel({
   run,
+  spans,
   wall,
   bounds,
   inward,
   selected,
 }: {
   run: StudioDrapeRun;
+  /** `segmentsKey` of the run's hung spans, inches from wall start. */
+  spans: string;
   wall: StudioWallSegment;
   bounds: StudioBounds;
   inward: 1 | -1;
@@ -35,36 +55,48 @@ const DrapeRunModel = memo(function DrapeRunModel({
 }) {
   const { highlight, quality } = useFabricEditorState(run.id, selected);
   const hardware = run.hardware ?? "pipe_and_drape";
-  const center = getPointAlongWall(wall, (run.startOffset + run.endOffset) / 2);
-  const length = Math.max(1, run.endOffset - run.startOffset) * SCALE;
   const height = Math.max(0.5, run.height * SCALE);
-  const seed = useMemo(() => hashSeed(run.id), [run.id]);
+  const pieces = useMemo(
+    () =>
+      parseSegmentsKey(spans).map((segment, index) => ({
+        center: getPointAlongWall(wall, (segment.start + segment.end) / 2),
+        length: Math.max(1, segment.end - segment.start) * SCALE,
+        // The first piece keeps the run's seed so door-free runs fold as before.
+        seed: hashSeed(index === 0 ? run.id : `${run.id}:${index}`),
+      })),
+    [run.id, spans, wall]
+  );
 
   return (
-    <group
-      position={[
-        (center.x - bounds.centerX) * SCALE,
-        0,
-        (center.z - bounds.centerZ) * SCALE,
-      ]}
-      rotation={[0, -wall.angle, 0]}
-      scale={[1, 1, inward]}
-    >
-      <DrapeAssembly
-        length={length}
-        height={height}
-        fabric={run.fabric}
-        color={run.color}
-        fullness={run.fullness}
-        hardware={hardware}
-        puddle={Boolean(run.puddle)}
-        seed={seed}
-        quality={quality}
-        baseZ={wallStandoff(hardware)}
-        uplightColor={run.uplightColor ?? null}
-        highlight={highlight}
-      />
-    </group>
+    <>
+      {pieces.map((piece, index) => (
+        <group
+          key={`${run.id}:${index}`}
+          position={[
+            (piece.center.x - bounds.centerX) * SCALE,
+            0,
+            (piece.center.z - bounds.centerZ) * SCALE,
+          ]}
+          rotation={[0, -wall.angle, 0]}
+          scale={[1, 1, inward]}
+        >
+          <DrapeAssembly
+            length={piece.length}
+            height={height}
+            fabric={run.fabric}
+            color={run.color}
+            fullness={run.fullness}
+            hardware={hardware}
+            puddle={Boolean(run.puddle)}
+            seed={piece.seed}
+            quality={quality}
+            baseZ={wallStandoff(hardware)}
+            uplightColor={run.uplightColor ?? null}
+            highlight={highlight}
+          />
+        </group>
+      ))}
+    </>
   );
 });
 
@@ -87,17 +119,29 @@ export function StudioDrapes({
     () => interiorSign(design.room.floor),
     [design.room.floor]
   );
+  const spansById = useMemo(
+    () =>
+      new Map(
+        design.drapeRuns.map((run) => [
+          run.id,
+          segmentsKey(getDrapeRunSegments(run, design.openings)),
+        ])
+      ),
+    [design.drapeRuns, design.openings]
+  );
   if (!visible) return null;
 
   return (
     <group>
       {design.drapeRuns.map((run) => {
         const wall = walls[run.wallIndex];
-        if (!wall || run.hidden) return null;
+        const spans = spansById.get(run.id);
+        if (!wall || run.hidden || !spans) return null;
         return (
           <DrapeRunModel
             key={run.id}
             run={run}
+            spans={spans}
             wall={wall}
             bounds={bounds}
             inward={inward}

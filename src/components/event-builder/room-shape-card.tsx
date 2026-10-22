@@ -1,7 +1,9 @@
 "use client";
 
 import type { EventBuilderRoomShape } from "@/data/event-builder/brief";
+import type { StudioPoint } from "@/data/studio";
 import { SelectionCheck } from "@/components/event-builder/selection-check";
+import { FloorOutlineArt } from "@/components/event-builder/venue-plan-art";
 import { cn } from "@/lib/utils";
 
 type RoomShapeCardProps = {
@@ -9,9 +11,24 @@ type RoomShapeCardProps = {
   label: string;
   selected: boolean;
   onSelect: () => void;
+  /** Required to draw `custom` shapes (inches). */
+  outline?: readonly StudioPoint[];
 };
 
-function RoomShapeDiagram({ shape }: { shape: EventBuilderRoomShape }) {
+function RoomShapeDiagram({
+  shape,
+  outline,
+}: {
+  shape: EventBuilderRoomShape;
+  outline?: readonly StudioPoint[];
+}) {
+  if (shape === "custom" && outline && outline.length >= 3) {
+    return (
+      <span className="block h-16 w-[5.5rem]">
+        <FloorOutlineArt floor={outline} />
+      </span>
+    );
+  }
   if (shape === "l_shape") {
     return (
       <svg
@@ -55,6 +72,7 @@ export function RoomShapeCard({
   label,
   selected,
   onSelect,
+  outline,
 }: RoomShapeCardProps) {
   return (
     <button
@@ -77,7 +95,7 @@ export function RoomShapeCard({
       <div
         className="flex w-full items-center justify-center rounded-xl border border-border/30 bg-background/50 py-4"
       >
-        <RoomShapeDiagram shape={shape} />
+        <RoomShapeDiagram shape={shape} outline={outline} />
       </div>
       <span className="font-heading text-sm font-semibold text-foreground">
         {label}

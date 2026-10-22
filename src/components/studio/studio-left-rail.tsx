@@ -3,19 +3,7 @@
 import { useState } from "react";
 import type { StudioDesignJson } from "@/data/studio";
 import { findStudioItem } from "@/lib/studio-commands";
-import { cn } from "@/lib/utils";
-import {
-  Armchair,
-  Building2,
-  GalleryVerticalEnd,
-  LampCeiling,
-  LayoutGrid,
-  Ruler,
-  Search,
-  SearchX,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { Building2, Maximize2, SearchX } from "lucide-react";
 import { useOptionalStudioEditorActions } from "./editor/studio-editor-context";
 import {
   DEFAULT_DRAPE_STYLE,
@@ -40,6 +28,15 @@ import {
   VenuePresetGrid,
   filterVenuePresets,
 } from "./library/venue-preset-grid";
+import { LibraryBrowserDialog } from "./rails/library-browser-dialog";
+import {
+  setLibraryBrowserOpen,
+  setLibraryQuery,
+  setLibraryTab,
+  useLibraryBrowser,
+} from "./rails/library-browser-store";
+import { LibrarySearchField, LibraryTabBar } from "./rails/library-controls";
+import { useIsDesktopRail } from "./rails/rail-chrome-context";
 import { RoomSetupPanel } from "./room-setup-panel";
 import { StudioTip } from "./studio-tip";
 import type { StudioSelection } from "./studio-types";
@@ -51,16 +48,6 @@ type StudioLeftRailProps = {
   onSelect: (selection: StudioSelection) => void;
   idPrefix: string;
 };
-
-type LibraryTab = "room" | "drapery" | "ceiling" | "furniture" | "layouts";
-
-const TABS: Array<{ value: LibraryTab; label: string; icon: LucideIcon }> = [
-  { value: "room", label: "Room", icon: Ruler },
-  { value: "drapery", label: "Drapery", icon: GalleryVerticalEnd },
-  { value: "ceiling", label: "Ceiling", icon: LampCeiling },
-  { value: "furniture", label: "Furniture", icon: Armchair },
-  { value: "layouts", label: "Layouts", icon: LayoutGrid },
-];
 
 function SearchGroup({
   label,
@@ -92,8 +79,8 @@ export function StudioLeftRail({
   idPrefix,
 }: StudioLeftRailProps) {
   const editor = useOptionalStudioEditorActions();
-  const [tab, setTab] = useState<LibraryTab>("room");
-  const [query, setQuery] = useState("");
+  const desktopRail = useIsDesktopRail();
+  const { open: expanded, tab, query } = useLibraryBrowser();
   const [drapeStyle, setDrapeStyle] = useState<StudioDrapeStyle>(DEFAULT_DRAPE_STYLE);
   const searching = query.trim().length > 0;
 
@@ -122,53 +109,104 @@ export function StudioLeftRail({
   const total = counts
     ? counts.room + counts.drapery + counts.ceiling + counts.furniture + counts.layouts
     : 0;
+  const searchSummary = searching
+    ? `${total} result${total === 1 ? "" : "s"} for “${query.trim()}”`
+    : null;
 
-  const drapery = (
-    <LibraryDraperyTab
-      design={design}
-      onChange={onChange}
-      selection={selection}
-      onSelect={onSelect}
-      onSelectMany={selectMany}
-      style={drapeStyle}
-      onStyleChange={setDrapeStyle}
-      query={query}
-      idPrefix={`${idPrefix}-drapery`}
-      onOpenCeiling={() => {
-        setQuery("");
-        setTab("ceiling");
-      }}
-    />
-  );
-  const ceiling = (
-    <LibraryCeilingTab
-      design={design}
-      onChange={onChange}
-      selection={selection}
-      onSelect={onSelect}
-      query={query}
-      idPrefix={`${idPrefix}-ceiling`}
-    />
-  );
-  const furniture = (
-    <LibraryFurnitureTab
-      design={design}
-      onChange={onChange}
-      onSelect={onSelect}
-      query={query}
-      idPrefix={`${idPrefix}-furniture`}
-    />
-  );
-  const layouts = (
-    <LibraryLayoutsTab
-      design={design}
-      onChange={onChange}
-      onSelectMany={selectMany}
-      onFit={fit}
-      query={query}
-      idPrefix={`${idPrefix}-layouts`}
-    />
-  );
+  /** Same tab content for the rail and the expanded dialog (distinct id prefixes). */
+  function renderBody(prefix: string, change: (design: StudioDesignJson) => void) {
+    const drapery = (
+      <LibraryDraperyTab
+        design={design}
+        onChange={change}
+        selection={selection}
+        onSelect={onSelect}
+        onSelectMany={selectMany}
+        style={drapeStyle}
+        onStyleChange={setDrapeStyle}
+        query={query}
+        idPrefix={`${prefix}-drapery`}
+        onOpenCeiling={() => {
+          setLibraryQuery("");
+          setLibraryTab("ceiling");
+        }}
+      />
+    );
+    const ceiling = (
+      <LibraryCeilingTab
+        design={design}
+        onChange={change}
+        selection={selection}
+        onSelect={onSelect}
+        query={query}
+        idPrefix={`${prefix}-ceiling`}
+      />
+    );
+    const furniture = (
+      <LibraryFurnitureTab
+        design={design}
+        onChange={change}
+        onSelect={onSelect}
+        query={query}
+        idPrefix={`${prefix}-furniture`}
+      />
+    );
+    const layouts = (
+      <LibraryLayoutsTab
+        design={design}
+        onChange={change}
+        onSelectMany={selectMany}
+        onFit={fit}
+        query={query}
+        idPrefix={`${prefix}-layouts`}
+      />
+    );
+
+    if (searching && counts) {
+      if (total === 0) {
+        return (
+          <LibraryCard className="text-center">
+            <span className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <SearchX className="size-5" aria-hidden />
+            </span>
+            <p className="font-heading text-sm">Nothing matches</p>
+            <p className="text-[0.66rem] text-muted-foreground">
+              Try “round”, “velvet”, “stage” or “ballroom”.
+            </p>
+          </LibraryCard>
+        );
+      }
+      return (
+        <div className="space-y-4">
+          <SearchGroup label="Venues" count={counts.room}>
+            <LibraryCard>
+              <LibrarySectionHeading icon={Building2} eyebrow="Room" title="Venue presets" />
+              <VenuePresetGrid design={design} onChange={change} query={query} />
+            </LibraryCard>
+          </SearchGroup>
+          <SearchGroup label="Drapery" count={counts.drapery}>
+            {drapery}
+          </SearchGroup>
+          <SearchGroup label="Ceiling" count={counts.ceiling}>
+            {ceiling}
+          </SearchGroup>
+          <SearchGroup label="Furniture" count={counts.furniture}>
+            {furniture}
+          </SearchGroup>
+          <SearchGroup label="Layouts" count={counts.layouts}>
+            {layouts}
+          </SearchGroup>
+        </div>
+      );
+    }
+    if (tab === "room") {
+      return <RoomSetupPanel design={design} onChange={change} idPrefix={`${prefix}-room`} />;
+    }
+    if (tab === "drapery") return drapery;
+    if (tab === "ceiling") return ceiling;
+    if (tab === "furniture") return furniture;
+    return layouts;
+  }
 
   return (
     <aside className="flex h-full min-h-0 flex-col bg-card/35">
@@ -182,7 +220,7 @@ export function StudioLeftRail({
             <span className="flex size-8 items-center justify-center rounded-xl border border-primary/25 bg-primary/15 text-primary">
               <Building2 className="size-4" aria-hidden />
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-[0.58rem] font-semibold tracking-[0.22em] text-primary uppercase">
                 Studio library
               </p>
@@ -190,75 +228,34 @@ export function StudioLeftRail({
                 Build the room
               </h2>
             </div>
-          </div>
-
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setQuery("");
-              }}
-              placeholder="Search tables, drapes, ceilings…"
-              aria-label="Search the studio library"
-              className="h-8 w-full rounded-xl border border-border/50 bg-background/55 pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring/30 [&::-webkit-search-cancel-button]:hidden"
-            />
-            {searching ? (
-              <StudioTip label="Clear search" shortcut="Esc">
+            {desktopRail ? (
+              <StudioTip label="Expand library" shortcut="Shift L" side="bottom">
                 <button
                   type="button"
-                  onClick={() => setQuery("")}
-                  aria-label="Clear search"
-                  className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  onClick={() => setLibraryBrowserOpen(true)}
+                  aria-label="Expand library"
+                  aria-haspopup="dialog"
+                  aria-expanded={expanded}
+                  className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/50 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 >
-                  <X className="size-3" aria-hidden />
+                  <Maximize2 className="size-3.5" aria-hidden />
                 </button>
               </StudioTip>
             ) : null}
           </div>
 
+          <LibrarySearchField query={query} onQueryChange={setLibraryQuery} />
+
           {!searching ? (
-            <div
-              className="grid grid-cols-5 gap-1 rounded-xl border border-border/40 bg-background/40 p-1"
-              role="tablist"
-              aria-label="Library sections"
-            >
-              {TABS.map((item) => {
-                const active = tab === item.value;
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    role="tab"
-                    id={`${idPrefix}-tab-${item.value}`}
-                    aria-selected={active}
-                    aria-controls={`${idPrefix}-panel`}
-                    onClick={() => setTab(item.value)}
-                    className={cn(
-                      "flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[0.6rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                      active
-                        ? "bg-primary/15 text-foreground shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/30%)]"
-                        : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                    )}
-                  >
-                    <Icon
-                      className={cn("size-3.5", active ? "text-primary" : "")}
-                      aria-hidden
-                    />
-                    <span className="truncate">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <LibraryTabBar
+              tab={tab}
+              onTabChange={setLibraryTab}
+              idPrefix={idPrefix}
+              panelId={`${idPrefix}-panel`}
+            />
           ) : (
             <p className="text-[0.62rem] text-muted-foreground" role="status">
-              {total} result{total === 1 ? "" : "s"} for “{query.trim()}”
+              {searchSummary}
             </p>
           )}
         </div>
@@ -269,61 +266,26 @@ export function StudioLeftRail({
         role={searching ? "region" : "tabpanel"}
         aria-labelledby={searching ? undefined : `${idPrefix}-tab-${tab}`}
         aria-label={searching ? "Search results" : undefined}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3"
+        className="@container min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3"
       >
-        {searching && counts ? (
-          total === 0 ? (
-            <LibraryCard className="text-center">
-              <span className="mx-auto flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <SearchX className="size-5" aria-hidden />
-              </span>
-              <p className="font-heading text-sm">Nothing matches</p>
-              <p className="text-[0.66rem] text-muted-foreground">
-                Try “round”, “velvet”, “stage” or “ballroom”.
-              </p>
-            </LibraryCard>
-          ) : (
-            <div className="space-y-4">
-              <SearchGroup label="Venues" count={counts.room}>
-                <LibraryCard>
-                  <LibrarySectionHeading
-                    icon={Building2}
-                    eyebrow="Room"
-                    title="Venue presets"
-                  />
-                  <VenuePresetGrid design={design} onChange={onChange} query={query} />
-                </LibraryCard>
-              </SearchGroup>
-              <SearchGroup label="Drapery" count={counts.drapery}>
-                {drapery}
-              </SearchGroup>
-              <SearchGroup label="Ceiling" count={counts.ceiling}>
-                {ceiling}
-              </SearchGroup>
-              <SearchGroup label="Furniture" count={counts.furniture}>
-                {furniture}
-              </SearchGroup>
-              <SearchGroup label="Layouts" count={counts.layouts}>
-                {layouts}
-              </SearchGroup>
-            </div>
-          )
-        ) : tab === "room" ? (
-          <RoomSetupPanel
-            design={design}
-            onChange={onChange}
-            idPrefix={`${idPrefix}-room`}
-          />
-        ) : tab === "drapery" ? (
-          drapery
-        ) : tab === "ceiling" ? (
-          ceiling
-        ) : tab === "furniture" ? (
-          furniture
-        ) : (
-          layouts
-        )}
+        {renderBody(idPrefix, onChange)}
       </div>
+
+      {desktopRail ? (
+        <LibraryBrowserDialog
+          open={expanded}
+          onOpenChange={setLibraryBrowserOpen}
+          design={design}
+          onChange={onChange}
+          tab={tab}
+          onTabChange={setLibraryTab}
+          query={query}
+          onQueryChange={setLibraryQuery}
+          searchSummary={searchSummary}
+          idPrefix={`${idPrefix}-expanded`}
+          renderBody={(change) => renderBody(`${idPrefix}-expanded`, change)}
+        />
+      ) : null}
     </aside>
   );
 }

@@ -16,6 +16,8 @@ import {
   inchesToFeetLabel,
   type StudioWallSegment,
 } from "@/lib/studio-geometry";
+import { getOpeningStylePreset } from "@/data/studio-openings";
+import { getDrapeRunSegments, type DrapeSegment } from "@/lib/studio-door-gaps";
 import { snapStudioValue } from "@/lib/studio-interactions";
 import {
   STUDIO_PLAN_WALL_THICKNESS,
@@ -53,6 +55,7 @@ import {
   OpeningSymbol,
   TREATMENT_PLAN_BASE,
   TreatmentGlyph,
+  getDrapeGaps,
 } from "./wall-item-symbols";
 import { PlanBadge, uprightAngle } from "./wall-plan-badge";
 import {
@@ -142,12 +145,36 @@ function cachedEntry(raw: object, floor: StudioPoint[], build: () => WallItemEnt
   return entry;
 }
 
+const segmentCache = new WeakMap<
+  object,
+  { openings: readonly StudioOpening[]; segments: DrapeSegment[] }
+>();
+
+/** Hung spans of a (cached) run; keeps the previous array when unchanged so the item stays memoised. */
+function cachedDrapeSegments(run: StudioDrapeRun, openings: readonly StudioOpening[]): DrapeSegment[] {
+  const hit = segmentCache.get(run);
+  if (hit && hit.openings === openings) return hit.segments;
+  const next = getDrapeRunSegments(run, openings);
+  const same =
+    hit &&
+    hit.segments.length === next.length &&
+    hit.segments.every((s, i) => s.start === next[i].start && s.end === next[i].end);
+  const segments = same ? hit.segments : next;
+  segmentCache.set(run, { openings, segments });
+  return segments;
+}
+
 function kindLabelOf(entry: WallItemEntry): string {
   if (entry.kind === "drape") return "Drape run";
   if (entry.kind === "treatment") return "Treatment";
-  if (entry.item.type === "window") return "Window";
-  if (entry.item.type === "entrance") return "Entrance";
-  return "Door";
+  return getOpeningStylePreset(entry.item).label;
+}
+
+function openingTip(opening: StudioOpening, span: number): string {
+  const size = opening.openingHeight
+    ? `${inchesToFeetLabel(span)} × ${inchesToFeetLabel(opening.openingHeight)}`
+    : `${inchesToFeetLabel(span)} wide`;
+  return `${getOpeningStylePreset(opening).label} · ${size}`;
 }
 
 function wallFrame(wall: StudioWallSegment, inwardSign: number): string {
@@ -169,6 +196,7 @@ const WallItemView = memo(function WallItemView({
   ppi,
   floorFill,
   uplightGradientId,
+  segments,
   onBeginDrag,
   onItemClick,
   onActivate,
@@ -180,6 +208,8 @@ const WallItemView = memo(function WallItemView({
   ppi: number;
   floorFill: string;
   uplightGradientId: string | undefined;
+  /** Drape runs: hung spans after door gaps. */
+  segments?: readonly DrapeSegment[];
   onBeginDrag: WallItemPointerHandler;
   onItemClick: (event: React.MouseEvent<SVGElement>, entry: WallItemEntry) => void;
   onActivate: (entry: WallItemEntry, additive: boolean) => void;
@@ -195,9 +225,11 @@ const WallItemView = memo(function WallItemView({
     height: height + 4,
     rx: 3,
   };
+  const gaps = segments ? getDrapeGaps(entry.start, entry.end, segments) : [];
   return (
     <g
       transform={wallFrame(wall, inwardSign)}
+      data-studio-tip={entry.kind === "opening" ? openingTip(entry.item, span) : undefined}
       role="button"
       tabIndex={0}
       aria-pressed={selected}
@@ -222,13 +254,29 @@ const WallItemView = memo(function WallItemView({
           />
         </g>
       ) : entry.kind === "drape" ? (
-        <DrapeSymbol run={entry.item} pixelsPerInch={ppi} uplightGradientId={uplightGradientId} />
+        <DrapeSymbol
+          run={entry.item}
+          pixelsPerInch={ppi}
+          uplightGradientId={uplightGradientId}
+          segments={segments}
+        />
       ) : (
         <g transform={`translate(${(entry.start + entry.end) / 2} 0)`}>
           <TreatmentGlyph treatment={entry.item} />
         </g>
       )}
       <rect x={entry.start} y={extent.min} width={span} height={height} fill="transparent" />
+      {gaps.map((gap) => (
+        <rect
+          key={`gap-${gap.start}`}
+          x={gap.start}
+          y={extent.min}
+          width={gap.end - gap.start}
+          height={height}
+          fill="transparent"
+          data-studio-tip="Door gap · fabric stops clear of the doorway"
+        />
+      ))}
       {selected
         ? selectionHalo().map((halo, index) => (
             <rect key={`halo-${index}`} {...outline} {...halo} />
@@ -636,6 +684,9 @@ export const WallItemsLayer2D = memo(function WallItemsLayer2D({
               entry.kind === "drape" && entry.item.uplightColor
                 ? `${idPrefix}-uplight-${entry.item.uplightColor}`
                 : undefined
+            }
+            segments={
+              entry.kind === "drape" ? cachedDrapeSegments(entry.item, design.openings) : undefined
             }
             onBeginDrag={onBeginDrag}
             onItemClick={onItemClick}

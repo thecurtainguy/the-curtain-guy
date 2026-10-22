@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { PageLocale } from "@/components/i18n/page-locale";
+import { StudioDesignSummaryCard } from "@/components/admin/studio-quote/studio-design-summary-card";
 import { QuoteProposalView } from "@/components/quotes/quote-proposal-view";
 import {
   isCustomerLanguage,
@@ -16,6 +17,7 @@ import {
   markQuoteViewed,
   toCustomerSafeQuote,
 } from "@/lib/quotes";
+import { fetchStudioDesignSummaryForQuote } from "@/lib/studio-quote-converter";
 
 const getQuoteForToken = cache(fetchQuoteByPublicToken);
 
@@ -57,6 +59,7 @@ export default async function PublicQuotePage({
   if (!quote) notFound();
 
   await markQuoteViewed(quote.id);
+  const studioSummary = await fetchStudioDesignSummaryForQuote(quote);
 
   const quoteLanguage = normalizeCustomerLanguage(quote.language);
   const language = viewLanguage(quote.language, lang);
@@ -83,6 +86,14 @@ export default async function PublicQuotePage({
         aria-hidden
       />
       <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
+        {studioSummary ? (
+          <StudioDesignSummaryCard
+            summary={studioSummary}
+            variant="customer"
+            language={language}
+            className="mb-6"
+          />
+        ) : null}
         <QuoteProposalView
           quote={safe}
           mode="public"

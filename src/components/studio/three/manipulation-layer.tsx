@@ -407,6 +407,7 @@ function ManipulationLayer({
                     wall={wall}
                     bounds={bounds}
                     events={proxyEvents}
+                    openings={kind === "drape" ? design.openings : undefined}
                   />
                 );
               })

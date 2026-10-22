@@ -10,6 +10,7 @@ import {
   type StudioDesignJson,
   type StudioObject,
 } from "@/data/studio";
+import { getDrapeRunSegments } from "@/lib/studio-door-gaps";
 import {
   clampOpeningToWall,
   getPointAlongWall,
@@ -265,33 +266,36 @@ export function buildStudioLightRig({
     const frame = frames[run.wallIndex];
     if (!frame || !run.uplightColor) continue;
     const color = getStudioLightHex(run.uplightColor);
-    const start = Math.max(0, run.startOffset);
-    const end = Math.min(frame.wall.length, run.endOffset);
-    if (end <= start) continue;
-    const spanFeet = (end - start) * SCALE;
-    const count = Math.max(1, Math.round(spanFeet / 6));
-    const spacing = spanFeet / count;
     const surfaceHeight = Math.min(run.height, wallHeightInches) * SCALE;
-    evenOffsets(start, end, count).forEach((offset, index) => {
-      fixtures.push({
-        key: `drape:${run.id}:${index}`,
-        source: "drape",
-        groupKey: `drape:${run.id}`,
-        color,
-        position: frame.at(offset, DRAPE_CAN_OFFSET, 0),
-        aim: frame.at(offset, DRAPE_WASH_OFFSET - 0.2, surfaceHeight * 0.62),
-        yaw: frame.faceWall,
-        wash: {
-          position: frame.at(offset, DRAPE_WASH_OFFSET, (surfaceHeight * 0.96) / 2),
-          rotationY: frame.faceRoom,
-          width: Math.min(spacing * 1.4, 9),
-          height: surfaceHeight * 0.96,
-        },
-        renderCan: true,
-        spacing,
-        along: offset * SCALE,
-      });
-    });
+    let index = 0;
+    for (const segment of getDrapeRunSegments(run, openings)) {
+      const start = Math.max(0, segment.start);
+      const end = Math.min(frame.wall.length, segment.end);
+      if (end <= start) continue;
+      const spanFeet = (end - start) * SCALE;
+      const count = Math.max(1, Math.round(spanFeet / 6));
+      const spacing = spanFeet / count;
+      for (const offset of evenOffsets(start, end, count)) {
+        fixtures.push({
+          key: `drape:${run.id}:${index++}`,
+          source: "drape",
+          groupKey: `drape:${run.id}`,
+          color,
+          position: frame.at(offset, DRAPE_CAN_OFFSET, 0),
+          aim: frame.at(offset, DRAPE_WASH_OFFSET - 0.2, surfaceHeight * 0.62),
+          yaw: frame.faceWall,
+          wash: {
+            position: frame.at(offset, DRAPE_WASH_OFFSET, (surfaceHeight * 0.96) / 2),
+            rotationY: frame.faceRoom,
+            width: Math.min(spacing * 1.4, 9),
+            height: surfaceHeight * 0.96,
+          },
+          renderCan: true,
+          spacing,
+          along: offset * SCALE,
+        });
+      }
+    }
   }
 
   /* Treatments with uplighting */

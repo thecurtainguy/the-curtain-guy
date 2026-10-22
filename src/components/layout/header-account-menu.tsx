@@ -58,7 +58,7 @@ const ownerLinks: MenuLink[] = [
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
-  { href: "/admin/studio", label: "Studio", icon: PanelsTopLeft },
+  { href: "/admin/studio", label: "Studio leads", icon: PanelsTopLeft },
 ];
 
 type HeaderAccountMenuProps = {
@@ -115,7 +115,10 @@ export function HeaderAccountMenu({
           className
         )}
       >
-        <GuardedLink href="/account/login">{t("signIn")}</GuardedLink>
+        <GuardedLink href="/account/login">
+          <UserRound className="hidden size-3.5 text-primary lg:max-xl:block" strokeWidth={1.75} aria-hidden />
+          <span className="lg:max-xl:sr-only">{t("signIn")}</span>
+        </GuardedLink>
       </Button>
     );
   }
@@ -179,7 +182,7 @@ export function HeaderAccountMenu({
           )}
         >
           <TriggerIcon className="size-3.5 text-primary" strokeWidth={1.75} />
-          {triggerLabel}
+          <span className="lg:max-xl:sr-only">{triggerLabel}</span>
           <ChevronDown className="size-3.5 opacity-60" aria-hidden />
         </Button>
       </DropdownMenuTrigger>

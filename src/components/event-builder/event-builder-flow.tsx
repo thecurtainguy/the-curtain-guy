@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, ArrowRight, Mail, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, CornerDownLeft, Mail, Save, SkipForward } from "lucide-react";
 import {
   DEFAULT_EVENT_BUILDER_BRIEF,
+  EVENT_BUILDER_FALLBACK_EVENT_TYPE,
   clearEventBuilderBrief,
   readEventBuilderBriefBackup,
   readEventBuilderBriefSession,
@@ -15,20 +16,53 @@ import {
   saveEventBuilderStep,
   type EventBuilderBrief,
 } from "@/data/event-builder/brief";
-import { EventBuilderStepNav } from "@/components/event-builder/event-builder-step-nav";
-import { EventStepEventRoom } from "@/components/event-builder/event-step-event-room";
+import {
+  EVENT_BUILDER_STEPS,
+  EventBuilderStepNav,
+} from "@/components/event-builder/event-builder-step-nav";
+import { EventStepEvent } from "@/components/event-builder/event-step-event";
+import { EventStepRoom } from "@/components/event-builder/event-step-room";
 import { EventStepCatalog } from "@/components/event-builder/event-step-catalog";
+import { EventStepCeiling } from "@/components/event-builder/event-step-ceiling";
 import { EventStepLook } from "@/components/event-builder/event-step-look";
 import { EventStepReview } from "@/components/event-builder/event-step-review";
 import { EventPlanSubmitDialog } from "@/components/event-builder/event-plan-submit-dialog";
-import { LivePlanBottomBar } from "@/components/event-builder/live-plan-sidebar";
+import { LivePlanSidebar } from "@/components/event-builder/live-plan-sidebar";
+import { useWizardCopy } from "@/components/event-builder/wizard-copy";
+import { ROOM_MIN_FT } from "@/lib/event-builder/brief-room";
+import { computeEventWallRoles } from "@/lib/event-builder/wall-roles";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { buildStarterDesignFromBrief } from "@/lib/event-builder/build-starter-design";
 import { patchEventPlanSubmission, postEventPlanSubmission } from "@/lib/event-builder/event-plan-client";
 import { normalizeStudioDesign } from "@/data/studio";
 
-const STEPS = ["event", "catalog", "look", "review"] as const;
+const STEPS = EVENT_BUILDER_STEPS;
+const REVIEW_INDEX = STEPS.length - 1;
+const ROOM_INDEX = 1;
+/** Steps that show the live plan beside the form. */
+const PLAN_ASIDE_STEPS = new Set([1, 2, 3, 4]);
+
+const stepHeadingId = (index: number) => `event-builder-step-${STEPS[index]}`;
+
+/** Fills the only required answers so any step can be skipped. */
+function withRequiredDefaults(brief: EventBuilderBrief): EventBuilderBrief {
+  const room = brief.room;
+  const roomOk = room.widthFt >= ROOM_MIN_FT && room.lengthFt >= ROOM_MIN_FT && room.wallHeightFt > 0;
+  if (brief.eventType && roomOk) return brief;
+  return {
+    ...brief,
+    eventType: brief.eventType || EVENT_BUILDER_FALLBACK_EVENT_TYPE,
+    room: roomOk
+      ? room
+      : {
+          ...room,
+          widthFt: Math.max(ROOM_MIN_FT, room.widthFt || DEFAULT_EVENT_BUILDER_BRIEF.room.widthFt),
+          lengthFt: Math.max(ROOM_MIN_FT, room.lengthFt || DEFAULT_EVENT_BUILDER_BRIEF.room.lengthFt),
+          wallHeightFt: room.wallHeightFt > 0 ? room.wallHeightFt : DEFAULT_EVENT_BUILDER_BRIEF.room.wallHeightFt,
+        },
+  };
+}
 
 type EventBuilderContactDefaults = {
   name: string;
@@ -63,7 +97,10 @@ export function EventBuilderFlow({
   onCancelEdit,
 }: EventBuilderFlowProps) {
   const t = useTranslations("eventBuilder");
+  const copy = useWizardCopy();
   const router = useRouter();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const focusStepOnChange = useRef(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [brief, setBrief] = useState<EventBuilderBrief>(
     DEFAULT_EVENT_BUILDER_BRIEF
@@ -95,6 +132,33 @@ export function EventBuilderFlow({
     ? successHref ?? "/account/event-plans"
     : "/studio";
 
+  const deferredBrief = useDeferredValue(brief);
+  const design = useMemo(
+    () => normalizeStudioDesign(buildStarterDesignFromBrief(deferredBrief)),
+    [deferredBrief]
+  );
+  const frontWall = useMemo(
+    () => computeEventWallRoles(design.room.floor).front,
+    [design.room.floor]
+  );
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const previous = root.style.scrollPaddingBottom;
+    root.style.scrollPaddingBottom = "6rem";
+    return () => {
+      root.style.scrollPaddingBottom = previous;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!focusStepOnChange.current) return;
+    focusStepOnChange.current = false;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    shellRef.current?.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
+    document.getElementById(stepHeadingId(stepIndex))?.focus({ preventScroll: true });
+  }, [stepIndex]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -109,7 +173,7 @@ export function EventBuilderFlow({
             notes: "",
           }
         );
-        setStepIndex(embedded ? 0 : 3);
+        setStepIndex(embedded ? 0 : REVIEW_INDEX);
         setHydrated(true);
         return;
       }
@@ -141,7 +205,7 @@ export function EventBuilderFlow({
             phone: body.plan?.contact_phone ?? "",
             notes: body.plan?.notes ?? "",
           });
-          setStepIndex(3);
+          setStepIndex(REVIEW_INDEX);
           setHydrated(true);
           return;
         } catch (err) {
@@ -250,33 +314,56 @@ export function EventBuilderFlow({
   }
 
   function validateStep(index: number): boolean {
-    if (index === 0) {
-      if (!brief.eventType) {
-        setStepError(t("validation.eventType"));
-        return false;
-      }
-      if (brief.room.widthFt < 10 || brief.room.lengthFt < 10) {
-        setStepError(t("validation.roomSize"));
-        return false;
-      }
+    if (index === 0 && !brief.eventType) {
+      setStepError(t("validation.eventType"));
+      return false;
+    }
+    if (
+      index === ROOM_INDEX &&
+      (brief.room.widthFt < ROOM_MIN_FT || brief.room.lengthFt < ROOM_MIN_FT)
+    ) {
+      setStepError(t("validation.roomSize"));
+      return false;
     }
     setStepError(null);
     return true;
   }
 
+  function moveTo(index: number) {
+    focusStepOnChange.current = true;
+    setStepError(null);
+    setStepIndex(Math.min(Math.max(index, 0), REVIEW_INDEX));
+  }
+
   function goNext() {
     if (!validateStep(stepIndex)) return;
-    setStepIndex((current) => Math.min(current + 1, STEPS.length - 1));
+    moveTo(stepIndex + 1);
+  }
+
+  function skipStep() {
+    const next = withRequiredDefaults(brief);
+    if (next !== brief) persistBrief(next);
+    moveTo(stepIndex + 1);
   }
 
   function goBack() {
-    setStepError(null);
-    setStepIndex((current) => Math.max(current - 1, 0));
+    moveTo(stepIndex - 1);
   }
 
   function goToStep(index: number) {
-    setStepError(null);
-    setStepIndex(index);
+    if (index > stepIndex) {
+      const next = withRequiredDefaults(brief);
+      if (next !== brief) persistBrief(next);
+    }
+    moveTo(index);
+  }
+
+  function handleStepKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    const target = event.target as HTMLElement;
+    if (!(target instanceof HTMLInputElement) || stepIndex >= REVIEW_INDEX) return;
+    event.preventDefault();
+    goNext();
   }
 
   const handleSubmitPlan = useCallback(async () => {
@@ -408,10 +495,29 @@ export function EventBuilderFlow({
     );
   }
 
-  const design = normalizeStudioDesign(buildStarterDesignFromBrief(brief));
+  const showPlanAside = PLAN_ASIDE_STEPS.has(stepIndex);
+  const planSidebar = (
+    <LivePlanSidebar
+      brief={deferredBrief}
+      design={design}
+      frontWall={frontWall}
+      onRemoveSelection={(id) =>
+        persistBrief({
+          ...brief,
+          catalogSelections: brief.catalogSelections.filter((value) => value !== id),
+        })
+      }
+      onClearAll={() => persistBrief({ ...brief, catalogSelections: [] })}
+    />
+  );
+  const stepProps = {
+    brief,
+    onChange: persistBrief,
+    headingId: stepHeadingId(stepIndex),
+  };
 
   return (
-    <div className={shellClass}>
+    <div ref={shellRef} className={`scroll-mt-24 ${shellClass}`}>
       {backupDraft && !embedded ? (
         <div
           className="mb-6 rounded-2xl border border-primary/30 bg-primary/[0.06] p-4 sm:p-5"
@@ -475,18 +581,42 @@ export function EventBuilderFlow({
         </div>
       )}
 
-      {stepIndex === 0 ? (
-        <EventStepEventRoom brief={brief} onChange={persistBrief} />
-      ) : null}
-      {stepIndex === 1 ? (
-        <EventStepCatalog brief={brief} onChange={persistBrief} />
-      ) : null}
-      {stepIndex === 2 ? (
-        <EventStepLook brief={brief} onChange={persistBrief} />
-      ) : null}
-      {stepIndex === 3 ? (
-        <EventStepReview brief={brief} onEditStep={goToStep} />
-      ) : null}
+      <div
+        onKeyDown={handleStepKeyDown}
+        className={
+          showPlanAside
+            ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start"
+            : undefined
+        }
+      >
+        <div className="min-w-0">
+          {stepIndex === 0 ? <EventStepEvent {...stepProps} /> : null}
+          {stepIndex === 1 ? <EventStepRoom {...stepProps} /> : null}
+          {stepIndex === 2 ? <EventStepCatalog {...stepProps} /> : null}
+          {stepIndex === 3 ? <EventStepCeiling {...stepProps} /> : null}
+          {stepIndex === 4 ? <EventStepLook {...stepProps} /> : null}
+          {stepIndex === REVIEW_INDEX ? (
+            <EventStepReview
+              {...stepProps}
+              design={design}
+              frontWall={frontWall}
+              onEditStep={goToStep}
+            />
+          ) : null}
+        </div>
+        {showPlanAside ? (
+          <>
+            <div className="hidden lg:sticky lg:top-24 lg:block">{planSidebar}</div>
+            <details className="group rounded-3xl border border-border/40 bg-card/25 lg:hidden">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">
+                {copy.review.plan}
+                <ChevronDown className="size-4 text-primary transition-transform group-open:rotate-180" aria-hidden />
+              </summary>
+              <div className="px-2 pb-2">{planSidebar}</div>
+            </details>
+          </>
+        ) : null}
+      </div>
 
       {stepError ? (
         <p className="mt-4 text-sm text-destructive" role="alert">
@@ -500,8 +630,8 @@ export function EventBuilderFlow({
         </p>
       ) : null}
 
-      {stepIndex < 3 ? (
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border/40 pt-6">
+      {stepIndex < REVIEW_INDEX ? (
+        <div className="sticky bottom-0 z-30 -mx-4 mt-8 flex items-center justify-between gap-2 border-t border-border/40 bg-background/90 px-4 py-3 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
           {stepIndex === 0 ? (
             onCancelEdit ? (
               <Button type="button" variant="ghost" onClick={onCancelEdit}>
@@ -518,13 +648,30 @@ export function EventBuilderFlow({
               {t("flow.back")}
             </Button>
           )}
-          <Button type="button" onClick={goNext} disabled={Boolean(backupDraft)}>
-            {t("flow.next")}
-            <ArrowRight className="size-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <span className="hidden items-center gap-1 text-[11px] text-muted-foreground xl:inline-flex">
+              <CornerDownLeft className="size-3" aria-hidden />
+              {copy.flow.enterHint}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={skipStep}
+              disabled={Boolean(backupDraft)}
+              className="text-muted-foreground"
+            >
+              <SkipForward className="size-4" aria-hidden />
+              <span className="hidden sm:inline">{copy.flow.skip}</span>
+              <span className="sr-only sm:hidden">{copy.flow.skip}</span>
+            </Button>
+            <Button type="button" onClick={goNext} disabled={Boolean(backupDraft)}>
+              {t("flow.next")}
+              <ArrowRight className="size-4" />
+            </Button>
+          </div>
         </div>
       ) : (
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border/40 pt-6">
+        <div className="sticky bottom-0 z-30 -mx-4 mt-8 flex items-center justify-between gap-3 border-t border-border/40 bg-background/90 px-4 py-3 backdrop-blur-xl sm:mx-0 sm:rounded-2xl sm:border sm:px-4">
           <Button type="button" variant="ghost" onClick={goBack}>
             <ArrowLeft className="size-4" />
             {t("flow.back")}
@@ -556,10 +703,6 @@ export function EventBuilderFlow({
           )}
         </div>
       )}
-
-      {stepIndex === 1 && !backupDraft ? (
-        <LivePlanBottomBar brief={brief} onOpenReview={() => setStepIndex(3)} />
-      ) : null}
 
       {!editPlanId ? (
         <EventPlanSubmitDialog

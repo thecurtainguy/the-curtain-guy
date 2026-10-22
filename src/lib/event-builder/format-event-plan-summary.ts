@@ -1,10 +1,28 @@
 import { getEnglishOptionLabel } from "@/data/estimate";
-import type { EventBuilderBrief } from "@/data/event-builder/brief";
+import {
+  getBriefCeilingPreset,
+  getBriefFabric,
+  getBriefLayout,
+  getBriefLightingMood,
+  getBriefOpenings,
+  getBriefUplightColor,
+  getBriefVenuePreset,
+  type EventBuilderBrief,
+} from "@/data/event-builder/brief";
+import { EVENT_LAYOUT_OPTIONS } from "@/data/event-builder/wizard-options";
+import { getOpeningPreset } from "@/data/studio-openings";
 import {
   getEventCatalogLabel,
   roomPreviewStats,
 } from "@/data/event-builder/catalog";
-import { DRAPE_COLORS, type StudioDesignJson } from "@/data/studio";
+import {
+  DRAPE_COLORS,
+  DRAPE_FABRICS,
+  SEATED_OBJECT_TYPES,
+  STUDIO_CHAIR_STYLES,
+  STUDIO_LIGHTING_MOODS,
+  type StudioDesignJson,
+} from "@/data/studio";
 import { estimateLinearDrapeFromBrief } from "@/lib/event-builder/build-starter-design";
 import {
   calculateDrapeLength,
@@ -26,6 +44,9 @@ const SUMMARY_LABELS = {
     notes: "Notes",
     event: "Event",
     eventType: "Event type",
+    eventName: "Event name",
+    guests: "Guests",
+    venueStyle: "Venue style",
     eventDate: "Event date",
     venue: "Venue",
     cityArea: "City / area",
@@ -33,8 +54,22 @@ const SUMMARY_LABELS = {
     shape: "Shape",
     lShape: "L-shape",
     rectangle: "Rectangle",
+    customShape: "Custom outline",
     dimensions: "Dimensions",
     ceiling: "Ceiling",
+    openings: "Doors & windows",
+    ceilingDrape: "Ceiling drapery",
+    ceilingNone: "None",
+    fabricPick: "Fabric",
+    accent: "Accent color",
+    lighting: "Lighting",
+    uplights: "Uplights",
+    off: "Off",
+    layoutTitle: "Floor plan",
+    layout: "Layout",
+    chairs: "Chairs",
+    linen: "Linen",
+    seats: "Seats in plan",
     floorArea: "Floor area",
     previewArea: "Preview area",
     setupsTitle: "Selected setups",
@@ -59,6 +94,9 @@ const SUMMARY_LABELS = {
     notes: "Notes",
     event: "Événement",
     eventType: "Type d’événement",
+    eventName: "Nom de l’événement",
+    guests: "Invités",
+    venueStyle: "Style de salle",
     eventDate: "Date de l’événement",
     venue: "Lieu",
     cityArea: "Ville / secteur",
@@ -66,8 +104,22 @@ const SUMMARY_LABELS = {
     shape: "Forme",
     lShape: "En L",
     rectangle: "Rectangle",
+    customShape: "Contour personnalisé",
     dimensions: "Dimensions",
     ceiling: "Plafond",
+    openings: "Portes et fenêtres",
+    ceilingDrape: "Draperie de plafond",
+    ceilingNone: "Aucune",
+    fabricPick: "Tissu",
+    accent: "Couleur d’accent",
+    lighting: "Éclairage",
+    uplights: "Éclairage d’ambiance",
+    off: "Aucun",
+    layoutTitle: "Plan de salle",
+    layout: "Disposition",
+    chairs: "Chaises",
+    linen: "Nappes",
+    seats: "Places au plan",
     floorArea: "Superficie",
     previewArea: "Superficie (aperçu)",
     setupsTitle: "Installations choisies",
@@ -164,6 +216,31 @@ export function formatEventPlanSummary(
     calculateRoomAreaSquareFeet(design.room.floor)
   );
 
+  const translateColor = (value: string | null | undefined) =>
+    value
+      ? ((language === "fr" ? frColors[value] : undefined) ??
+        DRAPE_COLORS.find((c) => c.value === value)?.label ??
+        value)
+      : null;
+  const venuePreset = getBriefVenuePreset(brief);
+  const ceilingPreset = getBriefCeilingPreset(brief);
+  const layout = getBriefLayout(brief);
+  const layoutLabel =
+    EVENT_LAYOUT_OPTIONS.find((option) => option.id === layout.id)?.label ?? layout.id;
+  const fabricPick =
+    DRAPE_FABRICS.find((option) => option.value === getBriefFabric(brief))?.label ?? "—";
+  const lightingLabel =
+    STUDIO_LIGHTING_MOODS.find((option) => option.value === getBriefLightingMood(brief))
+      ?.label ?? "—";
+  const openingLabels = getBriefOpenings(brief).map(
+    (opening) => `${getOpeningPreset(opening.style).label} (${opening.wall})`
+  );
+  const seats = design.objects.reduce(
+    (total, object) =>
+      total + (SEATED_OBJECT_TYPES.includes(object.type) ? (object.seatingCount ?? 0) : 0),
+    0
+  );
+
   const sections: EventPlanSummarySection[] = [];
 
   if (contact?.name || contact?.email) {
@@ -182,9 +259,15 @@ export function formatEventPlanSummary(
     title: L.event,
     rows: [
       { label: L.eventType, value: eventTypeLabel },
+      { label: L.eventName, value: brief.eventName?.trim() || "—" },
+      {
+        label: L.guests,
+        value: brief.guestCount ? brief.guestCount.toLocaleString(numberLocale) : "—",
+      },
       { label: L.eventDate, value: brief.eventDate?.trim() || "—" },
       { label: L.venue, value: brief.venueName?.trim() || "—" },
       { label: L.cityArea, value: brief.cityArea?.trim() || "—" },
+      { label: L.venueStyle, value: venuePreset?.label ?? "—" },
     ],
   });
 
@@ -193,7 +276,12 @@ export function formatEventPlanSummary(
     rows: [
       {
         label: L.shape,
-        value: brief.room.shape === "l_shape" ? L.lShape : L.rectangle,
+        value:
+          brief.room.shape === "l_shape"
+            ? L.lShape
+            : brief.room.shape === "custom"
+              ? L.customShape
+              : L.rectangle,
       },
       {
         label: L.dimensions,
@@ -207,6 +295,14 @@ export function formatEventPlanSummary(
       {
         label: L.previewArea,
         value: `${stats.areaSqFt.toLocaleString(numberLocale)} ${language === "fr" ? "pi²" : "ft²"}`,
+      },
+      {
+        label: L.openings,
+        value: openingLabels.length > 0 ? openingLabels.join(", ") : "—",
+      },
+      {
+        label: L.ceilingDrape,
+        value: ceilingPreset?.label ?? L.ceilingNone,
       },
     ],
   });
@@ -236,8 +332,12 @@ export function formatEventPlanSummary(
         label: L.fabric,
         value: fabricLabels.length > 0 ? fabricLabels.join(", ") : "—",
       },
+      { label: L.fabricPick, value: fabricPick },
       { label: L.color, value: colorLabel },
+      { label: L.accent, value: translateColor(brief.look.accentColor) ?? "—" },
       { label: L.fullness, value: String(brief.look.fullness) },
+      { label: L.lighting, value: lightingLabel },
+      { label: L.uplights, value: translateColor(getBriefUplightColor(brief)) ?? L.off },
       {
         label: L.linearPreview,
         value: linearFromDesign,
@@ -245,6 +345,26 @@ export function formatEventPlanSummary(
       {
         label: L.linearBrief,
         value: inchesToFeetLabel(estimateLinearDrapeFromBrief(brief)),
+      },
+    ],
+  });
+
+  sections.push({
+    title: L.layoutTitle,
+    rows: [
+      { label: L.layout, value: layoutLabel },
+      {
+        label: L.chairs,
+        value:
+          STUDIO_CHAIR_STYLES.find((option) => option.value === layout.chairStyle)?.label ??
+          "—",
+      },
+      { label: L.linen, value: translateColor(layout.linenColor) ?? "—" },
+      {
+        label: L.seats,
+        value: brief.guestCount
+          ? `${seats.toLocaleString(numberLocale)} / ${brief.guestCount.toLocaleString(numberLocale)}`
+          : seats.toLocaleString(numberLocale),
       },
     ],
   });

@@ -73,7 +73,7 @@ export function VenuePresetGrid({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 @xl:grid-cols-3 @3xl:grid-cols-4 @6xl:grid-cols-6">
         {presets.map((preset) => {
           const Icon = STUDIO_VENUE_ICONS[preset.icon];
           const active = isPresetActive(design, preset);

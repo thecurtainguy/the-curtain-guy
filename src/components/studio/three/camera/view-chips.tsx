@@ -2,6 +2,11 @@
 
 import { cn } from "@/lib/utils";
 import { memo } from "react";
+import {
+  MinimizedOverlayChip,
+  OverlayMinimizeButton,
+  useStudioOverlayMinimized,
+} from "../../overlay/minimizable-overlay";
 import { StudioTip } from "../../studio-tip";
 import {
   ArrowUpFromLine,
@@ -153,13 +158,16 @@ export const StudioViewChips = memo(function StudioViewChips({
 }) {
   const mouseLook = useStudioMouseLook();
   const locked = useStudioPointerLocked();
+  const minimized = useStudioOverlayMinimized("view-chips");
   const hints = hintsFor(mode, spinning, mouseLook, locked);
   const offersMouseLook = isInteriorMode(mode) && mode !== "walk";
+  const current = VIEW_CHIPS.find((chip) => chip.mode === mode);
   return (
     <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex flex-col items-center gap-2">
       <p
         className={cn(
-          "hidden items-center gap-2 rounded-full border bg-background/55 px-3 py-1 text-[0.62rem] shadow-md backdrop-blur-xl @2xl:inline-flex",
+          "hidden items-center gap-2 rounded-full border bg-background/55 px-3 py-1 text-[0.62rem] shadow-md backdrop-blur-xl",
+          (!minimized || locked) && "@2xl:inline-flex",
           locked ? "border-primary/40 text-foreground/85" : "border-border/40 text-muted-foreground"
         )}
       >
@@ -170,6 +178,15 @@ export const StudioViewChips = memo(function StudioViewChips({
         )}
         {hints.join(" · ")}
       </p>
+      {minimized ? (
+        <MinimizedOverlayChip
+          id="view-chips"
+          icon={spinning ? Orbit : (current?.icon ?? Grid2x2)}
+          label="camera views"
+          value={spinning ? "Showcase" : (current?.label ?? "Views")}
+          side="top"
+        />
+      ) : (
       <nav
         aria-label="Camera views"
         className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-2xl border border-border/40 bg-background/65 p-1 shadow-2xl backdrop-blur-xl [scrollbar-width:none]"
@@ -224,7 +241,10 @@ export const StudioViewChips = memo(function StudioViewChips({
           disabled={!hasSelection}
           onClick={onFocus}
         />
+        <span aria-hidden className="mx-0.5 h-6 w-px shrink-0 bg-border/50" />
+        <OverlayMinimizeButton id="view-chips" label="camera views" className="size-9 rounded-xl" />
       </nav>
+      )}
     </div>
   );
 });

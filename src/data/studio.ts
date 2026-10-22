@@ -81,9 +81,27 @@ export type StudioPoint = {
 export const STUDIO_OPENING_TYPES = ["door", "entrance", "window"] as const;
 export type StudioOpeningType = (typeof STUDIO_OPENING_TYPES)[number];
 
+export const STUDIO_OPENING_STYLES = [
+  "single_door",
+  "wide_door",
+  "double_door",
+  "grand_entrance",
+  "grand_arched",
+  "glass_slider",
+  "service_door",
+  "standard_window",
+  "picture_window",
+  "floor_to_ceiling",
+  "transom",
+  "arched_window",
+] as const;
+export type StudioOpeningStyle = (typeof STUDIO_OPENING_STYLES)[number];
+
 export type StudioOpening = {
   id: string;
   type: StudioOpeningType;
+  /** Architectural style; undefined = the type's classic look (see studio-openings). */
+  style?: StudioOpeningStyle;
   wallIndex: number;
   offset: number;
   width: number;
@@ -334,6 +352,8 @@ export type StudioDrapeRun = {
   uplightColor?: DrapeColor | null;
   /** Extra fabric pooling on the floor. */
   puddle?: boolean;
+  /** Leave doors and entrances on this wall clear; undefined = true. */
+  doorGaps?: boolean;
   locked?: boolean;
   hidden?: boolean;
 };
@@ -1308,6 +1328,8 @@ export function validateStudioDesign(
         !stableId ||
         !isRecord(opening) ||
         !STUDIO_OPENING_TYPES.includes(opening.type as StudioOpeningType) ||
+        (opening.style !== undefined &&
+          !STUDIO_OPENING_STYLES.includes(opening.style as StudioOpeningStyle)) ||
         !isOptionalRange(opening.sillHeight, 0, 600) ||
         !isOptionalRange(opening.openingHeight, 12, 600) ||
         !isOptionalBoolean(opening.locked) ||
@@ -1414,6 +1436,7 @@ export function validateStudioDesign(
         !isOptionalOption(drape.hardware, DRAPE_HARDWARE) ||
         !isOptionalDrapeColor(drape.uplightColor, true) ||
         !isOptionalBoolean(drape.puddle) ||
+        !isOptionalBoolean(drape.doorGaps) ||
         !isOptionalBoolean(drape.locked) ||
         !isOptionalBoolean(drape.hidden)
       ) {

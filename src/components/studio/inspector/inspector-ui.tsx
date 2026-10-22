@@ -28,7 +28,7 @@ export function InspectorSection({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-2xl border border-border/40 bg-card/25",
+        "break-inside-avoid overflow-hidden rounded-2xl border border-border/40 bg-card/25",
         className
       )}
     >
@@ -505,7 +505,7 @@ export function SwatchGrid({
       <div
         role="radiogroup"
         aria-label={label}
-        className="grid grid-cols-6 gap-1.5"
+        className="grid grid-cols-6 gap-1.5 @lg:grid-cols-[repeat(auto-fill,2.75rem)] @lg:gap-2"
       >
         {noneLabel ? (
           <SwatchButton

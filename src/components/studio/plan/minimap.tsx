@@ -2,7 +2,13 @@
 
 import type { StudioObject, StudioPoint } from "@/data/studio";
 import { getStudioObjectCorners } from "@/lib/studio-interactions";
+import { Map as MapIcon } from "lucide-react";
 import { memo, useRef } from "react";
+import {
+  MinimizedOverlayChip,
+  OverlayMinimizeButton,
+  useStudioOverlayMinimized,
+} from "../overlay/minimizable-overlay";
 import { getVisiblePlanRect, type PlanCamera, type PlanRect, type PlanSize } from "./viewport";
 
 const MAP_WIDTH = 168;
@@ -73,16 +79,26 @@ export function PlanMinimap({
     onNavigate({ x: point.x, z: point.y });
   }
 
+  const minimized = useStudioOverlayMinimized("plan-minimap");
+  if (minimized) {
+    return <MinimizedOverlayChip id="plan-minimap" icon={MapIcon} label="plan overview" side="top" />;
+  }
+
   return (
     <div
-      className="pointer-events-auto overflow-hidden rounded-2xl border border-border/60 bg-background/95 p-1.5 shadow-lg"
-      data-studio-tip="Click or drag to move the view"
+      className="group/minimap pointer-events-auto relative overflow-hidden rounded-2xl border border-border/60 bg-background/95 p-1.5 shadow-lg"
     >
+      <OverlayMinimizeButton
+        id="plan-minimap"
+        label="plan overview"
+        className="absolute top-1 right-1 z-10 size-6 bg-background/85 opacity-0 shadow-sm group-hover/minimap:opacity-100 focus-visible:opacity-100"
+      />
       <svg
         width={MAP_WIDTH}
         height={MAP_HEIGHT}
         viewBox={`${box.minX} ${box.minZ} ${box.width} ${box.depth}`}
         className="block cursor-pointer touch-none"
+        data-studio-tip="Click or drag to move the view"
         role="img"
         aria-label="Plan overview. Click or drag to move the view."
         onPointerDown={(event) => {

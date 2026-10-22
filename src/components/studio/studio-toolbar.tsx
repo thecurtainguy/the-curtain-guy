@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 import {
   Armchair,
   Box,
+  CalendarHeart,
   Camera,
   Check,
   ChevronDown,
@@ -102,6 +103,9 @@ type StudioToolbarProps = {
   onToggleFullscreen?: () => void;
   presenting?: boolean;
   onTogglePresent?: () => void;
+  /** "Smith Wedding · Jun 14 · 180 guests" once event details exist. */
+  eventSummary?: string | null;
+  onOpenEventDetails?: () => void;
 };
 
 const VIEW_MODES: Array<{
@@ -179,6 +183,8 @@ export const StudioToolbar = memo(function StudioToolbar({
   onToggleFullscreen,
   presenting = false,
   onTogglePresent,
+  eventSummary,
+  onOpenEventDetails,
 }: StudioToolbarProps) {
   const { undo, redo, updateSettings, sendCanvasCommand, takeSnapshot, setShortcutsOpen } =
     useStudioEditorActions();
@@ -572,6 +578,33 @@ export const StudioToolbar = memo(function StudioToolbar({
         </div>
 
         <div className="relative ml-auto flex shrink-0 items-center gap-2">
+          {onOpenEventDetails ? (
+            <StudioTip
+              side="bottom"
+              label={
+                eventSummary
+                  ? "Edit your event details"
+                  : "Add your event date, guests and venue"
+              }
+            >
+              <button
+                type="button"
+                onClick={onOpenEventDetails}
+                aria-label={eventSummary ? `Your event: ${eventSummary}` : "Your event"}
+                className={cn(
+                  "flex h-9 max-w-56 min-w-0 items-center gap-2 rounded-2xl border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  eventSummary
+                    ? "border-primary/35 bg-primary/10 text-foreground hover:border-primary/60"
+                    : "border-primary/45 bg-gradient-to-br from-primary/20 to-primary/5 text-primary hover:from-primary/30"
+                )}
+              >
+                <CalendarHeart className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                <span className={cn("truncate", eventSummary && "hidden sm:inline")}>
+                  {eventSummary || "Your event"}
+                </span>
+              </button>
+            </StudioTip>
+          ) : null}
           <span
             className={cn(
               "flex max-w-28 items-center gap-1.5 truncate text-[0.68rem] sm:max-w-44",

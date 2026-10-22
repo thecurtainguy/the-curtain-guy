@@ -40,11 +40,16 @@ import {
   shapeChangeClearsWallItems,
 } from "./library/studio-room-tools";
 import { VenuePresetGrid } from "./library/venue-preset-grid";
+import { RoomOpeningsSection } from "./openings/room-openings-section";
+import type { StudioSelection } from "./studio-types";
 
 type RoomSetupPanelProps = {
   design: StudioDesignJson;
   onChange: (design: StudioDesignJson) => void;
   idPrefix: string;
+  /** Falls back to the Studio editor context when omitted. */
+  selection?: StudioSelection;
+  onSelect?: (selection: StudioSelection) => void;
 };
 
 const SHAPES: Array<{
@@ -165,6 +170,8 @@ export function RoomSetupPanel({
   design,
   onChange,
   idPrefix,
+  selection,
+  onSelect,
 }: RoomSetupPanelProps) {
   const [confirm, confirmDialog] = useBrandConfirm();
   const [wallError, setWallError] = useState<string | null>(null);
@@ -419,6 +426,14 @@ export function RoomSetupPanel({
           onChange={setWallHeight}
         />
       </LibraryCard>
+
+      <RoomOpeningsSection
+        design={design}
+        onChange={onChange}
+        idPrefix={fieldId("openings")}
+        selection={selection}
+        onSelect={onSelect}
+      />
 
       {isCustom ? (
         <LibraryCard aria-labelledby={fieldId("walls-heading")}>

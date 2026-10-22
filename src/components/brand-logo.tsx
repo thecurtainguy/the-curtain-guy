@@ -38,8 +38,8 @@ const sizeMap = {
    * Layout box stays constant; compact mode scales visually so sticky
    * height never changes (avoids scroll bounce / flicker). */
   header: {
-    box: "h-11 w-[10.5rem] sm:h-12 sm:w-[12.5rem] lg:h-[3.25rem] lg:w-[14.5rem]",
-    sizes: "(max-width: 640px) 168px, (max-width: 1024px) 200px, 232px",
+    box: "h-11 w-[10.5rem] sm:h-12 sm:w-[12.5rem] xl:h-[3.25rem] xl:w-[14.5rem]",
+    sizes: "(max-width: 640px) 168px, (max-width: 1280px) 200px, 232px",
     asset: "horizontal" as const,
     quality: 100,
   },

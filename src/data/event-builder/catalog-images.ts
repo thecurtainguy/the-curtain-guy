@@ -117,6 +117,18 @@ export const EVENT_CATALOG_IMAGE_SLOTS: EventCatalogImageSlot[] = [
     sourcePath: "gallery/wedding/03.jpg",
   },
   {
+    catalogId: "floral_header",
+    file: "coming-floral-header.jpg",
+    alt: "Backdrop with floral header and ceremony draping",
+    sourcePath: "gallery/wedding/03.jpg",
+  },
+  {
+    catalogId: "layered_swag",
+    file: "coming-layered-swag.jpg",
+    alt: "Layered wedding swag draping along wall",
+    sourcePath: "gallery/wedding/02.jpg",
+  },
+  {
     catalogId: "coming_layered_swag",
     file: "coming-layered-swag.jpg",
     alt: "Layered wedding swag draping along wall",

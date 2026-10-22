@@ -17,6 +17,10 @@ import {
   detectRequestLanguage,
   rememberPreferredLanguage,
 } from "@/lib/request-language";
+import {
+  canAttachStudioDesign,
+  readStudioVisitorId,
+} from "@/lib/studio-leads-server";
 
 export async function POST(request: NextRequest) {
   const contentLength = request.headers.get("content-length");
@@ -109,11 +113,20 @@ export async function POST(request: NextRequest) {
 
   const language = detectRequestLanguage(request);
 
+  const studioDesignId = (await canAttachStudioDesign(parsed.studioDesignId, {
+    visitorId: readStudioVisitorId(request.cookies),
+    userId: user?.id ?? null,
+    isOwner: profile?.profile.role === "owner",
+  }))
+    ? parsed.studioDesignId?.toLowerCase()
+    : null;
+
   const insertResult = await insertEventPlanSubmission(config, submissionPayload, {
     language,
     submittedFromUrl: request.headers.get("referer"),
     userAgent: request.headers.get("user-agent"),
     userId: profile?.profile.role === "owner" ? null : userId,
+    studioDesignId,
   });
 
   if (!insertResult.ok) {

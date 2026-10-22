@@ -212,7 +212,7 @@ export function LibraryLayoutsTab({
             id={`${idPrefix}-layouts-heading`}
           />
           <div
-            className="grid grid-cols-2 gap-1.5"
+            className="grid grid-cols-2 gap-1.5 @xl:grid-cols-3 @3xl:grid-cols-4 @6xl:grid-cols-6"
             role="radiogroup"
             aria-labelledby={`${idPrefix}-layouts-heading`}
           >

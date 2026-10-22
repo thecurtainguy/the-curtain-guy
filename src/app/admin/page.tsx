@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarDays, ClipboardList, LayoutDashboard } from "lucide-react";
+import {
+  CalendarDays,
+  ClipboardList,
+  LayoutDashboard,
+  PanelsTopLeft,
+} from "lucide-react";
+import { StudioLeadsStatTiles } from "@/components/admin/studio-leads/studio-leads-stat-tiles";
+import { getStudioLeadStats } from "@/lib/studio-leads-admin";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import {
@@ -55,13 +62,16 @@ export default async function AdminDashboardPage() {
     (j) => j.status === "teardown_scheduled"
   ).length;
 
-  const { data: recent } = await admin
-    .from("estimate_requests")
-    .select(
-      "id, status, customer_name, customer_email, event_type, event_date, city_area, created_at, opportunity_ref"
-    )
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data: recent }, studioStats] = await Promise.all([
+    admin
+      .from("estimate_requests")
+      .select(
+        "id, status, customer_name, customer_email, event_type, event_date, city_area, created_at, opportunity_ref"
+      )
+      .order("created_at", { ascending: false })
+      .limit(100),
+    getStudioLeadStats({ userId: owner.user.id, role: "owner", user: owner.user }),
+  ]);
 
   const recentRows: DashboardEstimateRow[] = (recent ?? []).map((row) => ({
     id: row.id,
@@ -162,6 +172,23 @@ export default async function AdminDashboardPage() {
             ))}
           </div>
         </div>
+
+        {studioStats ? (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-heading text-lg font-semibold text-foreground">
+                Studio leads
+              </h2>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/admin/studio">
+                  <PanelsTopLeft className="size-4" />
+                  Pipeline
+                </Link>
+              </Button>
+            </div>
+            <StudioLeadsStatTiles stats={studioStats} />
+          </section>
+        ) : null}
 
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">

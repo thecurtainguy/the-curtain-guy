@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense, use } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -43,7 +44,7 @@ const links: PortalNavItem[] = [
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/event-plans", label: "Event plans", icon: Sparkles },
-  { href: "/admin/studio", label: "Studio", icon: PanelsTopLeft },
+  { href: "/admin/studio", label: "Studio leads", icon: PanelsTopLeft },
   { href: "/admin/documents", label: "Documents", icon: ScrollText },
   { href: "/", label: "Site", icon: Globe, exact: true },
 ];
@@ -52,23 +53,52 @@ export function AdminShell({
   children,
   email: _email,
   profile,
+  studioLeadsBadge,
 }: {
   children: React.ReactNode;
   email?: string | null;
   profile?: Pick<UserProfile, "full_name" | "email" | "phone"> | null;
+  /** New contact-captured studio leads (last 7 days); streamed so it never blocks the page. */
+  studioLeadsBadge?: Promise<number | null>;
 }) {
   return (
     <PortalEstimateEmbedProvider audience="admin" profile={profile}>
-      <AdminShellFrame>{children}</AdminShellFrame>
+      <AdminShellFrame studioLeadsBadge={studioLeadsBadge}>{children}</AdminShellFrame>
     </PortalEstimateEmbedProvider>
   );
 }
 
-function AdminShellFrame({ children }: { children: React.ReactNode }) {
+function withStudioBadge(count: number | null): PortalNavItem[] {
+  if (!count) return links;
+  return links.map((item) =>
+    item.href === "/admin/studio"
+      ? { ...item, badge: `${count > 99 ? "99+" : count} new` }
+      : item
+  );
+}
+
+function BadgedSidebarNav({
+  pathname,
+  studioLeadsBadge,
+}: {
+  pathname: string;
+  studioLeadsBadge: Promise<number | null>;
+}) {
+  const count = use(studioLeadsBadge);
+  return <PortalSidebarNav items={withStudioBadge(count)} pathname={pathname} />;
+}
+
+function AdminShellFrame({
+  children,
+  studioLeadsBadge,
+}: {
+  children: React.ReactNode;
+  studioLeadsBadge?: Promise<number | null>;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const startEstimate = usePortalStartEstimate();
-  const isStudioEditor = /^\/admin\/studio\/[^/]+\/?$/.test(pathname);
+  const isStudioEditor = /^\/admin\/studio\/[^/]+\/edit\/?$/.test(pathname);
 
   async function signOut() {
     const supabase = createBrowserSupabaseClient();
@@ -80,7 +110,13 @@ function AdminShellFrame({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <>
       <PortalSidebarBrand href="/admin" portalLabel="Admin Portal" />
-      <PortalSidebarNav items={links} pathname={pathname} />
+      {studioLeadsBadge ? (
+        <Suspense fallback={<PortalSidebarNav items={links} pathname={pathname} />}>
+          <BadgedSidebarNav pathname={pathname} studioLeadsBadge={studioLeadsBadge} />
+        </Suspense>
+      ) : (
+        <PortalSidebarNav items={links} pathname={pathname} />
+      )}
       <PortalSidebarFooter>
         <PortalSidebarThemeRow>
           <ThemeToggle />

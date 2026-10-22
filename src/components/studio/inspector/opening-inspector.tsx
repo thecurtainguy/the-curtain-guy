@@ -1,10 +1,14 @@
 "use client";
 
+import type { StudioDesignJson, StudioOpening } from "@/data/studio";
 import {
-  STUDIO_OPENING_TYPES,
-  type StudioDesignJson,
-  type StudioOpening,
-} from "@/data/studio";
+  OPENING_QUICK_HEIGHTS,
+  OPENING_QUICK_WIDTHS,
+  getOpeningPresetSize,
+  getOpeningStyle,
+  getOpeningStylePreset,
+  type StudioOpeningPreset,
+} from "@/data/studio-openings";
 import { getWallSegments, inchesToFeetLabel } from "@/lib/studio-geometry";
 import { cn } from "@/lib/utils";
 import { DoorOpen, Lock, PanelsTopLeft, Ruler } from "lucide-react";
@@ -14,17 +18,16 @@ import {
   type StudioCommitOptions,
 } from "../editor/studio-editor-context";
 import { updateOpening } from "../studio-types";
-import {
-  ChoiceTile,
-  InspectorSection,
-  LengthField,
-  SelectionRing,
-} from "./inspector-ui";
+import { InspectorSection, LengthField, SelectionRing } from "./inspector-ui";
 import { ItemHeader, StatusChip } from "./item-header";
+import { OpeningDressSection } from "./opening-dress-section";
+import { OpeningSizePicks } from "./opening-size-picks";
+import { OpeningStylePicker } from "./opening-style-picker";
 import { STUDIO_OPENING_META } from "./studio-item-meta";
 
 const DEFAULT_OPENING_HEIGHT = { door: 84, entrance: 96, window: 60 } as const;
 const DEFAULT_SILL = { door: 0, entrance: 0, window: 36 } as const;
+const QUICK_SILLS = [0, 6, 24, 30, 36, 42] as const;
 
 export function OpeningInspector({
   design,
@@ -50,6 +53,32 @@ export function OpeningInspector({
   const openingHeight =
     opening.openingHeight ?? DEFAULT_OPENING_HEIGHT[opening.type];
   const sillHeight = opening.sillHeight ?? DEFAULT_SILL[opening.type];
+  const wallHeight = design.room.wallHeight;
+  const stylePreset = getOpeningStylePreset(opening);
+  const maxOpeningHeight = Math.max(12, wallHeight - sillHeight);
+  const maxSill = Math.max(0, wallHeight - openingHeight);
+
+  /** Offset that keeps the opening's current centre, clamped inside the wall. */
+  const centredOffset = (width: number) =>
+    Math.min(
+      Math.max(0, wallLength - width),
+      Math.max(0, opening.offset + opening.width / 2 - width / 2)
+    );
+
+  const setWidth = (next: number) => {
+    const width = Math.max(12, Math.min(next, wallLength));
+    update({ width, offset: centredOffset(width) });
+  };
+
+  const applyStyle = (preset: StudioOpeningPreset) => {
+    const size = getOpeningPresetSize(preset, wallHeight, wallLength);
+    update({
+      type: preset.type,
+      style: preset.style,
+      ...size,
+      offset: centredOffset(size.width),
+    });
+  };
 
   return (
     <div className="space-y-3">
@@ -60,7 +89,11 @@ export function OpeningInspector({
         onLabelChange={(label) => update({ label })}
         locked={locked}
         hidden={opening.hidden}
-        meta={<StatusChip>{inchesToFeetLabel(opening.width)} wide</StatusChip>}
+        meta={
+          <StatusChip>
+            {stylePreset.label} · {inchesToFeetLabel(opening.width)}
+          </StatusChip>
+        }
       />
 
       {locked ? (
@@ -71,19 +104,11 @@ export function OpeningInspector({
       ) : null}
 
       <InspectorSection icon={DoorOpen} eyebrow="Type" title="Opening style">
-        <div role="radiogroup" aria-label="Opening type" className="grid gap-1.5">
-          {STUDIO_OPENING_TYPES.map((type) => (
-            <ChoiceTile
-              key={type}
-              icon={STUDIO_OPENING_META[type].icon}
-              label={STUDIO_OPENING_META[type].label}
-              description={STUDIO_OPENING_META[type].description}
-              selected={opening.type === type}
-              disabled={locked}
-              onSelect={() => update({ type })}
-            />
-          ))}
-        </div>
+        <OpeningStylePicker
+          value={getOpeningStyle(opening)}
+          disabled={locked}
+          onSelect={applyStyle}
+        />
       </InspectorSection>
 
       <InspectorSection
@@ -147,9 +172,17 @@ export function OpeningInspector({
             min={12}
             max={wallLength}
             disabled={locked}
-            onChange={(width) => update({ width })}
+            onChange={setWidth}
           />
         </div>
+        <OpeningSizePicks
+          label="Standard widths"
+          values={OPENING_QUICK_WIDTHS[opening.type]}
+          value={opening.width}
+          max={wallLength}
+          disabled={locked}
+          onPick={setWidth}
+        />
         <WallPositionBar
           wallLength={wallLength}
           offset={opening.offset}
@@ -164,7 +197,7 @@ export function OpeningInspector({
             value={openingHeight}
             step={step}
             min={12}
-            max={Math.min(600, design.room.wallHeight)}
+            max={maxOpeningHeight}
             disabled={locked}
             onChange={(next) => update({ openingHeight: next })}
           />
@@ -174,13 +207,35 @@ export function OpeningInspector({
               value={sillHeight}
               step={step}
               min={0}
-              max={Math.max(0, design.room.wallHeight - openingHeight)}
+              max={maxSill}
               disabled={locked}
               onChange={(next) => update({ sillHeight: next })}
             />
           ) : null}
         </div>
+        <OpeningSizePicks
+          label="Standard heights"
+          values={OPENING_QUICK_HEIGHTS[opening.type]}
+          value={openingHeight}
+          max={maxOpeningHeight}
+          disabled={locked}
+          tooLarge="Taller than the wall allows above the sill"
+          onPick={(next) => update({ openingHeight: Math.min(next, maxOpeningHeight) })}
+        />
+        {opening.type === "window" ? (
+          <OpeningSizePicks
+            label="Sill heights"
+            values={QUICK_SILLS}
+            value={sillHeight}
+            max={maxSill}
+            disabled={locked}
+            tooLarge="Window would pass the top of the wall"
+            onPick={(next) => update({ sillHeight: Math.min(next, maxSill) })}
+          />
+        ) : null}
       </InspectorSection>
+
+      <OpeningDressSection design={design} opening={opening} onChange={onChange} />
     </div>
   );
 }

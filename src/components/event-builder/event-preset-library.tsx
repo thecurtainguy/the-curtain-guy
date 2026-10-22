@@ -1,15 +1,26 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Image from "next/image";
+import { CloudSun, MapPin, PanelsTopLeft, Plus } from "lucide-react";
 import {
+  EVENT_CATALOG_CATEGORIES,
   getSelectableCatalogItems,
-  type EventCatalogItem,
 } from "@/data/event-builder/catalog";
 import type { EventBuilderBrief } from "@/data/event-builder/brief";
 import type { StudioDesignJson } from "@/data/studio";
-import { createStudioTreatment } from "@/lib/studio-treatments";
+import { STUDIO_CEILING_PRESETS } from "@/data/studio-ceiling-presets";
+import {
+  addCatalogItemWithLook,
+  addCeilingPresetWithLook,
+} from "@/lib/event-builder/build-starter-design";
+import { computeEventWallRoles, getWallRoleForIndex } from "@/lib/event-builder/wall-roles";
 import { getWallSegments } from "@/lib/studio-geometry";
+import { CeilingStyleArt } from "@/components/studio/library/ceiling-style-art";
 import type { StudioSelection } from "@/components/studio/studio-types";
+import { useWizardCatalog } from "@/components/event-builder/use-wizard-catalog";
+import { useWizardCopy } from "@/components/event-builder/wizard-copy";
+import { cn } from "@/lib/utils";
 
 type EventPresetLibraryProps = {
   design: StudioDesignJson;
@@ -19,6 +30,9 @@ type EventPresetLibraryProps = {
   brief: EventBuilderBrief;
 };
 
+type LibraryTab = "setups" | "ceiling";
+
+/** Studio event-mode library: the wizard's setups and ceiling looks, placed with the brief's styling. */
 export function EventPresetLibrary({
   design,
   onChange,
@@ -26,80 +40,159 @@ export function EventPresetLibrary({
   onSelect,
   brief,
 }: EventPresetLibraryProps) {
+  const copy = useWizardCopy();
+  const catalog = useWizardCatalog();
+  const [tab, setTab] = useState<LibraryTab>("setups");
   const walls = getWallSegments(design.room.floor);
   const selectedWall =
-    selection?.kind === "wall" && walls[selection.index]
-      ? selection.index
-      : 0;
+    selection?.kind === "wall" && walls[selection.index] ? selection.index : undefined;
+  const roles = useMemo(() => computeEventWallRoles(design.room.floor), [design.room.floor]);
+  const selectedRole = selectedWall !== undefined ? getWallRoleForIndex(roles, selectedWall) : null;
 
-  const presets = getSelectableCatalogItems().filter(
-    (item) => item.apply && !item.briefOnly
-  );
+  const groups = useMemo(() => {
+    const items = getSelectableCatalogItems().filter((item) => item.apply && !item.briefOnly);
+    return EVENT_CATALOG_CATEGORIES.map((category) => ({
+      id: category.id,
+      label: catalog.categories.find((entry) => entry.id === category.id)?.label ?? category.label,
+      items: items.filter((item) => item.category === category.id).map(catalog.localizeItem),
+    })).filter((group) => group.items.length > 0);
+  }, [catalog]);
 
-  function addFromCatalog(item: EventCatalogItem) {
-    if (!item.apply) return;
-    const presetMap: Record<string, Parameters<typeof createStudioTreatment>[2]> = {
-      backdrop_full: "full_backdrop",
-      backdrop_head_table: "full_backdrop",
-      backdrop_stage: "full_backdrop",
-      entrance_door_drape: "side_tiebacks",
-      entrance_tunnel: "entrance_reveal",
-      ceremony_chuppah: "ceremony_arch",
-      top_swag: "top_swag",
-    };
-
-    const preset = presetMap[item.id];
-    if (preset) {
-      const wallIndex =
-        item.id === "backdrop_head_table" ? 2 : selectedWall;
-      const treatment = createStudioTreatment(design, wallIndex, preset);
-      if (!treatment) return;
-      onChange({
-        ...design,
-        treatments: [...design.treatments, treatment],
-      });
-      onSelect({ kind: "treatment", id: treatment.id });
-      return;
-    }
-
-    onChange(item.apply(design, brief));
+  function addSetup(itemId: string) {
+    const next = addCatalogItemWithLook(design, brief, itemId, selectedWall);
+    if (!next) return;
+    onChange(next);
+    const known = new Set(design.treatments.map((treatment) => treatment.id));
+    const added = next.treatments.find((treatment) => !known.has(treatment.id));
+    if (added) onSelect({ kind: "treatment", id: added.id });
   }
 
+  function addCeiling(presetId: string) {
+    const next = addCeilingPresetWithLook(design, brief, presetId);
+    if (!next) return;
+    onChange(next);
+    const drapes = next.ceilingDrapes ?? [];
+    const added = drapes[drapes.length - 1];
+    if (added) onSelect({ kind: "ceiling", id: added.id });
+  }
+
+  const target =
+    selectedWall === undefined
+      ? copy.studio.autoPlacement
+      : copy.studio.wallTarget(selectedWall + 1, selectedRole ? copy.walls[selectedRole] : null);
+
   return (
-    <div className="flex h-full flex-col gap-3 p-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 p-3">
       <div>
         <p className="text-[0.58rem] font-semibold tracking-[0.22em] text-primary uppercase">
-          Event setups
+          {copy.studio.eyebrow}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Tap to add setups to your room.
+        <p className="mt-1 font-heading text-sm font-semibold">{copy.studio.title}</p>
+        <p
+          className={cn(
+            "mt-2 inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px]",
+            selectedWall === undefined
+              ? "border-border/40 text-muted-foreground"
+              : "border-primary/35 bg-primary/10 text-foreground"
+          )}
+        >
+          <MapPin className="size-3 shrink-0 text-primary" aria-hidden />
+          <span className="truncate">{target}</span>
         </p>
       </div>
-      <div className="grid gap-2 overflow-y-auto pr-1">
-        {presets.slice(0, 10).map((item) => (
+
+      <div role="tablist" aria-label={copy.studio.title} className="grid grid-cols-2 gap-1.5">
+        {(
+          [
+            { id: "setups", label: copy.steps.setups.label, icon: PanelsTopLeft },
+            { id: "ceiling", label: copy.steps.ceiling.label, icon: CloudSun },
+          ] as const
+        ).map(({ id, label, icon: Icon }) => (
           <button
-            key={item.id}
+            key={id}
             type="button"
-            onClick={() => addFromCatalog(item)}
-            className="group flex gap-3 rounded-2xl border border-border/40 bg-card/30 p-2 text-left transition-colors hover:border-primary/35 hover:bg-card/50"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-medium transition-colors",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              tab === id
+                ? "border-primary/50 bg-primary/12 text-foreground"
+                : "border-border/40 bg-card/30 text-muted-foreground hover:border-primary/30"
+            )}
           >
-            <div className="relative size-14 shrink-0 overflow-hidden rounded-xl">
-              <Image
-                src={item.image}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="56px"
-              />
-            </div>
-            <div className="min-w-0 py-0.5">
-              <p className="text-xs font-semibold leading-snug">{item.label}</p>
-              <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
-                {item.description}
-              </p>
-            </div>
+            <Icon className="size-3.5 text-primary" aria-hidden />
+            {label}
           </button>
         ))}
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+        {tab === "setups"
+          ? groups.map((group) => (
+              <section key={group.id} aria-label={group.label} className="space-y-2">
+                <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+                  {group.label}
+                </p>
+                {group.items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => addSetup(item.id)}
+                    className="group flex w-full gap-3 rounded-2xl border border-border/40 bg-card/30 p-2 text-left transition-colors hover:border-primary/35 hover:bg-card/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="relative size-14 shrink-0 overflow-hidden rounded-xl">
+                      <Image src={item.image} alt="" fill className="object-cover" sizes="56px" />
+                    </span>
+                    <span className="min-w-0 flex-1 py-0.5">
+                      <span className="block text-xs font-semibold leading-snug">{item.label}</span>
+                      <span className="mt-0.5 line-clamp-2 block text-[10px] text-muted-foreground">
+                        {item.description}
+                      </span>
+                      {selectedWall === undefined && catalog.placementLabel(item) ? (
+                        <span className="mt-1 block text-[10px] text-primary">
+                          {catalog.placementLabel(item)}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-full border border-primary/40 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                      <Plus className="size-3.5" aria-hidden />
+                    </span>
+                  </button>
+                ))}
+              </section>
+            ))
+          : (
+              <div className="grid grid-cols-2 gap-2">
+                {STUDIO_CEILING_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => addCeiling(preset.id)}
+                    className="group overflow-hidden rounded-2xl border border-border/40 bg-card/30 text-left transition-colors hover:border-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="relative block h-16 border-b border-border/30 bg-background/50">
+                      <CeilingStyleArt
+                        style={preset.style}
+                        color={preset.overrides.color}
+                        accentColor={preset.overrides.accentColor}
+                        lights={preset.overrides.lights}
+                        lightColor={preset.overrides.lightColor}
+                        hubDecor={preset.overrides.hubDecor}
+                        className="absolute inset-0 h-full w-full"
+                      />
+                      <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full border border-primary/40 bg-background/70 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                        <Plus className="size-3" aria-hidden />
+                      </span>
+                    </span>
+                    <span className="block truncate px-2 py-1.5 text-[11px] font-medium">
+                      {preset.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
       </div>
     </div>
   );

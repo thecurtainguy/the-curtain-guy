@@ -1,129 +1,136 @@
 "use client";
 
-import { X } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Armchair, Map as MapIcon, Ruler, X } from "lucide-react";
 import type { EventBuilderBrief } from "@/data/event-builder/brief";
-import { useLocalizedEventCatalog } from "@/lib/i18n/event-builder";
-import { getOptionLabel, useLocalizedEventTypes } from "@/lib/i18n/estimate";
+import { getEventCatalogItem } from "@/data/event-builder/catalog";
+import { SEATED_OBJECT_TYPES, type StudioDesignJson } from "@/data/studio";
+import { calculateDrapeLength, calculateRoomAreaSquareFeet, inchesToFeetLabel } from "@/lib/studio-geometry";
+import { EventPlanThumbnail } from "@/components/event-builder/event-plan-thumbnail";
+import { useWizardCatalog } from "@/components/event-builder/use-wizard-catalog";
+import { useWizardCopy } from "@/components/event-builder/wizard-copy";
+import { cn } from "@/lib/utils";
+
+const SEATED = new Set<string>(SEATED_OBJECT_TYPES);
+
+/** Chairs in the plan: `seatingCount` of seated objects plus loose chairs. */
+export function countDesignSeats(design: StudioDesignJson): number {
+  let seats = 0;
+  for (const object of design.objects) {
+    if (object.hidden) continue;
+    if (object.type === "chair") seats += 1;
+    else if (SEATED.has(object.type)) seats += object.seatingCount ?? 0;
+  }
+  return seats;
+}
 
 type LivePlanSidebarProps = {
   brief: EventBuilderBrief;
+  design: StudioDesignJson;
+  frontWall: number;
   className?: string;
   onRemoveSelection?: (id: string) => void;
   onClearAll?: () => void;
-  compact?: boolean;
 };
 
+/** Sticky preview: live 2D plan, key numbers and removable setup tags. */
 export function LivePlanSidebar({
   brief,
+  design,
+  frontWall,
   className,
   onRemoveSelection,
   onClearAll,
-  compact = false,
 }: LivePlanSidebarProps) {
-  const t = useTranslations("eventBuilder.livePlan");
-  const catalog = useLocalizedEventCatalog();
-  const eventTypes = useLocalizedEventTypes();
-  const count = brief.catalogSelections.length;
-  const eventLabel = brief.eventType
-    ? getOptionLabel(eventTypes, brief.eventType) ?? brief.eventType
-    : null;
+  const copy = useWizardCopy();
+  const catalog = useWizardCatalog();
+  const selections = brief.catalogSelections.filter((id) => {
+    const item = getEventCatalogItem(id);
+    return item && !item.hidden;
+  });
+  const seats = countDesignSeats(design);
+  const area = Math.round(calculateRoomAreaSquareFeet(design.room.floor));
 
   return (
-    <aside className={className} aria-label={t("summaryAria")}>
-      <div className="rounded-2xl border border-border/40 bg-card/30 p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-              {t("title")}
-            </p>
-            <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <p className="font-heading text-lg font-semibold">
-                {t("setups", { count })}
-              </p>
-              {count > 0 && onClearAll ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto px-0 py-0 text-xs text-muted-foreground hover:bg-transparent hover:text-foreground"
-                  onClick={onClearAll}
-                >
-                  {t("clearAll")}
-                </Button>
-              ) : null}
-            </div>
-          </div>
-          <Badge variant="outline" className="shrink-0 text-[10px]">
-            {brief.room.widthFt}′ × {brief.room.lengthFt}′
-          </Badge>
+    <aside
+      className={cn("overflow-hidden rounded-3xl border border-border/40 bg-card/30", className)}
+      aria-label={copy.review.plan}
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-border/30 bg-[radial-gradient(circle_at_0%_0%,color-mix(in_oklch,var(--primary)_14%,transparent),transparent_60%)] px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-primary/12 text-primary">
+            <MapIcon className="size-3.5" aria-hidden />
+          </span>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+            {copy.review.plan}
+          </p>
         </div>
+        <span className="rounded-md border border-border/40 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+          {brief.room.widthFt}′ × {brief.room.lengthFt}′
+        </span>
+      </div>
 
-        {count === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">{t("empty")}</p>
+      <div className="aspect-square bg-background/40 p-3">
+        <EventPlanThumbnail
+          design={design}
+          frontWall={frontWall}
+          frontLabel={copy.walls.front.toUpperCase()}
+          ariaLabel={copy.review.plan}
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-px border-y border-border/30 bg-border/30 text-center">
+        {[
+          { icon: MapIcon, value: `${area.toLocaleString()} ft²`, label: copy.review.area },
+          { icon: Ruler, value: inchesToFeetLabel(calculateDrapeLength(design)), label: copy.review.drape },
+          { icon: Armchair, value: String(seats), label: copy.review.seats },
+        ].map(({ icon: Icon, value, label }) => (
+          <div key={label} className="bg-card/60 px-2 py-2.5">
+            <Icon className="mx-auto size-3.5 text-primary" aria-hidden />
+            <p className="mt-1 truncate font-heading text-sm font-semibold tabular-nums">{value}</p>
+            <p className="truncate text-[10px] text-muted-foreground">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium">{copy.setups.selected(selections.length)}</p>
+          {selections.length > 0 && onClearAll ? (
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              {copy.setups.clearAll}
+            </button>
+          ) : null}
+        </div>
+        {selections.length === 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">{copy.setups.empty}</p>
         ) : (
-          <ul className="mt-4 flex flex-wrap gap-2">
-            {brief.catalogSelections.map((id) => (
+          <ul className="mt-3 flex flex-wrap gap-1.5">
+            {selections.map((id) => (
               <li key={id}>
                 {onRemoveSelection ? (
                   <button
                     type="button"
                     onClick={() => onRemoveSelection(id)}
-                    className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/8 px-3 py-1 text-xs font-medium text-foreground transition-colors hover:bg-primary/15"
+                    aria-label={copy.room.remove(catalog.getItemLabel(id))}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/8 px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-primary/15"
                   >
                     {catalog.getItemLabel(id)}
-                    <X className="size-3 text-muted-foreground" />
+                    <X className="size-3 text-muted-foreground" aria-hidden />
                   </button>
                 ) : (
-                  <Badge
-                    variant="outline"
-                    className="border-primary/25 bg-primary/8 text-xs"
-                  >
+                  <span className="inline-flex rounded-full border border-primary/25 bg-primary/8 px-2.5 py-1 text-[11px] font-medium">
                     {catalog.getItemLabel(id)}
-                  </Badge>
+                  </span>
                 )}
               </li>
             ))}
           </ul>
         )}
-
-        {!compact && eventLabel ? (
-          <p className="mt-4 text-xs text-muted-foreground">
-            {t("eventPrefix")}: {eventLabel}
-          </p>
-        ) : null}
       </div>
     </aside>
-  );
-}
-
-export function LivePlanBottomBar({
-  brief,
-  onOpenReview,
-}: {
-  brief: EventBuilderBrief;
-  onOpenReview?: () => void;
-}) {
-  const t = useTranslations("eventBuilder.livePlan");
-  const count = brief.catalogSelections.length;
-
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-background/95 p-3 backdrop-blur-xl lg:hidden">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
-            {t("yourPlan")}
-          </p>
-          <p className="text-sm font-medium">{t("selected", { count })}</p>
-        </div>
-        {onOpenReview ? (
-          <Button type="button" size="sm" onClick={onOpenReview}>
-            {t("review")}
-          </Button>
-        ) : null}
-      </div>
-    </div>
   );
 }

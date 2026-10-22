@@ -43,51 +43,6 @@
     "lookDesc": "Fabric, color, fullness",
     "reviewDesc": "Confirm and submit"
   },
-  "step1": {
-    "eyebrow": "Step 1",
-    "title": "Event & room",
-    "eventType": "Event type",
-    "roomShape": "Room shape",
-    "rectangle": "Rectangle",
-    "lShape": "L-shape",
-    "width": "Width (ft)",
-    "length": "Length (ft)",
-    "ceiling": "Ceiling height (ft)",
-    "cutoutWidth": "Cutout width (ft)",
-    "cutoutDepth": "Cutout depth (ft)",
-    "eventDate": "Event date (optional)",
-    "venue": "Venue (optional)",
-    "city": "City / area (optional)",
-    "previewLabel": "Room preview",
-    "roomDimensions": "{width}′ × {length}′ room",
-    "inputModeFields": "Enter dimensions",
-    "inputModeDraw": "Draw on canvas",
-    "drawHint": "Drag the gold handles to expand or shrink the room footprint. Switch back to fields anytime.",
-    "drawCanvasTitle": "Draw your room footprint",
-    "inputModeFieldsHint": "Type width, length, and ceiling height",
-    "inputModeDrawHint": "Drag handles on the room preview canvas",
-    "bundleHint": "Adds recommended setups to your brief in one tap",
-    "upsellWedding": "Weddings in this size often add a ceremony backdrop + entrance drape.",
-    "upsellCorporate": "Corporate events often soften two walls and add a stage backdrop.",
-    "upsellDefault": "Planning brief — our team will follow up with a rental estimate."
-  },
-  "step2": {
-    "eyebrow": "Step 2",
-    "title": "Visual setup catalog",
-    "description": "Tap photo cards to add setups. This is not a cart — just your planning brief.",
-    "categoryLabel": "Browse by category",
-    "categorySelectedCount": "{count} selected in this category"
-  },
-  "step3": {
-    "eyebrow": "Step 3",
-    "title": "Look & add-ons",
-    "description": "Choose fabric direction, color, and fullness. No prices shown here.",
-    "fabricDirection": "Fabric direction",
-    "primaryColor": "Primary drape color",
-    "fullness": "Fullness",
-    "addOns": "Additional add-ons",
-    "noPricing": "Planning brief only — not final pricing."
-  },
   "step4": {
     "eyebrow": "Step 4",
     "title": "Review your brief",
@@ -263,17 +218,6 @@
         "imageAlt": "Layered swag backdrop preview — coming soon in Studio"
       }
     }
-  },
-  "livePlan": {
-    "summaryAria": "Your event plan summary",
-    "title": "Your event plan",
-    "setups": "{count, plural, one {# setup} other {# setups}}",
-    "clearAll": "Clear all",
-    "empty": "Tap photo cards to add backdrops, entrances, and perimeter draping.",
-    "eventPrefix": "Event",
-    "yourPlan": "Your plan",
-    "selected": "{count, plural, one {# setup selected} other {# setups selected}}",
-    "review": "Review"
   },
   "colors": {
     "ivory": "Ivory",

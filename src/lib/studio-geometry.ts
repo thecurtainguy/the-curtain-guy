@@ -5,6 +5,7 @@ import type {
   StudioPoint,
   StudioTreatment,
 } from "@/data/studio";
+import { getDrapeRunHungLength } from "@/lib/studio-door-gaps";
 
 export type StudioWallSegment = {
   index: number;
@@ -176,14 +177,21 @@ export function clampTreatmentToWall(
   };
 }
 
+/**
+ * Linear inches of fabric actually hung — door/entrance gaps excluded. Bare
+ * run lists have no openings, so they count full spans unless given some.
+ */
 export function calculateDrapeLength(
-  designOrRuns: StudioDesignJson | StudioDrapeRun[]
+  designOrRuns: StudioDesignJson | StudioDrapeRun[],
+  openings: readonly StudioOpening[] = Array.isArray(designOrRuns)
+    ? []
+    : designOrRuns.openings
 ): number {
   const runs = Array.isArray(designOrRuns)
     ? designOrRuns
     : designOrRuns.drapeRuns;
   return runs.reduce(
-    (total, run) => total + Math.max(0, run.endOffset - run.startOffset),
+    (total, run) => total + Math.max(0, getDrapeRunHungLength(run, openings)),
     0
   );
 }

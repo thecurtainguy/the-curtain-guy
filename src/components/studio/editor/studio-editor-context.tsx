@@ -974,6 +974,7 @@ export const STUDIO_SHORTCUTS: Array<{ keys: string[]; label: string }> = [
   { keys: ["Arrows"], label: "Nudge by snap step (Shift = 1″)" },
   { keys: ["R"], label: "Rotate +15° (Shift+R = −15°)" },
   { keys: ["L"], label: "Lock / unlock selection" },
+  { keys: ["Shift", "L"], label: "Expand / close the full library" },
   { keys: ["H"], label: "Hide / show selection" },
   { keys: ["G"], label: "Toggle grid snapping" },
   { keys: ["F"], label: "Fit view to room" },

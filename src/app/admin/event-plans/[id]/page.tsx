@@ -11,6 +11,9 @@ import {
 } from "@/lib/event-plan-access";
 import { formatEventPlanReference } from "@/data/event-plans";
 import { listQuotesForEstimate } from "@/lib/quotes";
+import { getStudioDesignQuoteId } from "@/lib/studio-leads-admin";
+import type { StudioActor } from "@/lib/studio";
+import { StudioDesignReviewSection } from "@/components/admin/studio-leads/studio-design-review-section";
 
 export const metadata: Metadata = {
   title: "Event plan detail",
@@ -34,9 +37,17 @@ export default async function AdminEventPlanDetailPage({ params }: PageProps) {
 
   const reference = formatEventPlanReference(plan.id, plan.reference);
   const submittedAt = new Date(plan.created_at).toLocaleString();
-  const quotes = plan.estimate_request_id
-    ? await listQuotesForEstimate(plan.estimate_request_id)
-    : [];
+  const actor: StudioActor = {
+    userId: owner.user.id,
+    role: "owner",
+    user: owner.user,
+  };
+  const [quotes, designQuoteId] = await Promise.all([
+    plan.estimate_request_id
+      ? listQuotesForEstimate(plan.estimate_request_id)
+      : Promise.resolve([]),
+    getStudioDesignQuoteId(actor, plan.studio_design_id),
+  ]);
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -58,11 +69,19 @@ export default async function AdminEventPlanDetailPage({ params }: PageProps) {
         backHref="/admin/event-plans"
         backLabel="All event plans"
         afterHeader={
-          <AdminEventPlanQuotesSection
-            eventPlanId={plan.id}
-            estimateId={plan.estimate_request_id}
-            quotes={quotes}
-          />
+          <>
+            <AdminEventPlanQuotesSection
+              eventPlanId={plan.id}
+              estimateId={plan.estimate_request_id}
+              quotes={quotes}
+            />
+            <StudioDesignReviewSection
+              design={design}
+              designId={plan.studio_design_id}
+              eventPlanId={plan.id}
+              existingQuoteId={designQuoteId}
+            />
+          </>
         }
       />
     </AdminPageFrame>

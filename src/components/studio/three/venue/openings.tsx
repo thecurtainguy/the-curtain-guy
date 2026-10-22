@@ -1,6 +1,7 @@
 "use client";
 
-import type { StudioLightingMood } from "@/data/studio";
+import type { StudioLightingMood, StudioOpeningStyle } from "@/data/studio";
+import { getOpeningStyle } from "@/data/studio-openings";
 import type { StudioBounds } from "@/lib/studio-geometry";
 import { Edges } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
@@ -26,6 +27,12 @@ import {
 
 const IN = SCALE;
 const noRaycast = () => null;
+
+/** Shared unit primitives, scaled per mesh. Module lifetime — never disposed. */
+const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
+const UNIT_ROD = new THREE.CylinderGeometry(0.5, 0.5, 1, 16);
+const UNIT_PLANE = new THREE.PlaneGeometry(1, 1);
+const UNIT_RING = new THREE.TorusGeometry(1, 0.12, 8, 32);
 
 export function daylightToneFor(mood: StudioLightingMood): DaylightTone {
   if (mood === "warm_gala" || mood === "candlelight") return "golden";
@@ -62,6 +69,13 @@ function createOpeningMaterials(
       roughness: 0.26,
       envMap,
       envMapIntensity: 1.2,
+    }),
+    steel: new THREE.MeshStandardMaterial({
+      color: "#c4c6c8",
+      metalness: 1,
+      roughness: 0.34,
+      envMap,
+      envMapIntensity: 1,
     }),
     glass: new THREE.MeshPhysicalMaterial({
       color: "#d4e5ec",
@@ -149,6 +163,8 @@ export function useOpeningMaterials(
   return materials;
 }
 
+type Vec3 = [number, number, number];
+
 function Box({
   size,
   position,
@@ -156,17 +172,76 @@ function Box({
   rotation,
   cast = false,
 }: {
-  size: [number, number, number];
-  position: [number, number, number];
+  size: Vec3;
+  position: Vec3;
   material: THREE.Material;
-  rotation?: [number, number, number];
+  rotation?: Vec3;
   cast?: boolean;
 }) {
   if (size[0] <= 0.001 || size[1] <= 0.001 || size[2] <= 0.001) return null;
   return (
-    <mesh position={position} rotation={rotation} material={material} castShadow={cast} receiveShadow>
-      <boxGeometry args={size} />
-    </mesh>
+    <mesh
+      geometry={UNIT_BOX}
+      scale={size}
+      position={position}
+      rotation={rotation}
+      material={material}
+      castShadow={cast}
+      receiveShadow
+    />
+  );
+}
+
+/** Cylinder along local Y unless rotated. */
+function Rod({
+  radius,
+  length,
+  position,
+  rotation,
+  material,
+}: {
+  radius: number;
+  length: number;
+  position: Vec3;
+  rotation?: Vec3;
+  material: THREE.Material;
+}) {
+  return (
+    <mesh
+      geometry={UNIT_ROD}
+      scale={[radius * 2, length, radius * 2]}
+      position={position}
+      rotation={rotation}
+      material={material}
+    />
+  );
+}
+
+function Pane({
+  width,
+  height,
+  position,
+  rotation,
+  material,
+  pickable = true,
+}: {
+  width: number;
+  height: number;
+  position: Vec3;
+  rotation?: Vec3;
+  material: THREE.Material;
+  pickable?: boolean;
+}) {
+  if (width <= 0.01 || height <= 0.01) return null;
+  return (
+    <mesh
+      geometry={UNIT_PLANE}
+      scale={[width, height, 1]}
+      position={position}
+      rotation={rotation}
+      material={material}
+      raycast={pickable ? undefined : noRaycast}
+    />
   );
 }
 
@@ -175,11 +250,13 @@ function ExtrudedShape({
   depth,
   z,
   material,
+  cast = false,
 }: {
   build: () => THREE.Shape;
   depth: number;
   z: number;
   material: THREE.Material;
+  cast?: boolean;
 }) {
   const geometry = useMemo(() => {
     const geo = new THREE.ExtrudeGeometry(build(), {
@@ -191,7 +268,7 @@ function ExtrudedShape({
     return geo;
   }, [build, depth, z]);
   useEffect(() => () => geometry.dispose(), [geometry]);
-  return <mesh geometry={geometry} material={material} receiveShadow />;
+  return <mesh geometry={geometry} material={material} castShadow={cast} receiveShadow />;
 }
 
 /**
@@ -254,7 +331,180 @@ function WallInfill({
   return <mesh geometry={geometry} material={materials} receiveShadow />;
 }
 
+/* ------------------------------------------------------------------ */
+/* Arch shapes (feet, opening-local: x across, y up)                    */
+/* ------------------------------------------------------------------ */
+
+/** Circular arch springing at ±halfW on `spring`, apex `rise` above it. */
+type ArchDims = { halfW: number; spring: number; rise: number };
+
+function archCircle({ halfW, spring, rise }: ArchDims) {
+  const r = (halfW * halfW + rise * rise) / (2 * rise);
+  return { cy: spring + rise - r, r };
+}
+
+/** Half-chord and angle where the circle (0, cy, r) crosses height `y`. */
+function crossing(cy: number, r: number, y: number) {
+  const dy = y - cy;
+  const x = Math.sqrt(Math.max(0, r * r - dy * dy));
+  return { x, a: Math.atan2(dy, x) };
+}
+
+/** Region above `base` under the arch grown concentrically by `grow`. */
+function archHeadShape(dims: ArchDims, grow: number, base: number): THREE.Shape {
+  const { cy, r } = archCircle(dims);
+  const radius = Math.max(0.01, r + grow);
+  const c = crossing(cy, radius, base);
+  const s = new THREE.Shape();
+  s.moveTo(-c.x, base);
+  s.lineTo(c.x, base);
+  s.absarc(0, cy, radius, c.a, Math.PI - c.a, false);
+  s.closePath();
+  return s;
+}
+
+/** Band between two concentric arch offsets (`inner` < `outer`), cut flat at the spring. */
+function archBandShape(dims: ArchDims, inner: number, outer: number): THREE.Shape {
+  const { cy, r } = archCircle(dims);
+  const o = crossing(cy, r + outer, dims.spring);
+  const i = crossing(cy, r + inner, dims.spring);
+  const s = new THREE.Shape();
+  s.moveTo(o.x, dims.spring);
+  s.absarc(0, cy, r + outer, o.a, Math.PI - o.a, false);
+  s.lineTo(-i.x, dims.spring);
+  s.absarc(0, cy, r + inner, Math.PI - i.a, i.a, true);
+  s.closePath();
+  return s;
+}
+
+/** Wall left between the rectangular cut (up to `top`) and the arch. */
+function spandrelShape(dims: ArchDims, top: number): THREE.Shape {
+  const { halfW, spring } = dims;
+  const { cy, r } = archCircle(dims);
+  const a = Math.atan2(spring - cy, halfW);
+  const s = new THREE.Shape();
+  s.moveTo(-halfW, spring);
+  s.lineTo(-halfW, top);
+  s.lineTo(halfW, top);
+  s.lineTo(halfW, spring);
+  s.absarc(0, cy, r, a, Math.PI - a, false);
+  s.closePath();
+  return s;
+}
+
+function ArchSpandrel({
+  halfW,
+  spring,
+  rise,
+  top,
+  thickness,
+  uOffset,
+  uSign,
+  materials,
+}: ArchDims & {
+  top: number;
+  thickness: number;
+  uOffset: number;
+  uSign: number;
+  materials: THREE.Material[];
+}) {
+  const build = useMemo(
+    () => () => spandrelShape({ halfW, spring, rise }, top + 0.01),
+    [halfW, spring, rise, top]
+  );
+  return (
+    <WallInfill build={build} thickness={thickness} uOffset={uOffset} uSign={uSign} materials={materials} />
+  );
+}
+
+function ArchBand({
+  halfW,
+  spring,
+  rise,
+  inner,
+  outer,
+  depth,
+  z,
+  material,
+}: ArchDims & { inner: number; outer: number; depth: number; z: number; material: THREE.Material }) {
+  const build = useMemo(
+    () => () => archBandShape({ halfW, spring, rise }, inner, outer),
+    [halfW, spring, rise, inner, outer]
+  );
+  return <ExtrudedShape build={build} depth={depth} z={z} material={material} />;
+}
+
+function ArchGlass({
+  halfW,
+  spring,
+  rise,
+  grow,
+  z,
+  material,
+}: ArchDims & { grow: number; z: number; material: THREE.Material }) {
+  const geometry = useMemo(() => {
+    const geo = new THREE.ShapeGeometry(archHeadShape({ halfW, spring, rise }, grow, spring), 24);
+    geo.translate(0, 0, z);
+    return geo;
+  }, [halfW, spring, rise, grow, z]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return <mesh geometry={geometry} material={material} />;
+}
+
+/** Fan of radial glazing bars from the spring centre, plus a half-round hub. */
+function ArchFan({
+  halfW,
+  spring,
+  rise,
+  grow,
+  count,
+  bar,
+  depth,
+  z,
+  material,
+}: ArchDims & {
+  grow: number;
+  count: number;
+  bar: number;
+  depth: number;
+  z: number;
+  material: THREE.Material;
+}) {
+  const { cy, r } = archCircle({ halfW, spring, rise });
+  const radius = r + grow;
+  const a = crossing(cy, radius, spring).a;
+  const hub = Math.min(0.32, radius * 0.22);
+  const hubBuild = useMemo(
+    () => () => archHeadShape({ halfW: hub, spring, rise: hub }, 0, spring),
+    [hub, spring]
+  );
+  return (
+    <>
+      {Array.from({ length: count }, (_, index) => {
+        const angle = a + ((Math.PI - 2 * a) * (index + 1)) / (count + 1);
+        const dx = radius * Math.cos(angle);
+        const dy = cy + radius * Math.sin(angle) - spring;
+        return (
+          <Box
+            key={index}
+            size={[bar, Math.hypot(dx, dy), depth]}
+            position={[dx / 2, spring + dy / 2, z]}
+            rotation={[0, 0, Math.atan2(dy, dx) - Math.PI / 2]}
+            material={material}
+          />
+        );
+      })}
+      <ExtrudedShape build={hubBuild} depth={depth * 1.2} z={z - depth * 0.6} material={material} />
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared assembly parts                                              */
+/* ------------------------------------------------------------------ */
+
 type AssemblyProps = {
+  style: StudioOpeningStyle;
   /** Feet. */
   width: number;
   bottom: number;
@@ -270,13 +520,19 @@ type AssemblyProps = {
   /** Wall-UV along offset (feet) of the opening centre and local-X sign. */
   uOffset: number;
   uSign: number;
-  /** Entrance arch rise (feet), 0 for a flat head. */
-  archRise: number;
+  /** Visible arched head (feet), null for a flat or clipped head. */
+  arch: ArchDims | null;
   /** Camera stands inside the room (enables the vestibule backdrop). */
   inside: boolean;
 };
 
-/** Side casings + head on both wall faces. */
+type FrameProps = Pick<AssemblyProps, "width" | "bottom" | "top" | "wallTop" | "thickness" | "clipped">;
+
+type Cornice = "none" | "simple" | "grand";
+
+const CORNICE_HEIGHT: Record<Cornice, number> = { none: 0, simple: 1.4 * IN, grand: 5.5 * IN };
+
+/** Side casings + head (optional cornice) on both wall faces. */
 function Casings({
   width,
   bottom,
@@ -288,16 +544,24 @@ function Casings({
   casingWidth,
   casingDepth,
   cornice,
-}: Omit<AssemblyProps, "materials" | "wallMaterials" | "uOffset" | "uSign" | "detailed" | "inside"> & {
+  head = true,
+  plinth = false,
+}: FrameProps & {
   material: THREE.Material;
   casingWidth: number;
   casingDepth: number;
-  cornice: boolean;
+  cornice: Cornice;
+  head?: boolean;
+  plinth?: boolean;
 }) {
-  const headFits = !clipped && top + casingWidth + (cornice ? 1.4 * IN : 0) <= wallTop + 0.001;
+  const headFits =
+    head && !clipped && top + casingWidth + CORNICE_HEIGHT[cornice] <= wallTop + 0.001;
   const legTop = headFits ? top : Math.min(top, wallTop);
   const legH = legTop - bottom;
   const legX = width / 2 + casingWidth / 2 - 0.25 * IN;
+  const headW = width + casingWidth * 2 - 0.5 * IN;
+  const crown = top + casingWidth;
+  const plinthH = Math.min(7 * IN, legH);
   const faces: [number, number][] = [
     [casingDepth / 2, 1],
     [-thickness - casingDepth / 2, -1],
@@ -306,21 +570,46 @@ function Casings({
     <>
       {faces.map(([z, s]) => (
         <group key={s}>
-          <Box size={[casingWidth, legH, casingDepth]} position={[-legX, bottom + legH / 2, z]} material={material} />
-          <Box size={[casingWidth, legH, casingDepth]} position={[legX, bottom + legH / 2, z]} material={material} />
-          {headFits ? (
-            <>
-              <Box
-                size={[width + casingWidth * 2 - 0.5 * IN, casingWidth, casingDepth]}
-                position={[0, top + casingWidth / 2, z]}
-                material={material}
-              />
-              {cornice ? (
+          {[-legX, legX].map((x) => (
+            <group key={x}>
+              <Box size={[casingWidth, legH, casingDepth]} position={[x, bottom + legH / 2, z]} material={material} />
+              {plinth ? (
                 <Box
-                  size={[width + casingWidth * 2 + 1.2 * IN, 1.4 * IN, casingDepth + 0.8 * IN]}
-                  position={[0, top + casingWidth + 0.7 * IN, z + s * 0.4 * IN]}
+                  size={[casingWidth + 0.5 * IN, plinthH, casingDepth + 0.4 * IN]}
+                  position={[x, bottom + plinthH / 2, z + s * 0.2 * IN]}
                   material={material}
                 />
+              ) : null}
+            </group>
+          ))}
+          {headFits ? (
+            <>
+              <Box size={[headW, casingWidth, casingDepth]} position={[0, top + casingWidth / 2, z]} material={material} />
+              {cornice === "simple" ? (
+                <Box
+                  size={[headW + 1.7 * IN, 1.4 * IN, casingDepth + 0.8 * IN]}
+                  position={[0, crown + 0.7 * IN, z + s * 0.4 * IN]}
+                  material={material}
+                />
+              ) : null}
+              {cornice === "grand" ? (
+                <>
+                  <Box
+                    size={[headW, 3 * IN, casingDepth + 0.3 * IN]}
+                    position={[0, crown + 1.5 * IN, z + s * 0.15 * IN]}
+                    material={material}
+                  />
+                  <Box
+                    size={[headW + 1.5 * IN, 0.9 * IN, casingDepth + 0.9 * IN]}
+                    position={[0, crown + 3.45 * IN, z + s * 0.45 * IN]}
+                    material={material}
+                  />
+                  <Box
+                    size={[headW + 3.5 * IN, 1.6 * IN, casingDepth + 1.8 * IN]}
+                    position={[0, crown + 4.7 * IN, z + s * 0.9 * IN]}
+                    material={material}
+                  />
+                </>
               ) : null}
             </>
           ) : null}
@@ -330,82 +619,110 @@ function Casings({
   );
 }
 
+/** Jamb linings through the wall; `head` adds the head lining. */
 function Jambs({
   width,
   bottom,
   top,
   wallTop,
   thickness,
-  clipped,
+  head,
   material,
-}: Omit<AssemblyProps, "materials" | "wallMaterials" | "uOffset" | "uSign" | "detailed" | "inside"> & {
-  material: THREE.Material;
-}) {
+}: Omit<FrameProps, "clipped"> & { head: boolean; material: THREE.Material }) {
   const j = 0.75 * IN;
   const h = Math.min(top, wallTop) - bottom;
   return (
     <>
       <Box size={[j, h, thickness + 0.2 * IN]} position={[-width / 2 + j / 2, bottom + h / 2, -thickness / 2]} material={material} />
       <Box size={[j, h, thickness + 0.2 * IN]} position={[width / 2 - j / 2, bottom + h / 2, -thickness / 2]} material={material} />
-      {!clipped ? (
+      {head ? (
         <Box size={[width, j, thickness + 0.2 * IN]} position={[0, top - j / 2, -thickness / 2]} material={material} />
       ) : null}
     </>
   );
 }
 
-function DoorLeaf({
-  width,
-  height,
-  hingeX,
-  side,
-  angle,
-  detailed,
-  materials,
-}: {
-  width: number;
-  height: number;
-  hingeX: number;
-  side: 1 | -1;
-  angle: number;
-  detailed: boolean;
-  materials: OpeningMaterials;
-}) {
-  const t = 1.75 * IN;
-  const margin = Math.min(0.36, width * 0.17);
-  const lower = height * 0.24;
-  const upper = height - lower - margin * 3;
-  const cx = (side * width) / 2;
-  const handleX = side * (width - 0.24);
+function Threshold({ width, thickness, material }: { width: number; thickness: number; material: THREE.Material }) {
   return (
-    <group position={[hingeX, 0.5 * IN, -t / 2 - 0.4 * IN]} rotation={[0, -side * angle, 0]}>
-      <Box size={[width, height, t]} position={[cx, height / 2, 0]} material={materials.door} cast />
-      {detailed ? (
-        <>
-          <Box
-            size={[width - margin * 2, upper, t + 0.5 * IN]}
-            position={[cx, height - margin - upper / 2, 0]}
-            material={materials.door}
-          />
-          <Box
-            size={[width - margin * 2, lower, t + 0.5 * IN]}
-            position={[cx, margin + lower / 2, 0]}
-            material={materials.door}
-          />
-        </>
-      ) : null}
-      <mesh position={[handleX, 3.25, 0]} rotation={[Math.PI / 2, 0, 0]} material={materials.brass}>
-        <cylinderGeometry args={[0.085, 0.085, t + 0.12, 18]} />
-      </mesh>
-      {[1, -1].map((face) => (
-        <Box
-          key={face}
-          size={[0.38, 0.055, 0.055]}
-          position={[handleX - side * 0.15, 3.25, face * (t / 2 + 0.09)]}
-          material={materials.brass}
-        />
+    <Box size={[width, 0.5 * IN, thickness + 1 * IN]} position={[0, 0.25 * IN, -thickness / 2]} material={material} />
+  );
+}
+
+/** Classical pilasters with plinths and capitals, under an entablature or an archivolt. */
+function PilasterSurround({
+  width,
+  top,
+  wallTop,
+  thickness,
+  clipped,
+  materials,
+  arch,
+}: AssemblyProps) {
+  const pw = 5 * IN;
+  const pd = 1.25 * IN;
+  const legTop = arch ? arch.spring : top;
+  const legH = Math.min(legTop, wallTop);
+  const legX = width / 2 + pw / 2;
+  const capFits = !clipped && legTop + 4 * IN <= wallTop;
+  const headW = width + pw * 2;
+  const flatHead = !arch && !clipped && top + pw + 3 * IN <= wallTop;
+  const apex = arch ? arch.spring + arch.rise : 0;
+  const archTrim = arch !== null && apex + pw + 0.5 * IN <= wallTop;
+  const m = materials.casing;
+  return (
+    <>
+      {(
+        [
+          [pd / 2, 1],
+          [-thickness - pd / 2, -1],
+        ] as const
+      ).map(([z, s]) => (
+        <group key={s}>
+          {[-legX, legX].map((x) => (
+            <group key={x}>
+              <Box size={[pw, legH, pd]} position={[x, legH / 2, z]} material={m} />
+              <Box
+                size={[pw + 0.6 * IN, Math.min(7 * IN, legH), pd + 0.5 * IN]}
+                position={[x, Math.min(7 * IN, legH) / 2, z + s * 0.25 * IN]}
+                material={m}
+              />
+              {capFits ? (
+                <Box
+                  size={[pw + 1 * IN, 4 * IN, pd + 0.7 * IN]}
+                  position={[x, legTop - 2 * IN, z + s * 0.35 * IN]}
+                  material={m}
+                />
+              ) : null}
+            </group>
+          ))}
+          {flatHead ? (
+            <>
+              <Box size={[headW, pw, pd]} position={[0, top + pw / 2, z]} material={m} />
+              <Box
+                size={[headW + 1.5 * IN, 1 * IN, pd + 0.8 * IN]}
+                position={[0, top + pw + 0.5 * IN, z + s * 0.4 * IN]}
+                material={m}
+              />
+              <Box
+                size={[headW + 4 * IN, 2 * IN, pd + 2 * IN]}
+                position={[0, top + pw + 2 * IN, z + s * 1 * IN]}
+                material={m}
+              />
+            </>
+          ) : null}
+          {arch && archTrim ? (
+            <>
+              <ArchBand {...arch} inner={0} outer={pw} depth={pd} z={s > 0 ? 0 : -thickness - pd} material={m} />
+              <Box
+                size={[Math.min(0.55, width * 0.07), pw + 2 * IN, pd + 0.6 * IN]}
+                position={[0, apex + pw / 2, z + s * 0.3 * IN]}
+                material={m}
+              />
+            </>
+          ) : null}
+        </group>
       ))}
-    </group>
+    </>
   );
 }
 
@@ -423,98 +740,331 @@ function Foyer({ width, top, thickness, materials }: AssemblyProps) {
   const mid = -thickness - FOYER_DEPTH_FT / 2;
   return (
     <group>
-      <mesh position={[0, h / 2, back]} material={materials.foyer} raycast={noRaycast}>
-        <planeGeometry args={[w, h]} />
-      </mesh>
+      <Pane width={w} height={h} position={[0, h / 2, back]} material={materials.foyer} pickable={false} />
       {[-1, 1].map((s) => (
-        <mesh
+        <Pane
           key={s}
+          width={FOYER_DEPTH_FT}
+          height={h}
           position={[(s * w) / 2, h / 2, mid]}
           rotation={[0, (-s * Math.PI) / 2, 0]}
           material={materials.foyerSide}
-          raycast={noRaycast}
-        >
-          <planeGeometry args={[FOYER_DEPTH_FT, h]} />
-        </mesh>
+          pickable={false}
+        />
       ))}
-      <mesh
+      <Pane
+        width={w}
+        height={FOYER_DEPTH_FT}
         position={[0, 0.005, mid]}
         rotation={[-Math.PI / 2, 0, 0]}
         material={materials.foyerFloor}
-        raycast={noRaycast}
-      >
-        <planeGeometry args={[w, FOYER_DEPTH_FT]} />
-      </mesh>
+        pickable={false}
+      />
     </group>
   );
 }
 
-function DoorAssembly(props: AssemblyProps) {
-  const { width, top, thickness, clipped, materials, detailed } = props;
-  const j = 0.75 * IN;
-  const clear = width - j * 2;
-  const double = width >= 4;
-  const leafW = double ? clear / 2 : clear;
-  const leafH = top - j - 0.5 * IN;
-  const casing = { ...props, material: materials.casing, casingWidth: 3.5 * IN, casingDepth: 1 * IN, cornice: true };
+/** Sky backdrop outside glazing plus a soft light pool on the room floor. */
+function Daylight({ width, bottom, top, thickness, materials }: AssemblyProps) {
+  const y0 = bottom - 0.5;
+  const y1 = top + 0.6;
+  const h = top - bottom;
   return (
     <>
-      {props.inside && !clipped ? <Foyer {...props} /> : null}
-      <Jambs {...props} material={materials.casing} />
-      <Casings {...casing} />
-      <Box
-        size={[width, 0.5 * IN, thickness + 1 * IN]}
-        position={[0, 0.25 * IN, -thickness / 2]}
-        material={materials.stone}
+      <Pane
+        width={width + 1.2}
+        height={y1 - y0}
+        position={[0, (y0 + y1) / 2, -thickness - 1.1]}
+        material={materials.daylight}
+        pickable={false}
       />
-      {!clipped ? (
-        <>
-          <DoorLeaf
-            width={leafW}
-            height={leafH}
-            hingeX={-width / 2 + j}
-            side={1}
-            angle={double ? 0.3 : 0.38}
-            detailed={detailed}
-            materials={materials}
-          />
-          {double ? (
-            <DoorLeaf
-              width={leafW}
-              height={leafH}
-              hingeX={width / 2 - j}
-              side={-1}
-              angle={0.2}
-              detailed={detailed}
-              materials={materials}
-            />
-          ) : null}
-        </>
-      ) : (
-        <SwingPlan width={width} leafW={leafW} double={double} material={materials.plan} />
-      )}
+      <Pane
+        width={width * 1.5 + 1}
+        height={Math.min(9, 2 + h * 1.2)}
+        position={[0, 0.012, Math.min(4.5, 1 + h * 0.6)]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        material={materials.pool}
+        pickable={false}
+      />
     </>
   );
 }
 
-/** Floor-plan door swing arcs shown when the wall is cut below the door head. */
-function SwingPlan({
+/* ------------------------------------------------------------------ */
+/* Door leaves                                                        */
+/* ------------------------------------------------------------------ */
+
+type LeafFinish = "panel" | "raised" | "porthole";
+type LeafHardware = "lever" | "pull" | "push";
+
+const LEAF_T = 1.75 * IN;
+
+/** Stepped raised fields: tall upper panel, slim frieze panel, lower panel. */
+function RaisedPanels({ width, height, cx, material }: { width: number; height: number; cx: number; material: THREE.Material }) {
+  const m = Math.min(0.42, width * 0.15);
+  const rail = m * 0.8;
+  const pw = width - m * 2;
+  const low = height * 0.25;
+  const mid = height * 0.09;
+  const high = height - m * 2 - rail * 2 - low - mid;
+  const bevel = Math.min(0.2, pw * 0.13);
+  const panels: [number, number][] = [
+    [m + low / 2, low],
+    [m + low + rail + mid / 2, mid],
+    [height - m - high / 2, high],
+  ];
+  return (
+    <>
+      {panels.map(([y, h], index) => (
+        <group key={index}>
+          <Box size={[pw, h, LEAF_T + 0.35 * IN]} position={[cx, y, 0]} material={material} />
+          <Box size={[pw - bevel * 2, h - bevel * 2, LEAF_T + 0.9 * IN]} position={[cx, y, 0]} material={material} />
+        </group>
+      ))}
+    </>
+  );
+}
+
+/** Flat slab with a real round hole for the porthole glass. */
+function PortholeSlab({
   width,
-  leafW,
-  double,
+  height,
+  side,
+  cy,
+  radius,
   material,
 }: {
   width: number;
-  leafW: number;
-  double: boolean;
+  height: number;
+  side: 1 | -1;
+  cy: number;
+  radius: number;
   material: THREE.Material;
 }) {
-  const hinges: [number, number][] = double
-    ? [
-        [-width / 2, -Math.PI / 2],
-        [width / 2, Math.PI],
-      ]
-    : [[-width / 2, -Math.PI / 2]];
+  const build = useMemo(
+    () => () => {
+      const x0 = side > 0 ? 0 : -width;
+      const s = new THREE.Shape();
+      s.moveTo(x0, 0);
+      s.lineTo(x0 + width, 0);
+      s.lineTo(x0 + width, height);
+      s.lineTo(x0, height);
+      s.closePath();
+      const hole = new THREE.Path();
+      hole.absarc((side * width) / 2, cy, radius, 0, Math.PI * 2, true);
+      s.holes.push(hole);
+      return s;
+    },
+    [width, height, side, cy, radius]
+  );
+  return <ExtrudedShape build={build} depth={LEAF_T} z={-LEAF_T / 2} material={material} cast />;
+}
+
+function LeafHardwareSet({
+  kind,
+  width,
+  side,
+  materials,
+}: {
+  kind: LeafHardware;
+  width: number;
+  side: 1 | -1;
+  materials: OpeningMaterials;
+}) {
+  const t = LEAF_T;
+  if (kind === "pull") {
+    const x = side * (width - 0.3);
+    const len = 1.7;
+    const y = 3.7;
+    return (
+      <>
+        {[1, -1].map((face) => (
+          <group key={face}>
+            <Rod radius={0.045} length={len} position={[x, y, face * (t / 2 + 0.2)]} material={materials.brass} />
+            {[-1, 1].map((end) => (
+              <Rod
+                key={end}
+                radius={0.028}
+                length={0.2}
+                position={[x, y + end * (len / 2 - 0.14), face * (t / 2 + 0.1)]}
+                rotation={[Math.PI / 2, 0, 0]}
+                material={materials.brass}
+              />
+            ))}
+          </group>
+        ))}
+      </>
+    );
+  }
+  if (kind === "push") {
+    const x = side * (width - 0.4);
+    return (
+      <>
+        <Box size={[0.34, 1.2, 0.08 * IN]} position={[x, 4, t / 2 + 0.04 * IN]} material={materials.steel} />
+        <Rod radius={0.035} length={0.85} position={[x, 3.6, -(t / 2 + 0.2)]} material={materials.steel} />
+        {[-1, 1].map((end) => (
+          <Rod
+            key={end}
+            radius={0.022}
+            length={0.2}
+            position={[x, 3.6 + end * 0.33, -(t / 2 + 0.1)]}
+            rotation={[Math.PI / 2, 0, 0]}
+            material={materials.steel}
+          />
+        ))}
+        {[1, -1].map((face) => (
+          <Box
+            key={face}
+            size={[width - 2 * IN, 10 * IN, 0.06 * IN]}
+            position={[(side * width) / 2, 5 * IN, face * (t / 2 + 0.03 * IN)]}
+            material={materials.steel}
+          />
+        ))}
+      </>
+    );
+  }
+  const handleX = side * (width - 0.24);
+  return (
+    <>
+      <Rod radius={0.085} length={t + 0.12} position={[handleX, 3.25, 0]} rotation={[Math.PI / 2, 0, 0]} material={materials.brass} />
+      {[1, -1].map((face) => (
+        <Box
+          key={face}
+          size={[0.38, 0.055, 0.055]}
+          position={[handleX - side * 0.15, 3.25, face * (t / 2 + 0.09)]}
+          material={materials.brass}
+        />
+      ))}
+    </>
+  );
+}
+
+function DoorLeaf({
+  width,
+  height,
+  hingeX,
+  side,
+  angle,
+  finish,
+  hardware,
+  detailed,
+  materials,
+}: {
+  width: number;
+  height: number;
+  hingeX: number;
+  side: 1 | -1;
+  angle: number;
+  finish: LeafFinish;
+  hardware: LeafHardware;
+  detailed: boolean;
+  materials: OpeningMaterials;
+}) {
+  const t = LEAF_T;
+  const cx = (side * width) / 2;
+  const margin = Math.min(0.36, width * 0.17);
+  const lower = height * 0.24;
+  const upper = height - lower - margin * 3;
+  const portholeR = Math.min(width * 0.2, 6.5 * IN);
+  const portholeY = Math.min(height * 0.68, 5.1);
+  return (
+    <group position={[hingeX, 0.5 * IN, -t / 2 - 0.4 * IN]} rotation={[0, -side * angle, 0]}>
+      {finish === "porthole" ? (
+        <>
+          <PortholeSlab
+            width={width}
+            height={height}
+            side={side}
+            cy={portholeY}
+            radius={portholeR}
+            material={materials.door}
+          />
+          <Rod
+            radius={portholeR}
+            length={t * 0.3}
+            position={[cx, portholeY, 0]}
+            rotation={[Math.PI / 2, 0, 0]}
+            material={materials.glass}
+          />
+          {[1, -1].map((face) => (
+            <mesh
+              key={face}
+              geometry={UNIT_RING}
+              scale={[portholeR + 0.4 * IN, portholeR + 0.4 * IN, portholeR + 0.4 * IN]}
+              position={[cx, portholeY, (face * t) / 2]}
+              material={materials.steel}
+            />
+          ))}
+        </>
+      ) : (
+        <Box size={[width, height, t]} position={[cx, height / 2, 0]} material={materials.door} cast />
+      )}
+      {detailed && finish === "panel" ? (
+        <>
+          <Box
+            size={[width - margin * 2, upper, t + 0.5 * IN]}
+            position={[cx, height - margin - upper / 2, 0]}
+            material={materials.door}
+          />
+          <Box
+            size={[width - margin * 2, lower, t + 0.5 * IN]}
+            position={[cx, margin + lower / 2, 0]}
+            material={materials.door}
+          />
+        </>
+      ) : null}
+      {detailed && finish === "raised" ? (
+        <RaisedPanels width={width} height={height} cx={cx} material={materials.door} />
+      ) : null}
+      <LeafHardwareSet kind={hardware} width={width} side={side} materials={materials} />
+    </group>
+  );
+}
+
+/** Floor-plan door marks shown when the wall is cut below the door head. */
+function SwingPlan({
+  kind,
+  width,
+  leafW,
+  thickness,
+  material,
+}: {
+  kind: "single" | "pair" | "slider";
+  width: number;
+  leafW: number;
+  thickness: number;
+  material: THREE.Material;
+}) {
+  if (kind === "slider") {
+    const len = width * 0.56;
+    return (
+      <>
+        {(
+          [
+            [-width / 2 + len / 2, -thickness * 0.68],
+            [width / 2 - len / 2, -thickness * 0.32],
+          ] as const
+        ).map(([x, z]) => (
+          <Pane
+            key={z}
+            width={len}
+            height={0.07}
+            position={[x, 0.02, z]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            material={material}
+            pickable={false}
+          />
+        ))}
+      </>
+    );
+  }
+  const hinges: [number, number][] =
+    kind === "pair"
+      ? [
+          [-width / 2, -Math.PI / 2],
+          [width / 2, Math.PI],
+        ]
+      : [[-width / 2, -Math.PI / 2]];
   return (
     <>
       {hinges.map(([x, start]) => (
@@ -522,190 +1072,414 @@ function SwingPlan({
           <mesh rotation={[-Math.PI / 2, 0, 0]} material={material} raycast={noRaycast}>
             <ringGeometry args={[leafW - 0.035, leafW, 32, 1, start, Math.PI / 2]} />
           </mesh>
-          <mesh position={[0, 0, leafW / 2]} rotation={[-Math.PI / 2, 0, 0]} material={material} raycast={noRaycast}>
-            <planeGeometry args={[0.07, leafW]} />
-          </mesh>
+          <Pane
+            width={0.07}
+            height={leafW}
+            position={[0, 0, leafW / 2]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            material={material}
+            pickable={false}
+          />
         </group>
       ))}
     </>
   );
 }
 
-function EntranceAssembly(props: AssemblyProps) {
-  const { width, top, wallTop, thickness, clipped, materials, wallMaterials, uOffset, uSign } = props;
-  const pw = 5 * IN;
-  const pd = 1.25 * IN;
-  const rise = props.archRise;
-  const archTop = top - ARCH_CROWN_IN * IN;
-  const spring = archTop - rise;
-  const arch = rise > 0 && !clipped;
-  const legTop = arch ? spring : top;
-  const legClipTop = Math.min(legTop, wallTop);
-  const legH = legClipTop;
-  const legX = width / 2 + pw / 2;
-  const capFits = !clipped && legTop + 4 * IN <= wallTop;
-  const flatHead = !arch && !clipped && top + pw + 1.4 * IN <= wallTop;
+/* ------------------------------------------------------------------ */
+/* Assemblies                                                         */
+/* ------------------------------------------------------------------ */
 
-  const spandrel = useMemo(
-    () => () => {
-      const s = new THREE.Shape();
-      s.moveTo(-width / 2, spring);
-      s.lineTo(-width / 2, top + 0.01);
-      s.lineTo(width / 2, top + 0.01);
-      s.lineTo(width / 2, spring);
-      s.absellipse(0, spring, width / 2, Math.max(rise, 0.01), 0, Math.PI, false, 0);
-      s.closePath();
-      return s;
-    },
-    [width, spring, top, rise]
-  );
-  const archivolt = useMemo(
-    () => () => {
-      const s = new THREE.Shape();
-      s.moveTo(width / 2 + pw, spring);
-      s.absellipse(0, spring, width / 2 + pw, rise + pw, 0, Math.PI, false, 0);
-      s.lineTo(-width / 2, spring);
-      s.absellipse(0, spring, width / 2, rise, Math.PI, 0, true, 0);
-      s.closePath();
-      return s;
-    },
-    [width, spring, rise, pw]
-  );
-
+/** Hinged doors: single, wide, service (porthole) and the paired entrances. */
+function DoorAssembly(props: AssemblyProps) {
+  const { style, width, top, thickness, clipped, materials, detailed } = props;
+  const pair = style === "double_door" || style === "grand_entrance";
+  const grand = style === "grand_entrance";
+  const service = style === "service_door";
+  const j = 0.75 * IN;
+  const clear = width - j * 2;
+  const leafW = pair ? clear / 2 : clear;
+  const leaf = {
+    width: leafW,
+    height: top - j - 0.5 * IN,
+    finish: (grand ? "raised" : service ? "porthole" : "panel") as LeafFinish,
+    hardware: (grand ? "pull" : service ? "push" : "lever") as LeafHardware,
+    detailed,
+    materials,
+  };
+  const [angleA, angleB] = grand ? [0.24, 0.16] : pair ? [0.3, 0.2] : service ? [0.14, 0] : [0.38, 0];
   return (
     <>
       {props.inside && !clipped ? <Foyer {...props} /> : null}
-      <Jambs {...props} top={arch ? spring : top} clipped={clipped || arch} material={materials.casing} />
-      <Box size={[width, 0.5 * IN, thickness + 1 * IN]} position={[0, 0.25 * IN, -thickness / 2]} material={materials.stone} />
-      {(
-        [
-          [pd / 2, 1],
-          [-thickness - pd / 2, -1],
-        ] as const
-      ).map(([z, s]) => (
-        <group key={s}>
-          {[-legX, legX].map((x) => (
-            <group key={x}>
-              <Box size={[pw, legH, pd]} position={[x, legH / 2, z]} material={materials.casing} />
-              <Box
-                size={[pw + 0.6 * IN, Math.min(7 * IN, legH), pd + 0.5 * IN]}
-                position={[x, Math.min(7 * IN, legH) / 2, z + s * 0.25 * IN]}
-                material={materials.casing}
-              />
-              {capFits ? (
-                <Box
-                  size={[pw + 1 * IN, 4 * IN, pd + 0.7 * IN]}
-                  position={[x, legTop - 2 * IN, z + s * 0.35 * IN]}
-                  material={materials.casing}
-                />
-              ) : null}
-            </group>
-          ))}
-          {flatHead ? (
-            <>
-              <Box size={[width + pw * 2, pw, pd]} position={[0, top + pw / 2, z]} material={materials.casing} />
-              <Box
-                size={[width + pw * 2 + 1.5 * IN, 1.4 * IN, pd + 0.9 * IN]}
-                position={[0, top + pw + 0.7 * IN, z + s * 0.45 * IN]}
-                material={materials.casing}
-              />
-            </>
-          ) : null}
-          {arch ? (
-            <>
-              <ExtrudedShape
-                build={archivolt}
-                depth={pd}
-                z={s > 0 ? 0 : -thickness - pd}
-                material={materials.casing}
-              />
-              <Box
-                size={[0.5, pw + 2 * IN, pd + 0.6 * IN]}
-                position={[0, archTop + pw / 2, z + s * 0.3 * IN]}
-                material={materials.casing}
-              />
-            </>
-          ) : null}
-        </group>
-      ))}
-      {arch ? (
-        <WallInfill
-          build={spandrel}
+      <Jambs {...props} head={!clipped} material={materials.casing} />
+      {grand ? (
+        <PilasterSurround {...props} arch={null} />
+      ) : (
+        <Casings
+          {...props}
+          material={materials.casing}
+          casingWidth={service ? 2.5 * IN : 3.5 * IN}
+          casingDepth={service ? 0.75 * IN : 1 * IN}
+          cornice={service ? "none" : "simple"}
+          plinth={!service && detailed}
+        />
+      )}
+      <Threshold width={width} thickness={thickness} material={materials.stone} />
+      {!clipped ? (
+        <>
+          <DoorLeaf {...leaf} hingeX={-width / 2 + j} side={1} angle={angleA} />
+          {pair ? <DoorLeaf {...leaf} hingeX={width / 2 - j} side={-1} angle={angleB} /> : null}
+        </>
+      ) : (
+        <SwingPlan
+          kind={pair ? "pair" : "single"}
+          width={width}
+          leafW={leafW}
           thickness={thickness}
-          uOffset={uOffset}
-          uSign={uSign}
-          materials={wallMaterials}
+          material={materials.plan}
+        />
+      )}
+    </>
+  );
+}
+
+/** Grand arched entrance: pilasters + archivolt, fanlight over a raised-panel pair. */
+function ArchedEntranceAssembly(props: AssemblyProps) {
+  const { width, top, thickness, clipped, materials, detailed, arch } = props;
+  const j = 0.75 * IN;
+  const transomH = 2.5 * IN;
+  const leafW = (width - j * 2) / 2;
+  const headY = arch ? arch.spring - transomH : top - j;
+  const leaf = {
+    width: leafW,
+    height: headY - 0.5 * IN,
+    finish: "raised" as const,
+    hardware: "pull" as const,
+    detailed,
+    materials,
+  };
+  const zc = -thickness / 2;
+  return (
+    <>
+      {props.inside && !clipped ? <Foyer {...props} /> : null}
+      <Jambs {...props} top={arch ? arch.spring : top} head={!clipped && !arch} material={materials.casing} />
+      <PilasterSurround {...props} />
+      <Threshold width={width} thickness={thickness} material={materials.stone} />
+      {arch ? (
+        <>
+          <ArchSpandrel
+            {...arch}
+            top={top}
+            thickness={thickness}
+            uOffset={props.uOffset}
+            uSign={props.uSign}
+            materials={props.wallMaterials}
+          />
+          <ArchBand
+            {...arch}
+            inner={-j}
+            outer={0}
+            depth={thickness + 0.2 * IN}
+            z={-thickness - 0.1 * IN}
+            material={materials.casing}
+          />
+          <Box
+            size={[width, transomH, thickness * 0.55]}
+            position={[0, arch.spring - transomH / 2, zc]}
+            material={materials.casing}
+          />
+          <ArchGlass {...arch} grow={-j} z={zc} material={materials.glass} />
+          <ArchFan
+            {...arch}
+            grow={-j}
+            count={arch.halfW > 2.5 ? 5 : 3}
+            bar={1.1 * IN}
+            depth={1.2 * IN}
+            z={zc}
+            material={materials.casing}
+          />
+        </>
+      ) : null}
+      {!clipped ? (
+        <>
+          <DoorLeaf {...leaf} hingeX={-width / 2 + j} side={1} angle={0.24} />
+          <DoorLeaf {...leaf} hingeX={width / 2 - j} side={-1} angle={0.16} />
+        </>
+      ) : (
+        <SwingPlan kind="pair" width={width} leafW={leafW} thickness={thickness} material={materials.plan} />
+      )}
+    </>
+  );
+}
+
+function SliderPanel({
+  x0,
+  x1,
+  bottom,
+  height,
+  z,
+  handle,
+  materials,
+}: {
+  x0: number;
+  x1: number;
+  bottom: number;
+  height: number;
+  z: number;
+  handle: boolean;
+  materials: OpeningMaterials;
+}) {
+  const stile = 1.75 * IN;
+  const railB = 3 * IN;
+  const railT = 1.75 * IN;
+  const d = 1.5 * IN;
+  const w = x1 - x0;
+  const cx = (x0 + x1) / 2;
+  const glassH = height - railB - railT;
+  return (
+    <>
+      <Box size={[stile, height, d]} position={[x0 + stile / 2, bottom + height / 2, z]} material={materials.frame} />
+      <Box size={[stile, height, d]} position={[x1 - stile / 2, bottom + height / 2, z]} material={materials.frame} />
+      <Box size={[w - stile * 2, railB, d]} position={[cx, bottom + railB / 2, z]} material={materials.frame} />
+      <Box size={[w - stile * 2, railT, d]} position={[cx, bottom + height - railT / 2, z]} material={materials.frame} />
+      <Pane
+        width={w - stile * 2}
+        height={glassH}
+        position={[cx, bottom + railB + glassH / 2, z]}
+        material={materials.glass}
+      />
+      {handle ? (
+        <Box
+          size={[0.6 * IN, 1.1, 1 * IN]}
+          position={[x0 + stile / 2, bottom + 3.3, z + d / 2 + 0.5 * IN]}
+          material={materials.frame}
         />
       ) : null}
     </>
   );
 }
 
-function WindowAssembly(props: AssemblyProps) {
-  const { width, bottom, top, wallTop, thickness, clipped, materials, detailed } = props;
-  const visibleTop = Math.min(top, wallTop);
-  const h = visibleTop - bottom;
-  const f = 2.25 * IN;
-  const fd = 3.5 * IN;
+/** Patio slider: fixed outer panel + offset sliding inner panel on dark metal tracks. */
+function SliderAssembly(props: AssemblyProps) {
+  const { width, top, thickness, clipped, materials } = props;
+  const j = 0.75 * IN;
   const zc = -thickness / 2;
+  const clear = width - j * 2;
+  const panelW = clear / 2 + 1 * IN;
+  const trackH = 0.75 * IN;
+  const panelBottom = 0.5 * IN + trackH;
+  const panelH = top - j - 0.25 * IN - panelBottom;
+  const open = panelW * 0.32;
+  return (
+    <>
+      {!clipped ? <Daylight {...props} /> : null}
+      <Jambs {...props} head={!clipped} material={materials.frame} />
+      <Casings
+        {...props}
+        material={materials.casing}
+        casingWidth={3 * IN}
+        casingDepth={0.75 * IN}
+        cornice="none"
+      />
+      <Threshold width={width} thickness={thickness} material={materials.stone} />
+      <Box size={[width, trackH, 3.6 * IN]} position={[0, 0.5 * IN + trackH / 2, zc]} material={materials.frame} />
+      {!clipped ? (
+        <>
+          <Box size={[width, 1.5 * IN, 3.6 * IN]} position={[0, top - j - 0.75 * IN, zc]} material={materials.frame} />
+          <SliderPanel
+            x0={clear / 2 - panelW}
+            x1={clear / 2}
+            bottom={panelBottom}
+            height={panelH}
+            z={zc - 0.85 * IN}
+            handle={false}
+            materials={materials}
+          />
+          <SliderPanel
+            x0={-clear / 2 + open}
+            x1={-clear / 2 + open + panelW}
+            bottom={panelBottom}
+            height={panelH}
+            z={zc + 0.85 * IN}
+            handle
+            materials={materials}
+          />
+        </>
+      ) : (
+        <SwingPlan kind="slider" width={width} leafW={panelW} thickness={thickness} material={materials.plan} />
+      )}
+    </>
+  );
+}
+
+function windowFrameWidth(style: StudioOpeningStyle): number {
+  if (style === "floor_to_ceiling") return 1.5 * IN;
+  return style === "standard_window" ? 2.25 * IN : 2 * IN;
+}
+
+/**
+ * Glazing bars per window style. `structural` bars (mullions) show at every
+ * quality; decorative muntins only when detailed.
+ */
+function windowLayout(style: StudioOpeningStyle, glassW: number, glassH: number) {
+  switch (style) {
+    case "picture_window":
+      return { bar: 0.8 * IN, barDepth: 1 * IN, cols: 1, rows: 1, meeting: false, structural: false };
+    case "floor_to_ceiling":
+      return {
+        bar: 1.25 * IN,
+        barDepth: 2.4 * IN,
+        cols: Math.max(1, Math.round(glassW / 2.2)),
+        rows: 1,
+        meeting: false,
+        structural: true,
+      };
+    case "transom":
+      return { bar: 1 * IN, barDepth: 1.4 * IN, cols: 3, rows: 1, meeting: false, structural: true };
+    case "arched_window":
+      return {
+        bar: 0.8 * IN,
+        barDepth: 1 * IN,
+        cols: Math.max(1, Math.round(glassW / 1.5)),
+        rows: Math.max(1, Math.round(glassH / 1.5)),
+        meeting: false,
+        structural: false,
+      };
+    default:
+      return {
+        bar: 0.8 * IN,
+        barDepth: 1 * IN,
+        cols: Math.max(1, Math.round(glassW / 1.9)),
+        rows: Math.max(1, Math.round(glassH / 1.6)),
+        meeting: glassH > 3,
+        structural: false,
+      };
+  }
+}
+
+function WindowAssembly(props: AssemblyProps) {
+  const { style, width, bottom, top, wallTop, thickness, clipped, materials, detailed, arch } = props;
+  const visibleTop = Math.min(top, wallTop);
+  const slim = style === "floor_to_ceiling";
+  const fd = slim ? 3 * IN : 3.5 * IN;
+  const zc = -thickness / 2;
+  const f = windowFrameWidth(style);
   const glassW = width - f * 2;
   const glassBottom = bottom + f;
-  const glassTop = clipped ? visibleTop : top - f;
+  const glassTop = arch ? arch.spring : clipped ? visibleTop : top - f;
   const glassH = glassTop - glassBottom;
-  const cols = Math.max(1, Math.round(glassW / 1.9));
-  const rows = Math.max(1, Math.round(glassH / 1.6));
-  const meeting = !clipped && glassH > 3 ? glassBottom + glassH * 0.5 : null;
-  const cw = 3 * IN;
-  const bar = 0.8 * IN;
+  const layout = windowLayout(style, glassW, glassH);
+  const sideTop = arch ? arch.spring : visibleTop;
+  const sideH = sideTop - bottom;
+  const cw = slim ? 2.5 * IN : 3 * IN;
+  const casingDepth = 0.9 * IN;
+  const meeting = layout.meeting && !clipped ? glassBottom + glassH * 0.5 : null;
+  const transomY = slim && !clipped && glassH > 9 ? glassBottom + 7.5 : null;
+  const stool = bottom > 0.2 && style !== "floor_to_ceiling" && style !== "transom";
+  const apex = arch ? arch.spring + arch.rise : 0;
+  const archTrim = arch !== null && apex + cw + 1 * IN <= wallTop;
   const children: ReactNode[] = [];
 
-  if (detailed && !clipped) {
-    for (let c = 1; c < cols; c++) {
-      const x = -glassW / 2 + (glassW * c) / cols;
+  if (layout.structural || (detailed && !clipped)) {
+    for (let c = 1; c < layout.cols; c++) {
+      const x = -glassW / 2 + (glassW * c) / layout.cols;
       children.push(
-        <Box key={`v${c}`} size={[bar, glassH, 1 * IN]} position={[x, glassBottom + glassH / 2, zc]} material={materials.frame} />
+        <Box
+          key={`v${c}`}
+          size={[layout.bar, glassH, layout.barDepth]}
+          position={[x, glassBottom + glassH / 2, zc]}
+          material={materials.frame}
+        />
       );
     }
-    for (let r = 1; r < rows; r++) {
-      const y = glassBottom + (glassH * r) / rows;
+    for (let r = 1; r < layout.rows; r++) {
+      const y = glassBottom + (glassH * r) / layout.rows;
       if (meeting !== null && Math.abs(y - meeting) < 0.2) continue;
       children.push(
-        <Box key={`h${r}`} size={[glassW, bar, 1 * IN]} position={[0, y, zc]} material={materials.frame} />
+        <Box key={`h${r}`} size={[glassW, layout.bar, layout.barDepth]} position={[0, y, zc]} material={materials.frame} />
       );
     }
   }
 
   return (
     <>
-      <Box size={[f, h, fd]} position={[-width / 2 + f / 2, bottom + h / 2, zc]} material={materials.frame} />
-      <Box size={[f, h, fd]} position={[width / 2 - f / 2, bottom + h / 2, zc]} material={materials.frame} />
+      <Box size={[f, sideH, fd]} position={[-width / 2 + f / 2, bottom + sideH / 2, zc]} material={materials.frame} />
+      <Box size={[f, sideH, fd]} position={[width / 2 - f / 2, bottom + sideH / 2, zc]} material={materials.frame} />
       <Box size={[width, f, fd]} position={[0, bottom + f / 2, zc]} material={materials.frame} />
-      <Box
-        size={[width, clipped ? 0.75 * IN : f, fd]}
-        position={[0, clipped ? visibleTop - 0.375 * IN : top - f / 2, zc]}
-        material={materials.frame}
-      />
+      {arch ? (
+        <>
+          <ArchSpandrel
+            {...arch}
+            top={top}
+            thickness={thickness}
+            uOffset={props.uOffset}
+            uSign={props.uSign}
+            materials={props.wallMaterials}
+          />
+          <ArchBand {...arch} inner={-f} outer={0} depth={fd} z={zc - fd / 2} material={materials.frame} />
+          <Box size={[glassW, 1.5 * IN, fd * 0.7]} position={[0, arch.spring, zc]} material={materials.frame} />
+          <ArchGlass {...arch} grow={-f} z={zc} material={materials.glass} />
+          <ArchFan
+            {...arch}
+            grow={-f}
+            count={arch.halfW > 2 ? 5 : 3}
+            bar={0.9 * IN}
+            depth={1 * IN}
+            z={zc}
+            material={materials.frame}
+          />
+          {archTrim ? (
+            <>
+              <ArchBand {...arch} inner={-0.25 * IN} outer={cw - 0.25 * IN} depth={casingDepth} z={0} material={materials.casing} />
+              <ArchBand
+                {...arch}
+                inner={-0.25 * IN}
+                outer={cw - 0.25 * IN}
+                depth={casingDepth}
+                z={-thickness - casingDepth}
+                material={materials.casing}
+              />
+              <Box
+                size={[cw * 1.3, cw + 1 * IN, casingDepth + 0.4 * IN]}
+                position={[0, apex + cw / 2 + 0.25 * IN, casingDepth / 2 + 0.2 * IN]}
+                material={materials.casing}
+              />
+            </>
+          ) : null}
+        </>
+      ) : (
+        <Box
+          size={[width, clipped ? 0.75 * IN : f, fd]}
+          position={[0, clipped ? visibleTop - 0.375 * IN : top - f / 2, zc]}
+          material={materials.frame}
+        />
+      )}
       {meeting !== null ? (
         <Box size={[glassW, 1.75 * IN, 1.6 * IN]} position={[0, meeting, zc]} material={materials.frame} />
       ) : null}
+      {transomY !== null ? (
+        <Box size={[glassW, 1.75 * IN, layout.barDepth]} position={[0, transomY, zc]} material={materials.frame} />
+      ) : null}
       {children}
       {glassH > 0.05 ? (
-        <mesh position={[0, glassBottom + glassH / 2, zc]} material={materials.glass}>
-          <planeGeometry args={[glassW, glassH]} />
-        </mesh>
+        <Pane width={glassW} height={glassH} position={[0, glassBottom + glassH / 2, zc]} material={materials.glass} />
       ) : null}
       {bottom > 0.2 ? (
         <>
-          <Box
-            size={[width + cw * 2 + 1.5 * IN, 1 * IN, thickness / 2 + 1.75 * IN]}
-            position={[0, bottom - 0.5 * IN, (-thickness / 2 + 1.75 * IN) / 2]}
-            material={materials.casing}
-          />
-          <Box
-            size={[width + cw * 2 - 0.5 * IN, 3 * IN, 0.75 * IN]}
-            position={[0, bottom - 2.5 * IN, 0.375 * IN]}
-            material={materials.casing}
-          />
+          {stool ? (
+            <>
+              <Box
+                size={[width + cw * 2 + 1.5 * IN, 1 * IN, thickness / 2 + 1.75 * IN]}
+                position={[0, bottom - 0.5 * IN, (-thickness / 2 + 1.75 * IN) / 2]}
+                material={materials.casing}
+              />
+              <Box
+                size={[width + cw * 2 - 0.5 * IN, 3 * IN, 0.75 * IN]}
+                position={[0, bottom - 2.5 * IN, 0.375 * IN]}
+                material={materials.casing}
+              />
+            </>
+          ) : null}
           <Box
             size={[width + 2 * IN, 1.5 * IN, 2.5 * IN]}
             position={[0, bottom - 0.75 * IN, -thickness - 1 * IN]}
@@ -716,30 +1490,14 @@ function WindowAssembly(props: AssemblyProps) {
       ) : null}
       <Casings
         {...props}
+        top={arch ? arch.spring : top}
+        head={!arch}
         material={materials.casing}
         casingWidth={cw}
-        casingDepth={0.9 * IN}
-        cornice={false}
+        casingDepth={casingDepth}
+        cornice="none"
       />
-      {!clipped ? (
-        <mesh
-          position={[0, (bottom - 0.5 + top + 0.6) / 2, -thickness - 1.1]}
-          material={materials.daylight}
-          raycast={noRaycast}
-        >
-          <planeGeometry args={[width + 1.2, top + 0.6 - (bottom - 0.5)]} />
-        </mesh>
-      ) : null}
-      {!clipped ? (
-        <mesh
-          position={[0, 0.012, Math.min(4.5, 1 + h * 0.6)]}
-          rotation={[-Math.PI / 2, 0, 0]}
-          material={materials.pool}
-          raycast={noRaycast}
-        >
-          <planeGeometry args={[width * 1.5 + 1, Math.min(9, 2 + h * 1.2)]} />
-        </mesh>
-      ) : null}
+      {!clipped ? <Daylight {...props} /> : null}
     </>
   );
 }
@@ -773,21 +1531,28 @@ export const VenueOpening = memo(function VenueOpening({
 }) {
   const { opening } = span;
   if (span.bottom >= wallTopIn - 1) return null;
+  const style = getOpeningStyle(opening);
   const width = (span.end - span.start) * IN;
   const [x, z] = wallPointWorld(frame, (span.start + span.end) / 2, bounds);
+  const clipped = span.top > wallTopIn + 0.01;
+  const rise = span.archRise ?? 0;
   const props: AssemblyProps = {
+    style,
     width,
     bottom: span.bottom * IN,
     top: span.top * IN,
     wallTop: wallTopIn * IN,
     thickness: thicknessIn * IN,
-    clipped: span.top > wallTopIn + 0.01,
+    clipped,
     detailed,
     materials,
     wallMaterials,
     uOffset: ((span.start + span.end) / 2) * IN,
     uSign: frame.interiorSign === 1 ? 1 : -1,
-    archRise: (span.archRise ?? 0) * IN,
+    arch:
+      rise > 0 && !clipped
+        ? { halfW: width / 2, rise: rise * IN, spring: (span.top - ARCH_CROWN_IN - rise) * IN }
+        : null,
     inside,
   };
   const visibleTop = Math.min(props.top, props.wallTop);
@@ -811,8 +1576,10 @@ export const VenueOpening = memo(function VenueOpening({
     >
       {opening.type === "window" ? (
         <WindowAssembly {...props} />
-      ) : opening.type === "entrance" ? (
-        <EntranceAssembly {...props} />
+      ) : style === "glass_slider" ? (
+        <SliderAssembly {...props} />
+      ) : style === "grand_arched" ? (
+        <ArchedEntranceAssembly {...props} />
       ) : (
         <DoorAssembly {...props} />
       )}

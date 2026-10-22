@@ -18,6 +18,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCallback, useSyncExternalStore } from "react";
+import { useLibraryBrowser } from "./rails/library-browser-store";
+import { DesktopRailProvider } from "./rails/rail-chrome-context";
+import { useWideInspector } from "./rails/wide-inspector-store";
 import { StudioTip } from "./studio-tip";
 
 type StudioShellProps = {
@@ -125,6 +128,8 @@ export function StudioShell({
 }: StudioShellProps) {
   const { leftOpen, rightOpen, toggle } = useRailState();
   const desktop = useDesktopRails();
+  const wideInspector = useWideInspector();
+  const { open: libraryExpanded } = useLibraryBrowser();
 
   return (
     <section
@@ -144,7 +149,13 @@ export function StudioShell({
         style={
           {
             "--studio-left-rail": presenting ? "0px" : leftOpen ? "320px" : "44px",
-            "--studio-right-rail": presenting ? "0px" : rightOpen ? "340px" : "44px",
+            "--studio-right-rail": presenting
+              ? "0px"
+              : rightOpen
+                ? wideInspector
+                  ? "min(680px, 46vw)"
+                  : "340px"
+                : "44px",
           } as React.CSSProperties
         }
       >
@@ -156,15 +167,25 @@ export function StudioShell({
           )}
         >
           {leftOpen ? (
-            <div className="h-full min-h-0">{desktop ? leftRail : null}</div>
+            <div className="h-full min-h-0">
+              {desktop ? <DesktopRailProvider>{leftRail}</DesktopRailProvider> : null}
+            </div>
           ) : (
-            <CollapsedRail
-              side="left"
-              label="Design tools"
-              icon={Wand2}
-              toggleIcon={PanelLeftOpen}
-              onExpand={() => toggle("left")}
-            />
+            <>
+              <CollapsedRail
+                side="left"
+                label="Design tools"
+                icon={Wand2}
+                toggleIcon={PanelLeftOpen}
+                onExpand={() => toggle("left")}
+              />
+              {/* The expanded library dialog is hosted by the rail; mount it off-screen while collapsed. */}
+              {desktop && libraryExpanded && !presenting ? (
+                <div hidden>
+                  <DesktopRailProvider>{leftRail}</DesktopRailProvider>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
         <main className="relative h-full min-h-0 min-w-0 overflow-hidden">
@@ -179,7 +200,9 @@ export function StudioShell({
           )}
         >
           {rightOpen ? (
-            <div className="h-full min-h-0">{desktop ? rightRail : null}</div>
+            <div className="h-full min-h-0">
+              {desktop ? <DesktopRailProvider>{rightRail}</DesktopRailProvider> : null}
+            </div>
           ) : (
             <CollapsedRail
               side="right"

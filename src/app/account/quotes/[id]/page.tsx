@@ -30,6 +30,8 @@ import {
   toCustomerSafeQuote,
 } from "@/lib/quotes";
 import { Button } from "@/components/ui/button";
+import { StudioDesignSummaryCard } from "@/components/admin/studio-quote/studio-design-summary-card";
+import { fetchStudioDesignSummaryForQuote } from "@/lib/studio-quote-converter";
 
 export const metadata: Metadata = {
   title: "Quote proposal",
@@ -87,6 +89,7 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
     { shareUrl }
   );
   const initialGuestUrl = await findActivePublicQuoteUrl(id, siteUrl);
+  const studioSummary = await fetchStudioDesignSummaryForQuote(quote);
 
   const allFiles = quote.estimate_request_id
     ? await fetchEstimateFiles(quote.estimate_request_id, [
@@ -159,6 +162,19 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
         </div>
 
         <aside className="space-y-6 xl:sticky xl:top-4">
+          {studioSummary ? (
+            <StudioDesignSummaryCard
+              summary={studioSummary}
+              variant="customer"
+              language={language}
+              layout="stack"
+              href={
+                studioSummary.kind === "studio_design"
+                  ? `/account/studio/${studioSummary.id}`
+                  : `/account/event-plans/${studioSummary.id}`
+              }
+            />
+          ) : null}
           <QuoteGuestProposalCard
             ensureEndpoint={`/api/quotes/${id}/guest-link`}
             initialUrl={initialGuestUrl}

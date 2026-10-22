@@ -46,6 +46,14 @@ import {
   resolveQuoteTerms,
 } from "@/lib/document-texts";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import {
+  buildStudioQuoteCustomerNotes,
+  buildStudioQuoteOwnerNotes,
+  buildStudioQuotePreview,
+  loadStudioQuoteSource,
+  type StudioQuotePreview,
+  type StudioQuoteSource,
+} from "@/lib/studio-quote-converter";
 import { listProductCategories } from "@/lib/product-categories";
 import { resolveProductCategoryLabelFr } from "@/data/product-categories";
 import {
@@ -593,7 +601,7 @@ export async function createDirectQuote(
   return { quote: quoteResult.quote };
 }
 
-async function ensureEstimateFromEventPlan(
+export async function ensureEstimateFromEventPlan(
   plan: EventPlanSubmissionRow
 ): Promise<{ estimate: EstimateRequestRow } | { error: string }> {
   const admin = createAdminSupabaseClient();
@@ -708,6 +716,24 @@ export async function createQuoteFromEventPlan(input: {
     })
     .eq("id", input.plan.id)
     .neq("status", "archived");
+
+  if (quoteResult.created) {
+    const source = await loadStudioQuoteSource({ eventPlanId: input.plan.id });
+    if (!("error" in source)) {
+      const preview = await buildStudioQuotePreview(source);
+      if (!preview.bom.isEmpty) {
+        const filled = await fillQuoteFromStudioPreview({
+          quoteId: quoteResult.quote.id,
+          source,
+          preview,
+          actorUserId: input.createdByUserId,
+        });
+        if (!filled.ok) {
+          console.error("[quotes] createQuoteFromEventPlan studio lines", filled.message);
+        }
+      }
+    }
+  }
 
   return {
     quote: quoteResult.quote,
@@ -1227,4 +1253,286 @@ export function getLegacyOrOpportunityRef(estimate: {
     opportunity_ref: estimate.opportunity_ref,
     estimate_id: estimate.id,
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Studio design → draft quote                                         */
+/* ------------------------------------------------------------------ */
+
+const STUDIO_OWNER_NOTES_PREFIX = "Built from Studio design";
+
+/** Writes converted studio lines, notes and links onto an existing quote. */
+export async function fillQuoteFromStudioPreview(input: {
+  quoteId: string;
+  source: StudioQuoteSource;
+  preview: StudioQuotePreview;
+  actorUserId: string | null;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { conversion } = input.preview;
+  const saved = await upsertLineItems({
+    quoteId: input.quoteId,
+    items: conversion.lines.map((line) => line.item),
+    actorUserId: input.actorUserId,
+  });
+  if (!saved.ok) return saved;
+
+  const admin = createAdminSupabaseClient();
+  const { data: header } = await admin
+    .from("quotes")
+    .select("estimate_request_id, opportunity_ref, customer_notes, owner_notes")
+    .eq("id", input.quoteId)
+    .maybeSingle();
+
+  const ownerBlocks = (header?.owner_notes ?? "")
+    .split(/\n{2,}/)
+    .map((block: string) => block.trim())
+    .filter((block: string) => block && !block.startsWith(STUDIO_OWNER_NOTES_PREFIX));
+  ownerBlocks.push(buildStudioQuoteOwnerNotes(conversion, input.source.title));
+
+  const { error: notesError } = await admin
+    .from("quotes")
+    .update({
+      customer_notes: header?.customer_notes?.trim()
+        ? header.customer_notes
+        : buildStudioQuoteCustomerNotes(input.source.event, input.source.title),
+      owner_notes: ownerBlocks.join("\n\n"),
+    })
+    .eq("id", input.quoteId);
+  if (notesError) console.error("[quotes] studio quote notes", notesError);
+
+  if (input.source.designRow && header) {
+    const { error } = await admin
+      .from("studio_designs")
+      .update({
+        quote_id: input.quoteId,
+        estimate_request_id: header.estimate_request_id,
+        opportunity_ref: header.opportunity_ref,
+      })
+      .eq("id", input.source.designRow.id);
+    if (error) console.error("[quotes] link studio design to quote", error);
+  }
+
+  if (input.source.plan && header) {
+    const { error } = await admin
+      .from("event_plan_submissions")
+      .update({ estimate_request_id: header.estimate_request_id, status: "quoted" })
+      .eq("id", input.source.plan.id)
+      .neq("status", "archived");
+    if (error) console.error("[quotes] mark event plan quoted", error);
+  }
+
+  const { summary } = conversion;
+  await logQuoteEvent({
+    quoteId: input.quoteId,
+    actorType: "owner",
+    actorUserId: input.actorUserId,
+    eventType: "quote_edited",
+    summary: `Built ${summary.lineCount} lines from Studio design “${input.source.title}” (${summary.pricedCount} priced, ${summary.notPricedCount} not priced yet)`,
+    metadata: {
+      studio_design_id: input.source.designRow?.id ?? null,
+      event_plan_id: input.source.plan?.id ?? null,
+      priced_count: summary.pricedCount,
+      included_count: summary.includedCount,
+      flagged_count: summary.flaggedCount,
+      not_priced_count: summary.notPricedCount,
+      unmapped_keys: summary.unmappedKeys,
+    },
+  });
+
+  return { ok: true };
+}
+
+async function ensureEstimateFromStudioDesign(
+  source: StudioQuoteSource,
+  preview: StudioQuotePreview
+): Promise<{ estimate: EstimateRequestRow } | { error: string }> {
+  const row = source.designRow;
+  if (!row) return { error: "Studio design not found." };
+
+  if (row.estimate_request_id) {
+    const existing = await fetchEstimateById(row.estimate_request_id);
+    if (existing) return { estimate: existing };
+  }
+
+  const admin = createAdminSupabaseClient();
+  let profile: { email: string | null; full_name: string | null; role: string | null } | null =
+    null;
+  if (row.owner_user_id) {
+    const { data } = await admin
+      .from("user_profiles")
+      .select("email, full_name, role")
+      .eq("id", row.owner_user_id)
+      .maybeSingle();
+    profile = data ?? null;
+  }
+
+  const email = source.event.contactEmail ?? profile?.email?.trim() ?? "";
+  if (!email.includes("@")) {
+    return { error: "Add a contact email to this design before building a quote." };
+  }
+  const name = source.event.contactName ?? profile?.full_name?.trim() ?? email;
+  const { totals } = preview.bom;
+
+  const form: EstimateFormData = {
+    ...initialEstimateFormData,
+    name,
+    email,
+    phone: source.event.contactPhone ?? "",
+    eventType: source.event.eventType ?? "",
+    eventDate: source.event.eventDate ?? "",
+    venueName: source.event.venueName ?? "",
+    cityArea: source.event.cityArea ?? "",
+    guestCount: source.event.guestCount ? String(source.event.guestCount) : "",
+    drapeGoals: ["full-room"],
+    measurementsKnown: totals.drapeLinearFeet > 0 ? "partial" : "help",
+    linearFeet: totals.drapeLinearFeet > 0 ? String(totals.drapeLinearFeet) : "",
+    floorPlanAvailable: "yes",
+    fabricDirections: ["recommend"],
+    message: [
+      source.event.eventName ? `Event: ${source.event.eventName}` : null,
+      `Source Studio design: ${source.title}`,
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+  };
+
+  const insertRow = {
+    ...buildEstimateInsertRow(form, {
+      userId: profile?.role === "customer" ? row.owner_user_id : null,
+      language: source.event.language,
+    }),
+    city_area: source.event.cityArea,
+    source: "studio_design",
+    status: "reviewed",
+    raw_payload: {
+      ...form,
+      studio_design_id: row.id,
+      studio_design_title: source.title,
+    },
+  };
+
+  const { data: inserted, error } = await admin
+    .from("estimate_requests")
+    .insert(insertRow)
+    .select("*")
+    .single();
+  if (error || !inserted) {
+    console.error("[quotes] ensureEstimateFromStudioDesign insert", error);
+    return { error: error?.message || "Failed to create an estimate for this design." };
+  }
+  return { estimate: inserted as EstimateRequestRow };
+}
+
+export async function findExistingStudioQuote(
+  source: StudioQuoteSource
+): Promise<QuoteWithRelations | null> {
+  const estimateIds = new Set<string>();
+  if (source.designRow?.quote_id) {
+    const linked = await fetchQuoteById(source.designRow.quote_id);
+    if (linked) estimateIds.add(linked.estimate_request_id);
+  }
+  if (source.designRow?.estimate_request_id) estimateIds.add(source.designRow.estimate_request_id);
+  if (source.plan?.estimate_request_id) estimateIds.add(source.plan.estimate_request_id);
+
+  for (const estimateId of estimateIds) {
+    const [latest] = await listQuotesForEstimate(estimateId);
+    if (latest) return fetchQuoteById(latest.id);
+  }
+  return null;
+}
+
+export type StudioQuoteBuildResult =
+  | {
+      ok: true;
+      quote: QuoteRow;
+      outcome: "created" | "filled" | "revision";
+      preview: StudioQuotePreview;
+    }
+  | { ok: false; status: number; message: string; existingQuoteId?: string };
+
+/**
+ * Builds a complete draft quote from a studio design or event plan layout.
+ * An existing quote is only reused when it is an empty draft; otherwise the
+ * caller must ask for `mode: "revision"`.
+ */
+export async function createQuoteFromStudioDesign(input: {
+  designId?: string | null;
+  eventPlanId?: string | null;
+  createdByUserId: string;
+  mode?: "create" | "revision";
+}): Promise<StudioQuoteBuildResult> {
+  const source = await loadStudioQuoteSource(input);
+  if ("error" in source) {
+    return { ok: false, status: source.status, message: source.error };
+  }
+  const preview = await buildStudioQuotePreview(source);
+  if (preview.bom.isEmpty) {
+    return {
+      ok: false,
+      status: 422,
+      message: "This design has nothing to quote yet — add drapes, decor or furniture first.",
+    };
+  }
+
+  let target: QuoteRow;
+  let outcome: "created" | "filled" | "revision";
+  const existing = await findExistingStudioQuote(source);
+
+  if (existing && input.mode === "revision") {
+    const revision = await createQuoteRevision({
+      sourceQuoteId: existing.id,
+      createdByUserId: input.createdByUserId,
+    });
+    if ("error" in revision) return { ok: false, status: 500, message: revision.error };
+    const admin = createAdminSupabaseClient();
+    await admin.from("quote_line_items").delete().eq("quote_id", revision.quote.id);
+    target = revision.quote;
+    outcome = "revision";
+  } else if (existing) {
+    if (existing.status !== "draft" || existing.line_items.length > 0) {
+      return {
+        ok: false,
+        status: 409,
+        message: `${existing.quote_display_ref} already exists for this design.`,
+        existingQuoteId: existing.id,
+      };
+    }
+    target = existing;
+    outcome = "filled";
+  } else {
+    const estimateResult = source.plan
+      ? await ensureEstimateFromEventPlan(source.plan)
+      : await ensureEstimateFromStudioDesign(source, preview);
+    if ("error" in estimateResult) {
+      return { ok: false, status: 422, message: estimateResult.error };
+    }
+    const quoteResult = await createQuoteFromEstimate({
+      estimate: estimateResult.estimate,
+      createdByUserId: input.createdByUserId,
+    });
+    if ("error" in quoteResult) return { ok: false, status: 500, message: quoteResult.error };
+    if (!quoteResult.created) {
+      const current = await fetchQuoteById(quoteResult.quote.id);
+      if (current && (current.status !== "draft" || current.line_items.length > 0)) {
+        return {
+          ok: false,
+          status: 409,
+          message: `${current.quote_display_ref} already exists for this design.`,
+          existingQuoteId: current.id,
+        };
+      }
+    }
+    target = quoteResult.quote;
+    outcome = quoteResult.created ? "created" : "filled";
+  }
+
+  const filled = await fillQuoteFromStudioPreview({
+    quoteId: target.id,
+    source,
+    preview,
+    actorUserId: input.createdByUserId,
+  });
+  if (!filled.ok) return { ok: false, status: 500, message: filled.message };
+
+  return { ok: true, quote: target, outcome, preview };
 }

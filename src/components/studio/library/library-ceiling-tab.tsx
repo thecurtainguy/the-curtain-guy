@@ -265,7 +265,7 @@ export function LibraryCeilingTab({
               lets you click where it goes.
             </p>
           ) : null}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 @xl:grid-cols-3 @3xl:grid-cols-4 @6xl:grid-cols-5">
             {styles.map((style) => {
               const inRoom = drapes.filter((drape) => drape.type === style.value).length;
               return (
@@ -294,7 +294,7 @@ export function LibraryCeilingTab({
             title="Styled by The Curtain Guy"
             id={`${idPrefix}-presets-heading`}
           />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 @xl:grid-cols-3 @3xl:grid-cols-4 @6xl:grid-cols-5">
             {presets.map((preset) => (
               <PresetCard
                 key={preset.id}

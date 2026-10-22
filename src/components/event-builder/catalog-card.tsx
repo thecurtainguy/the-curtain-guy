@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { Check } from "lucide-react";
+import { Check, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { LocalizedCatalogItem } from "@/lib/i18n/event-builder";
@@ -11,9 +11,11 @@ type CatalogCardProps = {
   item: LocalizedCatalogItem;
   selected: boolean;
   onToggle: () => void;
+  /** Where the setup lands, e.g. "Front wall". */
+  placement?: string;
 };
 
-export function CatalogCard({ item, selected, onToggle }: CatalogCardProps) {
+export function CatalogCard({ item, selected, onToggle, placement }: CatalogCardProps) {
   const t = useTranslations("eventBuilder.catalog.badges");
   const disabled = item.comingSoon;
 
@@ -87,6 +89,12 @@ export function CatalogCard({ item, selected, onToggle }: CatalogCardProps) {
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {item.description}
             </p>
+            {placement ? (
+              <p className="mt-2 inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/8 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-primary">
+                <MapPin className="size-3" aria-hidden />
+                {placement}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

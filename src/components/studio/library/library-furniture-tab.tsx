@@ -139,7 +139,7 @@ export function LibraryFurnitureTab({
             title={group.label}
             id={`${idPrefix}-${group.value}-heading`}
           />
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 @lg:grid-cols-3 @3xl:grid-cols-5 @6xl:grid-cols-6">
             {group.options.map((option) => (
               <LibraryTile
                 key={option.type}

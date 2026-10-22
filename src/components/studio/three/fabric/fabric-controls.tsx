@@ -301,7 +301,11 @@ export function ColorSwatchGrid({
           {active?.label ?? noneLabel ?? ""}
         </span>
       </div>
-      <div role="radiogroup" aria-label={label} className="grid grid-cols-6 gap-1.5">
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="grid grid-cols-6 gap-1.5 @lg:grid-cols-[repeat(auto-fill,2.75rem)] @lg:gap-2"
+      >
         {noneLabel ? (
           <StudioTip label={noneLabel}>
             <button

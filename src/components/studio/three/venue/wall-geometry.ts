@@ -1,4 +1,5 @@
 import type { StudioOpening, StudioPoint } from "@/data/studio";
+import { OPENING_FILL_HEADER, getOpeningStylePreset } from "@/data/studio-openings";
 import {
   clampOpeningToWall,
   getWallSegments,
@@ -92,12 +93,27 @@ export type OpeningSpan = {
   /** Floor-relative inches (unclipped). `top` includes any arch. */
   bottom: number;
   top: number;
-  /** Entrances: arch rise above the clear (spring) height, inches. */
+  /**
+   * Arched styles: rise of the arch above its spring line, inches. The apex
+   * sits `ARCH_CROWN_IN` below `top`; the wall cut stays rectangular and the
+   * spandrels are filled back in by the opening assembly.
+   */
   archRise?: number;
 };
 
 /** Gap between an arch apex and the top of its wall cut (keystone room). */
 export const ARCH_CROWN_IN = 2;
+
+const LEGACY_HEIGHT = { window: 60, entrance: 96, door: 84 } as const;
+
+/**
+ * Semicircular when the half-width is at most 40% of the clear height,
+ * otherwise a segmental arch rising 40% of it. 0 = no room for an arch.
+ */
+function archRiseFor(width: number, clearHeight: number): number {
+  const rise = Math.min(width / 2, clearHeight * 0.4, clearHeight - 12);
+  return rise >= 2 ? rise : 0;
+}
 
 export function getOpeningSpan(
   opening: StudioOpening,
@@ -106,12 +122,18 @@ export function getOpeningSpan(
 ): OpeningSpan {
   const safe = clampOpeningToWall(opening, floor);
   const isWindow = opening.type === "window";
-  const defaultHeight =
-    opening.type === "window" ? 60 : opening.type === "entrance" ? 96 : 84;
-  const height = Math.max(12, opening.openingHeight ?? defaultHeight);
+  const preset = getOpeningStylePreset(opening);
+  const styled = opening.style !== undefined;
+  const defaultSill = styled ? preset.sill : 36;
   const bottom = isWindow
-    ? Math.min(Math.max(0, opening.sillHeight ?? 36), wallHeightIn - 12)
+    ? Math.min(Math.max(0, opening.sillHeight ?? defaultSill), wallHeightIn - 12)
     : 0;
+  const defaultHeight = !styled
+    ? LEGACY_HEIGHT[opening.type]
+    : preset.height === "fill"
+      ? wallHeightIn - bottom - OPENING_FILL_HEADER
+      : preset.height;
+  const height = Math.max(12, opening.openingHeight ?? defaultHeight);
   const top = Math.max(bottom + 6, Math.min(bottom + height, wallHeightIn));
   const span: OpeningSpan = {
     opening,
@@ -120,13 +142,9 @@ export function getOpeningSpan(
     bottom,
     top,
   };
-  if (opening.type === "entrance" && safe.width >= 60) {
-    const rise = Math.min(safe.width * 0.2, 26);
-    const casing = 6;
-    if (top + rise + ARCH_CROWN_IN + casing <= wallHeightIn) {
-      span.archRise = rise;
-      span.top = top + rise + ARCH_CROWN_IN;
-    }
+  if (preset.arched) {
+    const rise = archRiseFor(safe.width, top - bottom - ARCH_CROWN_IN);
+    if (rise > 0) span.archRise = rise;
   }
   return span;
 }

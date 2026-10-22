@@ -14,8 +14,6 @@ import {
   type StudioDesignJson,
   type StudioDrapeRun,
   type StudioObjectType,
-  type StudioOpening,
-  type StudioOpeningType,
 } from "@/data/studio";
 import { getWallSegments } from "@/lib/studio-geometry";
 import {
@@ -28,7 +26,6 @@ import {
   AppWindow,
   ArrowRight,
   Columns3,
-  DoorClosed,
   DoorOpen,
   Flower2,
   GalleryHorizontalEnd,
@@ -42,6 +39,7 @@ import {
   Waves,
   type LucideIcon,
 } from "lucide-react";
+import { OpeningPresetGrid, filterOpeningPresets } from "../openings/opening-preset-grid";
 import { StudioTip } from "../studio-tip";
 import type { StudioSelection } from "../studio-types";
 import { CeilingStyleArt } from "./ceiling-style-art";
@@ -77,20 +75,6 @@ const RUN_TOOLS: Array<{
   { type: "partial_drape", label: "Partial wall", description: "Centre half", icon: GalleryHorizontalEnd },
   { type: "backdrop", label: "Backdrop", description: "Feature panel", icon: RectangleHorizontal },
   { type: "divider", label: "Divider", description: "Split the room", icon: SplitSquareHorizontal },
-];
-
-const OPENING_TOOLS: Array<{
-  type: StudioOpeningType;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-  width: number;
-  sillHeight: number;
-  openingHeight: number;
-}> = [
-  { type: "door", label: "Door", description: "36″ single", icon: DoorClosed, width: 36, sillHeight: 0, openingHeight: 84 },
-  { type: "entrance", label: "Entrance", description: "72″ double", icon: DoorOpen, width: 72, sillHeight: 0, openingHeight: 96 },
-  { type: "window", label: "Window", description: "Sill at 3′", icon: AppWindow, width: 48, sillHeight: 36, openingHeight: 60 },
 ];
 
 const TREATMENT_ICONS: Record<string, LucideIcon> = {
@@ -139,7 +123,7 @@ function toolMatches(query: string, ...fields: string[]) {
 export function countDraperyMatches(query: string): number {
   return (
     RUN_TOOLS.filter((tool) => toolMatches(query, tool.label, tool.description, "wall run")).length +
-    OPENING_TOOLS.filter((tool) => toolMatches(query, tool.label, tool.description, "opening marker")).length +
+    filterOpeningPresets(query).length +
     STUDIO_TREATMENT_TOOLS.filter((tool) => toolMatches(query, tool.label, tool.description, "treatment")).length +
     FREESTANDING.filter((type) => {
       const option = getStudioObjectOption(type);
@@ -174,11 +158,22 @@ export function LibraryDraperyTab({
   onOpenCeiling?: () => void;
 }) {
   const [notice, setNotice] = useState<string | null>(null);
+  const [pickedWall, setPickedWall] = useState(0);
   const searching = query.trim().length > 0;
   const floor = design.room.floor;
   const walls = useMemo(() => getWallSegments(floor), [floor]);
-  const targetWall =
-    selection?.kind === "wall" && walls[selection.index] ? selection.index : 0;
+  const selectedWall =
+    selection?.kind === "wall"
+      ? selection.index
+      : selection?.kind === "drape"
+        ? design.drapeRuns.find((run) => run.id === selection.id)?.wallIndex
+        : selection?.kind === "treatment"
+          ? design.treatments.find((treatment) => treatment.id === selection.id)?.anchor.wallIndex
+          : selection?.kind === "opening"
+            ? design.openings.find((opening) => opening.id === selection.id)?.wallIndex
+            : undefined;
+  const candidate = selectedWall ?? pickedWall;
+  const targetWall = walls[candidate] ? candidate : 0;
   const wall = walls[targetWall] ?? walls[0];
   const drapeHeight = Math.min(design.room.wallHeight, 240);
   const colorLabel =
@@ -245,24 +240,6 @@ export function LibraryDraperyTab({
     onSelectMany(runs.map((run) => run.id));
   }
 
-  function addOpening(tool: (typeof OPENING_TOOLS)[number]) {
-    if (!wall) return;
-    const width = Math.min(tool.width, wall.length);
-    const id = createStudioItemId("opening");
-    const opening: StudioOpening = {
-      id,
-      type: tool.type,
-      wallIndex: wall.index,
-      offset: Math.max(0, wall.length / 2 - width / 2),
-      width,
-      label: tool.label,
-      sillHeight: tool.sillHeight,
-      openingHeight: Math.min(tool.openingHeight, design.room.wallHeight - tool.sillHeight),
-    };
-    onChange({ ...design, openings: [...design.openings, opening] });
-    onSelect({ kind: "opening", id });
-  }
-
   function addTreatment(tool: StudioTreatmentTool) {
     if (!tool.preset) return;
     const treatment = createStudioTreatment(design, targetWall, tool.preset);
@@ -286,9 +263,7 @@ export function LibraryDraperyTab({
   const runTools = RUN_TOOLS.filter((tool) =>
     toolMatches(query, tool.label, tool.description, "wall run")
   );
-  const openingTools = OPENING_TOOLS.filter((tool) =>
-    toolMatches(query, tool.label, tool.description, "opening marker")
-  );
+  const openingMatches = filterOpeningPresets(query).length;
   const treatmentTools = STUDIO_TREATMENT_TOOLS.filter((tool) =>
     toolMatches(query, tool.label, tool.description, "treatment")
   );
@@ -332,7 +307,7 @@ export function LibraryDraperyTab({
             ))}
           </div>
           <div
-            className="grid grid-cols-10 gap-1"
+            className="grid grid-cols-10 gap-1.5 @lg:grid-cols-[repeat(auto-fill,1.75rem)] @lg:gap-2.5"
             role="radiogroup"
             aria-label="Drape colour"
           >
@@ -347,7 +322,7 @@ export function LibraryDraperyTab({
                     aria-label={color.label}
                     onClick={() => onStyleChange({ ...style, color: color.value })}
                     className={cn(
-                      "aspect-square w-full rounded-full border border-white/15 shadow-inner transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:scale-100",
+                      "relative aspect-square w-full rounded-full border border-white/15 shadow-inner transition-transform hover:z-10 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:scale-100",
                       selected &&
                         "ring-2 ring-primary ring-offset-2 ring-offset-background"
                     )}
@@ -378,7 +353,10 @@ export function LibraryDraperyTab({
                 key={segment.index}
                 compact
                 selected={segment.index === targetWall}
-                onSelect={() => onSelect({ kind: "wall", index: segment.index })}
+                onSelect={() => {
+                  setPickedWall(segment.index);
+                  onSelect({ kind: "wall", index: segment.index });
+                }}
                 label={`Wall ${segment.index + 1}`}
                 description={formatStudioFeet(segment.length)}
               />
@@ -515,25 +493,22 @@ export function LibraryDraperyTab({
         </button>
       ) : null}
 
-      {openingTools.length > 0 ? (
+      {openingMatches > 0 ? (
         <LibraryCard aria-labelledby={`${idPrefix}-openings-heading`}>
           <LibrarySectionHeading
             icon={DoorOpen}
-            eyebrow="Openings"
+            eyebrow={`Openings · Wall ${targetWall + 1}`}
             title="Doors & windows"
             id={`${idPrefix}-openings-heading`}
           />
-          <div className="grid grid-cols-3 gap-1.5">
-            {openingTools.map((tool) => (
-              <LibraryTile
-                key={tool.type}
-                icon={tool.icon}
-                label={tool.label}
-                description={tool.description}
-                onClick={() => addOpening(tool)}
-              />
-            ))}
-          </div>
+          <OpeningPresetGrid
+            design={design}
+            wall={wall ? { index: wall.index, length: wall.length } : undefined}
+            onChange={onChange}
+            onSelect={onSelect}
+            query={query}
+            idPrefix={`${idPrefix}-openings`}
+          />
         </LibraryCard>
       ) : null}
     </div>

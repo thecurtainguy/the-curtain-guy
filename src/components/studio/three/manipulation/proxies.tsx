@@ -1,7 +1,13 @@
 "use client";
 
 import type { ThreeEvent } from "@react-three/fiber";
-import { SEATED_OBJECT_TYPES, type StudioObject } from "@/data/studio";
+import {
+  SEATED_OBJECT_TYPES,
+  type StudioDrapeRun,
+  type StudioObject,
+  type StudioOpening,
+} from "@/data/studio";
+import { getDrapeRunSegments } from "@/lib/studio-door-gaps";
 import {
   getPointAlongWall,
   type StudioBounds,
@@ -239,30 +245,50 @@ export const WallItemProxy = memo(function WallItemProxy({
   wall,
   bounds,
   events,
+  openings,
 }: {
   kind: WallItemKind;
   item: WallItem;
   wall: WallFrame;
   bounds: StudioBounds;
   events: ProxyEvents;
+  /** Drapes only: hit areas follow the hung pieces so doorways stay clickable. */
+  openings?: readonly StudioOpening[];
 }) {
-  const span = getWallItemSpan(kind, item);
-  const start = Math.max(0, Math.min(span.start, wall.length));
-  const end = Math.max(start + 1, Math.min(span.end, wall.length));
-  const along = getPointAlongWall(wall, (start + end) / 2);
-  const [x, z] = toWorld(bounds, {
-    x: along.x + wall.normal.x * WALL_PROXY_INSET,
-    z: along.z + wall.normal.z * WALL_PROXY_INSET,
-  });
+  const spans = useMemo(() => {
+    if (kind === "drape" && openings) {
+      return getDrapeRunSegments(item as StudioDrapeRun, openings);
+    }
+    const span = getWallItemSpan(kind, item);
+    return [{ start: span.start, end: span.end }];
+  }, [item, kind, openings]);
   const { bottom, top } = getWallItemVertical(kind, item);
+  const target = useMemo(
+    () => ({ kind, id: item.id, locked: Boolean(item.locked) }),
+    [item.id, item.locked, kind]
+  );
   return (
-    <ProxyMesh
-      target={{ kind, id: item.id, locked: Boolean(item.locked) }}
-      position={[x, ((bottom + top) / 2) * SCALE, z]}
-      rotationY={-wall.angle}
-      size={[(end - start) * SCALE, Math.max(6, top - bottom) * SCALE, 0.5]}
-      lowPriority={false}
-      events={events}
-    />
+    <>
+      {spans.map((span, index) => {
+        const start = Math.max(0, Math.min(span.start, wall.length));
+        const end = Math.max(start + 1, Math.min(span.end, wall.length));
+        const along = getPointAlongWall(wall, (start + end) / 2);
+        const [x, z] = toWorld(bounds, {
+          x: along.x + wall.normal.x * WALL_PROXY_INSET,
+          z: along.z + wall.normal.z * WALL_PROXY_INSET,
+        });
+        return (
+          <ProxyMesh
+            key={index}
+            target={target}
+            position={[x, ((bottom + top) / 2) * SCALE, z]}
+            rotationY={-wall.angle}
+            size={[(end - start) * SCALE, Math.max(6, top - bottom) * SCALE, 0.5]}
+            lowPriority={false}
+            events={events}
+          />
+        );
+      })}
+    </>
   );
 });

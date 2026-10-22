@@ -39,6 +39,11 @@ import {
 } from "./editor/studio-editor-context";
 import type { StudioEditorProps } from "./studio-types";
 import { useStudioCameraMode } from "./three/camera/camera-view-store";
+import {
+  MinimizedOverlayChip,
+  OverlayMinimizeButton,
+  useStudioOverlayMinimized,
+} from "./overlay/minimizable-overlay";
 import { StudioTip } from "./studio-tip";
 import { StudioViewChips } from "./three/camera/view-chips";
 import { StudioWalkHud, showsWalkHud } from "./three/camera/walk-hud";
@@ -451,6 +456,7 @@ export function Studio3DViewer({
     }
   });
   const [panelOpen, setPanelOpen] = useState(false);
+  const summaryMinimized = useStudioOverlayMinimized("scene-summary");
   const cameraMode = useStudioCameraMode();
   const [captured, setCaptured] = useState(false);
   const captureRef = useRef<(() => string | null) | null>(null);
@@ -579,20 +585,26 @@ export function Studio3DViewer({
 
       <LoadingVeil visible={!ready} />
 
-      {/* Scene summary / empty-state callout */}
+      {/* Top-left stack: scene summary, device tip and walk HUD never overlap. */}
       <div
         className={cn(
-          "pointer-events-none absolute top-3 left-3 z-10 max-w-[min(19rem,calc(100%-12rem))]",
-          presenting && "hidden"
+          "pointer-events-none absolute left-3 z-20 flex max-w-[min(19rem,calc(100%-12rem))] flex-col items-start gap-2",
+          presenting ? "top-[4.25rem]" : "top-3"
         )}
       >
-        {isEmpty ? (
-          <div className="rounded-2xl border border-primary/25 bg-background/80 p-3 shadow-lg backdrop-blur-md">
+        {presenting ? null : summaryMinimized ? (
+          <MinimizedOverlayChip
+            id="scene-summary"
+            icon={isEmpty ? Sparkles : Lightbulb}
+            label={isEmpty ? "getting started tip" : "render summary"}
+          />
+        ) : isEmpty ? (
+          <div className="pointer-events-auto rounded-2xl border border-primary/25 bg-background/80 p-3 shadow-lg backdrop-blur-md">
             <div className="flex gap-2.5">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
                 <Sparkles className="size-4" aria-hidden="true" />
               </span>
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-[0.62rem] font-semibold tracking-[0.18em] text-primary uppercase">
                   Preview ready
                 </p>
@@ -600,10 +612,15 @@ export function Studio3DViewer({
                   Select a wall and add a drape treatment to preview the setup.
                 </p>
               </div>
+              <OverlayMinimizeButton
+                id="scene-summary"
+                label="getting started tip"
+                className="-mt-1 -mr-1"
+              />
             </div>
           </div>
         ) : (
-          <div className="hidden items-center gap-2.5 rounded-2xl border border-border/40 bg-background/65 py-2 pr-3 pl-2 shadow-lg backdrop-blur-xl @md:flex">
+          <div className="pointer-events-auto hidden items-center gap-2.5 rounded-2xl border border-border/40 bg-background/65 py-2 pr-1.5 pl-2 shadow-lg backdrop-blur-xl @md:flex">
             <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
               <Lightbulb className="size-4" aria-hidden />
             </span>
@@ -628,9 +645,10 @@ export function Studio3DViewer({
                 Uplit
               </span>
             ) : null}
+            <OverlayMinimizeButton id="scene-summary" label="render summary" />
           </div>
         )}
-        {deviceProfile.software && !softwareHintDismissed ? (
+        {deviceProfile.software && !softwareHintDismissed && !presenting ? (
           <div
             role="note"
             className="pointer-events-auto mt-2 flex gap-2.5 rounded-2xl border border-primary/25 bg-background/80 p-3 shadow-lg backdrop-blur-md"
@@ -659,6 +677,7 @@ export function Studio3DViewer({
             </StudioTip>
           </div>
         ) : null}
+        {showsWalkHud(cameraMode) && ready ? <StudioWalkHud /> : null}
       </div>
 
       {/* Top-right actions */}
@@ -797,8 +816,6 @@ export function Studio3DViewer({
           </div>
         </section>
       ) : null}
-
-      {showsWalkHud(cameraMode) && ready ? <StudioWalkHud /> : null}
 
       {sendCanvasCommand ? (
         <StudioViewChips

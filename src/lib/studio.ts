@@ -11,6 +11,16 @@ import {
 } from "@/data/studio";
 import type { EventJobRow } from "@/data/jobs";
 import type { QuoteRow } from "@/data/quotes";
+import type { CustomerLanguage } from "@/data/customer-language";
+import {
+  EMPTY_STUDIO_EVENT_DETAILS,
+  STUDIO_GUEST_COUNT_MAX,
+  STUDIO_LEAD_TEXT_MAX,
+  isStudioEventType,
+  type StudioDesignSource,
+  type StudioEventDetails,
+  type StudioLeadContact,
+} from "@/data/studio-leads";
 import type { UserRole } from "@/lib/auth";
 import {
   customerCanAccessEstimate,
@@ -33,7 +43,192 @@ export type StudioErrorCode =
   | "forbidden"
   | "not_found"
   | "conflict"
+  | "rate_limited"
   | "database";
+
+/** Lead + event columns added by the studio sales pipeline migration. */
+export type StudioDesignLeadFields = {
+  visitor_id: string | null;
+  source: StudioDesignSource;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  event_name: string | null;
+  event_type: string | null;
+  /** YYYY-MM-DD */
+  event_date: string | null;
+  guest_count: number | null;
+  venue_name: string | null;
+  city_area: string | null;
+  language: CustomerLanguage;
+  public_token_hash: string | null;
+  public_token_expires_at: string | null;
+  contact_captured_at: string | null;
+  last_activity_at: string;
+  submitted_from_url: string | null;
+  user_agent: string | null;
+};
+
+export type StudioDesignLeadRow = StudioDesignRow & StudioDesignLeadFields;
+
+export type StudioEventDetailColumns = Pick<
+  StudioDesignLeadFields,
+  | "event_name"
+  | "event_type"
+  | "event_date"
+  | "guest_count"
+  | "venue_name"
+  | "city_area"
+>;
+
+/** Columns a browser must never receive (tokens, tracking ids, fingerprints). */
+const STUDIO_PRIVATE_COLUMNS = [
+  "public_token_hash",
+  "visitor_id",
+  "user_agent",
+] as const;
+
+export function studioEventDetailsFromRow(
+  row: Partial<StudioDesignLeadFields>
+): StudioEventDetails {
+  return {
+    eventName: row.event_name ?? null,
+    eventType: isStudioEventType(row.event_type) ? row.event_type : null,
+    eventDate: row.event_date ?? null,
+    guestCount:
+      typeof row.guest_count === "number" ? row.guest_count : null,
+    venueName: row.venue_name ?? null,
+    cityArea: row.city_area ?? null,
+  };
+}
+
+export function studioEventDetailsToColumns(
+  details: StudioEventDetails
+): StudioEventDetailColumns {
+  return {
+    event_name: details.eventName,
+    event_type: details.eventType,
+    event_date: details.eventDate,
+    guest_count: details.guestCount,
+    venue_name: details.venueName,
+    city_area: details.cityArea,
+  };
+}
+
+export function studioLeadContactFromRow(
+  row: Partial<StudioDesignLeadFields>
+): StudioLeadContact | null {
+  if (!row.contact_email) return null;
+  return {
+    name: row.contact_name ?? "",
+    email: row.contact_email,
+    phone: row.contact_phone ?? "",
+  };
+}
+
+/** Strips private lead columns before a row is sent to a customer browser. */
+export function redactStudioDesignForClient<T extends Partial<StudioDesignLeadRow>>(
+  row: T
+): T {
+  const copy = { ...row } as Record<string, unknown>;
+  for (const column of STUDIO_PRIVATE_COLUMNS) delete copy[column];
+  return copy as T;
+}
+
+function readOptionalLeadText(
+  value: unknown,
+  label: string
+): string | null | StudioFailure {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") {
+    return failure("validation", `${label} must be text.`);
+  }
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  if (!trimmed) return null;
+  if (trimmed.length > STUDIO_LEAD_TEXT_MAX) {
+    return failure(
+      "validation",
+      `${label} must be under ${STUDIO_LEAD_TEXT_MAX} characters.`
+    );
+  }
+  return trimmed;
+}
+
+function readOptionalEventDate(value: unknown): string | null | StudioFailure {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return failure("validation", "Event date must be a valid date.");
+  }
+  const parsed = new Date(`${value}T00:00:00Z`);
+  const year = parsed.getUTCFullYear();
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== value ||
+    year < 2000 ||
+    year > 2100
+  ) {
+    return failure("validation", "Event date must be a valid date.");
+  }
+  return value;
+}
+
+function readOptionalGuestCount(value: unknown): number | null | StudioFailure {
+  if (value === undefined || value === null || value === "") return null;
+  const count = typeof value === "string" ? Number(value) : value;
+  if (
+    typeof count !== "number" ||
+    !Number.isInteger(count) ||
+    count < 1 ||
+    count > STUDIO_GUEST_COUNT_MAX
+  ) {
+    return failure(
+      "validation",
+      `Guest count must be a whole number between 1 and ${STUDIO_GUEST_COUNT_MAX.toLocaleString("en-CA")}.`
+    );
+  }
+  return count;
+}
+
+/** Validates a client `event_details` object (camelCase StudioEventDetails). */
+export function parseStudioEventDetails(
+  value: unknown
+): StudioResult<{ details: StudioEventDetails }> {
+  if (value === undefined || value === null) {
+    return { ok: true, details: { ...EMPTY_STUDIO_EVENT_DETAILS } };
+  }
+  if (!isRecord(value)) {
+    return failure("validation", "Event details must be an object.");
+  }
+  const eventName = readOptionalLeadText(value.eventName, "Event name");
+  if (isFailure(eventName)) return eventName;
+  const venueName = readOptionalLeadText(value.venueName, "Venue");
+  if (isFailure(venueName)) return venueName;
+  const cityArea = readOptionalLeadText(value.cityArea, "City");
+  if (isFailure(cityArea)) return cityArea;
+  const eventDate = readOptionalEventDate(value.eventDate);
+  if (isFailure(eventDate)) return eventDate;
+  const guestCount = readOptionalGuestCount(value.guestCount);
+  if (isFailure(guestCount)) return guestCount;
+  let eventType: StudioEventDetails["eventType"] = null;
+  if (value.eventType !== undefined && value.eventType !== null && value.eventType !== "") {
+    if (!isStudioEventType(value.eventType)) {
+      return failure("validation", "Choose a valid event type.");
+    }
+    eventType = value.eventType;
+  }
+  return {
+    ok: true,
+    details: { eventName, eventType, eventDate, guestCount, venueName, cityArea },
+  };
+}
+
+function readStudioLanguage(value: unknown): CustomerLanguage | undefined {
+  return value === "en" || value === "fr" ? value : undefined;
+}
+
+function readCustomerSource(value: unknown): StudioDesignSource {
+  return value === "event_builder" ? "event_builder" : "studio";
+}
 
 export type StudioFailure = {
   ok: false;
@@ -747,10 +942,11 @@ export async function parseStudioRequestBody(
 
 export function studioErrorHttpStatus(
   code: StudioErrorCode
-): 400 | 403 | 404 | 409 | 500 {
+): 400 | 403 | 404 | 409 | 429 | 500 {
   if (code === "forbidden") return 403;
   if (code === "not_found") return 404;
   if (code === "conflict") return 409;
+  if (code === "rate_limited") return 429;
   if (code === "database") return 500;
   return 400;
 }
@@ -877,7 +1073,7 @@ export async function listCustomerStudioDesigns(
           .includes(search)
       )
       .slice(0, limit);
-    return { ok: true, designs };
+    return { ok: true, designs: designs.map((row) => forActor(actor, row)) };
   }
 
   let query = admin
@@ -900,7 +1096,7 @@ export async function listCustomerStudioDesigns(
     return failure("database", "Could not load Studio designs.");
   }
   designs = (data ?? []) as StudioDesignRow[];
-  return { ok: true, designs };
+  return { ok: true, designs: designs.map((row) => forActor(actor, row)) };
 }
 
 export async function getCustomerStudioDesign(
@@ -915,7 +1111,7 @@ export async function getCustomerStudioDesign(
   const result = await loadStudioDesign(id);
   if (!result.ok) return result;
   const accessError = enforceDesignAccess(actor, result.design);
-  return accessError ?? result;
+  return accessError ?? { ok: true, design: forActor(actor, result.design) };
 }
 
 export async function createStudioDesign(
@@ -951,18 +1147,30 @@ export async function createStudioDesign(
   const linkResult = await resolveStudioLinks(actor, linkInput.links);
   if (!linkResult.ok) return linkResult;
 
+  let detailColumns: Partial<StudioEventDetailColumns> = {};
+  if ("event_details" in input) {
+    const detailsResult = parseStudioEventDetails(input.event_details);
+    if (!detailsResult.ok) return detailsResult;
+    detailColumns = studioEventDetailsToColumns(detailsResult.details);
+  }
+  const language = readStudioLanguage(input.language);
+
   const admin = createAdminSupabaseClient();
   const { derivedOwnerUserId, ...links } = linkResult.links;
   const { data, error } = await admin
     .from("studio_designs")
     .insert({
       ...links,
+      ...detailColumns,
+      ...(language ? { language } : {}),
+      source: actor.role === "owner" ? "admin" : readCustomerSource(input.source),
       owner_user_id:
         actor.role === "customer" ? actor.userId : derivedOwnerUserId,
       created_by_user_id: actor.userId,
       title,
       status,
       design_json: designValidation.design,
+      last_activity_at: new Date().toISOString(),
     })
     .select("*")
     .single();
@@ -974,7 +1182,13 @@ export async function createStudioDesign(
     );
     return failure("database", "Could not create the Studio design.");
   }
-  return { ok: true, design: data as StudioDesignRow };
+  return { ok: true, design: forActor(actor, data as StudioDesignRow) };
+}
+
+function forActor(actor: StudioActor, row: StudioDesignRow): StudioDesignRow {
+  return actor.role === "owner"
+    ? row
+    : redactStudioDesignForClient(row as StudioDesignLeadRow);
 }
 
 export async function updateStudioDesign(
@@ -1050,6 +1264,13 @@ export async function updateStudioDesign(
     }
     updates.design_json = validation.design;
   }
+  if ("event_details" in input) {
+    const detailsResult = parseStudioEventDetails(input.event_details);
+    if (!detailsResult.ok) return detailsResult;
+    Object.assign(updates, studioEventDetailsToColumns(detailsResult.details));
+  }
+  const language = readStudioLanguage(input.language);
+  if (language) updates.language = language;
 
   const linkFields = [
     "estimate_request_id",
@@ -1115,6 +1336,7 @@ export async function updateStudioDesign(
   if (Object.keys(updates).length === 0) {
     return failure("validation", "No supported Studio updates were provided.");
   }
+  updates.last_activity_at = new Date().toISOString();
 
   const admin = createAdminSupabaseClient();
   let query = admin
@@ -1137,7 +1359,7 @@ export async function updateStudioDesign(
       "This design changed in another session. Refresh before saving."
     );
   }
-  return { ok: true, design: data as StudioDesignRow };
+  return { ok: true, design: forActor(actor, data as StudioDesignRow) };
 }
 
 export async function archiveStudioDesign(
@@ -1175,7 +1397,7 @@ export async function archiveStudioDesign(
       "This design changed in another session. Refresh before archiving."
     );
   }
-  return { ok: true, design: data as StudioDesignRow };
+  return { ok: true, design: forActor(actor, data as StudioDesignRow) };
 }
 
 export async function linkStudioDesignToEstimate(

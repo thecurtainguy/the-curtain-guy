@@ -10,12 +10,19 @@ import {
   type StudioDrapeRun,
 } from "@/data/studio";
 import {
+  drapeRunUsesDoorGaps,
+  getBlockingDoors,
+  getDrapeRunHungLength,
+} from "@/lib/studio-door-gaps";
+import { cn } from "@/lib/utils";
+import {
   clampDrapeRunToWall,
   getWallSegments,
   inchesToFeetLabel,
 } from "@/lib/studio-geometry";
 import {
   Columns3,
+  DoorOpen,
   GalleryHorizontalEnd,
   Lightbulb,
   PanelsTopLeft,
@@ -75,18 +82,35 @@ export function DrapeRunEditor({
   const span = run.endOffset - run.startOffset;
   const hardware = run.hardware ?? "pipe_and_drape";
   const wallHeightFt = feetValue(design.room.wallHeight);
+  const doorCount = getBlockingDoors(
+    design.openings,
+    run.wallIndex,
+    run.startOffset,
+    run.endOffset
+  ).length;
+  const doorGaps = drapeRunUsesDoorGaps(run);
+  const hung = getDrapeRunHungLength(run, design.openings);
+  const trimmed = Math.round(hung) !== Math.round(span);
 
-  function update(patch: Partial<StudioDrapeRun>) {
-    const nextRun = clampDrapeRunToWall(
-      { ...run, ...patch },
-      design.room.floor
-    );
+  function commit(nextRun: StudioDrapeRun) {
+    const clamped = clampDrapeRunToWall(nextRun, design.room.floor);
     onChange({
       ...design,
       drapeRuns: design.drapeRuns.map((item) =>
-        item.id === run.id ? nextRun : item
+        item.id === run.id ? clamped : item
       ),
     });
+  }
+
+  function update(patch: Partial<StudioDrapeRun>) {
+    commit({ ...run, ...patch });
+  }
+
+  function setDoorGaps(on: boolean) {
+    const nextRun = { ...run };
+    if (on) delete nextRun.doorGaps;
+    else nextRun.doorGaps = false;
+    commit(nextRun);
   }
 
   return (
@@ -109,6 +133,12 @@ export function DrapeRunEditor({
           <StatTile label="Height" value={inchesToFeetLabel(run.height)} />
           <StatTile label="Fullness" value={`${run.fullness}×`} />
         </div>
+        {trimmed ? (
+          <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[0.68rem] font-medium text-primary">
+            <DoorOpen className="size-3.5" aria-hidden />
+            Hung {inchesToFeetLabel(hung)} of {inchesToFeetLabel(span)}
+          </span>
+        ) : null}
       </div>
 
       <InspectorSection icon={Ruler} eyebrow="Placement" title="Run & dimensions">
@@ -200,6 +230,23 @@ export function DrapeRunEditor({
             update({ height: Math.min(600, Math.max(12, feet * 12)) })
           }
         />
+        <div
+          inert={doorCount === 0}
+          className={cn(doorCount === 0 && "opacity-50 saturate-50")}
+        >
+          <OptionTile
+            role="switch"
+            icon={DoorOpen}
+            label="Keep doors clear"
+            description={
+              doorCount === 0
+                ? "No doors on this run"
+                : `Leave ${doorCount} door${doorCount === 1 ? "" : "s"} open on this wall`
+            }
+            selected={doorGaps}
+            onSelect={() => setDoorGaps(!doorGaps)}
+          />
+        </div>
       </InspectorSection>
 
       <InspectorSection icon={Scissors} eyebrow="Fabric" title="Textile & colour">

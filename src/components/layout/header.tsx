@@ -76,7 +76,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 const MEGA_GROUPS: readonly MegaGroup[] = ["inspire", "company"];
 
 const desktopLinkClassName =
-  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring xl:px-3 motion-reduce:transition-none";
+  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2 py-2 text-sm font-medium transition-[color,background-color,box-shadow] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-ring xl:px-3 motion-reduce:transition-none";
 
 const desktopActiveClassName =
   "bg-muted/60 text-foreground shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]";
@@ -329,14 +329,14 @@ export function Header() {
     >
       <div
         className={cn(
-          "mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-[4.25rem] sm:gap-4 sm:px-6 lg:px-8"
+          "mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-[4.25rem] sm:gap-4 sm:px-6 lg:gap-2 xl:gap-3"
         )}
       >
         <BrandLogo href="/" size="header" compact={compact} priority />
 
         <DesktopNav pathname={pathname} />
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 lg:max-xl:gap-1.5">
           <LanguageSwitcher className="hidden sm:inline-flex" />
           <ThemeToggle className="size-9 shrink-0" />
           <HeaderAccountMenu session={session} />
@@ -346,7 +346,10 @@ export function Header() {
             size="atelier-sm"
             className="hidden sm:inline-flex"
           >
-            <GuardedLink href="/get-estimate">{tc("getEstimate")}</GuardedLink>
+            <GuardedLink href="/get-estimate" aria-label={tc("getEstimate")}>
+              <span className="lg:max-xl:hidden">{tc("getEstimate")}</span>
+              <span className="hidden lg:max-xl:inline">{tc("getEstimateShort")}</span>
+            </GuardedLink>
           </Button>
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Package } from "lucide-react";
+import { Package, Tags } from "lucide-react";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import {
@@ -113,6 +113,12 @@ export default async function AdminProductsPage() {
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <AdminProductCategoriesButton initialCategories={categories} />
+              <Button asChild variant="outline">
+                <Link href="/admin/studio/pricing">
+                  <Tags className="size-4" />
+                  Studio pricing
+                </Link>
+              </Button>
               <Button asChild>
                 <Link href="/admin/products/new">Add item</Link>
               </Button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { toggleLibraryBrowser } from "../rails/library-browser-store";
 import { isStudioWalkActive } from "../three/camera/camera-view-store";
 import {
   ceilingPlacementJustDisarmed,
@@ -158,6 +159,11 @@ export function useStudioKeyboardShortcuts(
         event.preventDefault();
         const step = settings.rotationSnap || 15;
         current.commands.rotate(event.shiftKey ? -step : step);
+        return;
+      }
+      if (key === "l" && event.shiftKey) {
+        event.preventDefault();
+        toggleLibraryBrowser();
         return;
       }
       if (key === "l") {

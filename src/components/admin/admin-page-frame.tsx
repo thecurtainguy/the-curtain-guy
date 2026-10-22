@@ -1,5 +1,6 @@
 import type { UserProfile } from "@/lib/auth";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { getStudioLeadsNavBadge } from "@/lib/studio-leads-admin";
 
 export function AdminPageFrame({
   email,
@@ -11,7 +12,11 @@ export function AdminPageFrame({
   children: React.ReactNode;
 }) {
   return (
-    <AdminShell email={email} profile={profile}>
+    <AdminShell
+      email={email}
+      profile={profile}
+      studioLeadsBadge={getStudioLeadsNavBadge()}
+    >
       {children}
     </AdminShell>
   );

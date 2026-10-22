@@ -1,10 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
-import { UserPlus } from "lucide-react";
-import { BrandDialogContent } from "@/components/ui/brand-dialog";
-import { Dialog } from "@/components/ui/dialog";
+import { CalendarHeart, History } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   STUDIO_TITLE_MAX_LENGTH,
@@ -21,6 +18,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -58,8 +56,47 @@ import type { EventBuilderBrief } from "@/data/event-builder/brief";
 import { EventPresetLibrary } from "@/components/event-builder/event-preset-library";
 import { EventBriefPanel } from "@/components/event-builder/event-brief-panel";
 import { getEnglishOptionLabel } from "@/data/estimate";
+import {
+  EMPTY_STUDIO_EVENT_DETAILS,
+  type StudioEventDetails,
+  type StudioLeadContact,
+} from "@/data/studio-leads";
+import { EventDetailsDialog } from "./lead/event-details-dialog";
+import {
+  formatStudioEventSummary,
+  hasStudioEventDetails,
+} from "./lead/event-details-format";
+import {
+  bindStudioResume,
+  fetchStudioDraft,
+  saveStudioLead,
+  type StudioLeadDraft,
+} from "./lead/lead-client";
+import { LeadNudgeCard } from "./lead/lead-nudge-card";
+import {
+  mergeBriefIntoDetails,
+  readStoredStudioLead,
+  rememberStudioRoom,
+  sanitizeStudioEventDetails,
+  studioEventDetailsFromRecord,
+  updateStoredStudioLead,
+  type StudioRoomKind,
+} from "./lead/lead-storage";
+import {
+  SaveDesignDialog,
+  type SaveDesignResult,
+} from "./lead/save-design-dialog";
+import { StudioLeadProvider } from "./lead/studio-lead-context";
+import { useStudioLeadAutosave } from "./lead/use-studio-lead-autosave";
 
 export type StudioDesignerMode = "designer" | "event";
+
+/** Opened from an emailed private link (`/studio/d/[token]`). */
+export type StudioLeadResume = {
+  token: string;
+  details: StudioEventDetails;
+  contact: StudioLeadContact | null;
+};
 
 export type StudioDesignerProps = {
   initialDesign?: StudioDesignJson;
@@ -81,6 +118,7 @@ export type StudioDesignerProps = {
   createAccountHref?: string;
   savedDesignPathBase?: string;
   resumeSessionDraft?: boolean;
+  leadResume?: StudioLeadResume;
   className?: string;
   onSaved?: (record: StudioDesignRow, response: StudioSaveResponse) => void;
   onDesignIdChange?: (id: string) => void;
@@ -88,6 +126,45 @@ export type StudioDesignerProps = {
 
 const STUDIO_SESSION_DRAFT_KEY = "tcg-studio-guest-draft-v1";
 const ignoreSelection = () => {};
+/** Active designing time before the one-time "Your event" prompt. */
+const EVENT_NUDGE_AFTER_MS = 2 * 60_000;
+/** Older autosaved rooms are not offered back on a fresh visit. */
+const RESTORE_MAX_AGE_MS = 30 * 24 * 60 * 60_000;
+
+type LeadNudge = { kind: "details" } | { kind: "restore"; draft: StudioLeadDraft };
+
+function initialEventDetails(props: StudioDesignerProps): StudioEventDetails {
+  if (props.leadResume) return sanitizeStudioEventDetails(props.leadResume.details);
+  const fromRecord = props.initialDesignRecord
+    ? studioEventDetailsFromRecord(props.initialDesignRecord)
+    : { ...EMPTY_STUDIO_EVENT_DETAILS };
+  return props.mode === "event"
+    ? mergeBriefIntoDetails(fromRecord, props.eventBrief)
+    : fromRecord;
+}
+
+function fillEmptyDetails(
+  current: StudioEventDetails,
+  fallback: StudioEventDetails
+): StudioEventDetails {
+  return {
+    eventName: current.eventName ?? fallback.eventName,
+    eventType: current.eventType ?? fallback.eventType,
+    eventDate: current.eventDate ?? fallback.eventDate,
+    guestCount: current.guestCount ?? fallback.guestCount,
+    venueName: current.venueName ?? fallback.venueName,
+    cityArea: current.cityArea ?? fallback.cityArea,
+  };
+}
+
+function lastEditedLabel(iso: string): string {
+  const minutes = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
 
 const MemoStudioLeftRail = memo(StudioLeftRail);
 const MemoStudioRightRail = memo(StudioRightRail);
@@ -159,6 +236,49 @@ export function StudioDesigner(props: StudioDesignerProps) {
   const saving = useRef(false);
   const pendingDestination = useRef<string | null>(null);
 
+  const isGuest = accessMode === "guest";
+  const leadKind: StudioRoomKind = mode === "event" ? "event" : "designer";
+  const [eventDetails, setEventDetails] = useState<StudioEventDetails>(() =>
+    initialEventDetails(props)
+  );
+  const [leadContact, setLeadContact] = useState<StudioLeadContact | null>(
+    props.leadResume?.contact ?? null
+  );
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [eventDialogIntent, setEventDialogIntent] = useState<"edit" | "before-save">("edit");
+  const [nudge, setNudge] = useState<LeadNudge | null>(null);
+  const [baselineDesign] = useState(design);
+  const eventDetailsRef = useRef(eventDetails);
+  const nudgeShown = useRef(accessMode === "admin");
+  const firstEditAt = useRef<number | null>(null);
+  const restorePending = useRef(false);
+  const continueSaveAfterDetails = useRef(false);
+
+  useLayoutEffect(() => {
+    eventDetailsRef.current = eventDetails;
+  }, [eventDetails]);
+
+  const leadAutosave = useStudioLeadAutosave({
+    enabled: isGuest,
+    kind: leadKind,
+    initialDesignId: null,
+    baselineDesign,
+    snapshot: { design, title, details: eventDetails },
+    getRevision: () => revision.current,
+    onAutosaved: (revisionAtStart) => {
+      if (revisionAtStart !== revision.current) return;
+      setSaveState("saved");
+      setSaveMessage("Draft autosaved");
+    },
+    onBlocked: (message) => setSaveMessage(message),
+  });
+  const {
+    setDesignId: setLeadDesignId,
+    notifyChange: notifyLeadChange,
+    ensureDesignId: ensureLeadDesignId,
+    startFresh: startFreshLead,
+  } = leadAutosave;
+
   useEffect(() => {
     const hasUnsavedChanges =
       saveState === "dirty" ||
@@ -190,11 +310,146 @@ export function StudioDesigner(props: StudioDesignerProps) {
     }
   }, [accessMode, resumeSessionDraft]);
 
+  useEffect(() => {
+    if (accessMode === "admin") return;
+    const stored = readStoredStudioLead();
+    nudgeShown.current = stored.nudgeShown;
+    const fresh = !props.initialDesignRecord && !props.leadResume;
+    const timer = window.setTimeout(() => {
+      if (fresh) setEventDetails((current) => fillEmptyDetails(current, stored.details));
+      if (isGuest) setLeadContact((current) => current ?? stored.contact);
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // Mount-only: later prop changes never re-merge stored details.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!isGuest) return;
+    let cancelled = false;
+    const resume = props.leadResume;
+    if (resume) {
+      void bindStudioResume(resume.token).then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setLeadDesignId(result.draft.id);
+          if (result.draft.contact) setLeadContact(result.draft.contact);
+          setSaveState("saved");
+          setSaveMessage("Welcome back — your design is open");
+        } else {
+          setSaveMessage(result.message);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    const storedRoom = readStoredStudioLead().rooms[leadKind];
+    if (!storedRoom) return;
+    restorePending.current = true;
+    void fetchStudioDraft(storedRoom.designId).then((result) => {
+      if (cancelled || !restorePending.current) return;
+      if (!result.ok) {
+        restorePending.current = false;
+        if (result.status === 403 || result.status === 404) {
+          rememberStudioRoom(leadKind, null);
+        }
+        return;
+      }
+      const age = Date.now() - Date.parse(result.draft.last_activity_at);
+      const validation = validateStudioDesign(result.draft.design_json);
+      if (!validation.valid || !(age < RESTORE_MAX_AGE_MS)) {
+        restorePending.current = false;
+        rememberStudioRoom(leadKind, null);
+        return;
+      }
+      setNudge({ kind: "restore", draft: result.draft });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only: resume binding and restore offers run once per visit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dismissRestore = useCallback(() => {
+    if (!restorePending.current) return;
+    restorePending.current = false;
+    startFreshLead();
+    setNudge((current) => (current?.kind === "restore" ? null : current));
+  }, [startFreshLead]);
+
+  const restoreDraft = useCallback(
+    (draft: StudioLeadDraft) => {
+      restorePending.current = false;
+      const validation = validateStudioDesign(draft.design_json);
+      if (!validation.valid) {
+        dismissRestore();
+        return;
+      }
+      revision.current += 1;
+      setDesign(validation.design);
+      if (mode !== "event") setTitle(draft.title);
+      setLeadDesignId(draft.id);
+      if (hasStudioEventDetails(draft.details)) {
+        setEventDetails(sanitizeStudioEventDetails(draft.details));
+      }
+      if (draft.contact) setLeadContact(draft.contact);
+      setNudge(null);
+      setSaveState("saved");
+      setSaveMessage("Restored your autosaved design");
+    },
+    [dismissRestore, mode, setLeadDesignId]
+  );
+
+  const markNudgeShown = useCallback(() => {
+    nudgeShown.current = true;
+    updateStoredStudioLead((current) => ({ ...current, nudgeShown: true }));
+  }, []);
+
+  /** Counts active designing; after ~2 minutes, offers the event card once. */
+  const trackEdit = useCallback(() => {
+    if (restorePending.current) dismissRestore();
+    notifyLeadChange();
+    if (nudgeShown.current) return;
+    const now = Date.now();
+    if (firstEditAt.current === null) firstEditAt.current = now;
+    if (
+      now - firstEditAt.current >= EVENT_NUDGE_AFTER_MS &&
+      !hasStudioEventDetails(eventDetailsRef.current)
+    ) {
+      markNudgeShown();
+      setNudge({ kind: "details" });
+    }
+  }, [dismissRestore, markNudgeShown, notifyLeadChange]);
+
   const changeDesign = useCallback((next: StudioDesignJson) => {
     revision.current += 1;
     setDesign(next);
     setSaveState("dirty");
     setSaveMessage(undefined);
+    trackEdit();
+  }, [trackEdit]);
+
+  const changeEventDetails = useCallback(
+    (next: StudioEventDetails) => {
+      revision.current += 1;
+      setEventDetails(next);
+      setSaveState("dirty");
+      setSaveMessage(undefined);
+      if (accessMode !== "admin") {
+        updateStoredStudioLead((current) => ({ ...current, details: next }));
+      }
+      if (restorePending.current) dismissRestore();
+      notifyLeadChange();
+    },
+    [accessMode, dismissRestore, notifyLeadChange]
+  );
+
+  const openEventDetails = useCallback(() => {
+    setEventDialogIntent("edit");
+    setEventDialogOpen(true);
+    setNudge((current) => (current?.kind === "details" ? null : current));
   }, []);
 
   const editor = useStudioEditorState({
@@ -256,7 +511,8 @@ export function StudioDesigner(props: StudioDesignerProps) {
     setTitle(next);
     setSaveState("dirty");
     setSaveMessage(undefined);
-  }, []);
+    trackEdit();
+  }, [trackEdit]);
 
   const save = useCallback(async () => {
     if (saving.current) return;
@@ -278,6 +534,15 @@ export function StudioDesigner(props: StudioDesignerProps) {
     if (!validation.valid) {
       setSaveState("error");
       setSaveMessage(validation.errors[0] ?? "Review the design before saving.");
+      return;
+    }
+
+    if (!nudgeShown.current && !hasStudioEventDetails(eventDetailsRef.current)) {
+      markNudgeShown();
+      setNudge((current) => (current?.kind === "details" ? null : current));
+      continueSaveAfterDetails.current = true;
+      setEventDialogIntent("before-save");
+      setEventDialogOpen(true);
       return;
     }
 
@@ -318,6 +583,8 @@ export function StudioDesigner(props: StudioDesignerProps) {
         body: JSON.stringify({
           title: cleanTitle,
           design_json: validation.design,
+          event_details: eventDetailsRef.current,
+          ...(designId ? {} : { source: mode === "event" ? "event_builder" : "studio" }),
           ...(linkContext?.estimateRequestId
             ? { estimate_request_id: linkContext.estimateRequestId }
             : {}),
@@ -351,15 +618,12 @@ export function StudioDesigner(props: StudioDesignerProps) {
       if (!designId && nextId) {
         setDesignId(nextId);
         onDesignIdChange?.(nextId);
-        const destinationBase =
-          savedDesignPathBase ??
-          (accessMode === "admin"
-            ? "/admin/studio"
-            : accessMode === "customer"
-              ? "/account/studio"
-              : undefined);
-        if (destinationBase) {
-          pendingDestination.current = `${destinationBase.replace(/\/$/, "")}/${nextId}`;
+        if (savedDesignPathBase) {
+          pendingDestination.current = `${savedDesignPathBase.replace(/\/$/, "")}/${nextId}`;
+        } else if (accessMode === "admin") {
+          pendingDestination.current = `/admin/studio/${nextId}/edit`;
+        } else if (accessMode === "customer") {
+          pendingDestination.current = `/account/studio/${nextId}`;
         }
       }
       if (
@@ -395,6 +659,8 @@ export function StudioDesigner(props: StudioDesignerProps) {
     design,
     designId,
     linkContext,
+    markNudgeShown,
+    mode,
     onDesignIdChange,
     onSaved,
     router,
@@ -412,6 +678,72 @@ export function StudioDesigner(props: StudioDesignerProps) {
     saveRef.current = save;
   }, [save]);
   const onSave = useCallback(() => void saveRef.current(), []);
+
+  const handleEventDialogOpenChange = useCallback((open: boolean) => {
+    setEventDialogOpen(open);
+    if (!open && continueSaveAfterDetails.current) {
+      continueSaveAfterDetails.current = false;
+      // Let the dialog close (and new details commit) before the save runs.
+      window.setTimeout(() => void saveRef.current(), 0);
+    }
+  }, []);
+
+  const submitLead = useCallback(
+    async (contact: StudioLeadContact, website: string): Promise<SaveDesignResult> => {
+      const cleanTitle = title.trim() || "Untitled room design";
+      const validation = validateStudioDesign(design);
+      if (!validation.valid) {
+        return {
+          ok: false,
+          message: validation.errors[0] ?? "Review the design before saving.",
+        };
+      }
+      const savingRevision = revision.current;
+      const existingId = await ensureLeadDesignId();
+      const result = await saveStudioLead({
+        id: existingId,
+        title: cleanTitle,
+        design_json: validation.design,
+        event_details: eventDetailsRef.current,
+        mode: leadKind,
+        contact,
+        website,
+      });
+      if (!result.ok) {
+        if (result.status === 403 || result.status === 404) startFreshLead();
+        return { ok: false, message: result.message, fieldErrors: result.fieldErrors };
+      }
+      if (result.id) setLeadDesignId(result.id);
+      setLeadContact(contact);
+      updateStoredStudioLead((current) => ({ ...current, contact }));
+      try {
+        window.sessionStorage.removeItem(STUDIO_SESSION_DRAFT_KEY);
+      } catch {
+        // The server copy is saved; session cleanup is best-effort.
+      }
+      if (savingRevision === revision.current) {
+        setSaveState("saved");
+        setSaveMessage(result.emailed ? "Saved — link emailed" : "Saved");
+      }
+      return { ok: true, emailed: result.emailed, resumePath: result.resumePath };
+    },
+    [design, ensureLeadDesignId, leadKind, setLeadDesignId, startFreshLead, title]
+  );
+
+  const leadContextValue = useMemo(
+    () => ({
+      details: eventDetails,
+      contact: leadContact,
+      ensureDesignId: isGuest
+        ? ensureLeadDesignId
+        : async () => designId ?? null,
+      openEventDetails,
+    }),
+    [designId, ensureLeadDesignId, eventDetails, isGuest, leadContact, openEventDetails]
+  );
+  const eventSummary = hasStudioEventDetails(eventDetails)
+    ? formatStudioEventSummary(eventDetails) || "Event details added"
+    : null;
   const openTools = useCallback(() => setToolsOpen(true), []);
   const openProperties = useCallback(() => setPropertiesOpen(true), []);
 
@@ -483,6 +815,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
 
   return (
     <StudioEditorProvider state={editor} presenting={presenting}>
+      <StudioLeadProvider value={leadContextValue}>
       <TooltipProvider delayDuration={300} skipDelayDuration={400}>
         <StudioHoverTip />
         <StudioShell
@@ -524,6 +857,8 @@ export function StudioDesigner(props: StudioDesignerProps) {
               onToggleFullscreen={toggleStudioFullscreen}
               presenting={presenting}
               onTogglePresent={togglePresent}
+              eventSummary={eventSummary}
+              onOpenEventDetails={openEventDetails}
             />
           }
         >
@@ -566,27 +901,60 @@ export function StudioDesigner(props: StudioDesignerProps) {
             ) : null}
           </div>
         </StudioShell>
+
+        {nudge && !presenting && !eventDialogOpen && !guestDialogOpen ? (
+          nudge.kind === "restore" ? (
+            <LeadNudgeCard
+              icon={History}
+              eyebrow="Welcome back"
+              title="Pick up where you left off?"
+              body={`“${nudge.draft.title}” was autosaved ${lastEditedLabel(nudge.draft.last_activity_at)}.`}
+              primaryLabel="Restore design"
+              onPrimary={() => restoreDraft(nudge.draft)}
+              secondaryLabel="Start fresh"
+              onSecondary={dismissRestore}
+            />
+          ) : (
+            <LeadNudgeCard
+              icon={CalendarHeart}
+              eyebrow="Your event"
+              title="Planning an event?"
+              body="Add your date and guest count so our team can check availability and size your drapes."
+              primaryLabel="Add event details"
+              onPrimary={openEventDetails}
+              secondaryLabel="Not now"
+              onSecondary={() => setNudge(null)}
+            />
+          )
+        ) : null}
       </TooltipProvider>
 
-      <Dialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen}>
-        <BrandDialogContent
-          size="sm"
-          icon={UserPlus}
-          eyebrow="Keep your design"
-          title="Save your room to an account"
-          description="This draft is kept temporarily in this browser tab. Keep the tab open; if email verification opens another tab, return to this one and use the Return to Studio button."
-          footer={
-            <>
-              <Button asChild variant="outline">
-                <a href={signInWithReturn}>Sign in</a>
-              </Button>
-              <Button asChild>
-                <a href={createAccountWithReturn}>Create account</a>
-              </Button>
-            </>
-          }
+      <EventDetailsDialog
+        open={eventDialogOpen}
+        onOpenChange={handleEventDialogOpenChange}
+        details={eventDetails}
+        onSave={changeEventDetails}
+        description={
+          eventDialogIntent === "before-save"
+            ? "Before we save — tell us about the event this room is for. It helps our team check availability. Every field is optional."
+            : undefined
+        }
+        saveLabel={eventDialogIntent === "before-save" ? "Save & continue" : undefined}
+      />
+
+      {isGuest ? (
+        <SaveDesignDialog
+          open={guestDialogOpen}
+          onOpenChange={setGuestDialogOpen}
+          details={eventDetails}
+          initialContact={leadContact}
+          onEditDetails={openEventDetails}
+          onSubmit={submitLead}
+          signInHref={signInWithReturn}
+          createAccountHref={createAccountWithReturn}
         />
-      </Dialog>
+      ) : null}
+      </StudioLeadProvider>
     </StudioEditorProvider>
   );
 }

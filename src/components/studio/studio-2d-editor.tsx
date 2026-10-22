@@ -44,6 +44,7 @@ import { DimensionLine, SmartGuidesLayer, WallDistanceLayer } from "./plan/dimen
 import { MarqueeLayer, marqueeRect } from "./plan/marquee";
 import { MeasureLayer, type PlanMeasurement } from "./plan/measure-tool";
 import { PlanMinimap } from "./plan/minimap";
+import { PlanHint } from "./plan/plan-hint";
 import {
   angleAround,
   constrainToOctant,
@@ -1491,9 +1492,7 @@ export function Studio2DEditor(props: StudioEditorProps) {
             }
           />
         ) : null}
-        <div className="hidden rounded-full border border-border/60 bg-background/92 px-3 py-1 text-[0.65rem] text-muted-foreground shadow-sm sm:block">
-          {hint}
-        </div>
+        <PlanHint hint={hint} />
       </div>
 
       <div className="pointer-events-none absolute right-3 bottom-3">

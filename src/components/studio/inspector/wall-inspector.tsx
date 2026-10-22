@@ -2,6 +2,7 @@
 
 import { getDrapeColorHex, type StudioDesignJson } from "@/data/studio";
 import type { StudioItemKind } from "@/lib/studio-commands";
+import { getDrapeRunHungLength } from "@/lib/studio-door-gaps";
 import {
   getWallSegments,
   inchesToFeetLabel,
@@ -89,9 +90,13 @@ export function WallInspector({
       })),
   ].sort((a, b) => a.start - b.start);
 
-  const covered = items
-    .filter((item) => item.kind !== "opening")
-    .reduce((sum, item) => sum + (item.end - item.start), 0);
+  const covered =
+    design.drapeRuns
+      .filter((run) => run.wallIndex === wallIndex)
+      .reduce((sum, run) => sum + getDrapeRunHungLength(run, design.openings), 0) +
+    items
+      .filter((item) => item.kind === "treatment")
+      .reduce((sum, item) => sum + (item.end - item.start), 0);
   const heading = Math.round(((wall.angle * 180) / Math.PI + 360) % 360);
   const length = Math.max(1, wall.length);
 

@@ -6,6 +6,8 @@ import {
   type StudioOpening,
   type StudioTreatment,
 } from "@/data/studio";
+import { getOpeningStyle, isOpeningArched } from "@/data/studio-openings";
+import type { DrapeSegment } from "@/lib/studio-door-gaps";
 
 /*
  * Plan symbols for wall-anchored items, drawn in a local wall frame:
@@ -41,87 +43,139 @@ export function getUprightOffsets(start: number, end: number, maxSpacing = 120):
   return Array.from({ length: segments + 1 }, (_, index) => start + (span * index) / segments);
 }
 
+function uplightOffsets(start: number, end: number, uprights: number[]): number[] {
+  const between = (list: number[]) =>
+    list.slice(0, -1).map((offset, index) => (offset + list[index + 1]) / 2);
+  return (uprights.length > 1 ? between(uprights) : between(getUprightOffsets(start, end, 84))).filter(
+    (offset) => offset > start && offset < end
+  );
+}
+
+/** Spans of [start, end] not covered by `segments` (sorted, inside the run). */
+export function getDrapeGaps(
+  start: number,
+  end: number,
+  segments: readonly DrapeSegment[]
+): DrapeSegment[] {
+  const gaps: DrapeSegment[] = [];
+  let cursor = start;
+  for (const segment of segments) {
+    if (segment.start > cursor + 0.5) gaps.push({ start: cursor, end: segment.start });
+    cursor = Math.max(cursor, segment.end);
+  }
+  if (end > cursor + 0.5) gaps.push({ start: cursor, end });
+  return gaps;
+}
+
+/**
+ * Drape run on the plan. `segments` are the hung spans after door gaps
+ * (defaults to the whole run); gaps get a faint dashed line instead of fabric.
+ */
 export function DrapeSymbol({
   run,
   pixelsPerInch,
   uplightGradientId,
+  segments,
 }: {
   run: StudioDrapeRun;
   pixelsPerInch: number;
   uplightGradientId?: string;
+  segments?: readonly DrapeSegment[];
 }) {
   const color = getDrapeColorHex(run.color);
   const start = run.startOffset;
   const end = run.endOffset;
-  const span = Math.max(1, end - start);
+  const pieces = segments ?? [{ start, end }];
+  const gaps = segments ? getDrapeGaps(start, end, segments) : [];
   const y = DRAPE_PLAN_INSET;
   const px = (value: number) => value / Math.max(pixelsPerInch, 1e-6);
   const fabricWidth = Math.max(2.2, px(2.5));
-  const path = pleatPath(start, end, y, run.fullness);
   const hardware = run.hardware ?? "pipe_and_drape";
   const dash = run.type === "divider" ? `${Math.max(10, px(10))} ${Math.max(6, px(6))}` : undefined;
-  const uprights = hardware === "pipe_and_drape" ? getUprightOffsets(start, end) : [];
-  const uplights = run.uplightColor
-    ? (uprights.length > 1
-        ? uprights.slice(0, -1).map((offset, index) => (offset + uprights[index + 1]) / 2)
-        : getUprightOffsets(start, end, 84)
-            .slice(0, -1)
-            .map((offset, index, list) => (offset + (list[index + 1] ?? end)) / 2)
-      ).filter((offset) => offset > start && offset < end)
-    : [];
   const uplightHex = run.uplightColor ? getDrapeColorHex(run.uplightColor) : null;
+  const parts = pieces.map((piece) => {
+    const uprights =
+      hardware === "pipe_and_drape" ? getUprightOffsets(piece.start, piece.end) : [];
+    return {
+      ...piece,
+      span: Math.max(1, piece.end - piece.start),
+      path: pleatPath(piece.start, piece.end, y, run.fullness),
+      uprights,
+      uplights: uplightHex ? uplightOffsets(piece.start, piece.end, uprights) : [],
+    };
+  });
 
   return (
     <g>
       {uplightHex && uplightGradientId
-        ? uplights.map((offset) => (
-            <ellipse
-              key={`glow-${offset}`}
-              cx={offset}
-              cy={y + 8}
-              rx={Math.min(30, span / 2)}
-              ry={20}
-              fill={`url(#${uplightGradientId})`}
-            />
-          ))
+        ? parts.flatMap((part) =>
+            part.uplights.map((offset) => (
+              <ellipse
+                key={`glow-${offset}`}
+                cx={offset}
+                cy={y + 8}
+                rx={Math.min(30, part.span / 2)}
+                ry={20}
+                fill={`url(#${uplightGradientId})`}
+              />
+            ))
+          )
         : null}
-      <rect
-        x={start}
-        y={1}
-        width={span}
-        height={y + 4}
-        fill={color}
-        fillOpacity={0.16}
-      />
-      {run.puddle ? (
-        <path
-          d={pleatPath(start, end, y + 3.5, run.fullness * 0.6)}
-          fill="none"
-          stroke={color}
-          strokeOpacity={0.35}
-          strokeWidth={fabricWidth * 1.4}
-          strokeDasharray={dash}
+      {gaps.map((gap) => (
+        <line
+          key={`gap-${gap.start}`}
+          x1={gap.start}
+          y1={y}
+          x2={gap.end}
+          y2={y}
+          stroke="var(--muted-foreground)"
+          strokeOpacity={0.6}
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          vectorEffect="non-scaling-stroke"
         />
-      ) : null}
-      <path
-        d={path}
-        fill="none"
-        stroke="color-mix(in oklch, var(--background) 70%, black)"
-        strokeOpacity={0.85}
-        strokeWidth={fabricWidth + Math.max(1.2, px(1.6))}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray={dash}
-      />
-      <path
-        d={path}
-        fill="none"
-        stroke={color}
-        strokeWidth={fabricWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray={dash}
-      />
+      ))}
+      {parts.map((part) => (
+        <g key={`fabric-${part.start}`}>
+          <rect
+            x={part.start}
+            y={1}
+            width={part.span}
+            height={y + 4}
+            fill={color}
+            fillOpacity={0.16}
+          />
+          {run.puddle ? (
+            <path
+              d={pleatPath(part.start, part.end, y + 3.5, run.fullness * 0.6)}
+              fill="none"
+              stroke={color}
+              strokeOpacity={0.35}
+              strokeWidth={fabricWidth * 1.4}
+              strokeDasharray={dash}
+            />
+          ) : null}
+          <path
+            d={part.path}
+            fill="none"
+            stroke="color-mix(in oklch, var(--background) 70%, black)"
+            strokeOpacity={0.85}
+            strokeWidth={fabricWidth + Math.max(1.2, px(1.6))}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={dash}
+          />
+          <path
+            d={part.path}
+            fill="none"
+            stroke={color}
+            strokeWidth={fabricWidth}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={dash}
+          />
+        </g>
+      ))}
       {hardware === "ceiling_track" ? (
         <line
           x1={start}
@@ -135,7 +189,7 @@ export function DrapeSymbol({
         />
       ) : null}
       {hardware === "wall_mount"
-        ? [start, end].map((offset) => (
+        ? parts.flatMap((part) => [part.start, part.end]).map((offset) => (
             <line
               key={`mount-${offset}`}
               x1={offset}
@@ -148,7 +202,7 @@ export function DrapeSymbol({
             />
           ))
         : null}
-      {uprights.map((offset) => (
+      {parts.flatMap((part) => part.uprights).map((offset) => (
         <g key={`upright-${offset}`}>
           <rect
             x={offset - 4}
@@ -171,7 +225,7 @@ export function DrapeSymbol({
         </g>
       ))}
       {uplightHex
-        ? uplights.map((offset) => (
+        ? parts.flatMap((part) => part.uplights).map((offset) => (
             <circle
               key={`uplight-${offset}`}
               cx={offset}
@@ -464,6 +518,8 @@ export function TreatmentGlyph({ treatment }: { treatment: StudioTreatment }) {
   );
 }
 
+const GLASS_STROKE = "#9cc7e0";
+
 /** Opening symbol from x = 0 to x = width on the wall line. */
 export function OpeningSymbol({
   opening,
@@ -478,95 +534,157 @@ export function OpeningSymbol({
   floorFill: string;
   selected: boolean;
 }) {
+  const style = getOpeningStyle(opening);
+  const arched = isOpeningArched(opening);
   const t = wallThickness;
+  const mid = width / 2;
   const frame = selected
     ? "var(--primary)"
     : "color-mix(in oklch, var(--foreground) 78%, var(--background))";
+  const thin = { vectorEffect: "non-scaling-stroke" as const };
   const jambs = (
     <>
-      <line x1={0} y1={-t} x2={0} y2={0} stroke={frame} strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
-      <line x1={width} y1={-t} x2={width} y2={0} stroke={frame} strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
+      <line x1={0} y1={-t} x2={0} y2={0} stroke={frame} strokeWidth={1.75} {...thin} />
+      <line x1={width} y1={-t} x2={width} y2={0} stroke={frame} strokeWidth={1.75} {...thin} />
     </>
   );
+  // Small arch glyph just outside the exterior face: the head above is arched.
+  const archRadius = Math.min(8, Math.max(3, width * 0.18));
+  const archMark = arched ? (
+    <path
+      d={`M ${mid - archRadius} ${-t - 1.5} A ${archRadius} ${archRadius * 0.8} 0 0 1 ${mid + archRadius} ${-t - 1.5}`}
+      fill="none"
+      stroke={selected ? "var(--primary)" : frame}
+      strokeOpacity={0.8}
+      strokeWidth={1.25}
+      strokeLinecap="round"
+      {...thin}
+    />
+  ) : null;
 
   if (opening.type === "window") {
+    const high = style === "transom";
+    const dash = high ? "5 3" : undefined;
+    const glassWidth = style === "floor_to_ceiling" ? 2.5 : style === "picture_window" ? 2.1 : 1.75;
     return (
       <g>
         <rect x={0} y={-t} width={width} height={t} fill="var(--background)" />
-        <line x1={0} y1={-t} x2={width} y2={-t} stroke={frame} strokeWidth={1.25} vectorEffect="non-scaling-stroke" />
-        <line x1={0} y1={-t / 2} x2={width} y2={-t / 2} stroke="#9cc7e0" strokeWidth={1.75} vectorEffect="non-scaling-stroke" />
-        <line x1={0} y1={0} x2={width} y2={0} stroke={frame} strokeWidth={1.25} vectorEffect="non-scaling-stroke" />
+        <line x1={0} y1={-t} x2={width} y2={-t} stroke={frame} strokeWidth={1.25} strokeDasharray={dash} {...thin} />
         <line
-          x1={-1.5}
-          y1={1.5}
-          x2={width + 1.5}
-          y2={1.5}
-          stroke={frame}
-          strokeOpacity={0.5}
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
+          x1={0}
+          y1={-t / 2}
+          x2={width}
+          y2={-t / 2}
+          stroke={GLASS_STROKE}
+          strokeWidth={glassWidth}
+          strokeDasharray={dash}
+          {...thin}
         />
+        <line x1={0} y1={0} x2={width} y2={0} stroke={frame} strokeWidth={1.25} strokeDasharray={dash} {...thin} />
+        {high ? null : (
+          <line
+            x1={-1.5}
+            y1={1.5}
+            x2={width + 1.5}
+            y2={1.5}
+            stroke={frame}
+            strokeOpacity={0.5}
+            strokeWidth={1}
+            {...thin}
+          />
+        )}
         {jambs}
+        {archMark}
       </g>
     );
   }
 
   const cut = <rect x={0} y={-t - 0.6} width={width} height={t + 1.2} fill={floorFill} />;
 
-  if (opening.type === "entrance") {
-    const mid = width / 2;
-    const arrow = Math.min(18, Math.max(8, width * 0.2));
+  if (style === "glass_slider") {
+    const panel = width * 0.56;
+    const depth = Math.max(1, t * 0.2);
+    const arrowY = Math.max(5, t * 0.9);
+    const head = Math.min(5, width * 0.06);
+    const panelProps = {
+      height: depth,
+      fill: GLASS_STROKE,
+      fillOpacity: 0.35,
+      stroke: frame,
+      strokeWidth: 1.25,
+      ...thin,
+    };
     return (
       <g>
         {cut}
         {jambs}
-        <line
-          x1={0}
-          y1={-t / 2}
-          x2={width}
-          y2={-t / 2}
-          stroke={frame}
-          strokeOpacity={0.55}
-          strokeWidth={1}
-          strokeDasharray="4 3"
-          vectorEffect="non-scaling-stroke"
-        />
+        <rect x={0} y={-t * 0.72} width={panel} {...panelProps} />
+        <rect x={width - panel} y={-t * 0.28 - depth} width={panel} {...panelProps} />
         <path
-          d={`M${mid} ${-t} L${mid} ${arrow + 4} M${mid - arrow * 0.35} ${arrow * 0.62 + 4} L${mid} ${arrow + 4} L${mid + arrow * 0.35} ${arrow * 0.62 + 4}`}
+          d={`M ${width - panel * 0.25} ${arrowY} H ${width - panel * 0.85} m ${head} ${-head * 0.7} l ${-head} ${head * 0.7} l ${head} ${head * 0.7}`}
           fill="none"
           stroke="var(--primary)"
-          strokeWidth={2}
+          strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
+          {...thin}
         />
       </g>
     );
   }
 
-  const double = width >= 60;
-  const leaf = double ? width / 2 : width;
-  const leafStroke = { stroke: frame, strokeWidth: 1.75, vectorEffect: "non-scaling-stroke" as const };
+  const pair = opening.type === "entrance";
+  const grand = style === "grand_entrance" || style === "grand_arched";
+  const leaf = pair ? width / 2 : width;
+  const leafStroke = { stroke: frame, strokeWidth: 1.75, ...thin };
   const arcStroke = {
     stroke: frame,
     strokeOpacity: 0.55,
     strokeWidth: 1,
     strokeDasharray: "3 2",
     fill: "none",
-    vectorEffect: "non-scaling-stroke" as const,
+    ...thin,
   };
+  const porthole = Math.min(4, leaf * 0.12);
   return (
     <g>
       {cut}
+      {grand
+        ? [-3, width].map((x) => (
+            <rect
+              key={x}
+              x={x}
+              y={-t - 1.5}
+              width={3}
+              height={t + 3}
+              fill="color-mix(in oklch, var(--foreground) 22%, var(--background))"
+              stroke={frame}
+              strokeWidth={1}
+              {...thin}
+            />
+          ))
+        : null}
       {jambs}
       <line x1={0} y1={0} x2={0} y2={leaf} {...leafStroke} />
       <path d={`M 0 ${leaf} A ${leaf} ${leaf} 0 0 0 ${leaf} 0`} {...arcStroke} />
-      {double ? (
+      {pair ? (
         <>
           <line x1={width} y1={0} x2={width} y2={leaf} {...leafStroke} />
           <path d={`M ${width} ${leaf} A ${leaf} ${leaf} 0 0 1 ${width - leaf} 0`} {...arcStroke} />
         </>
       ) : null}
+      {style === "service_door" ? (
+        <circle
+          cx={0}
+          cy={leaf * 0.62}
+          r={porthole}
+          fill={floorFill}
+          stroke={GLASS_STROKE}
+          strokeWidth={1.25}
+          {...thin}
+        />
+      ) : null}
+      {archMark}
     </g>
   );
 }

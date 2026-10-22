@@ -45,11 +45,19 @@ export async function patchEventPlanSubmission(
   return { id: body.id ?? planId, reference: body.reference };
 }
 
+/** Studio context sent with a submission (the server verifies the design id). */
+export type EventPlanStudioLink = {
+  studioDesignId?: string | null;
+  eventName?: string | null;
+  guestCount?: number | null;
+};
+
 export async function postEventPlanSubmission(
   brief: EventBuilderBrief,
   design: StudioDesignJson,
   contact: EventPlanContactPayload,
-  website = ""
+  website = "",
+  studio: EventPlanStudioLink = {}
 ): Promise<{ id: string; reference?: string }> {
   const response = await fetch("/api/event-plan/submit", {
     method: "POST",
@@ -64,6 +72,9 @@ export async function postEventPlanSubmission(
       brief,
       design,
       website,
+      ...(studio.studioDesignId ? { studioDesignId: studio.studioDesignId } : {}),
+      eventName: studio.eventName ?? brief.eventName ?? undefined,
+      guestCount: studio.guestCount ?? brief.guestCount ?? undefined,
     }),
   });
 

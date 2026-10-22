@@ -8,6 +8,15 @@
 import * as THREE from "three";
 import { syncTwinkleTime, twinkleTime } from "./twinkle-clock";
 
+/** How far toward the eye points are drawn, feet. */
+const SPARKLE_PULL_FEET = 0.28;
+/**
+ * Smallest drawn diameter, px. Under ~2px a moving point lands on one pixel
+ * one frame and straddles four the next, which flickers; energy is scaled
+ * down to compensate.
+ */
+const MIN_POINT_PX = 2.2;
+
 const vertexShader = /* glsl */ `
   #include <common>
   attribute float aSeed;
@@ -20,7 +29,12 @@ const vertexShader = /* glsl */ `
 
   void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_Position = projectionMatrix * mvPosition;
+    /* Points sit on an approximation of the fabric; drawing them a few
+       inches toward the eye keeps real folds from swallowing them as the
+       view moves (which reads as flicker). Size uses the true depth. */
+    float eyeDistance = length(mvPosition.xyz);
+    vec3 pulled = mvPosition.xyz * max(0.0, 1.0 - ${SPARKLE_PULL_FEET.toFixed(3)} / max(eyeDistance, 1e-3));
+    gl_Position = projectionMatrix * vec4(pulled, 1.0);
     float scale = projectionMatrix[1][1] * uHalfHeight;
     float px = uSize * scale;
     if (isPerspectiveMatrix(projectionMatrix)) px /= max(0.05, -mvPosition.z);
@@ -86,7 +100,7 @@ export function createSparklePoints(
     uColor: { value: new THREE.Color("#ffffff") },
     uSize: { value: size },
     uHalfHeight: { value: 540 },
-    uMinPx: { value: 1.6 },
+    uMinPx: { value: MIN_POINT_PX },
     /* Shared across every cloud (see twinkle-clock). */
     uTime: twinkleTime,
     uTwinkle: { value: 0 },
@@ -103,13 +117,14 @@ export function createSparklePoints(
   });
   const points = new THREE.Points(geometry, material) as SparklePoints;
   points.raycast = NO_RAYCAST;
-  points.renderOrder = 3;
+  /* After the ceiling fabric (2), hub décor (3) and glow pools (4). */
+  points.renderOrder = 5;
   points.userData.noAO = true;
   /* Size against whatever target is being drawn (canvas or composer buffer). */
   points.onBeforeRender = (renderer) => {
     renderer.getCurrentViewport(viewport);
     uniforms.uHalfHeight.value = Math.max(1, viewport.w / 2);
-    uniforms.uMinPx.value = 1.6 * Math.max(1, renderer.getPixelRatio() * 0.75);
+    uniforms.uMinPx.value = MIN_POINT_PX * Math.max(1, renderer.getPixelRatio() * 0.75);
     if (uniforms.uTwinkle.value > 0) syncTwinkleTime();
   };
   return points;

@@ -27,6 +27,7 @@ import {
   getStudioCameraMode,
   getStudioHeadBob,
   isInteriorMode,
+  isStudioPointerLocked,
   mouseLookAvailable,
   publishCameraRigState,
   setStudioCameraMode,
@@ -82,6 +83,9 @@ import {
 } from "./venue/ceiling-architecture";
 
 type ControlsImpl = React.ComponentRef<typeof OrbitControls>;
+
+/** Mouse-look easing (1/s): ~30 ms to settle, enough to smooth uneven frames without lag. */
+const POINTER_LOOK_RATE = 34;
 
 type PoseFactory = (aspect: number) => StudioCameraPose;
 
@@ -939,9 +943,7 @@ const CameraRig = memo(function CameraRig({
     }
     const turn = motion.takeTurn();
     if (turn.yaw || turn.pitch) {
-      rig.yaw += turn.yaw;
       rig.goalYaw += turn.yaw;
-      rig.pitch = clampPitch(rig.pitch + turn.pitch);
       rig.goalPitch = clampPitch(rig.goalPitch + turn.pitch);
       busy = true;
     }
@@ -982,7 +984,7 @@ const CameraRig = memo(function CameraRig({
       spinning = true;
     }
 
-    const damping = 1 - Math.exp(-delta * 16);
+    const damping = 1 - Math.exp(-delta * (isStudioPointerLocked() ? POINTER_LOOK_RATE : 16));
     const yawGap = rig.goalYaw - rig.yaw;
     const pitchGap = rig.goalPitch - rig.pitch;
     if (Math.abs(yawGap) > 1e-5 || Math.abs(pitchGap) > 1e-5) {

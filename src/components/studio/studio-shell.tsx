@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCallback, useSyncExternalStore } from "react";
+import { StudioTip } from "./studio-tip";
 
 type StudioShellProps = {
   toolbar: React.ReactNode;
@@ -158,6 +159,7 @@ export function StudioShell({
             <div className="h-full min-h-0">{desktop ? leftRail : null}</div>
           ) : (
             <CollapsedRail
+              side="left"
               label="Design tools"
               icon={Wand2}
               toggleIcon={PanelLeftOpen}
@@ -180,6 +182,7 @@ export function StudioShell({
             <div className="h-full min-h-0">{desktop ? rightRail : null}</div>
           ) : (
             <CollapsedRail
+              side="right"
               label="Inspector"
               icon={SlidersHorizontal}
               toggleIcon={PanelRightOpen}
@@ -249,51 +252,55 @@ function RailToggle({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={cn(
-        "absolute top-1/2 z-20 hidden h-12 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-card/90 text-muted-foreground shadow-lg backdrop-blur transition-[left,right,color,border-color] duration-300 ease-out hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none lg:flex",
-        side === "left"
-          ? "left-[calc(var(--studio-left-rail)-10px)]"
-          : "right-[calc(var(--studio-right-rail)-10px)]"
-      )}
-    >
-      <Icon className="size-3" aria-hidden="true" />
-    </button>
+    <StudioTip label={label} side={side === "left" ? "right" : "left"}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={label}
+        className={cn(
+          "absolute top-1/2 z-20 hidden h-12 w-5 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-card/90 text-muted-foreground shadow-lg backdrop-blur transition-[left,right,color,border-color] duration-300 ease-out hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none lg:flex",
+          side === "left"
+            ? "left-[calc(var(--studio-left-rail)-10px)]"
+            : "right-[calc(var(--studio-right-rail)-10px)]"
+        )}
+      >
+        <Icon className="size-3" aria-hidden="true" />
+      </button>
+    </StudioTip>
   );
 }
 
 function CollapsedRail({
+  side,
   label,
   icon: Icon,
   toggleIcon: ToggleIcon,
   onExpand,
 }: {
+  side: RailSide;
   label: string;
   icon: LucideIcon;
   toggleIcon: LucideIcon;
   onExpand: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onExpand}
-      aria-label={`Expand ${label.toLowerCase()}`}
-      title={`Expand ${label.toLowerCase()}`}
-      className="group flex h-full w-full flex-col items-center gap-3 bg-card/35 py-3 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-    >
-      <span className="flex size-8 items-center justify-center rounded-xl border border-border/60 bg-background/50 group-hover:border-primary/40">
-        <ToggleIcon className="size-4" aria-hidden="true" />
-      </span>
-      <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
-        <Icon className="size-4" aria-hidden="true" />
-      </span>
-      <span className="text-[0.62rem] font-semibold tracking-[0.2em] uppercase [writing-mode:vertical-rl]">
-        {label}
-      </span>
-    </button>
+    <StudioTip label={`Expand ${label.toLowerCase()}`} side={side === "left" ? "right" : "left"}>
+      <button
+        type="button"
+        onClick={onExpand}
+        aria-label={`Expand ${label.toLowerCase()}`}
+        className="group flex h-full w-full flex-col items-center gap-3 bg-card/35 py-3 text-muted-foreground transition-colors hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      >
+        <span className="flex size-8 items-center justify-center rounded-xl border border-border/60 bg-background/50 group-hover:border-primary/40">
+          <ToggleIcon className="size-4" aria-hidden="true" />
+        </span>
+        <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="size-4" aria-hidden="true" />
+        </span>
+        <span className="text-[0.62rem] font-semibold tracking-[0.2em] uppercase [writing-mode:vertical-rl]">
+          {label}
+        </span>
+      </button>
+    </StudioTip>
   );
 }

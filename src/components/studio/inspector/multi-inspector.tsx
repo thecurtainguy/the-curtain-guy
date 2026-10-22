@@ -46,6 +46,7 @@ import {
   useStudioEditorActions,
   useStudioSelection,
 } from "../editor/studio-editor-context";
+import { StudioTip } from "../studio-tip";
 import {
   ChoiceTile,
   IconAction,
@@ -162,14 +163,16 @@ export function MultiInspector({
               {refs.length} items selected
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => select(null)}
-            className="flex size-8 items-center justify-center rounded-xl border border-border/40 bg-background/40 text-muted-foreground transition-colors hover:text-foreground"
-            aria-label="Clear selection"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
+          <StudioTip label="Clear selection" shortcut="Esc">
+            <button
+              type="button"
+              onClick={() => select(null)}
+              className="flex size-8 items-center justify-center rounded-xl border border-border/40 bg-background/40 text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Clear selection"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          </StudioTip>
         </div>
         <div className="relative mt-3 grid grid-cols-5 gap-1.5">
           {(Object.keys(counts) as StudioItemKind[]).map((kind) => {
@@ -240,12 +243,14 @@ export function MultiInspector({
           <ArrangeButton
             icon={AlignHorizontalDistributeCenter}
             label="Distribute across"
+            tip="Space evenly left to right"
             disabled={movable.length < 3}
             onClick={() => commands.distribute("x")}
           />
           <ArrangeButton
             icon={AlignVerticalDistributeCenter}
             label="Distribute down"
+            tip="Space evenly top to bottom"
             disabled={movable.length < 3}
             onClick={() => commands.distribute("z")}
           />
@@ -260,15 +265,16 @@ export function MultiInspector({
       <InspectorSection icon={RotateCw} eyebrow="Arrange" title="Rotate as a group">
         <div className="grid grid-cols-4 gap-1.5">
           {[
-            { label: "−90°", value: -90, icon: RotateCcw },
-            { label: "−15°", value: -15, icon: RotateCcw },
-            { label: "+15°", value: 15, icon: RotateCw },
-            { label: "+90°", value: 90, icon: RotateCw },
+            { label: "−90°", value: -90, icon: RotateCcw, tip: "Rotate group 90° anticlockwise" },
+            { label: "−15°", value: -15, icon: RotateCcw, tip: "Rotate group 15° anticlockwise" },
+            { label: "+15°", value: 15, icon: RotateCw, tip: "Rotate group 15° clockwise" },
+            { label: "+90°", value: 90, icon: RotateCw, tip: "Rotate group 90° clockwise" },
           ].map((turn) => (
             <ArrangeButton
               key={turn.label}
               icon={turn.icon}
               label={turn.label}
+              tip={turn.tip}
               disabled={movable.length === 0}
               onClick={() => commands.rotate(turn.value)}
             />
@@ -384,24 +390,31 @@ export function MultiInspector({
 function ArrangeButton({
   icon: Icon,
   label,
+  tip,
   onClick,
   disabled,
 }: {
   icon: typeof RotateCw;
   label: string;
+  tip: string;
   onClick: () => void;
   disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex h-9 items-center justify-center gap-1.5 rounded-xl border border-border/40 bg-card/35 px-2 text-[0.68rem] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-40"
-    >
-      <Icon className="size-3.5" aria-hidden="true" />
-      {label}
-    </button>
+    <StudioTip label={tip}>
+      {/* Span keeps the tooltip working while the button is disabled. */}
+      <span className="flex">
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={disabled}
+          className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-border/40 bg-card/35 px-2 text-[0.68rem] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:opacity-40"
+        >
+          <Icon className="size-3.5" aria-hidden="true" />
+          {label}
+        </button>
+      </span>
+    </StudioTip>
   );
 }
 

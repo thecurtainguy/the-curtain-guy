@@ -66,6 +66,7 @@ import {
   useStudioView,
 } from "../editor/studio-editor-context";
 import { CeilingStyleArt } from "../library/ceiling-style-art";
+import { StudioTip } from "../studio-tip";
 import { FabricPicker, FullnessField } from "../three/fabric/fabric-controls";
 import {
   ChoiceTile,
@@ -201,38 +202,38 @@ export function CeilingInspector({
           {CEILING_DRAPE_STYLES.map((style) => {
             const selected = drape.type === style.value;
             return (
-              <button
-                key={style.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                title={style.description}
-                onClick={() =>
-                  update(changeCeilingDrapeStyle(drape, style.value, floor))
-                }
-                className={cn(
-                  "group relative flex min-w-0 flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 motion-reduce:transition-none",
-                  "border-border/40 bg-card/35 hover:border-primary/30",
-                  "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-                  selected &&
-                    "border-primary/55 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"
-                )}
-              >
-                <span className="relative block h-11 overflow-hidden border-b border-border/30">
-                  <CeilingStyleArt
-                    style={style.value}
-                    color={selected ? drape.color : undefined}
-                    accentColor={selected ? drape.accentColor : undefined}
-                  />
-                  <SelectionRing
-                    selected={selected}
-                    className="absolute top-1 right-1 size-3.5 shadow-sm"
-                  />
-                </span>
-                <span className="truncate px-1.5 py-1 text-[0.62rem] font-medium text-foreground">
-                  {style.label}
-                </span>
-              </button>
+              <StudioTip key={style.value} label={style.description}>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() =>
+                    update(changeCeilingDrapeStyle(drape, style.value, floor))
+                  }
+                  className={cn(
+                    "group relative flex min-w-0 flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 motion-reduce:transition-none",
+                    "border-border/40 bg-card/35 hover:border-primary/30",
+                    "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+                    selected &&
+                      "border-primary/55 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]"
+                  )}
+                >
+                  <span className="relative block h-11 overflow-hidden border-b border-border/30">
+                    <CeilingStyleArt
+                      style={style.value}
+                      color={selected ? drape.color : undefined}
+                      accentColor={selected ? drape.accentColor : undefined}
+                    />
+                    <SelectionRing
+                      selected={selected}
+                      className="absolute top-1 right-1 size-3.5 shadow-sm"
+                    />
+                  </span>
+                  <span className="truncate px-1.5 py-1 text-[0.62rem] font-medium text-foreground">
+                    {style.label}
+                  </span>
+                </button>
+              </StudioTip>
             );
           })}
         </div>

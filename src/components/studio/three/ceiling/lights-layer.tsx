@@ -53,7 +53,7 @@ const BISTRO_CORE_EMISSION = 9;
 const NO_BLOOM_EMISSION = 0.35;
 /** Glowing diameter, feet. */
 const FAIRY_SIZE = 0.045;
-const STARLIGHT_SIZE = 0.03;
+const STARLIGHT_SIZE = 0.04;
 
 /** Candela: string-light clouds cap, one uplight spot, a hub chandelier. */
 const MAX_CLOUD_CANDELA = 140;

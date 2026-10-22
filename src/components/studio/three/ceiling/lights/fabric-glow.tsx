@@ -7,6 +7,41 @@ import type { FabricGlowPatch } from "./plan";
 
 const NO_RAYCAST = () => null;
 
+/**
+ * The pool follows an approximation of the fabric; real folds cross it by a
+ * few inches. A constant polygon offset can't cover that, so the pool is
+ * drawn this far toward the eye instead (view-independent, no z-fighting).
+ */
+const GLOW_PULL_FEET = 0.4;
+/**
+ * Fixed slot after the sheer ceiling fabric (2) and hub décor (3): at equal
+ * render order three.js sorts transparents by distance, so the pool would
+ * flip between "over" and "under" the cloth as the camera moves.
+ */
+const CEILING_GLOW_RENDER_ORDER = 4;
+
+function createGlowMaterial() {
+  const material = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+    fog: false,
+  });
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      "#include <project_vertex>",
+      /* glsl */ `#include <project_vertex>
+      mvPosition.xyz *= max(0.0, 1.0 - ${GLOW_PULL_FEET.toFixed(3)} / max(length(mvPosition.xyz), 1e-3));
+      gl_Position = projectionMatrix * mvPosition;`
+    );
+  };
+  material.customProgramCacheKey = () => "studio-fabric-glow-pull";
+  return material;
+}
+
 function createPatchGeometry(patch: FabricGlowPatch) {
   const { size, positions, weights } = patch;
   const colors = new Float32Array(weights.length * 3);
@@ -46,21 +81,7 @@ export function FabricGlow({
 }) {
   const invalidate = useThree((state) => state.invalidate);
   const geometry = useMemo(() => createPatchGeometry(patch), [patch]);
-  const [material] = useState(
-    () =>
-      new THREE.MeshBasicMaterial({
-        vertexColors: true,
-        transparent: true,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        toneMapped: false,
-        fog: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-        polygonOffsetUnits: -2,
-      })
-  );
+  const [material] = useState(createGlowMaterial);
   useLayoutEffect(() => {
     material.color.set(color).multiplyScalar(strength);
     invalidate();
@@ -72,7 +93,7 @@ export function FabricGlow({
       geometry={geometry}
       material={material}
       raycast={NO_RAYCAST}
-      renderOrder={2}
+      renderOrder={CEILING_GLOW_RENDER_ORDER}
       userData={{ noAO: true }}
     />
   );

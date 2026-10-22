@@ -39,6 +39,7 @@ import {
 } from "./editor/studio-editor-context";
 import type { StudioEditorProps } from "./studio-types";
 import { useStudioCameraMode } from "./three/camera/camera-view-store";
+import { StudioTip } from "./studio-tip";
 import { StudioViewChips } from "./three/camera/view-chips";
 import { StudioWalkHud, showsWalkHud } from "./three/camera/walk-hud";
 import { getRecommendedStudioQuality, getStudioDeviceProfile } from "./three/device-tier";
@@ -304,13 +305,12 @@ function SceneOptionTile({
           </span>
         ) : null}
         {badge ? (
-          <span
-            title={badgeTitle}
-            className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-px text-[0.55rem] font-semibold tracking-[0.14em] text-primary uppercase"
-          >
-            <span aria-hidden className="size-1 rounded-full bg-primary" />
-            {badge}
-          </span>
+          <StudioTip label={badgeTitle} side="bottom">
+            <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-1.5 py-px text-[0.55rem] font-semibold tracking-[0.14em] text-primary uppercase">
+              <span aria-hidden className="size-1 rounded-full bg-primary" />
+              {badge}
+            </span>
+          </StudioTip>
         ) : null}
       </span>
       {stacked ? null : <SelectionRing selected={selected} />}
@@ -647,46 +647,53 @@ export function Studio3DViewer({
                 acceleration in its settings for a fluid preview.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={dismissSoftwareHint}
-              className="flex size-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
-              aria-label="Dismiss hardware acceleration tip"
-            >
-              <X className="size-3.5" />
-            </button>
+            <StudioTip label="Dismiss">
+              <button
+                type="button"
+                onClick={dismissSoftwareHint}
+                className="flex size-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
+                aria-label="Dismiss hardware acceleration tip"
+              >
+                <X className="size-3.5" />
+              </button>
+            </StudioTip>
           </div>
         ) : null}
       </div>
 
       {/* Top-right actions */}
       <div className="absolute top-3 right-3 z-20 flex items-start gap-1.5">
-        <button
-          type="button"
-          onClick={downloadSnapshot}
-          className="flex h-9 items-center gap-2 rounded-xl border border-border/40 bg-background/70 px-2.5 text-xs font-medium text-foreground shadow-lg backdrop-blur-xl transition-colors hover:border-primary/35 hover:bg-background/85 focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
-          aria-label="Download a PNG snapshot of this view"
-        >
-          <span className="flex size-6 items-center justify-center rounded-lg bg-primary/12 text-primary">
-            {captured ? <Check className="size-3.5" /> : <Camera className="size-3.5" />}
-          </span>
-          <span className="hidden @xl:inline">{captured ? "Saved" : "Snapshot"}</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setPanelOpen((open) => !open)}
-          aria-expanded={panelOpen}
-          aria-controls="studio-3d-scene-panel"
-          className={cn(
-            "flex h-9 items-center gap-2 rounded-xl border bg-background/70 px-2.5 text-xs font-medium text-foreground shadow-lg backdrop-blur-xl transition-colors hover:border-primary/35 hover:bg-background/85 focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
-            panelOpen ? "border-primary/45" : "border-border/40"
-          )}
-        >
-          <span className="flex size-6 items-center justify-center rounded-lg bg-primary/12 text-primary">
-            <SlidersHorizontal className="size-3.5" aria-hidden />
-          </span>
-          <span className="hidden @xl:inline">Scene</span>
-        </button>
+        <StudioTip label={captured ? "Snapshot saved" : "Download a PNG snapshot"} side="bottom">
+          <button
+            type="button"
+            onClick={downloadSnapshot}
+            className="flex h-9 items-center gap-2 rounded-xl border border-border/40 bg-background/70 px-2.5 text-xs font-medium text-foreground shadow-lg backdrop-blur-xl transition-colors hover:border-primary/35 hover:bg-background/85 focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
+            aria-label="Download a PNG snapshot of this view"
+          >
+            <span className="flex size-6 items-center justify-center rounded-lg bg-primary/12 text-primary">
+              {captured ? <Check className="size-3.5" /> : <Camera className="size-3.5" />}
+            </span>
+            <span className="hidden @xl:inline">{captured ? "Saved" : "Snapshot"}</span>
+          </button>
+        </StudioTip>
+        <StudioTip label={panelOpen ? "Hide scene settings" : "Scene settings"} side="bottom">
+          <button
+            type="button"
+            onClick={() => setPanelOpen((open) => !open)}
+            aria-expanded={panelOpen}
+            aria-controls="studio-3d-scene-panel"
+            aria-label="Scene settings"
+            className={cn(
+              "flex h-9 items-center gap-2 rounded-xl border bg-background/70 px-2.5 text-xs font-medium text-foreground shadow-lg backdrop-blur-xl transition-colors hover:border-primary/35 hover:bg-background/85 focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
+              panelOpen ? "border-primary/45" : "border-border/40"
+            )}
+          >
+            <span className="flex size-6 items-center justify-center rounded-lg bg-primary/12 text-primary">
+              <SlidersHorizontal className="size-3.5" aria-hidden />
+            </span>
+            <span className="hidden @xl:inline">Scene</span>
+          </button>
+        </StudioTip>
       </div>
 
       {panelOpen ? (
@@ -707,14 +714,16 @@ export function Studio3DViewer({
                 Render &amp; display
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setPanelOpen(false)}
-              className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
-              aria-label="Close scene settings"
-            >
-              <X className="size-4" />
-            </button>
+            <StudioTip label="Close">
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-card/60 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
+                aria-label="Close scene settings"
+              >
+                <X className="size-4" />
+              </button>
+            </StudioTip>
           </header>
           <div className="space-y-4 overflow-y-auto p-3.5">
             {updateSettings ? (

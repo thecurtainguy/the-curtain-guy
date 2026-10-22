@@ -23,6 +23,7 @@ import { fitDistance, type StudioCameraPose } from "../engine-camera";
 import {
   CEILING_FOV,
   EYE_HEIGHT,
+  MIN_CAMERA_HEIGHT,
   clampEye,
   clampHeight,
   getInteriorCeilingPose,
@@ -296,7 +297,138 @@ export function getCeilingDesignPose(
   return { position, target, fov: lens };
 }
 
-/** The "Ceiling" view: the showcased design when there is one, else the room's own ceiling. */
+/** Overview lens search range (vertical degrees) and tilt range. */
+const OVERVIEW_MIN_FOV = 50;
+const OVERVIEW_MAX_FOV = 92;
+const OVERVIEW_PITCHES = Array.from({ length: 17 }, (_, i) => (28 + i * 3) * DEG);
+const OVERVIEW_PREFERRED_PITCH = 50 * DEG;
+/** Fraction of the frame the ceiling may fill before the edge counts as cropped. */
+const OVERVIEW_FRAME = 0.95;
+
+type OverviewSpot = { stand: FootPoint; look: FootPoint };
+
+/** Floor-level vantage candidates: just inside each wall's midpoint and each corner. */
+function overviewSpots(footprint: RoomFootprint): OverviewSpot[] {
+  const { points, sign } = footprint;
+  const inset = footprint.margin + 1.5;
+  const spots: OverviewSpot[] = [];
+  const inward = (a: FootPoint, b: FootPoint) => {
+    const length = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    return { x: (-(b.z - a.z) / length) * sign, z: ((b.x - a.x) / length) * sign };
+  };
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    if (Math.hypot(b.x - a.x, b.z - a.z) < 4) continue;
+    const look = inward(a, b);
+    const mid = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
+    spots.push({
+      stand: clampToFootprint(footprint, mid.x + look.x * inset, mid.z + look.z * inset),
+      look,
+    });
+    const prev = points[(i - 1 + points.length) % points.length];
+    const corner = unit(
+      { x: inward(prev, a).x + look.x, z: inward(prev, a).z + look.z },
+      look
+    );
+    spots.push({
+      stand: clampToFootprint(footprint, a.x + corner.x * inset * 1.4, a.z + corner.z * inset * 1.4),
+      look: corner,
+    });
+  }
+  return spots;
+}
+
+/**
+ * The "Ceiling" view: lying near the floor just inside a wall or corner,
+ * tilted up across the room with the narrowest lens that still frames the
+ * whole ceiling (and any drapery hanging from it). The ceiling edge directly
+ * overhead-behind may crop; everything ahead fits.
+ */
+function getCeilingOverviewPose(
+  design: StudioDesignJson,
+  footprint: RoomFootprint,
+  layers: Layers,
+  aspect: number
+): StudioCameraPose | null {
+  const { points, height } = footprint;
+  if (points.length < 3 || !(aspect > 0)) return null;
+  const eye = clampHeight(footprint, MIN_CAMERA_HEIGHT);
+  let hang = footprint.ceilingHang;
+  if (layers.ceiling) {
+    for (const drape of getCeilingDrapes(design)) {
+      if (!drape.hidden) hang = Math.max(hang, ceilingLowestDrop(drape) * SCALE);
+    }
+  }
+  hang = Math.min(hang, Math.max(0, height - eye - 2));
+  const ring: FootPoint[] = [];
+  points.forEach((a, i) => {
+    const b = points[(i + 1) % points.length];
+    ring.push(a, { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 });
+  });
+  const levels = hang > 0.25 ? [height, height - hang] : [height];
+
+  const camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
+  const probe = new THREE.Vector3();
+  const target = new THREE.Vector3();
+  let best: { spot: OverviewSpot; pitch: number; fov: number; seen: number } | null = null;
+
+  for (const spot of overviewSpots(footprint)) {
+    const ahead = ring.filter(
+      (p) => (p.x - spot.stand.x) * spot.look.x + (p.z - spot.stand.z) * spot.look.z > 1
+    );
+    if (ahead.length === 0) continue;
+    const total = ahead.length * levels.length;
+    camera.position.set(spot.stand.x, eye, spot.stand.z);
+    for (const pitch of OVERVIEW_PITCHES) {
+      target.set(
+        spot.stand.x + spot.look.x * Math.cos(pitch),
+        eye + Math.sin(pitch),
+        spot.stand.z + spot.look.z * Math.cos(pitch)
+      );
+      camera.lookAt(target);
+      camera.updateMatrixWorld();
+      for (let fov = OVERVIEW_MIN_FOV; fov <= OVERVIEW_MAX_FOV; fov += 2) {
+        camera.fov = fov;
+        camera.updateProjectionMatrix();
+        let seen = 0;
+        for (const level of levels) {
+          for (const p of ahead) {
+            probe.set(p.x, level, p.z).applyMatrix4(camera.matrixWorldInverse);
+            if (probe.z > -0.05) continue;
+            probe.applyMatrix4(camera.projectionMatrix);
+            if (Math.abs(probe.x) <= OVERVIEW_FRAME && Math.abs(probe.y) <= OVERVIEW_FRAME) seen++;
+          }
+        }
+        const share = seen / total;
+        const better =
+          !best ||
+          share > best.seen + 1e-6 ||
+          (Math.abs(share - best.seen) <= 1e-6 &&
+            (fov < best.fov ||
+              (fov === best.fov &&
+                Math.abs(pitch - OVERVIEW_PREFERRED_PITCH) <
+                  Math.abs(best.pitch - OVERVIEW_PREFERRED_PITCH))));
+        if (better) best = { spot, pitch, fov, seen: share };
+        if (share >= 1) break;
+      }
+    }
+  }
+  if (!best) return null;
+  const { spot, pitch, fov } = best;
+  const reachAhead = Math.max(MIN_REACH, (height - eye) / Math.tan(pitch));
+  return {
+    position: new THREE.Vector3(spot.stand.x, eye, spot.stand.z),
+    target: new THREE.Vector3(
+      spot.stand.x + spot.look.x * reachAhead,
+      height,
+      spot.stand.z + spot.look.z * reachAhead
+    ),
+    fov,
+  };
+}
+
+/** The "Ceiling" view: a floor-level overview of the whole ceiling. */
 export function getCeilingViewPose(
   design: StudioDesignJson,
   bounds: StudioBounds,
@@ -305,6 +437,8 @@ export function getCeilingViewPose(
   aspect: number,
   selection: StudioSelection
 ): StudioCameraPose {
+  const overview = getCeilingOverviewPose(design, footprint, layers, aspect);
+  if (overview) return overview;
   const drape = pickCeilingDrape(design, selection, layers);
   const pose = drape
     ? getCeilingDesignPose(design, bounds, footprint, drape, aspect)

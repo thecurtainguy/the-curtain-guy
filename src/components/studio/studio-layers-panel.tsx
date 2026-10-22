@@ -44,6 +44,7 @@ import {
   STUDIO_OPENING_META,
   getCeilingStyleLabel,
 } from "./inspector/studio-item-meta";
+import { StudioTip } from "./studio-tip";
 
 type LayerRow = {
   kind: StudioItemKind;
@@ -234,14 +235,16 @@ export function StudioLayersPanel({
           className="h-9 w-full rounded-xl border border-border/50 bg-background/50 pr-8 pl-8 text-xs outline-none placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/15 [&::-webkit-search-cancel-button]:hidden"
         />
         {query ? (
-          <button
-            type="button"
-            onClick={() => setQuery("")}
-            className="absolute top-1/2 right-2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
-            aria-label="Clear search"
-          >
-            <X className="size-3" aria-hidden="true" />
-          </button>
+          <StudioTip label="Clear search">
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute top-1/2 right-2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+              aria-label="Clear search"
+            >
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          </StudioTip>
         ) : null}
       </div>
 
@@ -396,23 +399,26 @@ function HeaderButton({
   disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      className={cn(
-        "flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-30",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-        active
-          ? "bg-primary/15 text-primary"
-          : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
-      )}
-    >
-      <Icon className="size-3.5" aria-hidden="true" />
-    </button>
+    <StudioTip label={label}>
+      <span className="inline-flex">
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={label}
+          aria-pressed={active}
+          className={cn(
+            "flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors disabled:opacity-30",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+            active
+              ? "bg-primary/15 text-primary"
+              : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+          )}
+        >
+          <Icon className="size-3.5" aria-hidden="true" />
+        </button>
+      </span>
+    </StudioTip>
   );
 }
 
@@ -578,8 +584,8 @@ function RowToggle({
     <button
       type="button"
       onClick={onClick}
-      title={label}
       aria-label={label}
+      data-studio-tip={label}
       aria-pressed={active}
       className={cn(
         "flex size-6 shrink-0 items-center justify-center rounded-md transition-[color,opacity]",

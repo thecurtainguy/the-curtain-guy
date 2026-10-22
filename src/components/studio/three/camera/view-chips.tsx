@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { memo } from "react";
+import { StudioTip } from "../../studio-tip";
 import {
   ArrowUpFromLine,
   Cctv,
@@ -91,12 +92,11 @@ function ChipButton({
   iconOnly?: boolean;
   onClick: () => void;
 }) {
-  return (
+  const button = (
     <button
       type="button"
       aria-pressed={active}
       aria-label={`${label} — ${hint}`}
-      title={hint}
       disabled={disabled}
       onClick={onClick}
       className={cn(
@@ -116,6 +116,17 @@ function ChipButton({
       />
       {iconOnly ? null : <span className="hidden @3xl:inline">{label}</span>}
     </button>
+  );
+  return (
+    <StudioTip
+      label={
+        <>
+          <span className="font-semibold">{label}</span> · {hint}
+        </>
+      }
+    >
+      {disabled ? <span className="inline-flex shrink-0">{button}</span> : button}
+    </StudioTip>
   );
 }
 

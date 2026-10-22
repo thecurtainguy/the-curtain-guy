@@ -3,14 +3,15 @@
 import { normalizeRotation } from "@/lib/studio-commands";
 import { cn } from "@/lib/utils";
 import { useId, useRef, useState } from "react";
+import { StudioTip } from "../studio-tip";
 import { FieldLabel, SliderField } from "./inspector-ui";
 
 const QUICK_TURNS = [
-  { label: "−90°", delta: -90 },
-  { label: "−15°", delta: -15 },
-  { label: "0°", delta: null },
-  { label: "+15°", delta: 15 },
-  { label: "+90°", delta: 90 },
+  { label: "−90°", delta: -90, tip: "Rotate 90° anticlockwise" },
+  { label: "−15°", delta: -15, tip: "Rotate 15° anticlockwise" },
+  { label: "0°", delta: null, tip: "Reset to 0°" },
+  { label: "+15°", delta: 15, tip: "Rotate 15° clockwise" },
+  { label: "+90°", delta: 90, tip: "Rotate 90° clockwise" },
 ] as const;
 
 const DIAL_SIZE = 88;
@@ -77,6 +78,9 @@ export function RotationControl({
           aria-valuemax={359}
           aria-valuenow={Math.round(angle)}
           aria-disabled={disabled || undefined}
+          data-studio-tip={
+            disabled ? undefined : snapStep > 0 ? "Drag to rotate · Shift for free angle" : "Drag to rotate"
+          }
           className={cn(
             "shrink-0 touch-none rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
             disabled ? "opacity-50" : "cursor-grab active:cursor-grabbing"
@@ -211,28 +215,29 @@ export function RotationControl({
           </div>
           <div className="grid grid-cols-5 gap-1">
             {QUICK_TURNS.map((turn) => (
-              <button
-                key={turn.label}
-                type="button"
-                disabled={disabled}
-                onClick={() =>
-                  onChange(
-                    turn.delta === null ? 0 : normalizeRotation(angle + turn.delta)
-                  )
-                }
-                className={cn(
-                  "h-7 rounded-lg border text-[0.6rem] font-semibold tabular-nums transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-40",
-                  turn.delta === null
-                    ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
-                    : "border-border/40 bg-card/35 text-muted-foreground hover:border-primary/30 hover:text-primary"
-                )}
-                aria-label={
-                  turn.delta === null ? "Reset rotation" : `Rotate ${turn.label}`
-                }
-              >
-                {turn.label}
-              </button>
+              <StudioTip key={turn.label} label={turn.tip} disabled={disabled}>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() =>
+                    onChange(
+                      turn.delta === null ? 0 : normalizeRotation(angle + turn.delta)
+                    )
+                  }
+                  className={cn(
+                    "h-7 rounded-lg border text-[0.6rem] font-semibold tabular-nums transition-colors",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-40",
+                    turn.delta === null
+                      ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
+                      : "border-border/40 bg-card/35 text-muted-foreground hover:border-primary/30 hover:text-primary"
+                  )}
+                  aria-label={
+                    turn.delta === null ? "Reset rotation" : `Rotate ${turn.label}`
+                  }
+                >
+                  {turn.label}
+                </button>
+              </StudioTip>
             ))}
           </div>
         </div>

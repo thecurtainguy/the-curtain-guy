@@ -33,6 +33,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ChoiceTile } from "./library/studio-library-ui";
+import { StudioTip } from "./studio-tip";
 
 type RoomFinishPanelProps = {
   design: StudioDesignJson;
@@ -406,6 +407,7 @@ export function RoomFinishPanel({
                 selected={ceiling === option.value}
                 onSelect={() => updateMaterials({ ceiling: option.value })}
                 label={CEILING_TILE_LABELS[option.value]}
+                tip={option.label}
                 preview={<CeilingPreview finish={option.value} />}
               />
             ))}
@@ -447,40 +449,41 @@ export function RoomFinishPanel({
           id={gid("uplight")}
         >
           <div className="grid grid-cols-7 gap-1.5" role="radiogroup" aria-labelledby={gid("uplight")}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={uplight === null}
-              aria-label="No uplighting"
-              title="No uplighting"
-              onClick={() => updateMaterials({ uplightColor: null })}
-              className={cn(
-                "flex aspect-square w-full items-center justify-center rounded-full border border-border/60 bg-background/50 text-muted-foreground transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:scale-100",
-                uplight === null && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-              )}
-            >
-              <Ban className="size-3.5" aria-hidden />
-            </button>
+            <StudioTip label="No uplighting">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={uplight === null}
+                aria-label="No uplighting"
+                onClick={() => updateMaterials({ uplightColor: null })}
+                className={cn(
+                  "flex aspect-square w-full items-center justify-center rounded-full border border-border/60 bg-background/50 text-muted-foreground transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:scale-100",
+                  uplight === null && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                )}
+              >
+                <Ban className="size-3.5" aria-hidden />
+              </button>
+            </StudioTip>
             {DRAPE_COLORS.map((color) => {
               const selected = uplight === color.value;
               return (
-                <button
-                  key={color.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={`${color.label} uplighting`}
-                  title={color.label}
-                  onClick={() => updateMaterials({ uplightColor: color.value })}
-                  className={cn(
-                    "aspect-square w-full rounded-full border border-white/15 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:scale-100",
-                    selected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                  )}
-                  style={{
-                    background: `radial-gradient(circle at 50% 100%, ${color.hex}, ${color.hex}cc 45%, ${color.hex}55)`,
-                    boxShadow: selected ? `0 0 12px ${color.hex}` : undefined,
-                  }}
-                />
+                <StudioTip key={color.value} label={`${color.label} uplighting`}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={`${color.label} uplighting`}
+                    onClick={() => updateMaterials({ uplightColor: color.value })}
+                    className={cn(
+                      "aspect-square w-full rounded-full border border-white/15 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:scale-100",
+                      selected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    )}
+                    style={{
+                      background: `radial-gradient(circle at 50% 100%, ${color.hex}, ${color.hex}cc 45%, ${color.hex}55)`,
+                      boxShadow: selected ? `0 0 12px ${color.hex}` : undefined,
+                    }}
+                  />
+                </StudioTip>
               );
             })}
           </div>
@@ -501,6 +504,7 @@ export function RoomFinishPanel({
                 onSelect={() => setWallDisplay(option.value)}
                 icon={WALL_DISPLAY_META[option.value].icon}
                 label={WALL_DISPLAY_META[option.value].label}
+                tip={option.label}
               />
             ))}
           </div>

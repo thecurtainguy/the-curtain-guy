@@ -17,7 +17,6 @@ import {
   type FabricHighlight,
 } from "../fabric/drape-assembly";
 import { getRimMaterial } from "../fabric/materials";
-import { hashSeed } from "../texture-utils";
 import { useCameraInsideRoom } from "../venue/camera-inside-store";
 import {
   buildCeilingFabric,
@@ -27,8 +26,6 @@ import {
 } from "./fabric/build";
 import { CeilingHubDecor } from "./fabric/hub-decor";
 import { getCeilingFabricMaterial, getFadedMaterial } from "./fabric/materials";
-import { CeilingStarlight } from "./fabric/starlight";
-
 const noRaycast = () => null;
 
 function CeilingFabricMesh({
@@ -115,15 +112,6 @@ const CeilingDrapeFabric = memo(function CeilingDrapeFabric({
           />
         );
       })}
-      {drape.lights === "starlight" ? (
-        <CeilingStarlight
-          pieces={build.pieces}
-          quality={quality}
-          color={drape.lightColor}
-          seed={hashSeed(drape.id) ^ 0x51ed}
-          faded={faded}
-        />
-      ) : null}
       {build.hub && ceilingUsesHub(drape.type) ? (
         <CeilingHubDecor
           drape={drape}

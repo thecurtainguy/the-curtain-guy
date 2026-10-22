@@ -77,6 +77,7 @@ import {
 } from "./editor/studio-editor-context";
 import { preloadStudio3D } from "./studio-3d-lazy";
 import { StudioShortcutsDialog } from "./studio-shortcuts-dialog";
+import { StudioTip } from "./studio-tip";
 import type {
   StudioAccessMode,
   StudioSaveState,
@@ -545,24 +546,28 @@ export const StudioToolbar = memo(function StudioToolbar({
           </DropdownMenu>
 
           <div className="ml-auto flex gap-1.5 lg:hidden">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={onOpenTools}
-              aria-label="Open design tools"
-            >
-              <Menu aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={onOpenProperties}
-              aria-label="Open properties"
-            >
-              <PanelRight aria-hidden="true" />
-            </Button>
+            <StudioTip label="Open design tools" side="bottom">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={onOpenTools}
+                aria-label="Open design tools"
+              >
+                <Menu aria-hidden="true" />
+              </Button>
+            </StudioTip>
+            <StudioTip label="Open properties" side="bottom">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={onOpenProperties}
+                aria-label="Open properties"
+              >
+                <PanelRight aria-hidden="true" />
+              </Button>
+            </StudioTip>
           </div>
         </div>
 
@@ -575,7 +580,7 @@ export const StudioToolbar = memo(function StudioToolbar({
             role="status"
             aria-live="polite"
             aria-atomic="true"
-            title={saveMessage}
+            data-studio-tip={saveMessage || undefined}
           >
             {saving ? (
               <LoaderCircle className="size-3 animate-spin motion-reduce:animate-none" />
@@ -740,6 +745,7 @@ function SnapPopover() {
           <SwitchButton
             checked={settings.snapEnabled}
             label="Snap to grid"
+            shortcut="G"
             onChange={(snapEnabled) => updateSettings({ snapEnabled })}
           />
         </div>
@@ -849,23 +855,27 @@ function SnapTiles({
 function SwitchButton({
   checked,
   label,
+  shortcut,
   onChange,
 }: {
   checked: boolean;
   label: string;
+  shortcut?: string;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <SwitchTrack checked={checked} />
-    </button>
+    <StudioTip label={label} shortcut={shortcut}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        onClick={() => onChange(!checked)}
+        className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <SwitchTrack checked={checked} />
+      </button>
+    </StudioTip>
   );
 }
 

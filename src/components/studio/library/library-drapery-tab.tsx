@@ -42,6 +42,7 @@ import {
   Waves,
   type LucideIcon,
 } from "lucide-react";
+import { StudioTip } from "../studio-tip";
 import type { StudioSelection } from "../studio-types";
 import { CeilingStyleArt } from "./ceiling-style-art";
 import { STUDIO_OBJECT_ICONS } from "./studio-library-icons";
@@ -338,21 +339,21 @@ export function LibraryDraperyTab({
             {DRAPE_COLORS.map((color) => {
               const selected = style.color === color.value;
               return (
-                <button
-                  key={color.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  aria-label={color.label}
-                  title={color.label}
-                  onClick={() => onStyleChange({ ...style, color: color.value })}
-                  className={cn(
-                    "aspect-square w-full rounded-full border border-white/15 shadow-inner transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:scale-100",
-                    selected &&
-                      "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                  )}
-                  style={{ backgroundColor: color.hex }}
-                />
+                <StudioTip key={color.value} label={color.label}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={color.label}
+                    onClick={() => onStyleChange({ ...style, color: color.value })}
+                    className={cn(
+                      "aspect-square w-full rounded-full border border-white/15 shadow-inner transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:hover:scale-100",
+                      selected &&
+                        "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    )}
+                    style={{ backgroundColor: color.hex }}
+                  />
+                </StudioTip>
               );
             })}
           </div>

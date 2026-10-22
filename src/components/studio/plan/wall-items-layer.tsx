@@ -684,12 +684,12 @@ export const WallItemsLayer2D = memo(function WallItemsLayer2D({
                   key={edge}
                   className={`${handleCursor(wall)} touch-none`}
                   aria-hidden
+                  data-studio-tip={
+                    entry.kind === "opening" ? "Drag to resize the opening" : "Drag to resize the span"
+                  }
                   onPointerDown={(event) => beginDrag(event, entry, edge)}
                   onClick={(event) => event.stopPropagation()}
                 >
-                  <title>
-                    {entry.kind === "opening" ? "Drag to resize the opening" : "Drag to resize the span"}
-                  </title>
                   <circle cx={x} cy={y} r={r * 1.7} fill="transparent" />
                   {y !== anchorY ? (
                     <line

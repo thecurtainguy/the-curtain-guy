@@ -74,7 +74,10 @@ export function PlanMinimap({
   }
 
   return (
-    <div className="pointer-events-auto overflow-hidden rounded-2xl border border-border/60 bg-background/95 p-1.5 shadow-lg">
+    <div
+      className="pointer-events-auto overflow-hidden rounded-2xl border border-border/60 bg-background/95 p-1.5 shadow-lg"
+      data-studio-tip="Click or drag to move the view"
+    >
       <svg
         width={MAP_WIDTH}
         height={MAP_HEIGHT}

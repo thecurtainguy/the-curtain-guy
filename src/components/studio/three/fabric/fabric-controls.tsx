@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
+import { StudioTip } from "../../studio-tip";
 import { mix, shade } from "../color-utils";
 
 export const HARDWARE_META: Record<
@@ -302,55 +303,56 @@ export function ColorSwatchGrid({
       </div>
       <div role="radiogroup" aria-label={label} className="grid grid-cols-6 gap-1.5">
         {noneLabel ? (
-          <button
-            type="button"
-            role="radio"
-            aria-checked={value === null}
-            aria-label={noneLabel}
-            title={noneLabel}
-            onClick={() => onChange(null)}
-            className={cn(
-              "flex aspect-square items-center justify-center rounded-xl border border-border/40 bg-card/40 text-muted-foreground transition-all hover:border-primary/30",
-              "focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
-              value === null && "border-primary/60 bg-primary/10 text-primary"
-            )}
-          >
-            <Ban className="size-4" aria-hidden />
-          </button>
+          <StudioTip label={noneLabel}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={value === null}
+              aria-label={noneLabel}
+              onClick={() => onChange(null)}
+              className={cn(
+                "flex aspect-square items-center justify-center rounded-xl border border-border/40 bg-card/40 text-muted-foreground transition-all hover:border-primary/30",
+                "focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
+                value === null && "border-primary/60 bg-primary/10 text-primary"
+              )}
+            >
+              <Ban className="size-4" aria-hidden />
+            </button>
+          </StudioTip>
         ) : null}
         {DRAPE_COLORS.map((color) => {
           const selected = color.value === value;
           return (
-            <button
-              key={color.value}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-label={color.label}
-              title={color.label}
-              onClick={() => onChange(color.value)}
-              className={cn(
-                "group relative flex aspect-square items-center justify-center rounded-xl border border-border/40 bg-card/40 p-1 transition-all hover:-translate-y-px hover:border-primary/30",
-                "focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
-                selected && "border-primary/60 bg-primary/10"
-              )}
-            >
-              <span
-                aria-hidden
+            <StudioTip key={color.value} label={color.label}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={color.label}
+                onClick={() => onChange(color.value)}
                 className={cn(
-                  "size-full rounded-full shadow-inner ring-1 ring-white/10",
-                  selected && "ring-2 ring-primary/70"
+                  "group relative flex aspect-square items-center justify-center rounded-xl border border-border/40 bg-card/40 p-1 transition-all hover:-translate-y-px hover:border-primary/30",
+                  "focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
+                  selected && "border-primary/60 bg-primary/10"
                 )}
-                style={{
-                  background: `radial-gradient(circle at 32% 28%, ${mix(color.hex, "#ffffff", 0.35)}, ${color.hex} 55%, ${shade(color.hex, 0.62)})`,
-                }}
-              />
-              {selected ? (
-                <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                  <Check className="size-2.5" strokeWidth={3} aria-hidden />
-                </span>
-              ) : null}
-            </button>
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-full rounded-full shadow-inner ring-1 ring-white/10",
+                    selected && "ring-2 ring-primary/70"
+                  )}
+                  style={{
+                    background: `radial-gradient(circle at 32% 28%, ${mix(color.hex, "#ffffff", 0.35)}, ${color.hex} 55%, ${shade(color.hex, 0.62)})`,
+                  }}
+                />
+                {selected ? (
+                  <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                    <Check className="size-2.5" strokeWidth={3} aria-hidden />
+                  </span>
+                ) : null}
+              </button>
+            </StudioTip>
           );
         })}
       </div>
@@ -496,27 +498,35 @@ export function Stepper({
         {hint ? <p className="mt-0.5 text-[0.65rem] text-muted-foreground">{hint}</p> : null}
       </div>
       <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          aria-label={`Decrease ${label}`}
-          disabled={value <= min}
-          onClick={() => onChange(Math.max(min, value - 1))}
-          className="flex size-7 items-center justify-center rounded-lg border border-border/50 bg-card/50 text-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-40"
-        >
-          <Minus className="size-3.5" aria-hidden />
-        </button>
+        <StudioTip label={`Fewer ${label.toLowerCase()}`}>
+          <span className="inline-flex">
+            <button
+              type="button"
+              aria-label={`Decrease ${label}`}
+              disabled={value <= min}
+              onClick={() => onChange(Math.max(min, value - 1))}
+              className="flex size-7 items-center justify-center rounded-lg border border-border/50 bg-card/50 text-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-40"
+            >
+              <Minus className="size-3.5" aria-hidden />
+            </button>
+          </span>
+        </StudioTip>
         <span className="w-6 text-center font-heading text-base text-primary" aria-live="polite">
           {value}
         </span>
-        <button
-          type="button"
-          aria-label={`Increase ${label}`}
-          disabled={value >= max}
-          onClick={() => onChange(Math.min(max, value + 1))}
-          className="flex size-7 items-center justify-center rounded-lg border border-border/50 bg-card/50 text-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-40"
-        >
-          <Plus className="size-3.5" aria-hidden />
-        </button>
+        <StudioTip label={`More ${label.toLowerCase()}`}>
+          <span className="inline-flex">
+            <button
+              type="button"
+              aria-label={`Increase ${label}`}
+              disabled={value >= max}
+              onClick={() => onChange(Math.min(max, value + 1))}
+              className="flex size-7 items-center justify-center rounded-lg border border-border/50 bg-card/50 text-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-40"
+            >
+              <Plus className="size-3.5" aria-hidden />
+            </button>
+          </span>
+        </StudioTip>
       </div>
     </div>
   );

@@ -5,12 +5,27 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { getCeilingPlacement } from "../../editor/ceiling-placement-store";
 import { setStudioPointerLocked, type StudioCameraMode } from "./camera-view-store";
+import { getMouseLookSpeed } from "./mouse-look-speed";
 import { hitsManipulable } from "./scene-hits";
 
-/** Radians of turn per pixel of mouse travel while locked. */
-const TURN_PER_PIXEL = 0.0022;
-/** Some browsers report one huge jump right after locking. */
-const MAX_STEP_PX = 250;
+/** Radians of turn per mouse count at speed 1 and the reference field of view. */
+const TURN_PER_COUNT = 0.0008;
+/** Narrower lenses turn proportionally slower so aim stays steady when zoomed. */
+const REFERENCE_FOV = 60;
+/** Movement right after locking is unreliable (Chrome reports the cursor warp). */
+const LOCK_SETTLE_MS = 120;
+/**
+ * Chrome on Windows occasionally reports one wildly large movement while
+ * locked. A report this big is only trusted when recent motion was already
+ * fast (a real flick ramps up); anything past the hard cap is always noise.
+ */
+const SPIKE_FLOOR = 160;
+const SPIKE_RATIO = 5;
+const MAX_STEP = 420;
+/** Motion older than this no longer vouches for a large report. */
+const MOTION_MEMORY_MS = 120;
+/** Crosshair hover re-raycasts the scene; cap it while the head turns. */
+const HOVER_REPLAY_MS = 80;
 /** A click on empty canvas waits this long in case it becomes a double-click (glide). */
 const LOCK_DELAY_MS = 260;
 const CLICK_SLOP_PX = 4;
@@ -68,7 +83,21 @@ export function usePointerLook(
     let press: { x: number; y: number } | null = null;
     let pendingLock = 0;
     let hoverFrame = 0;
+    let hoverTimer = 0;
+    let lastHoverAt = -Infinity;
     let releasedAt = -Infinity;
+    let lockedAt = -Infinity;
+    let recentStep = 0;
+    let lastStepAt = -Infinity;
+    /** Raw (unaccelerated) input when the browser supports it. */
+    let rawInput = true;
+
+    const cancelHover = () => {
+      if (hoverFrame) window.cancelAnimationFrame(hoverFrame);
+      if (hoverTimer) window.clearTimeout(hoverTimer);
+      hoverFrame = 0;
+      hoverTimer = 0;
+    };
 
     const cancelPendingLock = () => {
       if (pendingLock) window.clearTimeout(pendingLock);
@@ -79,13 +108,15 @@ export function usePointerLook(
       return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     };
     const showLocked = (locked: boolean) => {
-      if (!locked && crosshair.style.display !== "none") releasedAt = performance.now();
+      const wasLocked = crosshair.style.display !== "none";
+      if (!locked && wasLocked) releasedAt = performance.now();
+      if (locked && !wasLocked) {
+        lockedAt = performance.now();
+        recentStep = 0;
+      }
       crosshair.style.display = locked ? "flex" : "none";
       setStudioPointerLocked(locked);
-      if (!locked && hoverFrame) {
-        window.cancelAnimationFrame(hoverFrame);
-        hoverFrame = 0;
-      }
+      if (!locked) cancelHover();
       optionsRef.current.getState().invalidate();
     };
     const pressesItem = (clientX: number, clientY: number) => {
@@ -100,8 +131,18 @@ export function usePointerLook(
     };
     const requestLock = () => {
       try {
-        const request = domElement.requestPointerLock() as Promise<void> | undefined;
-        request?.catch?.(() => showLocked(false));
+        const raw = rawInput;
+        const request = domElement.requestPointerLock(
+          raw ? { unadjustedMovement: true } : undefined
+        ) as Promise<void> | undefined;
+        request?.catch?.((error: unknown) => {
+          if (raw && error instanceof DOMException && error.name === "NotSupportedError") {
+            rawInput = false;
+            requestLock();
+            return;
+          }
+          showLocked(false);
+        });
       } catch {
         showLocked(false);
       }
@@ -136,7 +177,20 @@ export function usePointerLook(
     };
     const hoverCentre = () => {
       hoverFrame = 0;
+      lastHoverAt = performance.now();
       if (isLocked()) replay("pointermove");
+    };
+    const scheduleHover = () => {
+      if (hoverFrame || hoverTimer) return;
+      const wait = HOVER_REPLAY_MS - (performance.now() - lastHoverAt);
+      if (wait <= 0) {
+        hoverFrame = window.requestAnimationFrame(hoverCentre);
+        return;
+      }
+      hoverTimer = window.setTimeout(() => {
+        hoverTimer = 0;
+        hoverFrame = window.requestAnimationFrame(hoverCentre);
+      }, wait);
     };
 
     /* Locked: the real pointer is frozen, so keep its events away from R3F,
@@ -144,12 +198,22 @@ export function usePointerLook(
     const onLockedMove = (event: PointerEvent) => {
       if (!event.isTrusted || !isLocked()) return;
       event.stopImmediatePropagation();
-      const dx = THREE.MathUtils.clamp(event.movementX, -MAX_STEP_PX, MAX_STEP_PX);
-      const dy = THREE.MathUtils.clamp(event.movementY, -MAX_STEP_PX, MAX_STEP_PX);
+      const now = performance.now();
+      if (now - lockedAt < LOCK_SETTLE_MS) return;
+      const dx = event.movementX;
+      const dy = event.movementY;
       if (!dx && !dy) return;
-      optionsRef.current.onTurn(-dx * TURN_PER_PIXEL, -dy * TURN_PER_PIXEL);
+      const step = Math.hypot(dx, dy);
+      if (now - lastStepAt > MOTION_MEMORY_MS) recentStep = 0;
+      if (step > MAX_STEP || (step > SPIKE_FLOOR && step > recentStep * SPIKE_RATIO)) return;
+      recentStep = recentStep * 0.6 + step * 0.4;
+      lastStepAt = now;
+      const camera = optionsRef.current.getState().camera as THREE.PerspectiveCamera;
+      const fov = camera.isPerspectiveCamera ? camera.fov : REFERENCE_FOV;
+      const gain = TURN_PER_COUNT * getMouseLookSpeed() * (fov / REFERENCE_FOV);
+      optionsRef.current.onTurn(-dx * gain, -dy * gain);
       optionsRef.current.onActivity();
-      if (!hoverFrame) hoverFrame = window.requestAnimationFrame(hoverCentre);
+      scheduleHover();
     };
     const onLockedButton = (event: MouseEvent) => {
       if (!event.isTrusted || !isLocked()) return;
@@ -217,7 +281,7 @@ export function usePointerLook(
     window.addEventListener("keydown", onEscape, capture);
     return () => {
       cancelPendingLock();
-      if (hoverFrame) window.cancelAnimationFrame(hoverFrame);
+      cancelHover();
       domElement.removeEventListener("pointermove", onLockedMove, capture);
       domElement.removeEventListener("pointerdown", onLockedButton, capture);
       domElement.removeEventListener("pointerup", onLockedButton, capture);

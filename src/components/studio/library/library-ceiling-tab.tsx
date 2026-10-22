@@ -41,6 +41,7 @@ import {
   useOptionalStudioView,
 } from "../editor/studio-editor-context";
 import { getCeilingStyleLabel } from "../inspector/studio-item-meta";
+import { StudioTip } from "../studio-tip";
 import type { StudioSelection } from "../studio-types";
 import { CeilingStyleArt } from "./ceiling-style-art";
 import {
@@ -230,14 +231,16 @@ export function LibraryCeilingTab({
               Click the ceiling in 3D, or inside the room on the 2D plan. Esc cancels.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={disarmCeilingPlacement}
-            aria-label="Cancel placement"
-            className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border/40 bg-background/50 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-          >
-            <X className="size-3.5" aria-hidden />
-          </button>
+          <StudioTip label="Cancel placement" shortcut="Esc">
+            <button
+              type="button"
+              onClick={disarmCeilingPlacement}
+              aria-label="Cancel placement"
+              className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border/40 bg-background/50 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            >
+              <X className="size-3.5" aria-hidden />
+            </button>
+          </StudioTip>
         </div>
       ) : null}
 
@@ -360,37 +363,55 @@ function CardActions({
 }) {
   const base =
     "flex h-7 items-center justify-center gap-1 rounded-lg border text-[0.62rem] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-40";
+  const limitTip = `Room is at the ${STUDIO_MAX_CEILING_DRAPES}-ceiling limit`;
   return (
     <div className="grid grid-cols-2 gap-1 px-1.5 pb-1.5">
-      <button
-        type="button"
-        onClick={onAdd}
-        disabled={disabled}
-        aria-label={`Add ${label} centred in the room`}
-        className={cn(
-          base,
-          "border-primary/35 bg-primary/15 text-primary hover:bg-primary/25"
-        )}
-      >
-        <Plus className="size-3" aria-hidden />
-        Add
-      </button>
-      <button
-        type="button"
-        onClick={onPlace}
-        disabled={disabled && !armed}
-        aria-pressed={armed}
-        aria-label={armed ? `Cancel placing ${label}` : `Place ${label} by clicking the room`}
-        className={cn(
-          base,
+      <StudioTip label={disabled ? limitTip : `Add ${label} to the centre of the room`}>
+        <span className="grid">
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={disabled}
+            aria-label={`Add ${label} centred in the room`}
+            className={cn(
+              base,
+              "border-primary/35 bg-primary/15 text-primary hover:bg-primary/25"
+            )}
+          >
+            <Plus className="size-3" aria-hidden />
+            Add
+          </button>
+        </span>
+      </StudioTip>
+      <StudioTip
+        label={
           armed
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-border/50 bg-background/40 text-muted-foreground hover:border-primary/35 hover:text-primary"
-        )}
+            ? `Cancel placing ${label}`
+            : disabled
+              ? limitTip
+              : `Place ${label} by clicking the room`
+        }
+        shortcut={armed ? "Esc" : undefined}
       >
-        <Crosshair className="size-3" aria-hidden />
-        {armed ? "Placing" : "Place"}
-      </button>
+        <span className="grid">
+          <button
+            type="button"
+            onClick={onPlace}
+            disabled={disabled && !armed}
+            aria-pressed={armed}
+            aria-label={armed ? `Cancel placing ${label}` : `Place ${label} by clicking the room`}
+            className={cn(
+              base,
+              armed
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border/50 bg-background/40 text-muted-foreground hover:border-primary/35 hover:text-primary"
+            )}
+          >
+            <Crosshair className="size-3" aria-hidden />
+            {armed ? "Placing" : "Place"}
+          </button>
+        </span>
+      </StudioTip>
     </div>
   );
 }

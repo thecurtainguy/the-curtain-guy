@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { Check, GripVertical, Plus, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StudioTip } from "../studio-tip";
 
 export function matchesLibraryQuery(query: string, ...fields: string[]) {
   const needle = query.trim().toLowerCase();
@@ -107,55 +108,56 @@ export function LibraryTile({
 }) {
   const draggable = Boolean(onDragStart) && !disabled;
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      draggable={draggable}
-      onDragStart={draggable ? onDragStart : undefined}
-      title={draggable ? `${label} — click to add or drag onto the plan` : label}
-      className={cn(
-        "group relative flex min-w-0 flex-col gap-2 rounded-2xl border border-border/40 bg-card/30 p-2.5 text-left transition-all duration-200 motion-reduce:transition-none",
-        "hover:-translate-y-px hover:border-primary/35 hover:bg-primary/5 active:scale-[0.99] motion-reduce:hover:translate-y-0",
-        "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-        "disabled:pointer-events-none disabled:opacity-45",
-        draggable && "cursor-grab active:cursor-grabbing",
-        className
-      )}
-    >
-      <span className="flex items-start justify-between gap-1">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
-          <Icon className="size-4" aria-hidden />
-        </span>
-        {accent ??
-          (draggable ? (
-            <GripVertical
-              className="size-3.5 text-muted-foreground/50 transition-colors group-hover:text-primary/70"
-              aria-hidden
-            />
-          ) : (
-            <Plus
-              className="size-3.5 text-muted-foreground/50 transition-colors group-hover:text-primary/70"
-              aria-hidden
-            />
-          ))}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-xs font-semibold text-foreground">
-          {label}
-        </span>
-        {description ? (
-          <span className="mt-0.5 block truncate text-[0.62rem] leading-tight text-muted-foreground">
-            {description}
+    <StudioTip label={draggable ? `${label} — click to add or drag onto the plan` : label}>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onClick}
+        draggable={draggable}
+        onDragStart={draggable ? onDragStart : undefined}
+        className={cn(
+          "group relative flex min-w-0 flex-col gap-2 rounded-2xl border border-border/40 bg-card/30 p-2.5 text-left transition-all duration-200 motion-reduce:transition-none",
+          "hover:-translate-y-px hover:border-primary/35 hover:bg-primary/5 active:scale-[0.99] motion-reduce:hover:translate-y-0",
+          "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+          "disabled:pointer-events-none disabled:opacity-45",
+          draggable && "cursor-grab active:cursor-grabbing",
+          className
+        )}
+      >
+        <span className="flex items-start justify-between gap-1">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+            <Icon className="size-4" aria-hidden />
           </span>
-        ) : null}
-        {meta ? (
-          <span className="mt-1 block text-[0.6rem] font-medium tracking-wide text-primary/80 tabular-nums">
-            {meta}
+          {accent ??
+            (draggable ? (
+              <GripVertical
+                className="size-3.5 text-muted-foreground/50 transition-colors group-hover:text-primary/70"
+                aria-hidden
+              />
+            ) : (
+              <Plus
+                className="size-3.5 text-muted-foreground/50 transition-colors group-hover:text-primary/70"
+                aria-hidden
+              />
+            ))}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-xs font-semibold text-foreground">
+            {label}
           </span>
-        ) : null}
-      </span>
-    </button>
+          {description ? (
+            <span className="mt-0.5 block truncate text-[0.62rem] leading-tight text-muted-foreground">
+              {description}
+            </span>
+          ) : null}
+          {meta ? (
+            <span className="mt-1 block text-[0.6rem] font-medium tracking-wide text-primary/80 tabular-nums">
+              {meta}
+            </span>
+          ) : null}
+        </span>
+      </button>
+    </StudioTip>
   );
 }
 
@@ -169,6 +171,7 @@ export function ChoiceTile({
   preview,
   className,
   compact,
+  tip,
 }: {
   selected: boolean;
   onSelect: () => void;
@@ -178,54 +181,58 @@ export function ChoiceTile({
   preview?: React.ReactNode;
   className?: string;
   compact?: boolean;
+  /** Branded tooltip, e.g. the full name when the tile label is abbreviated. */
+  tip?: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      onClick={onSelect}
-      className={cn(
-        "group relative flex min-w-0 flex-col gap-1.5 rounded-2xl border text-left transition-all duration-200 motion-reduce:transition-none",
-        compact ? "p-1.5" : "p-2.5",
-        "border-border/40 bg-card/30 hover:border-primary/30 hover:bg-card/55",
-        "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-        selected &&
-          "border-primary/55 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]",
-        className
-      )}
-    >
-      <SelectionDot
-        selected={selected}
-        className="absolute top-1.5 right-1.5 z-10 shadow-sm"
-      />
-      {preview}
-      {Icon ? (
-        <span
-          className={cn(
-            "flex size-7 items-center justify-center rounded-lg transition-colors",
-            selected ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary/80"
-          )}
-        >
-          <Icon className="size-3.5" aria-hidden />
-        </span>
-      ) : null}
-      <span className="min-w-0 pr-3">
-        <span
-          className={cn(
-            "block truncate font-medium text-foreground",
-            compact ? "text-[0.62rem]" : "text-xs"
-          )}
-        >
-          {label}
-        </span>
-        {description ? (
-          <span className="mt-0.5 block truncate text-[0.6rem] leading-tight text-muted-foreground">
-            {description}
+    <StudioTip label={tip}>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        onClick={onSelect}
+        className={cn(
+          "group relative flex min-w-0 flex-col gap-1.5 rounded-2xl border text-left transition-all duration-200 motion-reduce:transition-none",
+          compact ? "p-1.5" : "p-2.5",
+          "border-border/40 bg-card/30 hover:border-primary/30 hover:bg-card/55",
+          "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+          selected &&
+            "border-primary/55 bg-primary/10 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/20%)]",
+          className
+        )}
+      >
+        <SelectionDot
+          selected={selected}
+          className="absolute top-1.5 right-1.5 z-10 shadow-sm"
+        />
+        {preview}
+        {Icon ? (
+          <span
+            className={cn(
+              "flex size-7 items-center justify-center rounded-lg transition-colors",
+              selected ? "bg-primary/20 text-primary" : "bg-primary/10 text-primary/80"
+            )}
+          >
+            <Icon className="size-3.5" aria-hidden />
           </span>
         ) : null}
-      </span>
-    </button>
+        <span className="min-w-0 pr-3">
+          <span
+            className={cn(
+              "block truncate font-medium text-foreground",
+              compact ? "text-[0.62rem]" : "text-xs"
+            )}
+          >
+            {label}
+          </span>
+          {description ? (
+            <span className="mt-0.5 block truncate text-[0.6rem] leading-tight text-muted-foreground">
+              {description}
+            </span>
+          ) : null}
+        </span>
+      </button>
+    </StudioTip>
   );
 }
 

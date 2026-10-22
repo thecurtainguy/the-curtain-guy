@@ -3,18 +3,19 @@
 import { cn } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
 import { useId, useState } from "react";
+import { StudioTip } from "../studio-tip";
 import { FieldLabel } from "./inspector-ui";
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
 const QUICK_TINTS = [
-  "#f4f2ed",
-  "#171513",
-  "#b98b3d",
-  "#c99b9e",
-  "#1f5a45",
-  "#1d2a44",
-  "#5a1f2b",
+  { hex: "#f4f2ed", label: "White" },
+  { hex: "#171513", label: "Black" },
+  { hex: "#b98b3d", label: "Gold" },
+  { hex: "#c99b9e", label: "Blush" },
+  { hex: "#1f5a45", label: "Emerald" },
+  { hex: "#1d2a44", label: "Navy" },
+  { hex: "#5a1f2b", label: "Burgundy" },
 ] as const;
 
 /** `#rrggbb` tint with native picker, hex entry, quick tints and reset. */
@@ -40,22 +41,24 @@ export function TintField({
         Tint
       </FieldLabel>
       <div className="flex items-center gap-2">
-        <label
-          className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-border/50 shadow-inner"
-          style={{
-            background:
-              value ??
-              "repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in oklch,var(--muted-foreground) 35%,transparent) 5px 6px)",
-          }}
-        >
-          <span className="sr-only">Pick tint colour</span>
-          <input
-            type="color"
-            value={value ?? "#c9ab78"}
-            onChange={(event) => onChange(event.target.value.toLowerCase())}
-            className="absolute inset-0 size-full cursor-pointer opacity-0"
-          />
-        </label>
+        <StudioTip label="Pick a custom tint">
+          <label
+            className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-border/50 shadow-inner"
+            style={{
+              background:
+                value ??
+                "repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in oklch,var(--muted-foreground) 35%,transparent) 5px 6px)",
+            }}
+          >
+            <span className="sr-only">Pick tint colour</span>
+            <input
+              type="color"
+              value={value ?? "#c9ab78"}
+              onChange={(event) => onChange(event.target.value.toLowerCase())}
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+            />
+          </label>
+        </StudioTip>
         <input
           id={`${id}-hex`}
           value={draft ?? value ?? ""}
@@ -77,29 +80,32 @@ export function TintField({
             invalid && "border-destructive/60"
           )}
         />
-        <button
-          type="button"
-          onClick={() => onChange(undefined)}
-          disabled={!value && !mixed}
-          className="flex h-9 items-center gap-1 rounded-xl border border-border/40 bg-card/35 px-2.5 text-[0.65rem] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-40"
-        >
-          <RotateCcw className="size-3" aria-hidden="true" />
-          Reset
-        </button>
+        <StudioTip label="Clear tint and use the finish colour" disabled={!value && !mixed}>
+          <button
+            type="button"
+            onClick={() => onChange(undefined)}
+            disabled={!value && !mixed}
+            className="flex h-9 items-center gap-1 rounded-xl border border-border/40 bg-card/35 px-2.5 text-[0.65rem] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-40"
+          >
+            <RotateCcw className="size-3" aria-hidden="true" />
+            Reset
+          </button>
+        </StudioTip>
       </div>
       <div className="flex gap-1.5" aria-label="Quick tints">
         {QUICK_TINTS.map((tint) => (
-          <button
-            key={tint}
-            type="button"
-            onClick={() => onChange(tint)}
-            aria-label={`Tint ${tint}`}
-            className={cn(
-              "size-6 rounded-lg border border-border/50 shadow-inner transition-transform hover:-translate-y-px",
-              value === tint && "ring-2 ring-primary ring-offset-1 ring-offset-background"
-            )}
-            style={{ backgroundColor: tint }}
-          />
+          <StudioTip key={tint.hex} label={tint.label}>
+            <button
+              type="button"
+              onClick={() => onChange(tint.hex)}
+              aria-label={`Tint ${tint.hex}`}
+              className={cn(
+                "size-6 rounded-lg border border-border/50 shadow-inner transition-transform hover:-translate-y-px",
+                value === tint.hex && "ring-2 ring-primary ring-offset-1 ring-offset-background"
+              )}
+              style={{ backgroundColor: tint.hex }}
+            />
+          </StudioTip>
         ))}
       </div>
     </div>

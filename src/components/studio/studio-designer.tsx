@@ -5,6 +5,7 @@ import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-change
 import { UserPlus } from "lucide-react";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Dialog } from "@/components/ui/dialog";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   STUDIO_TITLE_MAX_LENGTH,
   cloneStudioTemplate,
@@ -25,6 +26,7 @@ import {
 } from "react";
 import { Studio2DEditor } from "./studio-2d-editor";
 import { Studio3DViewer } from "./studio-3d-lazy";
+import { StudioHoverTip } from "./studio-hover-tip";
 import { StudioLeftRail } from "./studio-left-rail";
 import { StudioPresentBar } from "./studio-present-bar";
 import { StudioRightRail } from "./studio-right-rail";
@@ -481,87 +483,90 @@ export function StudioDesigner(props: StudioDesignerProps) {
 
   return (
     <StudioEditorProvider state={editor} presenting={presenting}>
-      <StudioShell
-        className={className}
-        toolsOpen={toolsOpen}
-        onToolsOpenChange={setToolsOpen}
-        propertiesOpen={propertiesOpen}
-        onPropertiesOpenChange={setPropertiesOpen}
-        leftRail={renderLeftRail("studio-desktop-tools")}
-        rightRail={renderRightRail("studio-desktop-properties")}
-        mobileLeftRail={renderLeftRail("studio-mobile-tools")}
-        mobileRightRail={renderRightRail("studio-mobile-properties")}
-        fullscreen={fullscreen}
-        presenting={presenting}
-        presentBar={
-          <StudioPresentBar
-            title={title}
-            fullscreen={fullscreen}
-            onToggleFullscreen={toggleStudioFullscreen}
-            onExit={togglePresent}
-          />
-        }
-        toolbar={
-          <StudioToolbar
-            title={title}
-            onTitleChange={changeTitle}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            saveState={saveState}
-            saveMessage={saveMessage}
-            accessMode={accessMode}
-            onSave={onSave}
-            onOpenTools={openTools}
-            onOpenProperties={openProperties}
-            titleEditable={!isEventMode}
-            eventTypeLabel={isEventMode ? eventTypeLabel : undefined}
-            saveHidden={isEventMode && accessMode === "guest"}
-            fullscreen={fullscreen}
-            onToggleFullscreen={toggleStudioFullscreen}
-            presenting={presenting}
-            onTogglePresent={togglePresent}
-          />
-        }
-      >
-        {/* One stable tree for 2D / 3D / Split / Present: switching modes only
-            changes the grid, so the WebGL context and camera survive. */}
-        <div
-          className={cn(
-            "grid h-full min-h-0 min-w-0",
-            split
-              ? "grid-rows-2 lg:grid-cols-2 lg:grid-rows-1"
-              : "grid-cols-1 grid-rows-1"
-          )}
+      <TooltipProvider delayDuration={300} skipDelayDuration={400}>
+        <StudioHoverTip />
+        <StudioShell
+          className={className}
+          toolsOpen={toolsOpen}
+          onToolsOpenChange={setToolsOpen}
+          propertiesOpen={propertiesOpen}
+          onPropertiesOpenChange={setPropertiesOpen}
+          leftRail={renderLeftRail("studio-desktop-tools")}
+          rightRail={renderRightRail("studio-desktop-properties")}
+          mobileLeftRail={renderLeftRail("studio-mobile-tools")}
+          mobileRightRail={renderRightRail("studio-mobile-properties")}
+          fullscreen={fullscreen}
+          presenting={presenting}
+          presentBar={
+            <StudioPresentBar
+              title={title}
+              fullscreen={fullscreen}
+              onToggleFullscreen={toggleStudioFullscreen}
+              onExit={togglePresent}
+            />
+          }
+          toolbar={
+            <StudioToolbar
+              title={title}
+              onTitleChange={changeTitle}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              saveState={saveState}
+              saveMessage={saveMessage}
+              accessMode={accessMode}
+              onSave={onSave}
+              onOpenTools={openTools}
+              onOpenProperties={openProperties}
+              titleEditable={!isEventMode}
+              eventTypeLabel={isEventMode ? eventTypeLabel : undefined}
+              saveHidden={isEventMode && accessMode === "guest"}
+              fullscreen={fullscreen}
+              onToggleFullscreen={toggleStudioFullscreen}
+              presenting={presenting}
+              onTogglePresent={togglePresent}
+            />
+          }
         >
-          {viewMode !== "3d" ? (
-            <div
-              key="plan"
-              className={cn(
-                "min-h-0 min-w-0",
-                split && "border-b border-border/60 lg:border-r lg:border-b-0"
-              )}
-            >
-              <Studio2DEditor
-                design={design}
-                onChange={commit}
-                selection={canvasSelection}
-                onSelect={canvasSelect}
-              />
-            </div>
-          ) : null}
-          {viewMode !== "2d" ? (
-            <div key="viewer" className="min-h-0 min-w-0">
-              <Studio3DViewer
-                design={design}
-                onChange={commit}
-                selection={canvasSelection}
-                onSelect={canvasSelect}
-                presenting={presenting}
-              />
-            </div>
-          ) : null}
-        </div>
-      </StudioShell>
+          {/* One stable tree for 2D / 3D / Split / Present: switching modes only
+              changes the grid, so the WebGL context and camera survive. */}
+          <div
+            className={cn(
+              "grid h-full min-h-0 min-w-0",
+              split
+                ? "grid-rows-2 lg:grid-cols-2 lg:grid-rows-1"
+                : "grid-cols-1 grid-rows-1"
+            )}
+          >
+            {viewMode !== "3d" ? (
+              <div
+                key="plan"
+                className={cn(
+                  "min-h-0 min-w-0",
+                  split && "border-b border-border/60 lg:border-r lg:border-b-0"
+                )}
+              >
+                <Studio2DEditor
+                  design={design}
+                  onChange={commit}
+                  selection={canvasSelection}
+                  onSelect={canvasSelect}
+                />
+              </div>
+            ) : null}
+            {viewMode !== "2d" ? (
+              <div key="viewer" className="min-h-0 min-w-0">
+                <Studio3DViewer
+                  design={design}
+                  onChange={commit}
+                  selection={canvasSelection}
+                  onSelect={canvasSelect}
+                  presenting={presenting}
+                />
+              </div>
+            ) : null}
+          </div>
+        </StudioShell>
+      </TooltipProvider>
 
       <Dialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen}>
         <BrandDialogContent

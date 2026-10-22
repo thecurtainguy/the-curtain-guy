@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Maximize2, Minimize2, MonitorPlay, X } from "lucide-react";
 import { memo } from "react";
+import { StudioTip } from "./studio-tip";
 
 type StudioPresentBarProps = {
   title: string;
@@ -19,7 +20,7 @@ export const StudioPresentBar = memo(function StudioPresentBar({
   onExit,
 }: StudioPresentBarProps) {
   const FullscreenIcon = fullscreen ? Minimize2 : Maximize2;
-  const fullscreenLabel = fullscreen ? "Exit full screen" : "Full screen (Ctrl+Shift+F)";
+  const fullscreenLabel = fullscreen ? "Exit full screen" : "Full screen";
   return (
     <div
       role="toolbar"
@@ -38,31 +39,35 @@ export const StudioPresentBar = memo(function StudioPresentBar({
         </p>
       </div>
       <span className="hidden h-6 w-px shrink-0 bg-border/60 sm:block" aria-hidden="true" />
-      <button
-        type="button"
-        onClick={onToggleFullscreen}
-        aria-label={fullscreenLabel}
-        aria-pressed={fullscreen}
-        title={fullscreenLabel}
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
-          fullscreen
-            ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--primary)_30%,transparent)]"
-            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-        )}
-      >
-        <FullscreenIcon className="size-3.5" aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        onClick={onExit}
-        aria-label="Exit present mode"
-        title="Exit present (P or Esc)"
-        className="flex h-8 shrink-0 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-      >
-        <X className="size-3.5" aria-hidden="true" />
-        <span className="hidden sm:inline">Exit</span>
-      </button>
+      <StudioTip label={fullscreenLabel} shortcut="Ctrl ⇧ F" side="bottom">
+        <button
+          type="button"
+          onClick={onToggleFullscreen}
+          aria-label={fullscreenLabel}
+          aria-keyshortcuts="Control+Shift+F"
+          aria-pressed={fullscreen}
+          className={cn(
+            "flex size-8 shrink-0 items-center justify-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+            fullscreen
+              ? "bg-primary/15 text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--primary)_30%,transparent)]"
+              : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+          )}
+        >
+          <FullscreenIcon className="size-3.5" aria-hidden="true" />
+        </button>
+      </StudioTip>
+      <StudioTip label="Exit present mode" shortcut="P / Esc" side="bottom">
+        <button
+          type="button"
+          onClick={onExit}
+          aria-label="Exit present mode"
+          aria-keyshortcuts="P Escape"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        >
+          <X className="size-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">Exit</span>
+        </button>
+      </StudioTip>
     </div>
   );
 });

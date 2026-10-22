@@ -10,12 +10,22 @@ import {
   Check,
   Crosshair,
   Eye,
+  Gauge,
   Minus,
   MousePointer2,
   PersonStanding,
   Plus,
+  RotateCcw,
   type LucideIcon,
 } from "lucide-react";
+import { StudioTip } from "../../studio-tip";
+import {
+  MOUSE_LOOK_SPEED_DEFAULT,
+  MOUSE_LOOK_SPEED_MAX,
+  MOUSE_LOOK_SPEED_MIN,
+  setMouseLookSpeed,
+  useMouseLookSpeed,
+} from "./mouse-look-speed";
 import {
   sendCameraRigCommand,
   setStudioHeadBob,
@@ -125,6 +135,53 @@ function ToggleRow({
   );
 }
 
+const LOOK_SPEED_STEP = 0.05;
+
+function LookSpeedRow() {
+  const speed = useMouseLookSpeed();
+  const percent =
+    ((speed - MOUSE_LOOK_SPEED_MIN) / (MOUSE_LOOK_SPEED_MAX - MOUSE_LOOK_SPEED_MIN)) * 100;
+  const isDefault = Math.abs(speed - MOUSE_LOOK_SPEED_DEFAULT) < LOOK_SPEED_STEP / 2;
+  return (
+    <div className="rounded-xl border border-border/40 bg-card/30 px-2 py-1.5">
+      <div className="mb-1 flex items-center gap-1.5 text-[0.65rem] font-medium text-foreground/80">
+        <Gauge className="size-3.5 text-primary" aria-hidden />
+        Look speed
+        <span className="ml-auto font-mono text-[0.6rem] text-muted-foreground tabular-nums">
+          {speed.toFixed(2)}×
+        </span>
+        <StudioTip label="Reset look speed" side="right">
+          <button
+            type="button"
+            aria-label="Reset look speed"
+            disabled={isDefault}
+            onClick={() => setMouseLookSpeed(MOUSE_LOOK_SPEED_DEFAULT)}
+            className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-primary focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none disabled:opacity-30"
+          >
+            <RotateCcw className="size-3" aria-hidden />
+          </button>
+        </StudioTip>
+      </div>
+      <StudioTip label="How far the view turns per mouse movement" side="right">
+        <input
+          type="range"
+          aria-label="Mouse look speed"
+          aria-valuetext={`${speed.toFixed(2)} times`}
+          min={MOUSE_LOOK_SPEED_MIN}
+          max={MOUSE_LOOK_SPEED_MAX}
+          step={LOOK_SPEED_STEP}
+          value={speed}
+          onChange={(event) => setMouseLookSpeed(Number(event.target.value))}
+          style={{
+            background: `linear-gradient(to right, var(--primary) ${percent}%, color-mix(in oklch, var(--border) 70%, transparent) ${percent}%)`,
+          }}
+          className="block h-1.5 w-full cursor-pointer appearance-none rounded-full accent-primary focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:bg-primary [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow"
+        />
+      </StudioTip>
+    </div>
+  );
+}
+
 /** Camera modes that show the eye-height / look HUD. */
 export function showsWalkHud(mode: StudioCameraMode) {
   return mode === "walk" || mode === "ceiling";
@@ -150,6 +207,7 @@ function MouseLookRow({
           onToggle={() => setStudioMouseLook(!mouseLook)}
         />
       )}
+      {offered ? <LookSpeedRow /> : null}
       {offered ? (
         <p
           className={cn(
@@ -200,24 +258,26 @@ export const StudioWalkHud = memo(function StudioWalkHud() {
           </p>
         </div>
         <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            aria-label="Lower eye height (Q)"
-            title="Lower (Q)"
-            onClick={() => sendCameraRigCommand({ type: "eye_step", feet: -EYE_STEP })}
-            className="flex size-7 items-center justify-center rounded-lg border border-border/40 bg-card/40 text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
-          >
-            <Minus className="size-3.5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            aria-label="Raise eye height (E)"
-            title="Raise (E)"
-            onClick={() => sendCameraRigCommand({ type: "eye_step", feet: EYE_STEP })}
-            className="flex size-7 items-center justify-center rounded-lg border border-border/40 bg-card/40 text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
-          >
-            <Plus className="size-3.5" aria-hidden />
-          </button>
+          <StudioTip label="Lower eye height" shortcut="Q" side="bottom">
+            <button
+              type="button"
+              aria-label="Lower eye height (Q)"
+              onClick={() => sendCameraRigCommand({ type: "eye_step", feet: -EYE_STEP })}
+              className="flex size-7 items-center justify-center rounded-lg border border-border/40 bg-card/40 text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
+            >
+              <Minus className="size-3.5" aria-hidden />
+            </button>
+          </StudioTip>
+          <StudioTip label="Raise eye height" shortcut="E" side="bottom">
+            <button
+              type="button"
+              aria-label="Raise eye height (E)"
+              onClick={() => sendCameraRigCommand({ type: "eye_step", feet: EYE_STEP })}
+              className="flex size-7 items-center justify-center rounded-lg border border-border/40 bg-card/40 text-foreground/80 transition-colors hover:border-primary/40 hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
+            >
+              <Plus className="size-3.5" aria-hidden />
+            </button>
+          </StudioTip>
         </div>
       </header>
       <div className="space-y-1.5 p-2">

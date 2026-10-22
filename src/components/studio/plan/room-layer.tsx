@@ -341,6 +341,9 @@ export const RoomLayer2D = memo(function RoomLayer2D({
             tabIndex={0}
             aria-pressed={selected}
             aria-label={`Wall ${wall.index + 1}, ${inchesToFeetLabel(wall.length)}. Drag or use arrow keys to push or pull; double-click or press plus to add a corner.`}
+            data-studio-tip={
+              canInsert ? "Drag to push or pull · double-click adds a corner" : "Drag to push or pull"
+            }
             className={`${wallCursor(outward)} touch-none outline-none select-none focus-visible:[&_.studio-room-focus]:opacity-100`}
             onPointerEnter={() => setHoveredWall(wall.index)}
             onPointerLeave={() =>
@@ -468,6 +471,7 @@ export const RoomLayer2D = memo(function RoomLayer2D({
             className={`${wallCursor(outward)} touch-none`}
             opacity={active ? 1 : 0.62}
             aria-hidden
+            data-studio-tip="Drag to push or pull this wall"
             onPointerEnter={() => setHoveredHandle(`bar-${wall.index}`)}
             onPointerLeave={() =>
               setHoveredHandle((current) => (current === `bar-${wall.index}` ? null : current))
@@ -481,7 +485,6 @@ export const RoomLayer2D = memo(function RoomLayer2D({
               select({ kind: "wall", index: wall.index });
             }}
           >
-            <title>Drag to push or pull this wall</title>
             <rect
               x={-barLength / 2 - px(6)}
               y={-barThickness / 2 - px(6)}
@@ -538,6 +541,11 @@ export const RoomLayer2D = memo(function RoomLayer2D({
                 className="cursor-copy touch-none"
                 opacity={active ? 1 : 0.5}
                 aria-hidden
+                data-studio-tip={
+                  custom
+                    ? "Add a corner (drag to shape)"
+                    : "Add a corner — converts this room to a custom outline"
+                }
                 onPointerEnter={() => setHoveredHandle(key)}
                 onPointerLeave={() =>
                   setHoveredHandle((current) => (current === key ? null : current))
@@ -545,11 +553,6 @@ export const RoomLayer2D = memo(function RoomLayer2D({
                 onPointerDown={(event) => beginInsertDrag(event, wall.index)}
                 onClick={(event) => event.stopPropagation()}
               >
-                <title>
-                  {custom
-                    ? "Add a corner (drag to shape)"
-                    : "Add a corner — converts this room to a custom outline"}
-                </title>
                 <circle
                   r={r}
                   fill="color-mix(in oklch, var(--background) 88%, transparent)"
@@ -586,6 +589,13 @@ export const RoomLayer2D = memo(function RoomLayer2D({
             role="button"
             tabIndex={0}
             aria-label={label}
+            data-studio-tip={
+              custom
+                ? canRemove
+                  ? "Drag to move · right-click to remove"
+                  : "Drag to move this corner"
+                : "Drag to resize · Ctrl/⌘-drag to bend freely"
+            }
             className="cursor-move touch-none outline-none focus-visible:[&_.studio-room-handle]:stroke-[var(--ring)]"
             onPointerEnter={() => setHoveredHandle(key)}
             onPointerLeave={() =>
@@ -600,7 +610,6 @@ export const RoomLayer2D = memo(function RoomLayer2D({
             }}
             onKeyDown={(event) => handleVertexKey(event, index)}
           >
-            <title>{label}</title>
             <circle cx={cx} cy={cz} r={r * 1.6} fill="transparent" />
             {custom ? (
               <>

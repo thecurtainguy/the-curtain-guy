@@ -2,16 +2,12 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { DRAPE_COLORS, type DrapeColor } from "@/data/studio";
 import { inchesToFeetLabel } from "@/lib/studio-geometry";
 import { cn } from "@/lib/utils";
 import { Check, Minus, Plus, type LucideIcon } from "lucide-react";
 import { useId, useState } from "react";
+import { StudioTip } from "../studio-tip";
 
 /** Card shell with a gold icon badge header — the inspector's building block. */
 export function InspectorSection({
@@ -112,6 +108,11 @@ export function parseFeetInches(raw: string): number | null {
   return negative ? -inches : inches;
 }
 
+/** "Opening height" → "opening height"; keeps single-letter axes ("X position"). */
+function inSentence(label: string) {
+  return /^\S{2,}/.test(label) ? label.charAt(0).toLowerCase() + label.slice(1) : label;
+}
+
 function clamp(value: number, min?: number, max?: number) {
   let next = value;
   if (min !== undefined) next = Math.max(min, next);
@@ -145,6 +146,7 @@ export function LengthField({
   const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
   const invalid = draft !== null && parseFeetInches(draft) === null;
+  const fineHint = step > 1 ? " · Shift-click for 1″" : "";
 
   function apply(next: number) {
     const rounded = Math.round(clamp(next, min, max) * 100) / 100;
@@ -176,16 +178,18 @@ export function LengthField({
           disabled && "opacity-50"
         )}
       >
-        <button
-          type="button"
-          tabIndex={-1}
-          disabled={disabled}
-          onClick={(event) => stepBy(-1, event.shiftKey)}
-          className="flex h-full w-6 shrink-0 items-center justify-center rounded-l-xl text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:pointer-events-none"
-          aria-label={`Decrease ${label}`}
-        >
-          <Minus className="size-3" aria-hidden="true" />
-        </button>
+        <StudioTip label={`Decrease ${inSentence(label)}${fineHint}`} disabled={disabled}>
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            onClick={(event) => stepBy(-1, event.shiftKey)}
+            className="flex h-full w-6 shrink-0 items-center justify-center rounded-l-xl text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:pointer-events-none"
+            aria-label={`Decrease ${label}`}
+          >
+            <Minus className="size-3" aria-hidden="true" />
+          </button>
+        </StudioTip>
         <input
           id={id}
           inputMode="decimal"
@@ -215,16 +219,18 @@ export function LengthField({
           }}
           className="h-full min-w-0 flex-1 bg-transparent text-center font-mono text-xs tabular-nums outline-none"
         />
-        <button
-          type="button"
-          tabIndex={-1}
-          disabled={disabled}
-          onClick={(event) => stepBy(1, event.shiftKey)}
-          className="flex h-full w-6 shrink-0 items-center justify-center rounded-r-xl text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:pointer-events-none"
-          aria-label={`Increase ${label}`}
-        >
-          <Plus className="size-3" aria-hidden="true" />
-        </button>
+        <StudioTip label={`Increase ${inSentence(label)}${fineHint}`} disabled={disabled}>
+          <button
+            type="button"
+            tabIndex={-1}
+            disabled={disabled}
+            onClick={(event) => stepBy(1, event.shiftKey)}
+            className="flex h-full w-6 shrink-0 items-center justify-center rounded-r-xl text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:pointer-events-none"
+            aria-label={`Increase ${label}`}
+          >
+            <Plus className="size-3" aria-hidden="true" />
+          </button>
+        </StudioTip>
       </div>
     </div>
   );
@@ -265,18 +271,22 @@ export function NumberStepper({
           disabled && "opacity-50"
         )}
       >
-        <button
-          type="button"
-          disabled={disabled || value <= min}
-          onClick={() => {
-            setDraft(null);
-            set(value - step);
-          }}
-          className="flex size-7 items-center justify-center rounded-lg bg-card/60 text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary disabled:opacity-40"
-          aria-label={`Decrease ${label}`}
-        >
-          <Minus className="size-3.5" aria-hidden="true" />
-        </button>
+        <StudioTip label={`Decrease ${inSentence(label)}`} disabled={disabled}>
+          <span className="inline-flex">
+            <button
+              type="button"
+              disabled={disabled || value <= min}
+              onClick={() => {
+                setDraft(null);
+                set(value - step);
+              }}
+              className="flex size-7 items-center justify-center rounded-lg bg-card/60 text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary disabled:opacity-40"
+              aria-label={`Decrease ${label}`}
+            >
+              <Minus className="size-3.5" aria-hidden="true" />
+            </button>
+          </span>
+        </StudioTip>
         <input
           id={id}
           type="number"
@@ -299,18 +309,22 @@ export function NumberStepper({
             {suffix}
           </span>
         ) : null}
-        <button
-          type="button"
-          disabled={disabled || (max !== undefined && value >= max)}
-          onClick={() => {
-            setDraft(null);
-            set(value + step);
-          }}
-          className="flex size-7 items-center justify-center rounded-lg bg-card/60 text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary disabled:opacity-40"
-          aria-label={`Increase ${label}`}
-        >
-          <Plus className="size-3.5" aria-hidden="true" />
-        </button>
+        <StudioTip label={`Increase ${inSentence(label)}`} disabled={disabled}>
+          <span className="inline-flex">
+            <button
+              type="button"
+              disabled={disabled || (max !== undefined && value >= max)}
+              onClick={() => {
+                setDraft(null);
+                set(value + step);
+              }}
+              className="flex size-7 items-center justify-center rounded-lg bg-card/60 text-muted-foreground transition-colors hover:bg-primary/15 hover:text-primary disabled:opacity-40"
+              aria-label={`Increase ${label}`}
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+            </button>
+          </span>
+        </StudioTip>
       </div>
     </div>
   );
@@ -527,37 +541,34 @@ function SwatchButton({
   background: string;
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={selected}
-          aria-label={label}
-          onClick={onSelect}
+    <StudioTip label={label}>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        aria-label={label}
+        onClick={onSelect}
+        className={cn(
+          "group relative flex aspect-square items-center justify-center rounded-xl border p-1 transition-all duration-200 motion-reduce:transition-none",
+          "border-border/40 bg-card/35 hover:-translate-y-px hover:border-primary/30",
+          "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+          selected && "border-primary/60 bg-primary/10"
+        )}
+      >
+        <span
           className={cn(
-            "group relative flex aspect-square items-center justify-center rounded-xl border p-1 transition-all duration-200 motion-reduce:transition-none",
-            "border-border/40 bg-card/35 hover:-translate-y-px hover:border-primary/30",
-            "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-            selected && "border-primary/60 bg-primary/10"
+            "size-full rounded-full shadow-inner ring-1 ring-border/50",
+            selected && "ring-2 ring-primary/70"
           )}
-        >
-          <span
-            className={cn(
-              "size-full rounded-full shadow-inner ring-1 ring-border/50",
-              selected && "ring-2 ring-primary/70"
-            )}
-            style={{ background }}
-          />
-          {selected ? (
-            <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
-              <Check className="size-2.5" strokeWidth={3} aria-hidden="true" />
-            </span>
-          ) : null}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="top">{label}</TooltipContent>
-    </Tooltip>
+          style={{ background }}
+        />
+        {selected ? (
+          <span className="absolute -top-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
+            <Check className="size-2.5" strokeWidth={3} aria-hidden="true" />
+          </span>
+        ) : null}
+      </button>
+    </StudioTip>
   );
 }
 
@@ -615,8 +626,9 @@ export function IconAction({
   shortcut?: string;
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <StudioTip label={label} shortcut={shortcut} side="bottom">
+      {/* Span keeps the tooltip working while the button is disabled. */}
+      <span className="flex min-w-9 flex-1">
         <button
           type="button"
           onClick={onClick}
@@ -635,12 +647,8 @@ export function IconAction({
         >
           <Icon className="size-4" aria-hidden="true" />
         </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom">
-        {label}
-        {shortcut ? <Keycap>{shortcut}</Keycap> : null}
-      </TooltipContent>
-    </Tooltip>
+      </span>
+    </StudioTip>
   );
 }
 

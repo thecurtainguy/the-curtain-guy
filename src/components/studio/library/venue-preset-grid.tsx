@@ -8,6 +8,7 @@ import {
 } from "@/data/studio-venue-presets";
 import { cn } from "@/lib/utils";
 import { Building2 } from "lucide-react";
+import { StudioTip } from "../studio-tip";
 import { STUDIO_VENUE_ICONS } from "./studio-library-icons";
 import { SelectionDot, matchesLibraryQuery } from "./studio-library-ui";
 import {
@@ -77,44 +78,45 @@ export function VenuePresetGrid({
           const Icon = STUDIO_VENUE_ICONS[preset.icon];
           const active = isPresetActive(design, preset);
           return (
-            <button
-              key={preset.key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => void apply(preset)}
-              className={cn(
-                "group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 motion-reduce:transition-none",
-                "border-border/40 bg-card/30 hover:-translate-y-px hover:border-primary/35 motion-reduce:hover:translate-y-0",
-                "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
-                active &&
-                  "border-primary/55 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/25%)]"
-              )}
-            >
-              <span
-                className="relative flex h-14 items-end p-2"
-                style={{ background: preset.backdrop }}
+            <StudioTip key={preset.key} label={preset.description}>
+              <button
+                type="button"
+                aria-pressed={active}
+                onClick={() => void apply(preset)}
+                className={cn(
+                  "group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 motion-reduce:transition-none",
+                  "border-border/40 bg-card/30 hover:-translate-y-px hover:border-primary/35 motion-reduce:hover:translate-y-0",
+                  "focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+                  active &&
+                    "border-primary/55 shadow-[inset_0_0_0_1px_oklch(0.76_0.15_88/25%)]"
+                )}
               >
-                <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-                <span className="relative flex size-7 items-center justify-center rounded-lg border border-white/15 bg-black/35 text-primary backdrop-blur-sm">
-                  <Icon className="size-3.5" aria-hidden />
+                <span
+                  className="relative flex h-14 items-end p-2"
+                  style={{ background: preset.backdrop }}
+                >
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                  <span className="relative flex size-7 items-center justify-center rounded-lg border border-white/15 bg-black/35 text-primary backdrop-blur-sm">
+                    <Icon className="size-3.5" aria-hidden />
+                  </span>
+                  <span className="relative ml-auto rounded-md bg-black/45 px-1.5 py-0.5 text-[0.58rem] font-medium text-white/90 tabular-nums backdrop-blur-sm">
+                    {Math.round(preset.width / 12)}×{Math.round(preset.length / 12)}′
+                  </span>
+                  <SelectionDot
+                    selected={active}
+                    className="absolute top-1.5 right-1.5"
+                  />
                 </span>
-                <span className="relative ml-auto rounded-md bg-black/45 px-1.5 py-0.5 text-[0.58rem] font-medium text-white/90 tabular-nums backdrop-blur-sm">
-                  {Math.round(preset.width / 12)}×{Math.round(preset.length / 12)}′
+                <span className="min-w-0 p-2">
+                  <span className="block truncate text-xs font-semibold text-foreground">
+                    {preset.label}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[0.6rem] text-muted-foreground">
+                    {preset.description}
+                  </span>
                 </span>
-                <SelectionDot
-                  selected={active}
-                  className="absolute top-1.5 right-1.5"
-                />
-              </span>
-              <span className="min-w-0 p-2">
-                <span className="block truncate text-xs font-semibold text-foreground">
-                  {preset.label}
-                </span>
-                <span className="mt-0.5 block truncate text-[0.6rem] text-muted-foreground">
-                  {preset.description}
-                </span>
-              </span>
-            </button>
+              </button>
+            </StudioTip>
           );
         })}
       </div>

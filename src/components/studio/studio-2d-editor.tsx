@@ -1277,7 +1277,8 @@ export function Studio2DEditor(props: StudioEditorProps) {
         preserveAspectRatio="xMinYMin meet"
         className="absolute inset-0 size-full touch-none"
         role="group"
-        aria-labelledby="studio-plan-title studio-plan-description"
+        aria-label={`${design.room.name} ${ceilingMode ? "reflected ceiling plan" : "floor plan"} editor`}
+        aria-describedby="studio-plan-description"
         onPointerDownCapture={handlePointerDownCapture}
         onPointerDown={handlePointerDown}
         onPointerMoveCapture={trackTouchMove}
@@ -1293,7 +1294,6 @@ export function Studio2DEditor(props: StudioEditorProps) {
           if (sessionRef.current) event.preventDefault();
         }}
       >
-        <title id="studio-plan-title">{`${design.room.name} ${ceilingMode ? "reflected ceiling plan" : "floor plan"} editor`}</title>
         <desc id="studio-plan-description">
           {ceilingMode
             ? "Reflected ceiling plan. Tab to ceiling drape designs and press Enter or Space to select; Shift adds to the selection. Drag to move, use the gold handles to move the hub, resize, rotate or turn the run direction, and scroll to zoom."

@@ -41,6 +41,7 @@ import {
   filterVenuePresets,
 } from "./library/venue-preset-grid";
 import { RoomSetupPanel } from "./room-setup-panel";
+import { StudioTip } from "./studio-tip";
 import type { StudioSelection } from "./studio-types";
 
 type StudioLeftRailProps = {
@@ -208,14 +209,16 @@ export function StudioLeftRail({
               className="h-8 w-full rounded-xl border border-border/50 bg-background/55 pr-8 pl-8 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring/30 [&::-webkit-search-cancel-button]:hidden"
             />
             {searching ? (
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                aria-label="Clear search"
-                className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              >
-                <X className="size-3" aria-hidden />
-              </button>
+              <StudioTip label="Clear search" shortcut="Esc">
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label="Clear search"
+                  className="absolute top-1/2 right-1.5 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                >
+                  <X className="size-3" aria-hidden />
+                </button>
+              </StudioTip>
             ) : null}
           </div>
 

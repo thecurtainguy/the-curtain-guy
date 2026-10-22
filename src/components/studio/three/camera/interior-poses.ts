@@ -29,8 +29,8 @@ export const AIM_HEIGHT = 4.5;
 export const INTERIOR_FOV = 50;
 export const WALK_FOV = 56;
 export const CEILING_FOV = 65;
-/** Seated child / low eye height, feet. */
-export const MIN_CAMERA_HEIGHT = 2.5;
+/** Lowest eye (lying back, floor-level ceiling overview), feet. */
+export const MIN_CAMERA_HEIGHT = 2;
 /** Eye stays this far below the ceiling plane so the 14″ tray soffit never clips. */
 export const CEILING_CLEARANCE = 1.5;
 /** Extra headroom kept under deeper ceiling architecture (coffers, truss), feet. */

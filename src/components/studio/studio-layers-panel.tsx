@@ -10,6 +10,7 @@ import {
 } from "@/data/studio";
 import {
   mapIfChanged,
+  removeStudioItems,
   setStudioItemsFlag,
   type StudioItemKind,
 } from "@/lib/studio-commands";
@@ -28,6 +29,7 @@ import {
   Search,
   Sofa,
   Sparkles,
+  Trash2,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -217,7 +219,12 @@ export function StudioLayersPanel({
       onChange(setStudioItemsFlag(getDesign(), [id], flag, value)),
     [getDesign, onChange]
   );
-  const rowProps = { onRename, onToggleFlag };
+  const onRemove = useCallback(
+    (ids: readonly string[]) => onChange(removeStudioItems(getDesign(), ids)),
+    [getDesign, onChange]
+  );
+  const onRemoveRow = useCallback((id: string) => onRemove([id]), [onRemove]);
+  const rowProps = { onRename, onToggleFlag, onRemove: onRemoveRow };
 
   return (
     <div className="space-y-3">
@@ -278,7 +285,7 @@ export function StudioLayersPanel({
             key={group.key}
             className="overflow-hidden rounded-2xl border border-border/40 bg-card/25"
           >
-            <div className="flex items-center gap-1 border-b border-border/30 bg-[radial-gradient(circle_at_top_right,color-mix(in_oklch,var(--primary)_10%,transparent),transparent_65%)] px-2 py-1.5">
+            <div className="group/header flex items-center gap-1 border-b border-border/30 bg-[radial-gradient(circle_at_top_right,color-mix(in_oklch,var(--primary)_10%,transparent),transparent_65%)] px-2 py-1.5">
               <button
                 type="button"
                 onClick={() => toggleCollapsed(group.key)}
@@ -315,6 +322,11 @@ export function StudioLayersPanel({
                 icon={layerVisible ? Eye : EyeOff}
                 active={!layerVisible}
                 onClick={() => toggleLayer(group.layer)}
+              />
+              <GroupDeleteButton
+                label={group.label}
+                rows={rows}
+                onDelete={(ids) => onRemove(ids)}
               />
             </div>
             {!isCollapsed ? (
@@ -422,18 +434,95 @@ function HeaderButton({
   );
 }
 
+const DELETE_ARM_MS = 3000;
+
+function GroupDeleteButton({
+  label,
+  rows,
+  onDelete,
+}: {
+  label: string;
+  rows: LayerRow[];
+  onDelete: (ids: string[]) => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  const deletable = rows.filter((row) => !row.locked);
+  const lockedCount = rows.length - deletable.length;
+  const count = deletable.length;
+
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), DELETE_ARM_MS);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
+
+  if (rows.length === 0) return null;
+
+  const tip =
+    count === 0
+      ? lockedCount > 0
+        ? "Unlock items to delete"
+        : `No ${label.toLowerCase()} to delete`
+      : armed
+        ? `Click again to delete ${count} item${count === 1 ? "" : "s"}`
+        : `Delete all ${label.toLowerCase()}${lockedCount > 0 ? ` (${lockedCount} locked kept)` : ""}`;
+
+  return (
+    <StudioTip label={tip}>
+      <span
+        className={cn(
+          armed
+            ? "inline-flex"
+            : "hidden group-hover/header:inline-flex group-focus-within/header:inline-flex"
+        )}
+      >
+        <button
+          type="button"
+          disabled={count === 0}
+          aria-label={tip}
+          onClick={() => {
+            if (!armed) {
+              setArmed(true);
+              return;
+            }
+            setArmed(false);
+            onDelete(deletable.map((row) => row.id));
+          }}
+          onBlur={() => setArmed(false)}
+          className={cn(
+            "flex h-7 shrink-0 items-center justify-center gap-1 rounded-lg transition-colors disabled:opacity-30",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+            armed
+              ? "bg-destructive/15 px-2 text-destructive"
+              : "w-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          )}
+        >
+          <Trash2 className="size-3.5" aria-hidden="true" />
+          {armed ? (
+            <span className="text-[0.62rem] font-semibold tabular-nums">
+              {count}?
+            </span>
+          ) : null}
+        </button>
+      </span>
+    </StudioTip>
+  );
+}
+
 const LayerRowItem = memo(function LayerRowItem({
   row,
   indent,
   selected,
   onRename,
   onToggleFlag,
+  onRemove,
 }: {
   row: LayerRow;
   indent?: boolean;
   selected: boolean;
   onRename: (id: string, label: string) => void;
   onToggleFlag: (id: string, flag: "locked" | "hidden", value: boolean) => void;
+  onRemove: (id: string) => void;
 }) {
   const { select, setHoveredId } = useStudioEditorActions();
   const hovered = useIsStudioHovered(row.id);
@@ -537,9 +626,43 @@ const LayerRowItem = memo(function LayerRowItem({
         active={row.locked}
         onClick={() => onToggleFlag(row.id, "locked", !row.locked)}
       />
+      <RowDelete
+        label={row.locked ? "Unlock to delete" : `Delete ${row.label}`}
+        locked={row.locked}
+        onClick={() => onRemove(row.id)}
+      />
     </div>
   );
 });
+
+function RowDelete({
+  label,
+  locked,
+  onClick,
+}: {
+  label: string;
+  locked: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={locked ? undefined : onClick}
+      aria-label={label}
+      aria-disabled={locked}
+      data-studio-tip={label}
+      className={cn(
+        "flex size-6 shrink-0 items-center justify-center rounded-md transition-[color,opacity]",
+        "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+        locked
+          ? "cursor-not-allowed text-muted-foreground opacity-20 group-hover:opacity-35"
+          : "text-muted-foreground opacity-40 group-hover:opacity-100 hover:text-destructive"
+      )}
+    >
+      <Trash2 className="size-3.5" aria-hidden="true" />
+    </button>
+  );
+}
 
 function RowIcon({
   icon: Icon,

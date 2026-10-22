@@ -1,6 +1,10 @@
 "use client";
 
-import type { StudioDesignJson, StudioOpening } from "@/data/studio";
+import {
+  STUDIO_MAX_TREATMENTS,
+  type StudioDesignJson,
+  type StudioOpening,
+} from "@/data/studio";
 import {
   createTreatmentForOpening,
   getOpeningTreatmentOptions,
@@ -17,9 +21,6 @@ import {
 import { StudioTip } from "../studio-tip";
 import { InspectorSection } from "./inspector-ui";
 
-/** Saved designs cap treatments at 100 (see validateStudioDesign). */
-const MAX_TREATMENTS = 100;
-
 /** One-click drape treatments fitted to the selected opening. */
 export function OpeningDressSection({
   design,
@@ -32,7 +33,7 @@ export function OpeningDressSection({
 }) {
   const { select } = useStudioEditorActions();
   const options = getOpeningTreatmentOptions(opening);
-  const full = design.treatments.length >= MAX_TREATMENTS;
+  const full = design.treatments.length >= STUDIO_MAX_TREATMENTS;
   const isWindow = opening.type === "window";
 
   function dress(option: StudioOpeningTreatmentOption, existingId: string | null) {

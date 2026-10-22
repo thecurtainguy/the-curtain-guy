@@ -26,11 +26,11 @@ function isTypingTarget(target: EventTarget | null): boolean {
     target instanceof HTMLElement &&
     (target.matches("input, textarea, select") ||
       target.isContentEditable ||
-      Boolean(target.closest('[contenteditable="true"], [role="dialog"]')))
+      Boolean(target.closest('[contenteditable="true"], [role="dialog"], [role="menu"]')))
   );
 }
 
-/** Global Studio keyboard map. Ignored while typing in form fields or dialogs. */
+/** Global Studio keyboard map. Ignored while typing in form fields, dialogs or menus. */
 export function useStudioKeyboardShortcuts(
   editor: StudioEditorState,
   options: StudioShortcutOptions
@@ -109,6 +109,15 @@ export function useStudioKeyboardShortcuts(
       if (mod && key === "a") {
         event.preventDefault();
         current.commands.selectAll();
+        return;
+      }
+      if (mod && (event.code === "BracketRight" || event.code === "BracketLeft")) {
+        if (!selection && selectedIds.length === 0) return;
+        event.preventDefault();
+        const up = event.code === "BracketRight";
+        current.commands.arrange(
+          up ? (event.shiftKey ? "front" : "forward") : event.shiftKey ? "back" : "backward"
+        );
         return;
       }
       if (mod || event.altKey) return;

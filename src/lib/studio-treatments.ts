@@ -457,6 +457,110 @@ export function treatmentDressesOpening(
   return treatment.hasTopSwag === surround;
 }
 
+/** Label used when a treatment is renamed by a style switch. */
+const RETYPE_LABELS: Record<StudioTreatmentType, string> = {
+  full_pleated_backdrop: "Pleated backdrop",
+  side_tieback_panels: "Side tiebacks",
+  top_swag_valance: "Top swag",
+  layered_swag: "Layered swag",
+  ceremony_arch: "Ceremony arch",
+};
+
+const GENERATED_LABELS = new Set<string>([
+  ...Object.values(PRESET_LABELS),
+  ...Object.values(STUDIO_TREATMENT_TYPE_LABELS),
+  ...Object.values(RETYPE_LABELS),
+  ...Object.values(OPENING_TREATMENT_OPTIONS).map((option) => option.label),
+]);
+
+function isGeneratedLabel(label: string) {
+  return GENERATED_LABELS.has(label) || /^Wall \d+ pleated backdrop$/.test(label);
+}
+
+/**
+ * Follows a style switch only while the label is still one Studio wrote —
+ * "Wall 2 pleated backdrop", "Entrance reveal", "Double doors · Top swag".
+ * A label the client typed is kept.
+ */
+function retypedLabel(treatment: StudioTreatment, type: StudioTreatmentType) {
+  const label = treatment.label;
+  const split = label.lastIndexOf(" · ");
+  if (split > 0 && isGeneratedLabel(label.slice(split + 3))) {
+    return `${label.slice(0, split)} · ${RETYPE_LABELS[type]}`;
+  }
+  if (!isGeneratedLabel(label)) return label;
+  return type === "full_pleated_backdrop"
+    ? `Wall ${treatment.anchor.wallIndex + 1} pleated backdrop`
+    : RETYPE_LABELS[type];
+}
+
+const isSwagType = (type: StudioTreatmentType) =>
+  type === "top_swag_valance" || type === "layered_swag";
+
+/** Widest freestanding ceremony arch, inches. */
+const ARCH_MAX_WIDTH = 168;
+/** Narrowest side panel that still reads as a drape, inches. */
+const MIN_SIDE_PANEL = 24;
+/** Clearance kept between a swag header and the ceiling, inches. */
+const SWAG_CEILING_CLEARANCE = 12;
+
+/**
+ * Switches a treatment's style and refits what the new style depends on —
+ * an arch stays arch-sized, swags drop below the ceiling with scallops sized
+ * to the span, side panels keep a real opening — so every style reads
+ * correctly the moment it is picked. Fabric, colours and lighting carry over.
+ */
+export function retypeStudioTreatment(
+  design: StudioDesignJson,
+  treatment: StudioTreatment,
+  type: StudioTreatmentType
+): StudioTreatment {
+  if (treatment.type === type) return treatment;
+  const from = treatment.type;
+  const wallHeight = design.room.wallHeight;
+  const { startOffset, endOffset } = treatment.anchor;
+  const span = endOffset - startOffset;
+  const next: StudioTreatment = { ...treatment, type, label: retypedLabel(treatment, type) };
+
+  if (type === "ceremony_arch") {
+    const width = Math.min(span, ARCH_MAX_WIDTH);
+    const center = (startOffset + endOffset) / 2;
+    next.anchor = {
+      ...treatment.anchor,
+      startOffset: center - width / 2,
+      endOffset: center + width / 2,
+    };
+    next.height = Math.min(
+      wallHeight,
+      clampNumber(treatment.height, 84, Math.max(84, Math.min(wallHeight - 6, 120)))
+    );
+    next.hasTopSwag = true;
+    next.hasTiebacks = true;
+    next.swagDrop = Math.max(treatment.swagDrop, 24);
+    next.tiebackHeight = clampNumber(treatment.tiebackHeight, 36, next.height * 0.55);
+  } else if (isSwagType(type)) {
+    next.height = Math.min(
+      treatment.height,
+      Math.max(48, wallHeight - SWAG_CEILING_CLEARANCE)
+    );
+    if (!isSwagType(from)) {
+      next.swagCount = clampNumber(Math.round(span / 72), 1, 8);
+      next.swagDrop = clampNumber(treatment.swagDrop, 24, 36);
+    }
+  } else if (type === "side_tieback_panels") {
+    const maxOpening = span - MIN_SIDE_PANEL * 2;
+    if (treatment.openingWidth <= 0 || treatment.openingWidth > maxOpening) {
+      next.openingWidth = clampNumber(Math.round(span * 0.5), 12, Math.max(12, maxOpening));
+    }
+    if (from !== "ceremony_arch") {
+      next.hasTiebacks = true;
+      next.tiebackHeight = clampNumber(treatment.tiebackHeight, 36, treatment.height * 0.5);
+    }
+  }
+
+  return clampTreatmentToWall(next, design.room.floor);
+}
+
 export function replaceStudioTreatment(
   design: StudioDesignJson,
   treatment: StudioTreatment

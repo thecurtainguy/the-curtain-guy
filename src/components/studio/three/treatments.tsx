@@ -57,6 +57,7 @@ import {
 } from "./fabric/hardware";
 import {
   getFabricMaterialForQuality,
+  getTrimMaterial,
   type FabricQuality,
 } from "./fabric/materials";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -193,7 +194,7 @@ function SwagRow({
 }) {
   const n = Math.max(1, Math.min(8, Math.round(count)));
   const scallop = width / n;
-  const rosette = getFabricMaterialForQuality("satin", rosetteColor, null, look.quality);
+  const rosette = getTrimMaterial(rosetteColor, look.quality);
   const rosettes = useMemo(() => rosetteRowGeometry(n, width, y, z), [n, width, y, z]);
   useDisposeGeometry(rosettes);
   return (
@@ -217,25 +218,110 @@ function SwagRow({
   );
 }
 
-let rosetteKnot: THREE.TorusKnotGeometry | null = null;
+let rosetteBase: THREE.BufferGeometry | null = null;
+
+/**
+ * Fabric rosette (shared for the page lifetime): a ribbon wound in a widening
+ * spiral, standing proud of the swag at the centre and flaring open on the
+ * outer turns. Faces +z, ~0.33 ft across.
+ */
+function getRosetteGeometry() {
+  if (rosetteBase) return rosetteBase;
+  const turns = 2.75;
+  const steps = 84;
+  const across = 4;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const theta = t * turns * Math.PI * 2;
+    const radius = 0.026 + 0.16 * t + 0.012 * Math.sin(theta * 3);
+    const height = 0.03 + 0.11 * (1 - 0.6 * t);
+    const flare = 0.08 * t * t;
+    for (let j = 0; j <= across; j++) {
+      const v = j / across;
+      const r = radius + flare * v;
+      positions.push(Math.cos(theta) * r, Math.sin(theta) * r, v * height);
+      uvs.push(t * 1.5, v * 0.15);
+    }
+  }
+  for (let i = 0; i < steps; i++) {
+    for (let j = 0; j < across; j++) {
+      const a = i * (across + 1) + j;
+      const c = a + across + 1;
+      indices.push(a, c, a + 1, a + 1, c, c + 1);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  rosetteBase = geometry;
+  return geometry;
+}
 
 /** Every rosette of a swag row merged into one geometry (one draw call). */
 function rosetteRowGeometry(count: number, width: number, y: number, z: number) {
-  rosetteKnot ??= new THREE.TorusKnotGeometry(0.1, 0.045, 48, 8, 2, 5);
-  const knot = rosetteKnot;
+  const base = getRosetteGeometry();
   const scallop = width / count;
   const parts = Array.from({ length: count + 1 }, (_, index) =>
-    knot
+    base
       .clone()
-      .scale(1, 1, 0.6)
-      .translate(-width / 2 + index * scallop, y - 0.04, z + 0.12)
+      .rotateZ(index * 1.7)
+      .translate(-width / 2 + index * scallop, y - 0.04, z + 0.08)
   );
   const merged = mergeGeometries(parts, false);
   parts.forEach((part) => part.dispose());
   return merged;
 }
 
-/** Fabric band cinched around a tieback bundle, with a hanging tassel. */
+let tasselBase: THREE.BufferGeometry | null = null;
+
+/**
+ * Tassel hanging below y = 0 (shared for the page lifetime): cord, turned
+ * bell cap with a collar, and a fluted fringe skirt that flares at the hem.
+ */
+function getTasselGeometry() {
+  if (tasselBase) return tasselBase;
+  const cord = new THREE.CylinderGeometry(0.009, 0.009, 0.14, 6);
+  cord.translate(0, -0.07, 0);
+  const cap = new THREE.LatheGeometry(
+    [
+      [0.001, 0],
+      [0.022, -0.006],
+      [0.04, -0.03],
+      [0.05, -0.065],
+      [0.044, -0.092],
+      [0.056, -0.1],
+      [0.056, -0.112],
+      [0.042, -0.118],
+    ].map(([r, y]) => new THREE.Vector2(r, y)),
+    20
+  );
+  cap.translate(0, -0.14, 0);
+  const skirt = new THREE.CylinderGeometry(0.043, 0.082, 0.3, 48, 6, true);
+  const position = skirt.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < position.count; i++) {
+    const px = position.getX(i);
+    const pz = position.getZ(i);
+    const hem = 0.5 - position.getY(i) / 0.3;
+    const flute = 1 + (0.06 + 0.1 * hem) * Math.sin(Math.atan2(pz, px) * 24);
+    position.setX(i, px * flute);
+    position.setZ(i, pz * flute);
+  }
+  skirt.computeVertexNormals();
+  skirt.translate(0, -0.258 - 0.15, 0);
+  const merged = mergeGeometries([cord, cap, skirt], false);
+  cord.dispose();
+  cap.dispose();
+  skirt.dispose();
+  tasselBase = merged;
+  return merged;
+}
+
+/** Fabric cuff cinched around a tieback bundle, rolled at both edges, with a tassel. */
 function TieBand({
   x,
   y,
@@ -254,25 +340,31 @@ function TieBand({
   quality: FabricQuality;
 }) {
   const radius = bundle * 0.56 + 0.03;
-  const material = getFabricMaterialForQuality("satin", color, null, quality);
+  const depthScale = Math.max(0.5, (depth + 0.05) / radius);
+  const material = getTrimMaterial(color, quality);
   return (
     <group position={[x, y, z]}>
+      <group scale={[1, 1, depthScale]}>
+        <mesh material={material} castShadow>
+          <cylinderGeometry args={[radius, radius * 1.05, 0.15, 36, 1, true]} />
+        </mesh>
+        {[-1, 1].map((edge) => (
+          <mesh
+            key={edge}
+            position={[0, edge * 0.075, 0]}
+            rotation={[Math.PI / 2, 0, 0]}
+            material={material}
+          >
+            <torusGeometry args={[radius * (edge < 0 ? 1.05 : 1), 0.016, 8, 36]} />
+          </mesh>
+        ))}
+      </group>
       <mesh
-        rotation={[Math.PI / 2, 0, 0]}
-        scale={[1, Math.max(0.5, (depth + 0.05) / radius), 1]}
+        geometry={getTasselGeometry()}
+        position={[0, -0.07, radius * depthScale + 0.015]}
         material={material}
         castShadow
-      >
-        <torusGeometry args={[radius, 0.042, 10, 28]} />
-      </mesh>
-      <group position={[0, -0.05, depth + 0.07]}>
-        <mesh material={material}>
-          <sphereGeometry args={[0.06, 14, 10]} />
-        </mesh>
-        <mesh position={[0, -0.24, 0]} material={material}>
-          <coneGeometry args={[0.075, 0.38, 14, 1, true]} />
-        </mesh>
-      </group>
+      />
     </group>
   );
 }
@@ -285,16 +377,19 @@ function HeaderHardware({
   width,
   y,
   z,
+  breaks,
 }: {
   kind: HeaderHardware;
   width: number;
   y: number;
   z: number;
+  /** Pipe & drape upright positions; evenly spaced bays by default. */
+  breaks?: number[];
 }) {
   if (kind === "pipe_and_drape") {
     return (
       <PipeAndDrapeHardware
-        breaks={bayBreaks(width, 10)}
+        breaks={breaks ?? bayBreaks(width, 10)}
         crossbarY={y}
         crossbarZs={[z]}
         uprightZ={z}
@@ -306,6 +401,21 @@ function HeaderHardware({
   }
   if (kind === "rod") return <DecorativeRod length={width} y={y} z={z} />;
   return null;
+}
+
+/** Longest crossbar a reveal header spans without an upright, feet. */
+const MAX_REVEAL_CROSSBAR = 14;
+
+/**
+ * Uprights for a side-panel reveal: bays inside each panel, never in the
+ * walkway. The panel's inner upright is dropped when one crossbar can span
+ * the opening, so a doorway reads clear.
+ */
+function revealBreaks(width: number, panelWidth: number, opening: number) {
+  const half = width / 2;
+  const right = bayBreaks(panelWidth, 10).map((x) => x + half - panelWidth / 2);
+  if (opening > MAX_REVEAL_CROSSBAR) return [...right.map((x) => -x).reverse(), ...right];
+  return [...right.slice(1).map((x) => -x).reverse(), ...right.slice(1)];
 }
 
 type AssemblyProps = {
@@ -418,7 +528,13 @@ function SideTiebacks({ treatment, width, height, look, seed }: AssemblyProps) {
       ) : null}
       <PanelMesh options={left.options} color={treatment.color} look={look} />
       <PanelMesh options={right.options} color={treatment.color} look={look} />
-      <HeaderHardware kind={hardware} width={width} y={crossbarY} z={baseZ} />
+      <HeaderHardware
+        kind={hardware}
+        width={width}
+        y={crossbarY}
+        z={baseZ}
+        breaks={revealBreaks(width, panelWidth, width - panelWidth * 2)}
+      />
       {treatment.hasTiebacks
         ? ([left, right] as const).map((item, index) => (
             <TieBand
@@ -674,6 +790,65 @@ function LayeredSwag({ treatment, width, height, look, seed }: AssemblyProps) {
   );
 }
 
+/**
+ * Swag draped over the arch header: a deep scallop across the span, tails
+ * cascading down both shoulders, and rosettes where fabric is gathered.
+ */
+function ArchSwag({
+  treatment,
+  look,
+  seed,
+  width,
+  height,
+  drop,
+  y,
+  z,
+}: {
+  treatment: StudioTreatment;
+  look: Look;
+  seed: number;
+  width: number;
+  height: number;
+  drop: number;
+  y: number;
+  z: number;
+}) {
+  const tailWidth = Math.min(1.2, Math.max(0.6, width * 0.1));
+  const rosettes = useMemo(() => rosetteRowGeometry(1, width, y, z + 0.06), [width, y, z]);
+  useDisposeGeometry(rosettes);
+  return (
+    <group>
+      <SwagMesh
+        options={{ width, drop, seed: seed + 7, topSag: 0.03, belly: Math.min(0.5, drop * 0.25) }}
+        color={treatment.color}
+        look={look}
+        position={[0, y, z]}
+      />
+      {([-1, 1] as const).map((side) => (
+        <JabotMesh
+          key={side}
+          options={{
+            width: tailWidth,
+            longLength: Math.min(height * 0.55, drop * 2.4 + 1),
+            shortLength: drop * 0.85,
+            side,
+            seed: seed + side * 23,
+          }}
+          color={treatment.color}
+          look={look}
+          position={[side * (width / 2 - tailWidth / 2 + 0.05), y - 0.02, z + 0.05]}
+        />
+      ))}
+      {rosettes ? (
+        <mesh
+          geometry={rosettes}
+          material={getTrimMaterial(treatment.secondaryColor, look.quality)}
+        />
+      ) : null}
+    </group>
+  );
+}
+
 function CeremonyArch({ treatment, width, height, look, seed }: AssemblyProps) {
   const wood = treatment.frameFinish === "wood";
   const frameWidth = Math.max(2, width - 0.4);
@@ -740,16 +915,15 @@ function CeremonyArch({ treatment, width, height, look, seed }: AssemblyProps) {
           ))
         : null}
       {treatment.hasTopSwag ? (
-        <SwagMesh
-          options={{
-            width: frameWidth * 0.94,
-            drop,
-            seed: seed + 7,
-            topSag: 0.03,
-          }}
-          color={treatment.color}
+        <ArchSwag
+          treatment={treatment}
           look={look}
-          position={[0, headerY + tubeRadius, front + 0.02]}
+          seed={seed}
+          width={frameWidth * 0.94}
+          height={height}
+          drop={drop}
+          y={headerY + tubeRadius}
+          z={front + 0.02}
         />
       ) : null}
       {treatment.hasFloralHeader ? (

@@ -417,8 +417,11 @@ export function clampTieY(y: number, height: number) {
 }
 
 export function tieBundleWidth(width: number) {
-  return Math.min(0.55, width * 0.16);
+  return Math.min(0.75, width * 0.18);
 }
+
+/** Forward bulge of a gathered bundle (it rounds out instead of lying flat), feet. */
+const tieRoundness = (bundle: number) => bundle * 0.2;
 
 /** X of the gathered bundle center for a tied-back panel. */
 export function tiebackAnchorX(
@@ -433,7 +436,8 @@ export function tiebackAnchorX(
 
 /** Fold depth at the tie point (bundle half-depth), feet. */
 export function tieBundleDepth(width: number, fullness: number) {
-  return Math.max(foldDepth(fullness) * 1.3, tieBundleWidth(width) * 0.42);
+  const bundle = tieBundleWidth(width);
+  return Math.max(foldDepth(fullness) * 1.3, bundle * 0.42) + tieRoundness(bundle);
 }
 
 /** A single pleated panel hanging from a pipe or pinch-pleat header. */
@@ -551,7 +555,9 @@ function pleatedPanelArrays(options: PleatedPanelOptions): GridArrays {
 
       const displacement = fold * amp;
       py += sample.ny * displacement;
-      pz += sample.nz * displacement + tieBulge * gather;
+      pz +=
+        sample.nz * displacement +
+        (tieBulge + tieRoundness(bundle) * Math.cos(Math.PI * (u - 0.5))) * gather;
       if (sample.region === "body") {
         py -= sag * sagAt[column] * sagWeight;
         if (row === path.length - 1 && !options.puddle) {

@@ -5,6 +5,7 @@ import {
   type StudioDesignJson,
   type StudioDrapeRun,
   type StudioObject,
+  type StudioObjectType,
   type StudioOpening,
   type StudioTreatment,
 } from "@/data/studio";
@@ -544,6 +545,144 @@ export function setStudioItemsFlag(
     treatments: mapIfChanged(design.treatments, apply),
     openings: mapIfChanged(design.openings, apply),
     ceilingDrapes: mapIfChanged(getCeilingDrapes(design), apply),
+  });
+}
+
+const FLOOR_LEVEL_TYPES: ReadonlySet<StudioObjectType> = new Set([
+  "dance_floor",
+  "stage",
+  "table_area",
+  "lounge_area",
+  "ceremony_seating",
+]);
+const OVERHEAD_TYPES: ReadonlySet<StudioObjectType> = new Set(["chandelier", "ceiling_drape"]);
+
+/**
+ * Plan paint band: floor-level zones under furniture, overhead pieces above
+ * it. Within a band, later items in `design.objects` paint on top.
+ */
+export function getObjectPaintBand(type: StudioObjectType): number {
+  if (FLOOR_LEVEL_TYPES.has(type)) return 0;
+  if (OVERHEAD_TYPES.has(type)) return 2;
+  return 1;
+}
+
+export type StudioArrangeMode = "front" | "forward" | "backward" | "back";
+
+type Ordered = { id: string; locked?: boolean };
+
+function sameOrder<T>(a: readonly T[], b: readonly T[]) {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}
+
+/**
+ * Re-seats the listed items in the slots they already hold within their
+ * collection, in the order given. Everything else keeps its exact position,
+ * so reordering a filtered list (one furniture category) never shuffles the
+ * items around it.
+ */
+function reseat<T extends { id: string }>(items: readonly T[], orderedIds: readonly string[]): T[] {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const queue = orderedIds.filter((id) => byId.has(id)).map((id) => byId.get(id) as T);
+  if (queue.length < 2) return items as T[];
+  const moving = new Set(queue.map((item) => item.id));
+  let next = 0;
+  const result = items.map((item) => (moving.has(item.id) ? queue[next++] : item));
+  return sameOrder(result, items) ? (items as T[]) : result;
+}
+
+/**
+ * Sets the paint order of a set of items from one collection: `orderedIds`
+ * runs back to front and replaces their current relative order.
+ */
+export function orderStudioItems(
+  design: StudioDesignJson,
+  orderedIds: readonly string[]
+): StudioDesignJson {
+  return withCollections(design, {
+    objects: reseat(design.objects, orderedIds),
+    drapeRuns: reseat(design.drapeRuns, orderedIds),
+    treatments: reseat(design.treatments, orderedIds),
+    openings: reseat(design.openings, orderedIds),
+    ceilingDrapes: reseat(getCeilingDrapes(design), orderedIds),
+  });
+}
+
+/**
+ * Only neighbours in the same paint band can visibly swap stacking, so every
+ * mode works within a band: front / back jump past the last / first other
+ * item in it, forward / backward step past the next one. Locked items stay
+ * where they are.
+ */
+function arrangeCollection<T extends Ordered>(
+  items: readonly T[],
+  ids: ReadonlySet<string>,
+  mode: StudioArrangeMode,
+  band: (item: T) => number = () => 0
+): T[] {
+  const isMoving = (item: T) => ids.has(item.id) && !item.locked;
+  if (!items.some(isMoving)) return items as T[];
+  let result: T[];
+  if (mode === "front" || mode === "back") {
+    result = [...items];
+    for (const level of new Set(items.filter(isMoving).map(band))) {
+      const inGroup = (item: T) => isMoving(item) && band(item) === level;
+      const order = result.flatMap((item) => (band(item) === level ? [inGroup(item)] : []));
+      const firstOther = order.indexOf(false);
+      if (firstOther < 0) continue;
+      const settled =
+        mode === "front"
+          ? order.indexOf(true) > order.lastIndexOf(false)
+          : order.lastIndexOf(true) < firstOther;
+      if (settled) continue;
+      const group = result.filter(inGroup);
+      const rest = result.filter((item) => !inGroup(item));
+      const anchors = rest.flatMap((item, index) => (band(item) === level ? [index] : []));
+      const at = mode === "front" ? anchors[anchors.length - 1] + 1 : anchors[0];
+      result = [...rest.slice(0, at), ...group, ...rest.slice(at)];
+    }
+  } else {
+    result = [...items];
+    const forward = mode === "forward";
+    const indices = result.map((_, index) => index).filter((index) => isMoving(result[index]));
+    if (forward) indices.reverse();
+    for (const start of indices) {
+      const item = result[start];
+      let target = -1;
+      for (
+        let index = start + (forward ? 1 : -1);
+        index >= 0 && index < result.length;
+        index += forward ? 1 : -1
+      ) {
+        if (isMoving(result[index])) break;
+        if (band(result[index]) === band(item)) {
+          target = index;
+          break;
+        }
+      }
+      if (target < 0) continue;
+      result.splice(start, 1);
+      result.splice(target, 0, item);
+    }
+  }
+  return sameOrder(result, items) ? (items as T[]) : result;
+}
+
+export function arrangeStudioItems(
+  design: StudioDesignJson,
+  ids: readonly string[],
+  mode: StudioArrangeMode
+): StudioDesignJson {
+  const set = new Set(ids);
+  if (set.size === 0) return design;
+  return withCollections(design, {
+    objects: arrangeCollection(design.objects, set, mode, (object) =>
+      getObjectPaintBand(object.type)
+    ),
+    drapeRuns: arrangeCollection(design.drapeRuns, set, mode),
+    treatments: arrangeCollection(design.treatments, set, mode),
+    openings: arrangeCollection(design.openings, set, mode),
+    ceilingDrapes: arrangeCollection(getCeilingDrapes(design), set, mode),
   });
 }
 

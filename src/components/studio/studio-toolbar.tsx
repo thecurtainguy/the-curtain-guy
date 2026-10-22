@@ -50,6 +50,7 @@ import {
   Menu,
   Minimize2,
   MonitorPlay,
+  Moon,
   MousePointer2,
   PanelRight,
   Redo2,
@@ -59,13 +60,15 @@ import {
   Save,
   Scan,
   Spline,
+  Sun,
   Tag,
   TriangleAlert,
   Undo2,
   View,
   type LucideIcon,
 } from "lucide-react";
-import { memo } from "react";
+import { useTheme } from "next-themes";
+import { memo, useSyncExternalStore } from "react";
 import {
   STUDIO_SNAP_INCREMENTS,
   useStudioEditorActions,
@@ -376,6 +379,8 @@ export const StudioToolbar = memo(function StudioToolbar({
             className="hidden xl:flex"
             bare
           />
+
+          <ThemeButton />
 
           <DropdownMenu>
             <Tooltip>
@@ -719,6 +724,25 @@ function ToolButton({
         {shortcut ? <Kbd>{shortcut}</Kbd> : null}
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+const subscribeNoop = () => () => {};
+
+function ThemeButton() {
+  const { resolvedTheme, setTheme } = useTheme();
+  // next-themes only knows the resolved theme on the client.
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
+  const isDark = mounted && resolvedTheme === "dark";
+
+  return (
+    <ToolButton
+      icon={isDark ? Sun : Moon}
+      label={!mounted ? "Toggle color theme" : isDark ? "Switch to light mode" : "Switch to dark mode"}
+      disabled={!mounted}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      bare
+    />
   );
 }
 

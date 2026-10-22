@@ -37,6 +37,7 @@ import type {
   StudioSaveState,
   StudioViewMode,
 } from "./studio-types";
+import { StudioContextMenu } from "./context-menu/studio-context-menu";
 import { setStudioHoveredId } from "./editor/hover-store";
 import {
   StudioEditorProvider,
@@ -818,6 +819,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
       <StudioLeadProvider value={leadContextValue}>
       <TooltipProvider delayDuration={300} skipDelayDuration={400}>
         <StudioHoverTip />
+        <StudioContextMenu disabled={presenting} />
         <StudioShell
           className={className}
           toolsOpen={toolsOpen}

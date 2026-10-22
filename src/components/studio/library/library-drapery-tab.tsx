@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   DRAPE_COLORS,
   DRAPE_FABRICS,
+  STUDIO_MAX_DRAPE_RUNS,
   createStudioItemId,
   createStudioObject,
   getDrapeColorHex,
@@ -64,6 +65,37 @@ export const DEFAULT_DRAPE_STYLE: StudioDrapeStyle = {
   fabric: "velvet",
   color: "ivory",
 };
+
+/** Corner-to-corner drape for one wall, capped at 20′ high. */
+export function createFullWallDrape(
+  design: StudioDesignJson,
+  wall: { index: number; length: number },
+  style: StudioDrapeStyle
+): StudioDrapeRun {
+  return {
+    id: createStudioItemId("drape"),
+    type: "wall_drape",
+    wallIndex: wall.index,
+    startOffset: 0,
+    endOffset: wall.length,
+    height: Math.min(design.room.wallHeight, 240),
+    fabric: style.fabric,
+    color: style.color,
+    fullness: 2,
+    label: `Wall ${wall.index + 1} drape`,
+  };
+}
+
+/** A drape already spans at least 90% of the wall. */
+export function isWallDraped(
+  design: StudioDesignJson,
+  wall: { index: number; length: number }
+): boolean {
+  return design.drapeRuns.some(
+    (run) =>
+      run.wallIndex === wall.index && run.endOffset - run.startOffset >= wall.length * 0.9
+  );
+}
 
 const RUN_TOOLS: Array<{
   type: DrapeRunType;
@@ -208,30 +240,14 @@ export function LibraryDraperyTab({
   }
 
   function drapeEveryWall() {
-    const covered = (index: number, length: number) =>
-      design.drapeRuns.some(
-        (run) =>
-          run.wallIndex === index && run.endOffset - run.startOffset >= length * 0.9
-      );
-    const runs: StudioDrapeRun[] = walls
-      .filter((segment) => segment.length >= 12 && !covered(segment.index, segment.length))
-      .map((segment) => ({
-        id: createStudioItemId("drape"),
-        type: "wall_drape",
-        wallIndex: segment.index,
-        startOffset: 0,
-        endOffset: segment.length,
-        height: drapeHeight,
-        fabric: style.fabric,
-        color: style.color,
-        fullness: 2,
-        label: `Wall ${segment.index + 1} drape`,
-      }));
+    const runs = walls
+      .filter((segment) => segment.length >= 12 && !isWallDraped(design, segment))
+      .map((segment) => createFullWallDrape(design, segment, style));
     if (runs.length === 0) {
       setNotice("Every wall is already draped.");
       return;
     }
-    if (design.drapeRuns.length + runs.length > 200) {
+    if (design.drapeRuns.length + runs.length > STUDIO_MAX_DRAPE_RUNS) {
       setNotice("That would exceed the 200 drape-run limit.");
       return;
     }

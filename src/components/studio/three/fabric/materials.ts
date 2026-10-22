@@ -237,6 +237,34 @@ export function getFabricMaterialForQuality(
   return material;
 }
 
+const trimCache = new Map<string, THREE.MeshStandardMaterial>();
+
+/**
+ * Satin for small trim — rosettes, tie cuffs, tassels. These pieces are a
+ * few inches across and mostly face away from the downlights, so plain satin
+ * goes muddy; a softer, broader sheen and a faint self-lit floor keep the
+ * accent colour readable. Cached per colour + quality.
+ */
+export function getTrimMaterial(
+  color: DrapeColor | string,
+  quality: StudioQuality | undefined
+): THREE.MeshStandardMaterial {
+  const hex = resolveFabricHex(color);
+  const key = `${hex}|${quality ?? ""}`;
+  const cached = trimCache.get(key);
+  if (cached) return cached;
+  const material = getFabricMaterialForQuality("satin", hex, null, quality).clone();
+  material.name = `trim:${key}`;
+  material.roughness = 0.42;
+  material.emissive = new THREE.Color(hex).multiplyScalar(0.14);
+  if (material instanceof THREE.MeshPhysicalMaterial) {
+    material.sheen = 0.9;
+    material.sheenRoughness = 0.45;
+  }
+  trimCache.set(key, material);
+  return material;
+}
+
 const hardwareCache = new Map<string, THREE.MeshStandardMaterial>();
 
 export type HardwareFinish =
@@ -256,7 +284,8 @@ export function getHardwareMaterial(
     base_plate: { color: "#2b2b2d", metalness: 0.45, roughness: 0.58 },
     track: { color: "#1f1f21", metalness: 0.4, roughness: 0.45 },
     fixture: { color: "#1a1a1b", metalness: 0.55, roughness: 0.38 },
-    gold: { color: "#c9a24f", metalness: 0.7, roughness: 0.26 },
+    // Powder-coat gold: a dim venue environment turns a mirror-metal gold brown.
+    gold: { color: "#d9b25e", metalness: 0.55, roughness: 0.3 },
     black: { color: "#1d1c1b", metalness: 0.35, roughness: 0.42 },
     white: { color: "#ece8df", metalness: 0.08, roughness: 0.38 },
     wood: { color: "#7d5534", metalness: 0, roughness: 0.68 },

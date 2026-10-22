@@ -11,6 +11,8 @@ export const STUDIO_NOTES_MAX_LENGTH = 5000;
 export const STUDIO_OBJECT_NOTES_MAX_LENGTH = 1000;
 export const STUDIO_MAX_SEATING_COUNT = 10000;
 export const STUDIO_MAX_OBJECTS = 400;
+export const STUDIO_MAX_DRAPE_RUNS = 200;
+export const STUDIO_MAX_TREATMENTS = 100;
 
 export const STUDIO_STATUSES = ["draft", "saved", "archived"] as const;
 export type StudioDesignStatus = (typeof STUDIO_STATUSES)[number];
@@ -1395,7 +1397,7 @@ export function validateStudioDesign(
   }
 
   const drapeRuns = value.drapeRuns;
-  if (!Array.isArray(drapeRuns) || drapeRuns.length > 200) {
+  if (!Array.isArray(drapeRuns) || drapeRuns.length > STUDIO_MAX_DRAPE_RUNS) {
     errors.push("Drape runs must be a valid list.");
   } else {
     for (const drape of drapeRuns) {
@@ -1448,7 +1450,7 @@ export function validateStudioDesign(
 
   const treatments =
     value.treatments === undefined ? [] : value.treatments;
-  if (!Array.isArray(treatments) || treatments.length > 100) {
+  if (!Array.isArray(treatments) || treatments.length > STUDIO_MAX_TREATMENTS) {
     errors.push("Drape treatments must be a valid list.");
   } else {
     for (const treatment of treatments) {

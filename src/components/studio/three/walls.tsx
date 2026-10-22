@@ -11,6 +11,7 @@ import { Edges } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+import { requestStudioContextMenu } from "../context-menu/context-menu-store";
 import type { StudioSelection } from "../studio-types";
 import {
   WALL_FINISHES,
@@ -265,6 +266,10 @@ export function StudioWalls({
             onClick={(event) => {
               event.stopPropagation();
               onSelect({ kind: "wall", index: frame.index });
+            }}
+            onContextMenu={(event) => {
+              event.stopPropagation();
+              requestStudioContextMenu(event.nativeEvent, { kind: "wall", index: frame.index }, "3d");
             }}
           >
             {edges ? (

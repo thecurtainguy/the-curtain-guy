@@ -8,6 +8,7 @@ import type {
 import { addCeilingDrape, createCeilingDrape } from "@/lib/studio-ceiling";
 import {
   alignStudioObjects,
+  arrangeStudioItems,
   copyStudioItems,
   distributeStudioObjects,
   duplicateStudioItems,
@@ -20,6 +21,7 @@ import {
   rotateStudioItemsAsGroup,
   setStudioItemsFlag,
   type StudioAlignMode,
+  type StudioArrangeMode,
   type StudioClipboard,
   type StudioDistributeAxis,
   type StudioItemKind,
@@ -138,11 +140,15 @@ export type StudioEditorCommands = {
   rotate: (degrees: number) => void;
   align: (mode: StudioAlignMode) => void;
   distribute: (axis: StudioDistributeAxis) => void;
+  /** Paint order within each item's own collection. */
+  arrange: (mode: StudioArrangeMode) => void;
   /** Toggles when `value` is omitted. */
   setLocked: (value?: boolean) => void;
   setHidden: (value?: boolean) => void;
   copy: () => void;
   paste: () => void;
+  /** True once something was copied this session. */
+  canPaste: () => boolean;
   selectAll: () => void;
 };
 
@@ -841,6 +847,13 @@ export function useStudioEditorState({
       distribute(axis) {
         commit(distributeStudioObjects(designRef.current, activeIds(), axis));
       },
+      arrange(mode) {
+        const ids = activeIds();
+        if (ids.length === 0) return;
+        commit(arrangeStudioItems(designRef.current, ids, mode), {
+          coalesceKey: `arrange-${mode}`,
+        });
+      },
       setLocked(value) {
         const ids = activeIds();
         if (ids.length === 0) return;
@@ -873,6 +886,9 @@ export function useStudioEditorState({
         );
         commit(result.design);
         selectIds(result.ids);
+      },
+      canPaste() {
+        return clipboard.current !== null;
       },
       selectAll() {
         selectIds(getAllStudioItemIds(designRef.current));
@@ -973,6 +989,8 @@ export const STUDIO_SHORTCUTS: Array<{ keys: string[]; label: string }> = [
   { keys: ["Delete"], label: "Remove selection" },
   { keys: ["Arrows"], label: "Nudge by snap step (Shift = 1″)" },
   { keys: ["R"], label: "Rotate +15° (Shift+R = −15°)" },
+  { keys: ["Ctrl", "]"], label: "Bring forward (Shift = bring to front)" },
+  { keys: ["Ctrl", "["], label: "Send backward (Shift = send to back)" },
   { keys: ["L"], label: "Lock / unlock selection" },
   { keys: ["Shift", "L"], label: "Expand / close the full library" },
   { keys: ["H"], label: "Hide / show selection" },
@@ -983,6 +1001,7 @@ export const STUDIO_SHORTCUTS: Array<{ keys: string[]; label: string }> = [
   { keys: ["3"], label: "Split view" },
   { keys: ["Space", "Drag"], label: "Pan the 2D plan" },
   { keys: ["Shift", "Click"], label: "Add to selection" },
+  { keys: ["Right-click"], label: "Actions for the item or wall under the pointer" },
   { keys: ["Esc"], label: "Clear selection" },
   { keys: ["?"], label: "Show shortcuts" },
   { keys: ["Drag"], label: "3D in-room: look around (right-drag orbits the subject)" },

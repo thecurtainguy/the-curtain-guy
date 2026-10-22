@@ -7,13 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   DRAPE_HARDWARE,
   STUDIO_FRAME_FINISHES,
-  STUDIO_TREATMENT_TYPES,
   createStudioItemId,
   type DrapeHardware,
   type StudioDesignJson,
   type StudioFrameFinish,
   type StudioTreatment,
-  type StudioTreatmentType,
 } from "@/data/studio";
 import {
   clampTreatmentToWall,
@@ -23,16 +21,14 @@ import {
 import {
   STUDIO_TREATMENT_TYPE_LABELS,
   replaceStudioTreatment,
+  retypeStudioTreatment,
 } from "@/lib/studio-treatments";
 import {
-  Blinds,
   Columns3,
   Copy,
   Flower2,
   Frame,
-  Layers,
   Lightbulb,
-  PanelsTopLeft,
   Ruler,
   Scissors,
   Sparkles,
@@ -53,22 +49,12 @@ import {
   StatTile,
   Stepper,
 } from "./three/fabric/fabric-controls";
+import { TreatmentStylePicker } from "./inspector/treatment-style-picker";
 import {
   feetInput,
   feetValue,
   type StudioSelection,
 } from "./studio-types";
-
-const TYPE_META: Record<
-  StudioTreatmentType,
-  { icon: LucideIcon; description: string }
-> = {
-  full_pleated_backdrop: { icon: PanelsTopLeft, description: "Pleated fabric wall" },
-  side_tieback_panels: { icon: Blinds, description: "Framed reveal, tied back" },
-  top_swag_valance: { icon: Spline, description: "Scalloped header" },
-  layered_swag: { icon: Layers, description: "Two-tone scallops, tails" },
-  ceremony_arch: { icon: Frame, description: "Frame, panels & swag" },
-};
 
 const FRAME_SWATCH: Record<StudioFrameFinish, string> = {
   gold: "linear-gradient(135deg,#f0cf7f,#b98b3d 55%,#7c5a22)",
@@ -196,26 +182,16 @@ export function TreatmentEditor({
       </div>
 
       <InspectorSection icon={Sparkles} eyebrow="Arrangement" title="Treatment style">
-        <div role="radiogroup" aria-label="Treatment type" className="grid grid-cols-2 gap-2">
-          {STUDIO_TREATMENT_TYPES.map((item) => (
-            <OptionTile
-              key={item}
-              compact
-              icon={TYPE_META[item].icon}
-              label={STUDIO_TREATMENT_TYPE_LABELS[item]}
-              description={TYPE_META[item].description}
-              selected={type === item}
-              onSelect={() =>
-                update({
-                  type: item,
-                  ...(item === "layered_swag" && !treatment.swagCount
-                    ? { swagCount: 3 }
-                    : {}),
-                })
-              }
-            />
-          ))}
-        </div>
+        <TreatmentStylePicker
+          value={type}
+          color={treatment.color}
+          accent={treatment.secondaryColor}
+          onSelect={(next) =>
+            onChange(
+              replaceStudioTreatment(design, retypeStudioTreatment(design, treatment, next))
+            )
+          }
+        />
       </InspectorSection>
 
       <InspectorSection icon={Ruler} eyebrow="Placement" title="Wall & dimensions">

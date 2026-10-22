@@ -45,6 +45,7 @@ export type ProxyEvents = {
   onPointerDown: (event: ThreeEvent<PointerEvent>, target: ProxyTarget) => boolean;
   onClick: (event: ThreeEvent<MouseEvent>, target: ProxyTarget) => void;
   onDoubleClick: (event: ThreeEvent<MouseEvent>, target: ProxyTarget) => void;
+  onContextMenu: (event: ThreeEvent<MouseEvent>, target: ProxyTarget) => void;
   onHover: (target: ProxyTarget | null) => void;
 };
 
@@ -159,6 +160,11 @@ function ProxyMesh({
         if (!proxyClaimsEvent(event, lowPriority)) return;
         event.stopPropagation();
         events.onDoubleClick(event, target);
+      }}
+      onContextMenu={(event) => {
+        if (!proxyClaimsEvent(event, lowPriority)) return;
+        event.stopPropagation();
+        events.onContextMenu(event, target);
       }}
     >
       <boxGeometry args={size} />

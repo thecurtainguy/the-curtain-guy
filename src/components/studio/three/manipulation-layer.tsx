@@ -47,6 +47,7 @@ import {
   RotationGizmo,
   SpanHandles,
 } from "./manipulation/gizmos";
+import { requestStudioContextMenu } from "../context-menu/context-menu-store";
 import { ReadoutChip } from "./manipulation/labels";
 import {
   GhostFootprint,
@@ -214,6 +215,14 @@ function ManipulationLayer({
       select({ kind: target.kind, id: target.id } as StudioSelection);
       sendCanvasCommand({ type: "focus_selection" });
     },
+    onContextMenu: (event, target) => {
+      if (armed) return;
+      requestStudioContextMenu(
+        event.nativeEvent,
+        { kind: target.kind, id: target.id } as StudioSelection,
+        "3d"
+      );
+    },
     /*
      * Outside views: any unlocked item drags. In-room views: drags on an
      * unselected item look around (click still selects); a selected item
@@ -257,6 +266,8 @@ function ManipulationLayer({
       onClick: (event, target) => proxyEventsRef.current.onClick(event, target),
       onDoubleClick: (event, target) =>
         proxyEventsRef.current.onDoubleClick(event, target),
+      onContextMenu: (event, target) =>
+        proxyEventsRef.current.onContextMenu(event, target),
       onPointerDown: (event, target) =>
         proxyEventsRef.current.onPointerDown(event, target),
     }),

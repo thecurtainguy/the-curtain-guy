@@ -98,6 +98,11 @@ export const CeilingProxy = memo(function CeilingProxy({
         event.stopPropagation();
         events.onDoubleClick(event, target);
       }}
+      onContextMenu={(event) => {
+        if (!ceilingProxyClaimsEvent(event)) return;
+        event.stopPropagation();
+        events.onContextMenu(event, target);
+      }}
     />
   );
 });

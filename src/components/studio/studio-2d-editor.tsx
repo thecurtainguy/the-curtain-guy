@@ -12,7 +12,12 @@ import {
   type StudioPoint,
 } from "@/data/studio";
 import { addCeilingDrape, createCeilingDrape, pointInCeilingPolygon } from "@/lib/studio-ceiling";
-import { getObjectsBounds, nudgeStudioItems, rotateStudioItemsAsGroup } from "@/lib/studio-commands";
+import {
+  getObjectPaintBand,
+  getObjectsBounds,
+  nudgeStudioItems,
+  rotateStudioItemsAsGroup,
+} from "@/lib/studio-commands";
 import { getStudioBounds, inchesToFeetLabel } from "@/lib/studio-geometry";
 import {
   replaceStudioObject,
@@ -30,6 +35,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { hoveredStudioTarget, requestStudioContextMenu } from "./context-menu/context-menu-store";
 import { disarmCeilingPlacement, useCeilingPlacement } from "./editor/ceiling-placement-store";
 import {
   useStudioCanvasCommand,
@@ -104,15 +110,6 @@ const LABEL_PX = 12;
 const GUIDE_SNAP_PX = 8;
 const DRAG_THRESHOLD_PX = 3;
 const ROTATE_STEM_PX = 30;
-
-const FLOOR_LEVEL_TYPES: ReadonlySet<StudioObjectType> = new Set([
-  "dance_floor",
-  "stage",
-  "table_area",
-  "lounge_area",
-  "ceremony_seating",
-]);
-const OVERHEAD_TYPES: ReadonlySet<StudioObjectType> = new Set(["chandelier", "ceiling_drape"]);
 
 type ClientPoint = { x: number; y: number };
 
@@ -189,12 +186,6 @@ function isCornerHandle(handle: PlanObjectHandle): handle is StudioResizeHandle 
   return handle.includes("_");
 }
 
-function layerOrder(type: StudioObjectType): number {
-  if (FLOOR_LEVEL_TYPES.has(type)) return 0;
-  if (OVERHEAD_TYPES.has(type)) return 2;
-  return 1;
-}
-
 export function Studio2DEditor(props: StudioEditorProps) {
   const { design } = props;
   const {
@@ -267,7 +258,8 @@ export function Studio2DEditor(props: StudioEditorProps) {
       .map((object, index) => ({ object, index }))
       .sort(
         (a, b) =>
-          layerOrder(a.object.type) - layerOrder(b.object.type) || a.index - b.index
+          getObjectPaintBand(a.object.type) - getObjectPaintBand(b.object.type) ||
+          a.index - b.index
       )
       .map((entry) => entry.object);
   }, [design.objects, settings.layers.objects]);
@@ -1292,7 +1284,21 @@ export function Studio2DEditor(props: StudioEditorProps) {
           if (event.button === 1) event.preventDefault();
         }}
         onContextMenu={(event) => {
-          if (sessionRef.current) event.preventDefault();
+          if (sessionRef.current) {
+            event.preventDefault();
+            return;
+          }
+          const wall =
+            event.target instanceof Element
+              ? event.target.closest<SVGElement>("[data-studio-wall]")
+              : null;
+          requestStudioContextMenu(
+            event.nativeEvent,
+            wall
+              ? { kind: "wall", index: Number(wall.dataset.studioWall) }
+              : hoveredStudioTarget(design),
+            "2d"
+          );
         }}
       >
         <desc id="studio-plan-description">

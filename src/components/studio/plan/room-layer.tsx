@@ -340,6 +340,7 @@ export const RoomLayer2D = memo(function RoomLayer2D({
             role="button"
             tabIndex={0}
             aria-pressed={selected}
+            data-studio-wall={wall.index}
             aria-label={`Wall ${wall.index + 1}, ${inchesToFeetLabel(wall.length)}. Drag or use arrow keys to push or pull; double-click or press plus to add a corner.`}
             data-studio-tip={
               canInsert ? "Drag to push or pull · double-click adds a corner" : "Drag to push or pull"
@@ -471,6 +472,7 @@ export const RoomLayer2D = memo(function RoomLayer2D({
             className={`${wallCursor(outward)} touch-none`}
             opacity={active ? 1 : 0.62}
             aria-hidden
+            data-studio-wall={wall.index}
             data-studio-tip="Drag to push or pull this wall"
             onPointerEnter={() => setHoveredHandle(`bar-${wall.index}`)}
             onPointerLeave={() =>

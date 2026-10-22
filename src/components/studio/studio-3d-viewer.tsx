@@ -37,6 +37,7 @@ import {
   type StudioCameraView,
   type StudioQuality,
 } from "./editor/studio-editor-context";
+import { hoveredStudioTarget, requestStudioContextMenu } from "./context-menu/context-menu-store";
 import type { StudioEditorProps } from "./studio-types";
 import { useStudioCameraMode } from "./three/camera/camera-view-store";
 import {
@@ -567,6 +568,9 @@ export function Studio3DViewer({
         gl={glOptions}
         className="touch-none"
         onPointerMissed={() => onSelect(null)}
+        onContextMenu={(event) =>
+          requestStudioContextMenu(event.nativeEvent, hoveredStudioTarget(design), "3d")
+        }
       >
         <RoomScene
           design={design}

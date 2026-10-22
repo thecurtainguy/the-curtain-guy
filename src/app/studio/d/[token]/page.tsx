@@ -96,7 +96,6 @@ export default async function StudioResumePage({ params }: PageProps) {
         initialDesign={normalizeStudioDesign(validation.design)}
         initialTitle={row.title}
         accessMode="guest"
-        signInHref="/account/login"
         createAccountHref="/account/signup"
         leadResume={{
           token,

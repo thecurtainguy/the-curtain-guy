@@ -204,5 +204,12 @@ export function useStudioLeadAutosave({
   /** Drops the remembered row so the next meaningful edit starts a new one. */
   const startFresh = useCallback(() => setDesignId(null), [setDesignId]);
 
-  return { designId, setDesignId, notifyChange, ensureDesignId, startFresh };
+  /** Ends anonymous autosave for this page (the visitor signed in). */
+  const stop = useCallback(() => {
+    blocked.current = true;
+    pending.current = false;
+    clearTimer();
+  }, [clearTimer]);
+
+  return { designId, setDesignId, notifyChange, ensureDesignId, startFresh, stop };
 }

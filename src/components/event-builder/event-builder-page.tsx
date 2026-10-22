@@ -34,7 +34,6 @@ function readServerBriefSnapshot(): EventBuilderBrief | null | undefined {
 type EventBuilderPageProps = {
   accessMode: "guest" | "customer" | "admin";
   apiBase?: string;
-  signInHref?: string;
   createAccountHref?: string;
   defaultName?: string;
   defaultEmail?: string;
@@ -45,7 +44,6 @@ type EventBuilderPageProps = {
 export function EventBuilderPage({
   accessMode,
   apiBase,
-  signInHref = "/account/login",
   createAccountHref = "/account/signup",
   defaultName = "",
   defaultEmail = "",
@@ -88,7 +86,6 @@ export function EventBuilderPage({
         initialTitle="Your event plan"
         accessMode={accessMode}
         apiBase={apiBase}
-        signInHref={signInHref}
         createAccountHref={createAccountHref}
         eventContactDefaults={{
           name: defaultName,

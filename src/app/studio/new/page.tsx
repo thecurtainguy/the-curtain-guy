@@ -81,7 +81,6 @@ export default async function NewStudioDesignPage({
         <EventBuilderPage
           accessMode={accessMode}
           apiBase={apiBase}
-          signInHref="/account/login"
           createAccountHref="/account/signup"
           defaultName={current?.profile.full_name ?? ""}
           defaultEmail={current?.profile.email ?? ""}
@@ -93,7 +92,6 @@ export default async function NewStudioDesignPage({
           initialDesign={cloneStudioTemplate(resolveTemplate(params.template))}
           accessMode={accessMode}
           apiBase={apiBase}
-          signInHref="/account/login"
           createAccountHref="/account/signup"
           resumeSessionDraft={params.resume === "1"}
           linkContext={{

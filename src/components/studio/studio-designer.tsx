@@ -84,8 +84,14 @@ import {
   type StudioRoomKind,
 } from "./lead/lead-storage";
 import {
+  saveDesignToAccount,
+  signInForStudio,
+  type StudioAccountSaveBody,
+} from "./lead/account-handoff";
+import {
   SaveDesignDialog,
   type SaveDesignResult,
+  type SaveDesignSignInResult,
 } from "./lead/save-design-dialog";
 import { StudioLeadProvider } from "./lead/studio-lead-context";
 import { useStudioLeadAutosave } from "./lead/use-studio-lead-autosave";
@@ -115,7 +121,6 @@ export type StudioDesignerProps = {
   apiBase?: string;
   saveEndpoint?: string;
   linkContext?: StudioLinkContext;
-  signInHref?: string;
   createAccountHref?: string;
   savedDesignPathBase?: string;
   resumeSessionDraft?: boolean;
@@ -156,6 +161,30 @@ function fillEmptyDetails(
     venueName: current.venueName ?? fallback.venueName,
     cityArea: current.cityArea ?? fallback.cityArea,
   };
+}
+
+function studioSaveBody(
+  title: string,
+  design: StudioDesignJson,
+  details: StudioEventDetails,
+  links: StudioLinkContext | undefined
+): StudioAccountSaveBody {
+  return {
+    title,
+    design_json: design,
+    event_details: details,
+    ...(links?.estimateRequestId ? { estimate_request_id: links.estimateRequestId } : {}),
+    ...(links?.quoteId ? { quote_id: links.quoteId } : {}),
+    ...(links?.jobId ? { job_id: links.jobId } : {}),
+    ...(links?.opportunityRef ? { opportunity_ref: links.opportunityRef } : {}),
+  };
+}
+
+/** Where a newly saved design opens for an owner or customer. */
+function savedDesignPath(access: StudioAccessMode, id: string): string | null {
+  if (access === "admin") return `/admin/studio/${id}/edit`;
+  if (access === "customer") return `/account/studio/${id}`;
+  return null;
 }
 
 function lastEditedLabel(iso: string): string {
@@ -205,7 +234,6 @@ export function StudioDesigner(props: StudioDesignerProps) {
     apiBase = "/api/studio/designs",
     saveEndpoint,
     linkContext,
-    signInHref = "/sign-in",
     createAccountHref = "/sign-up",
     savedDesignPathBase,
     resumeSessionDraft = false,
@@ -272,10 +300,12 @@ export function StudioDesigner(props: StudioDesignerProps) {
     onBlocked: (message) => setSaveMessage(message),
   });
   const {
+    designId: leadDraftId,
     setDesignId: setLeadDesignId,
     notifyChange: notifyLeadChange,
     ensureDesignId: ensureLeadDesignId,
     startFresh: startFreshLead,
+    stop: stopLeadAutosave,
   } = leadAutosave;
 
   useEffect(() => {
@@ -580,18 +610,8 @@ export function StudioDesigner(props: StudioDesignerProps) {
         method: designId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: cleanTitle,
-          design_json: validation.design,
-          event_details: eventDetailsRef.current,
+          ...studioSaveBody(cleanTitle, validation.design, eventDetailsRef.current, linkContext),
           ...(designId ? {} : { source: mode === "event" ? "event_builder" : "studio" }),
-          ...(linkContext?.estimateRequestId
-            ? { estimate_request_id: linkContext.estimateRequestId }
-            : {}),
-          ...(linkContext?.quoteId ? { quote_id: linkContext.quoteId } : {}),
-          ...(linkContext?.jobId ? { job_id: linkContext.jobId } : {}),
-          ...(linkContext?.opportunityRef
-            ? { opportunity_ref: linkContext.opportunityRef }
-            : {}),
           ...(designId && savedUpdatedAt
             ? { expected_updated_at: savedUpdatedAt }
             : {}),
@@ -617,13 +637,9 @@ export function StudioDesigner(props: StudioDesignerProps) {
       if (!designId && nextId) {
         setDesignId(nextId);
         onDesignIdChange?.(nextId);
-        if (savedDesignPathBase) {
-          pendingDestination.current = `${savedDesignPathBase.replace(/\/$/, "")}/${nextId}`;
-        } else if (accessMode === "admin") {
-          pendingDestination.current = `/admin/studio/${nextId}/edit`;
-        } else if (accessMode === "customer") {
-          pendingDestination.current = `/account/studio/${nextId}`;
-        }
+        pendingDestination.current = savedDesignPathBase
+          ? `${savedDesignPathBase.replace(/\/$/, "")}/${nextId}`
+          : savedDesignPath(accessMode, nextId);
       }
       if (
         pendingDestination.current &&
@@ -669,7 +685,6 @@ export function StudioDesigner(props: StudioDesignerProps) {
     title,
   ]);
 
-  const signInWithReturn = `${signInHref}${signInHref.includes("?") ? "&" : "?"}next=${encodeURIComponent(authReturnTo)}`;
   const createAccountWithReturn = `${createAccountHref}${createAccountHref.includes("?") ? "&" : "?"}next=${encodeURIComponent(authReturnTo)}`;
 
   const saveRef = useRef(save);
@@ -727,6 +742,47 @@ export function StudioDesigner(props: StudioDesignerProps) {
       return { ok: true, emailed: result.emailed, resumePath: result.resumePath };
     },
     [design, ensureLeadDesignId, leadKind, setLeadDesignId, startFreshLead, title]
+  );
+
+  /** Save dialog sign-in: authenticate in place, save to the account, then open it there. */
+  const signInAndSave = useCallback(
+    async (email: string, password: string): Promise<SaveDesignSignInResult> => {
+      const validation = validateStudioDesign(design);
+      if (!validation.valid) {
+        return { ok: false, message: validation.errors[0] ?? "Review the design before saving." };
+      }
+      const signedIn = await signInForStudio(email, password);
+      if (!signedIn.ok) return signedIn;
+      stopLeadAutosave();
+      const saved = await saveDesignToAccount({
+        access: signedIn.access,
+        draftId: leadDraftId,
+        body: studioSaveBody(
+          title.trim() || "Untitled room design",
+          validation.design,
+          eventDetailsRef.current,
+          linkContext
+        ),
+        source: mode === "event" ? "event_builder" : "studio",
+      });
+      if (!saved.ok) {
+        // Signed in regardless: the page reloads as the account's editor, where Save retries.
+        setSaveState("error");
+        setSaveMessage(`Signed in, but not saved yet: ${saved.message}`);
+        router.refresh();
+        return saved;
+      }
+      try {
+        window.sessionStorage.removeItem(STUDIO_SESSION_DRAFT_KEY);
+      } catch {
+        // The account copy is saved; session cleanup is best-effort.
+      }
+      clearDirty();
+      router.replace(savedDesignPath(signedIn.access, saved.id) ?? "/account");
+      router.refresh();
+      return { ok: true };
+    },
+    [clearDirty, design, leadDraftId, linkContext, mode, router, stopLeadAutosave, title]
   );
 
   const leadContextValue = useMemo(
@@ -952,7 +1008,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
           initialContact={leadContact}
           onEditDetails={openEventDetails}
           onSubmit={submitLead}
-          signInHref={signInWithReturn}
+          onSignIn={signInAndSave}
           createAccountHref={createAccountWithReturn}
         />
       ) : null}

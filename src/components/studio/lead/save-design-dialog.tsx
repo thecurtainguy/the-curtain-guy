@@ -3,11 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  ArrowLeft,
   BookmarkCheck,
   CalendarHeart,
   Check,
   Copy,
+  KeyRound,
+  LogIn,
   Mail,
+  MonitorSmartphone,
   Phone,
   ShieldCheck,
   User,
@@ -44,6 +48,9 @@ export type SaveDesignResult =
       fieldErrors?: StudioLeadContactErrors;
     };
 
+/** On success the page moves to the saved design, so the dialog just keeps waiting. */
+export type SaveDesignSignInResult = { ok: true } | { ok: false; message: string };
+
 type SaveDesignDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,7 +58,7 @@ type SaveDesignDialogProps = {
   initialContact: StudioLeadContact | null;
   onEditDetails: () => void;
   onSubmit: (contact: StudioLeadContact, website: string) => Promise<SaveDesignResult>;
-  signInHref: string;
+  onSignIn: (email: string, password: string) => Promise<SaveDesignSignInResult>;
   createAccountHref: string;
 };
 
@@ -70,9 +77,10 @@ function SaveDesignDialogBody({
   initialContact,
   onEditDetails,
   onSubmit,
-  signInHref,
+  onSignIn,
   createAccountHref,
 }: Omit<SaveDesignDialogProps, "open">) {
+  const [step, setStep] = useState<"contact" | "sign-in">("contact");
   const [name, setName] = useState(initialContact?.name ?? "");
   const [email, setEmail] = useState(initialContact?.email ?? "");
   const [phone, setPhone] = useState(initialContact?.phone ?? "");
@@ -124,6 +132,16 @@ function SaveDesignDialogBody({
     } catch {
       setCopied(false);
     }
+  }
+
+  if (step === "sign-in") {
+    return (
+      <SignInStep
+        initialEmail={email}
+        onBack={() => setStep("contact")}
+        onSignIn={onSignIn}
+      />
+    );
   }
 
   if (success) {
@@ -341,18 +359,143 @@ function SaveDesignDialogBody({
 
         <p className="text-xs text-muted-foreground">
           Already have an account?{" "}
-          <a
-            href={signInHref}
+          <button
+            type="button"
+            onClick={() => setStep("sign-in")}
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
             Sign in to save it there
-          </a>
+          </button>
         </p>
         <button type="submit" className="hidden" tabIndex={-1} aria-hidden />
       </form>
     </BrandDialogContent>
   );
 }
+
+function SignInStep({
+  initialEmail,
+  onBack,
+  onSignIn,
+}: {
+  initialEmail: string;
+  onBack: () => void;
+  onSignIn: SaveDesignDialogProps["onSignIn"];
+}) {
+  const [email, setEmail] = useState(initialEmail);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<"idle" | "signing-in" | "opening">("idle");
+  const busy = pending !== "idle";
+
+  async function submit() {
+    if (busy) return;
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
+    setError(null);
+    setPending("signing-in");
+    const result = await onSignIn(email, password);
+    if (result.ok) {
+      setPending("opening");
+      return;
+    }
+    setError(result.message);
+    setPending("idle");
+  }
+
+  return (
+    <BrandDialogContent
+      size="md"
+      icon={LogIn}
+      eyebrow="Welcome back"
+      title="Sign in to save"
+      description="We’ll save this room to your account and open it there. Your layout and event details come with it."
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+            <ArrowLeft aria-hidden />
+            Back
+          </Button>
+          <LoadingButton
+            type="button"
+            isLoading={busy}
+            loadingText={pending === "opening" ? "Opening your design…" : "Signing in…"}
+            icon={<LogIn className="size-4" aria-hidden />}
+            onClick={() => void submit()}
+          >
+            Sign in & save
+          </LoadingButton>
+        </>
+      }
+    >
+      <form
+        className="space-y-5"
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
+        <div className="grid gap-2 sm:grid-cols-3">
+          {SIGN_IN_PERKS.map(({ icon: Icon, label }) => (
+            <div
+              key={label}
+              className="flex items-center gap-2 rounded-2xl border border-border/40 bg-card/25 px-3 py-2.5"
+            >
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Icon className="size-3.5" aria-hidden />
+              </span>
+              <span className="text-xs leading-tight font-medium">{label}</span>
+            </div>
+          ))}
+        </div>
+
+        <BrandDialogSection label="Your account">
+          <div className="space-y-3">
+            <ContactField id="studio-sign-in-email" label="Email" icon={Mail}>
+              <Input
+                id="studio-sign-in-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                maxLength={254}
+                disabled={busy}
+                autoFocus={!initialEmail}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </ContactField>
+            <ContactField id="studio-sign-in-password" label="Password" icon={KeyRound}>
+              <Input
+                id="studio-sign-in-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                disabled={busy}
+                autoFocus={Boolean(initialEmail)}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </ContactField>
+          </div>
+        </BrandDialogSection>
+
+        {error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <button type="submit" className="hidden" tabIndex={-1} aria-hidden />
+      </form>
+    </BrandDialogContent>
+  );
+}
+
+const SIGN_IN_PERKS = [
+  { icon: BookmarkCheck, label: "Saved to your account" },
+  { icon: CalendarHeart, label: "Event details kept" },
+  { icon: MonitorSmartphone, label: "Open it on any device" },
+] as const;
 
 function ContactField({
   id,

@@ -21,12 +21,3 @@ export function isSolidHit(object: THREE.Object3D) {
   const list = Array.isArray(material) ? material : [material];
   return list.some((entry) => entry.visible && !(entry.transparent && entry.opacity < 0.6));
 }
-
-/** Whether the nearest pickable thing on a ray is an item proxy or a gizmo grip. */
-export function hitsManipulable(hits: THREE.Intersection[]) {
-  for (const hit of hits) {
-    if (hasFlag(hit.object, "studioProxy") || hasFlag(hit.object, "studioGizmo")) return true;
-    if (isSolidHit(hit.object)) return false;
-  }
-  return false;
-}

@@ -28,13 +28,11 @@ import {
   getStudioHeadBob,
   isInteriorMode,
   isStudioPointerLocked,
-  mouseLookAvailable,
   publishCameraRigState,
   setStudioCameraMode,
   setStudioCameraMounted,
   subscribeCameraRig,
   useStudioCameraMode,
-  useStudioMouseLook,
   type StudioCameraMode,
 } from "./camera/camera-view-store";
 import { getCeilingDesignPose, getCeilingViewPose } from "./camera/ceiling-poses";
@@ -587,9 +585,8 @@ const CameraRig = memo(function CameraRig({
     isPaused: () => !(controls.current?.enabled ?? false),
   });
 
-  const mouseLook = useStudioMouseLook();
   usePointerLook(domElement, mode, {
-    available: mouseLookAvailable(mode, mouseLook),
+    available: isInteriorMode(mode),
     getState,
     onTurn: motion.addTurn,
     onActivity: takeOver,

@@ -33,8 +33,8 @@ import {
 } from "./mouse-look-speed";
 import {
   sendCameraRigCommand,
+  requestStudioMouseLook,
   setStudioHeadBob,
-  setStudioMouseLook,
   useStudioCameraRig,
   type StudioCameraMode,
 } from "./camera-view-store";
@@ -192,43 +192,34 @@ export function showsWalkHud(mode: StudioCameraMode) {
   return mode === "walk" || mode === "ceiling";
 }
 
-function MouseLookRow({
-  walk,
-  mouseLook,
-  locked,
-}: {
-  walk: boolean;
-  mouseLook: boolean;
-  locked: boolean;
-}) {
-  const offered = walk || mouseLook;
+function MouseLookRow({ locked }: { locked: boolean }) {
   return (
     <div className="space-y-1">
-      {walk ? null : (
-        <ToggleRow
-          icon={MousePointer2}
-          label="Mouse look"
-          active={mouseLook}
-          onToggle={() => setStudioMouseLook(!mouseLook)}
-        />
-      )}
-      {offered ? <LookSpeedRow /> : null}
-      {offered ? (
-        <p
-          className={cn(
-            "flex items-center gap-1.5 rounded-xl border px-2 py-1.5 text-[0.6rem] leading-tight",
-            locked
-              ? "border-primary/45 bg-primary/10 text-foreground"
-              : "border-border/40 bg-card/20 text-muted-foreground"
-          )}
-          aria-live="polite"
-        >
+      <LookSpeedRow />
+      <button
+        type="button"
+        onClick={requestStudioMouseLook}
+        aria-pressed={locked}
+        className={cn(
+          "flex w-full items-center gap-1.5 rounded-xl border px-2 py-1.5 text-[0.65rem] font-medium transition-colors",
+          "focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none",
+          locked
+            ? "border-primary/45 bg-primary/10 text-foreground"
+            : "border-border/40 bg-card/30 text-foreground/70 hover:border-primary/30 hover:text-foreground"
+        )}
+      >
+        {locked ? (
           <Crosshair className="size-3.5 shrink-0 text-primary" aria-hidden />
-          {locked
-            ? "Mouse look on · click selects at the crosshair · Esc to release"
-            : "Click to look with the mouse · Esc to release"}
-        </p>
-      ) : null}
+        ) : (
+          <MousePointer2 className="size-3.5 shrink-0 text-primary" aria-hidden />
+        )}
+        <span className="min-w-0 flex-1 truncate text-left" aria-live="polite">
+          {locked ? "Mouse look on" : "Mouse look"}
+        </span>
+        <kbd className="rounded-md border border-border/50 bg-background/60 px-1 font-sans text-[0.55rem] text-muted-foreground">
+          Esc to exit
+        </kbd>
+      </button>
     </div>
   );
 }
@@ -333,7 +324,7 @@ export const StudioWalkHud = memo(function StudioWalkHud() {
           active={rig.lyingBack}
           onToggle={() => sendCameraRigCommand({ type: "lie_back", on: !rig.lyingBack })}
         />
-        <MouseLookRow walk={walk} mouseLook={rig.mouseLook} locked={rig.pointerLocked} />
+        <MouseLookRow locked={rig.pointerLocked} />
       </div>
     </section>
   );

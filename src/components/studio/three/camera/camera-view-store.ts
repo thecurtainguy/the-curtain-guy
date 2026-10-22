@@ -41,8 +41,6 @@ type Snapshot = {
   lookingUp: boolean;
   lyingBack: boolean;
   headBob: boolean;
-  /** Click-to-mouse-look outside Walk (Walk always offers it). */
-  mouseLook: boolean;
   /** The canvas holds the pointer lock: the mouse turns the head. */
   pointerLocked: boolean;
 };
@@ -54,12 +52,12 @@ let state: Snapshot = {
   lookingUp: false,
   lyingBack: false,
   headBob: false,
-  mouseLook: false,
   pointerLocked: false,
 };
 let mounted = false;
 const listeners = new Set<() => void>();
 const rigListeners = new Set<(command: CameraRigCommand) => void>();
+const mouseLookListeners = new Set<() => void>();
 
 function update(patch: Partial<Snapshot>) {
   const keys = Object.keys(patch) as Array<keyof Snapshot>;
@@ -109,17 +107,19 @@ export function setStudioHeadBob(next: boolean) {
   update({ headBob: next });
 }
 
-/** Whether a click on empty canvas grabs the mouse in this mode. */
-export function mouseLookAvailable(mode: StudioCameraMode, mouseLook: boolean): boolean {
-  return isInteriorMode(mode) && (mode === "walk" || mouseLook);
+/**
+ * Asks the rig to lock the pointer for mouse-look. Call it straight from the
+ * click handler: browsers only grant pointer lock inside a user gesture.
+ */
+export function requestStudioMouseLook() {
+  mouseLookListeners.forEach((listener) => listener());
 }
 
-export function getStudioMouseLook() {
-  return state.mouseLook;
-}
-
-export function setStudioMouseLook(next: boolean) {
-  update({ mouseLook: next });
+export function subscribeMouseLookRequest(listener: () => void) {
+  mouseLookListeners.add(listener);
+  return () => {
+    mouseLookListeners.delete(listener);
+  };
 }
 
 export function isStudioPointerLocked() {
@@ -160,14 +160,6 @@ export function useStudioCameraMode(): StudioCameraMode {
     subscribe,
     () => state.mode,
     () => DEFAULT_CAMERA_MODE
-  );
-}
-
-export function useStudioMouseLook(): boolean {
-  return useSyncExternalStore(
-    subscribe,
-    () => state.mouseLook,
-    () => false
   );
 }
 

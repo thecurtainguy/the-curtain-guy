@@ -3,10 +3,12 @@
 import type { RootState } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { getCeilingPlacement } from "../../editor/ceiling-placement-store";
-import { setStudioPointerLocked, type StudioCameraMode } from "./camera-view-store";
+import {
+  setStudioPointerLocked,
+  subscribeMouseLookRequest,
+  type StudioCameraMode,
+} from "./camera-view-store";
 import { getMouseLookSpeed } from "./mouse-look-speed";
-import { hitsManipulable } from "./scene-hits";
 
 /** Radians of turn per mouse count at speed 1 and the reference field of view. */
 const TURN_PER_COUNT = 0.0008;
@@ -26,9 +28,6 @@ const MAX_STEP = 420;
 const MOTION_MEMORY_MS = 120;
 /** Crosshair hover re-raycasts the scene; cap it while the head turns. */
 const HOVER_REPLAY_MS = 80;
-/** A click on empty canvas waits this long in case it becomes a double-click (glide). */
-const LOCK_DELAY_MS = 260;
-const CLICK_SLOP_PX = 4;
 /**
  * Crosshair clicks are replayed as synthetic events with an id no real
  * pointer uses, so nothing can pointer-capture them.
@@ -36,7 +35,7 @@ const CLICK_SLOP_PX = 4;
 const CROSSHAIR_POINTER_ID = 7301;
 
 type Options = {
-  /** Whether a click on empty canvas may grab the pointer. */
+  /** Whether the current view supports mouse-look at all. */
   available: boolean;
   getState: () => RootState;
   /** Radians: +yaw turns left, +pitch looks up. */
@@ -57,12 +56,12 @@ function createCrosshair() {
 }
 
 /**
- * Pointer-lock mouse-look for the in-room camera. While `available`, a
- * plain click on empty canvas (not an item, grip or armed placement) locks
- * the pointer; mouse travel then turns the head and a gold crosshair marks
- * the centre. Locked clicks are replayed at the crosshair through the normal
- * R3F path, so they select (or place) whatever sits under it. Esc, leaving
- * Walk, or losing availability releases the lock.
+ * Pointer-lock mouse-look for the in-room camera. Only an explicit
+ * `requestStudioMouseLook()` (the Mouse look button) locks the pointer —
+ * canvas clicks never do. While locked, mouse travel turns the head and a
+ * gold crosshair marks the centre; clicks are replayed at the crosshair
+ * through the normal R3F path, so they select (or place) whatever sits under
+ * it. Esc, changing view, or losing availability releases the lock.
  */
 export function usePointerLook(
   domElement: HTMLElement,
@@ -78,10 +77,6 @@ export function usePointerLook(
     const isLocked = () => document.pointerLockElement === domElement;
     const crosshair = createCrosshair();
     domElement.parentElement?.appendChild(crosshair);
-    const raycaster = new THREE.Raycaster();
-    const ndc = new THREE.Vector2();
-    let press: { x: number; y: number } | null = null;
-    let pendingLock = 0;
     let hoverFrame = 0;
     let hoverTimer = 0;
     let lastHoverAt = -Infinity;
@@ -99,10 +94,6 @@ export function usePointerLook(
       hoverTimer = 0;
     };
 
-    const cancelPendingLock = () => {
-      if (pendingLock) window.clearTimeout(pendingLock);
-      pendingLock = 0;
-    };
     const centre = () => {
       const rect = domElement.getBoundingClientRect();
       return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -118,16 +109,6 @@ export function usePointerLook(
       setStudioPointerLocked(locked);
       if (!locked) cancelHover();
       optionsRef.current.getState().invalidate();
-    };
-    const pressesItem = (clientX: number, clientY: number) => {
-      const state = optionsRef.current.getState();
-      const rect = domElement.getBoundingClientRect();
-      ndc.set(
-        ((clientX - rect.left) / rect.width) * 2 - 1,
-        -((clientY - rect.top) / rect.height) * 2 + 1
-      );
-      raycaster.setFromCamera(ndc, state.camera);
-      return hitsManipulable(raycaster.intersectObjects(state.scene.children, true));
     };
     const requestLock = () => {
       try {
@@ -226,31 +207,8 @@ export function usePointerLook(
       optionsRef.current.getState().invalidate();
     };
 
-    /* Unlocked: a still, unmodified left click on empty canvas grabs the pointer. */
-    const onPressDown = (event: PointerEvent) => {
-      if (!event.isTrusted || isLocked()) return;
-      cancelPendingLock();
-      press =
-        event.pointerType === "mouse" && event.button === 0
-          ? { x: event.clientX, y: event.clientY }
-          : null;
-    };
-    const onPressClick = (event: MouseEvent) => {
-      const start = press;
-      press = null;
-      if (!start || !event.isTrusted || isLocked() || event.defaultPrevented) return;
-      if (!optionsRef.current.available || getCeilingPlacement()) return;
-      if (event.button !== 0 || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) {
-        return;
-      }
-      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > CLICK_SLOP_PX) return;
-      if (pressesItem(event.clientX, event.clientY)) return;
-      cancelPendingLock();
-      pendingLock = window.setTimeout(() => {
-        pendingLock = 0;
-        if (!optionsRef.current.available || getCeilingPlacement() || isLocked()) return;
-        requestLock();
-      }, LOCK_DELAY_MS);
+    const onRequest = () => {
+      if (optionsRef.current.available && !isLocked()) requestLock();
     };
 
     const onLockChange = () => showLocked(isLocked());
@@ -273,14 +231,12 @@ export function usePointerLook(
     domElement.addEventListener("click", onLockedButton, capture);
     domElement.addEventListener("dblclick", onLockedButton, capture);
     domElement.addEventListener("contextmenu", onLockedButton, capture);
-    domElement.addEventListener("pointerdown", onPressDown);
-    domElement.addEventListener("click", onPressClick);
-    domElement.addEventListener("dblclick", cancelPendingLock);
+    const unsubscribeRequest = subscribeMouseLookRequest(onRequest);
     document.addEventListener("pointerlockchange", onLockChange);
     document.addEventListener("pointerlockerror", onLockError);
     window.addEventListener("keydown", onEscape, capture);
     return () => {
-      cancelPendingLock();
+      unsubscribeRequest();
       cancelHover();
       domElement.removeEventListener("pointermove", onLockedMove, capture);
       domElement.removeEventListener("pointerdown", onLockedButton, capture);
@@ -288,9 +244,6 @@ export function usePointerLook(
       domElement.removeEventListener("click", onLockedButton, capture);
       domElement.removeEventListener("dblclick", onLockedButton, capture);
       domElement.removeEventListener("contextmenu", onLockedButton, capture);
-      domElement.removeEventListener("pointerdown", onPressDown);
-      domElement.removeEventListener("click", onPressClick);
-      domElement.removeEventListener("dblclick", cancelPendingLock);
       document.removeEventListener("pointerlockchange", onLockChange);
       document.removeEventListener("pointerlockerror", onLockError);
       window.removeEventListener("keydown", onEscape, capture);
@@ -300,13 +253,13 @@ export function usePointerLook(
     };
   }, [domElement]);
 
-  /* Leaving Walk, or mouse-look becoming unavailable, hands the mouse back. */
+  /* Changing view, or mouse-look becoming unavailable, hands the mouse back. */
   const { available } = options;
   const previousMode = useRef(mode);
   useEffect(() => {
-    const leftWalk = previousMode.current === "walk" && mode !== "walk";
+    const changedView = previousMode.current !== mode;
     previousMode.current = mode;
-    if ((leftWalk || !available) && document.pointerLockElement === domElement) {
+    if ((changedView || !available) && document.pointerLockElement === domElement) {
       document.exitPointerLock();
     }
   }, [available, domElement, mode]);

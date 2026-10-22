@@ -26,9 +26,7 @@ import {
 } from "lucide-react";
 import {
   isInteriorMode,
-  mouseLookAvailable,
-  setStudioMouseLook,
-  useStudioMouseLook,
+  requestStudioMouseLook,
   useStudioPointerLocked,
   type StudioCameraMode,
 } from "./camera-view-store";
@@ -73,11 +71,10 @@ const LOCKED_HINTS = [
   "Esc to release",
 ];
 
-function hintsFor(mode: StudioCameraMode, spinning: boolean, mouseLook: boolean, locked: boolean) {
+function hintsFor(mode: StudioCameraMode, spinning: boolean, locked: boolean) {
   if (spinning) return ["Showcase spin · drag to take over"];
   if (locked) return LOCKED_HINTS;
-  const hints = MODE_HINTS[mode];
-  return mouseLookAvailable(mode, mouseLook) ? ["Click to look with the mouse", ...hints] : hints;
+  return MODE_HINTS[mode];
 }
 
 function ChipButton({
@@ -156,11 +153,10 @@ export const StudioViewChips = memo(function StudioViewChips({
   onFit: () => void;
   onFocus: () => void;
 }) {
-  const mouseLook = useStudioMouseLook();
   const locked = useStudioPointerLocked();
   const minimized = useStudioOverlayMinimized("view-chips");
-  const hints = hintsFor(mode, spinning, mouseLook, locked);
-  const offersMouseLook = isInteriorMode(mode) && mode !== "walk";
+  const hints = hintsFor(mode, spinning, locked);
+  const offersMouseLook = isInteriorMode(mode);
   const current = VIEW_CHIPS.find((chip) => chip.mode === mode);
   return (
     <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex flex-col items-center gap-2">
@@ -213,14 +209,10 @@ export const StudioViewChips = memo(function StudioViewChips({
           <ChipButton
             icon={MousePointer2}
             label="Mouse look"
-            hint={
-              mouseLook
-                ? "Back to drag-to-look"
-                : "Click the room to look with the mouse · Esc to release"
-            }
-            active={mouseLook}
+            hint="Steer the view with the mouse · Esc to exit"
+            active={locked}
             iconOnly
-            onClick={() => setStudioMouseLook(!mouseLook)}
+            onClick={requestStudioMouseLook}
           />
         ) : null}
         <span aria-hidden className="mx-0.5 h-6 w-px shrink-0 bg-border/50" />

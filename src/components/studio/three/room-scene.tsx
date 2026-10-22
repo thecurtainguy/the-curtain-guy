@@ -10,6 +10,7 @@ import {
 } from "../editor/studio-editor-context";
 import type { StudioSelection } from "../studio-types";
 import { StudioCameraControls } from "./camera-controls";
+import { StudioCeilingDrapes } from "./ceiling";
 import { StudioDrapes } from "./drapes";
 import { getStudioQualityPreset } from "./engine-quality";
 import { LIGHTING_MOODS } from "./lighting-moods";
@@ -96,6 +97,7 @@ export function RoomScene({
         selection={selection}
         onSelect={onSelect}
       />
+      <StudioCeilingDrapes design={design} bounds={bounds} />
       <StudioObjects
         design={design}
         bounds={bounds}

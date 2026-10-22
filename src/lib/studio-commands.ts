@@ -1,5 +1,7 @@
 import {
   createStudioItemId,
+  getCeilingDrapes,
+  type StudioCeilingDrape,
   type StudioDesignJson,
   type StudioDrapeRun,
   type StudioObject,
@@ -18,19 +20,26 @@ import {
   getStudioObjectCorners,
 } from "@/lib/studio-interactions";
 
-export type StudioItemKind = "object" | "drape" | "treatment" | "opening";
+export type StudioItemKind =
+  | "object"
+  | "drape"
+  | "treatment"
+  | "opening"
+  | "ceiling";
 
 export type StudioItemRef =
   | { kind: "object"; item: StudioObject }
   | { kind: "drape"; item: StudioDrapeRun }
   | { kind: "treatment"; item: StudioTreatment }
-  | { kind: "opening"; item: StudioOpening };
+  | { kind: "opening"; item: StudioOpening }
+  | { kind: "ceiling"; item: StudioCeilingDrape };
 
 export type StudioClipboard = {
   objects: StudioObject[];
   drapeRuns: StudioDrapeRun[];
   treatments: StudioTreatment[];
   openings: StudioOpening[];
+  ceilingDrapes: StudioCeilingDrape[];
 };
 
 export type StudioAlignMode =
@@ -55,6 +64,8 @@ export function findStudioItem(
   if (treatment) return { kind: "treatment", item: treatment };
   const opening = design.openings.find((item) => item.id === id);
   if (opening) return { kind: "opening", item: opening };
+  const ceiling = getCeilingDrapes(design).find((item) => item.id === id);
+  if (ceiling) return { kind: "ceiling", item: ceiling };
   return null;
 }
 
@@ -70,6 +81,7 @@ export function getAllStudioItemIds(
     ...design.drapeRuns.filter(keep),
     ...design.treatments.filter(keep),
     ...design.openings.filter(keep),
+    ...getCeilingDrapes(design).filter(keep),
   ].map((item) => item.id);
 }
 
@@ -89,6 +101,9 @@ export function removeStudioItems(
     drapeRuns: design.drapeRuns.filter((item) => !remove.has(item.id)),
     treatments: design.treatments.filter((item) => !remove.has(item.id)),
     openings: design.openings.filter((item) => !remove.has(item.id)),
+    ceilingDrapes: getCeilingDrapes(design).filter(
+      (item) => !remove.has(item.id)
+    ),
   };
 }
 
@@ -102,6 +117,7 @@ export function copyStudioItems(
     drapeRuns: design.drapeRuns.filter((item) => set.has(item.id)),
     treatments: design.treatments.filter((item) => set.has(item.id)),
     openings: design.openings.filter((item) => set.has(item.id)),
+    ceilingDrapes: getCeilingDrapes(design).filter((item) => set.has(item.id)),
   });
 }
 
@@ -180,6 +196,19 @@ export function pasteStudioItems(
         floor
       );
     });
+  const ceilingDrapes = (clipboard.ceilingDrapes ?? []).map((drape) => {
+    const id = createStudioItemId("ceiling");
+    ids.push(id);
+    return {
+      ...structuredClone(drape),
+      id,
+      locked: false,
+      x: clampFinite(drape.x + offset, -STUDIO_MAX_COORDINATE, STUDIO_MAX_COORDINATE),
+      z: clampFinite(drape.z + offset, -STUDIO_MAX_COORDINATE, STUDIO_MAX_COORDINATE),
+      hubX: clampFinite(drape.hubX + offset, -STUDIO_MAX_COORDINATE, STUDIO_MAX_COORDINATE),
+      hubZ: clampFinite(drape.hubZ + offset, -STUDIO_MAX_COORDINATE, STUDIO_MAX_COORDINATE),
+    };
+  });
   return {
     design: {
       ...design,
@@ -187,6 +216,7 @@ export function pasteStudioItems(
       drapeRuns: [...design.drapeRuns, ...drapeRuns],
       treatments: [...design.treatments, ...treatments],
       openings: [...design.openings, ...openings],
+      ceilingDrapes: [...getCeilingDrapes(design), ...ceilingDrapes],
     },
     ids,
   };
@@ -266,6 +296,17 @@ export function nudgeStudioItems(
           )
         : opening
     ),
+    ceilingDrapes: getCeilingDrapes(design).map((drape) =>
+      set.has(drape.id) && !drape.locked
+        ? {
+            ...drape,
+            x: clampFinite(drape.x + dx, -STUDIO_MAX_COORDINATE, STUDIO_MAX_COORDINATE),
+            z: clampFinite(drape.z + dz, -STUDIO_MAX_COORDINATE, STUDIO_MAX_COORDINATE),
+            hubX: clampFinite(drape.hubX + dx, -STUDIO_MAX_COORDINATE, STUDIO_MAX_COORDINATE),
+            hubZ: clampFinite(drape.hubZ + dz, -STUDIO_MAX_COORDINATE, STUDIO_MAX_COORDINATE),
+          }
+        : drape
+    ),
   };
 }
 
@@ -288,6 +329,11 @@ export function rotateStudioItems(
       set.has(object.id) && !object.locked
         ? { ...object, rotation: normalizeRotation(object.rotation + degrees) }
         : object
+    ),
+    ceilingDrapes: getCeilingDrapes(design).map((drape) =>
+      set.has(drape.id) && !drape.locked
+        ? { ...drape, rotation: normalizeRotation(drape.rotation + degrees) }
+        : drape
     ),
   };
 }
@@ -419,6 +465,7 @@ export function setStudioItemsFlag(
     drapeRuns: design.drapeRuns.map(apply),
     treatments: design.treatments.map(apply),
     openings: design.openings.map(apply),
+    ceilingDrapes: getCeilingDrapes(design).map(apply),
   };
 }
 

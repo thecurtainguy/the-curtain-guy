@@ -78,6 +78,7 @@ export const STUDIO_KIND_ICONS: Record<StudioItemKind, LucideIcon> = {
   drape: ScissorsLineDashed,
   treatment: Sparkles,
   opening: DoorOpen,
+  ceiling: LampCeiling,
 };
 
 export const STUDIO_KIND_LABELS: Record<StudioItemKind, string> = {
@@ -85,6 +86,7 @@ export const STUDIO_KIND_LABELS: Record<StudioItemKind, string> = {
   drape: "Drape run",
   treatment: "Drape treatment",
   opening: "Opening",
+  ceiling: "Ceiling design",
 };
 
 export const STUDIO_OPENING_META: Record<

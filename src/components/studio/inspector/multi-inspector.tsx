@@ -49,6 +49,7 @@ const KIND_PLURALS: Record<StudioItemKind, string> = {
   drape: "Drapes",
   treatment: "Treatments",
   opening: "Openings",
+  ceiling: "Ceiling",
 };
 
 function shared<T>(values: T[]): { value: T | undefined; mixed: boolean } {
@@ -73,7 +74,7 @@ export function MultiInspector({
     .filter((ref) => ref !== null);
   const counts = refs.reduce<Record<StudioItemKind, number>>(
     (acc, ref) => ({ ...acc, [ref.kind]: acc[ref.kind] + 1 }),
-    { object: 0, drape: 0, treatment: 0, opening: 0 }
+    { object: 0, drape: 0, treatment: 0, opening: 0, ceiling: 0 }
   );
   const objects = refs
     .filter((ref) => ref.kind === "object")
@@ -135,7 +136,7 @@ export function MultiInspector({
             <X className="size-4" aria-hidden="true" />
           </button>
         </div>
-        <div className="relative mt-3 grid grid-cols-4 gap-1.5">
+        <div className="relative mt-3 grid grid-cols-5 gap-1.5">
           {(Object.keys(counts) as StudioItemKind[]).map((kind) => {
             const Icon = STUDIO_KIND_ICONS[kind];
             return (

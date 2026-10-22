@@ -63,6 +63,8 @@ export type StudioMaterials = {
   lighting: StudioLightingMood;
   /** Perimeter uplighting washed along every wall; null/undefined = off. */
   uplightColor?: DrapeColor | null;
+  /** Ceiling architecture; undefined = "auto" (tray when the room allows). */
+  ceiling?: StudioCeilingFinish;
 };
 
 export const DEFAULT_STUDIO_MATERIALS: StudioMaterials = {
@@ -387,6 +389,113 @@ export type StudioTreatment = {
   hidden?: boolean;
 };
 
+export const CEILING_DRAPE_STYLES = [
+  { value: "starburst", label: "Starburst", description: "Panels radiating from a centre hub" },
+  { value: "canopy", label: "Gathered canopy", description: "Fabric web gathered low at the hub" },
+  { value: "tent", label: "Tented peak", description: "Continuous fabric rising to a peak" },
+  { value: "swag_rows", label: "Swag rows", description: "Parallel panels sagging wall to wall" },
+  { value: "billow_rows", label: "Billows", description: "Rows dipping between support lines" },
+  { value: "stretch_panels", label: "Stretched panels", description: "Taut, near-flat fabric bands" },
+  { value: "crisscross", label: "Criss-cross", description: "Diagonal swags crossing overhead" },
+  { value: "perimeter_swag", label: "Perimeter swags", description: "Scallops framing the ceiling edge" },
+  { value: "cascades", label: "Cascades", description: "Fabric falls dropping from the ceiling" },
+] as const;
+export type CeilingDrapeStyle = (typeof CEILING_DRAPE_STYLES)[number]["value"];
+
+export const CEILING_LIGHT_STYLES = [
+  { value: "none", label: "No lights" },
+  { value: "fairy", label: "Fairy lights" },
+  { value: "bistro", label: "Bistro bulbs" },
+  { value: "starlight", label: "Starlight" },
+] as const;
+export type CeilingLightStyle = (typeof CEILING_LIGHT_STYLES)[number]["value"];
+
+export const CEILING_HUB_DECOR = [
+  { value: "none", label: "Bare hub" },
+  { value: "chandelier", label: "Crystal chandelier" },
+  { value: "floral_ring", label: "Floral ring" },
+  { value: "rosette", label: "Fabric rosette" },
+  { value: "medallion", label: "Gold medallion" },
+] as const;
+export type CeilingHubDecor = (typeof CEILING_HUB_DECOR)[number]["value"];
+
+export const CEILING_COVERAGES = [
+  { value: "room", label: "Whole room" },
+  { value: "area", label: "Custom area" },
+] as const;
+export type CeilingCoverage = (typeof CEILING_COVERAGES)[number]["value"];
+
+/**
+ * A ceiling drape design. Plan coordinates are inches in the same space as
+ * `room.floor`; heights are measured DOWN from the ceiling plane
+ * (`room.wallHeight`), so 0 = flush to the ceiling.
+ *
+ * Field meaning per style is defined by `CEILING_STYLE_FIELDS` in
+ * `@/lib/studio-ceiling` — the layout there is the single source of truth for
+ * both the 2D plan and the 3D scene.
+ */
+export type StudioCeilingDrape = {
+  id: string;
+  type: CeilingDrapeStyle;
+  label: string;
+  /** "room" follows the room outline inset by `inset`; "area" uses the rectangle below. */
+  coverage: CeilingCoverage;
+  /** Area rectangle centre, inches. */
+  x: number;
+  z: number;
+  /** Area rectangle size before rotation, inches. */
+  width: number;
+  depth: number;
+  /** Degrees, same convention as objects (plan clockwise). Rotates the area and the run direction. */
+  rotation: number;
+  /** Distance kept from the walls when coverage is "room", inches. */
+  inset: number;
+  /** Hub point for radial styles, inches. */
+  hubX: number;
+  hubZ: number;
+  /** Below-ceiling drop of the perimeter attachment line, inches. */
+  edgeDrop: number;
+  /** Below-ceiling drop of the hub, inches. */
+  hubDrop: number;
+  /** Extra belly / scallop / fall depth, inches (meaning per style). */
+  sag: number;
+  /** Spokes, rows, swags per direction, or cascade count (per style). */
+  count: number;
+  /** Fabric panel width as hung, inches. */
+  panelWidth: number;
+  /** Billows per row, or cascade rows (per style). */
+  scallops: number;
+  fabric: DrapeFabric;
+  color: DrapeColor;
+  /** Alternating panel colour; null = solid. */
+  accentColor: DrapeColor | null;
+  fullness: number;
+  lights: CeilingLightStyle;
+  lightColor: DrapeColor;
+  hubDecor: CeilingHubDecor;
+  /** Finishing valance where fabric meets the walls. */
+  perimeterValance: boolean;
+  /** Coloured wash on the fabric from below; null = none. */
+  uplightColor: DrapeColor | null;
+  notes: string;
+  locked?: boolean;
+  hidden?: boolean;
+};
+
+export const STUDIO_MAX_CEILING_DRAPES = 24;
+
+export const STUDIO_CEILING_FINISHES = [
+  { value: "auto", label: "Venue default" },
+  { value: "flat", label: "Flat plaster" },
+  { value: "tray", label: "Tray with cove" },
+  { value: "coffered", label: "Coffered grid" },
+  { value: "beams", label: "Exposed beams" },
+  { value: "truss", label: "Industrial truss" },
+  { value: "black", label: "Black-out" },
+] as const;
+export type StudioCeilingFinish =
+  (typeof STUDIO_CEILING_FINISHES)[number]["value"];
+
 export type StudioRoom = {
   shape: StudioRoomShape;
   name: string;
@@ -410,6 +519,8 @@ export type StudioDesignJson = {
   objects: StudioObject[];
   drapeRuns: StudioDrapeRun[];
   treatments: StudioTreatment[];
+  /** Optional on disk; `normalizeStudioDesign` / validation always fill it. */
+  ceilingDrapes?: StudioCeilingDrape[];
   view: {
     cameraMode: "orbit";
     /** Legacy glass-walls flag; `wallDisplay: "glass"` supersedes it. */
@@ -682,7 +793,61 @@ export function getStudioMaterials(design: {
   )
     ? (materials.uplightColor as DrapeColor)
     : null;
-  return { floor, walls, lighting, uplightColor };
+  const ceiling = STUDIO_CEILING_FINISHES.some(
+    (option) => option.value === materials.ceiling
+  )
+    ? (materials.ceiling as StudioCeilingFinish)
+    : "auto";
+  return { floor, walls, lighting, uplightColor, ceiling };
+}
+
+/** Ceiling drape designs; always an array even for designs saved before they existed. */
+export function getCeilingDrapes(design: {
+  ceilingDrapes?: StudioCeilingDrape[];
+}): StudioCeilingDrape[] {
+  return Array.isArray(design.ceilingDrapes) ? design.ceilingDrapes : [];
+}
+
+function isValidCeilingDrape(drape: unknown): boolean {
+  if (!hasStableId(drape)) return false;
+  const inRange = (value: unknown, min: number, max: number) =>
+    isFiniteNumber(value) && value >= min && value <= max;
+  return (
+    CEILING_DRAPE_STYLES.some((option) => option.value === drape.type) &&
+    isRequiredString(drape.label, STUDIO_LABEL_MAX_LENGTH) &&
+    CEILING_COVERAGES.some((option) => option.value === drape.coverage) &&
+    inRange(drape.x, -120000, 120000) &&
+    inRange(drape.z, -120000, 120000) &&
+    inRange(drape.width, 12, 120000) &&
+    inRange(drape.depth, 12, 120000) &&
+    inRange(drape.rotation, -36000, 36000) &&
+    inRange(drape.inset, 0, 600) &&
+    inRange(drape.hubX, -120000, 120000) &&
+    inRange(drape.hubZ, -120000, 120000) &&
+    inRange(drape.edgeDrop, 0, 480) &&
+    inRange(drape.hubDrop, 0, 480) &&
+    inRange(drape.sag, 0, 480) &&
+    Number.isInteger(drape.count) &&
+    inRange(drape.count, 1, 64) &&
+    inRange(drape.panelWidth, 6, 480) &&
+    Number.isInteger(drape.scallops) &&
+    inRange(drape.scallops, 1, 16) &&
+    DRAPE_FABRICS.some((option) => option.value === drape.fabric) &&
+    DRAPE_COLORS.some((option) => option.value === drape.color) &&
+    isOptionalDrapeColor(drape.accentColor, true) &&
+    drape.accentColor !== undefined &&
+    inRange(drape.fullness, 1, 4) &&
+    CEILING_LIGHT_STYLES.some((option) => option.value === drape.lights) &&
+    DRAPE_COLORS.some((option) => option.value === drape.lightColor) &&
+    CEILING_HUB_DECOR.some((option) => option.value === drape.hubDecor) &&
+    typeof drape.perimeterValance === "boolean" &&
+    isOptionalDrapeColor(drape.uplightColor, true) &&
+    drape.uplightColor !== undefined &&
+    typeof drape.notes === "string" &&
+    drape.notes.length <= STUDIO_NOTES_MAX_LENGTH &&
+    isOptionalBoolean(drape.locked) &&
+    isOptionalBoolean(drape.hidden)
+  );
 }
 
 function hasStableId(
@@ -1339,6 +1504,28 @@ export function validateStudioDesign(
     }
   }
 
+  const ceilingDrapes =
+    value.ceilingDrapes === undefined ? [] : value.ceilingDrapes;
+  if (
+    !Array.isArray(ceilingDrapes) ||
+    ceilingDrapes.length > STUDIO_MAX_CEILING_DRAPES
+  ) {
+    errors.push("Ceiling drape designs must be a valid list.");
+  } else {
+    for (const drape of ceilingDrapes) {
+      const stableId = hasStableId(drape);
+      if (stableId && seenIds.has(drape.id)) {
+        errors.push("Studio item IDs must be unique.");
+        break;
+      }
+      if (stableId) seenIds.add(drape.id);
+      if (!isValidCeilingDrape(drape)) {
+        errors.push("One or more ceiling drape designs are invalid.");
+        break;
+      }
+    }
+  }
+
   if (
     typeof value.notes !== "string" ||
     value.notes.length > STUDIO_NOTES_MAX_LENGTH
@@ -1370,7 +1557,8 @@ export function validateStudioDesign(
       !STUDIO_LIGHTING_MOODS.some(
         (option) => option.value === materials.lighting
       ) ||
-      !isOptionalDrapeColor(materials.uplightColor, true)
+      !isOptionalDrapeColor(materials.uplightColor, true) ||
+      !isOptionalOption(materials.ceiling, STUDIO_CEILING_FINISHES)
     ) {
       errors.push("Studio room finish settings are invalid.");
     }
@@ -1384,6 +1572,7 @@ export function validateStudioDesign(
     design: {
       ...(value as StudioDesignJson),
       treatments: treatments as StudioTreatment[],
+      ceilingDrapes: ceilingDrapes as StudioCeilingDrape[],
       materials: getStudioMaterials(value),
     },
     bytes,
@@ -1396,12 +1585,13 @@ export function normalizeStudioDesign(
   return {
     ...design,
     treatments: Array.isArray(design.treatments) ? design.treatments : [],
+    ceilingDrapes: getCeilingDrapes(design),
     materials: getStudioMaterials(design),
   };
 }
 
 export function createStudioItemId(
-  prefix: "drape" | "object" | "opening" | "treatment"
+  prefix: "drape" | "object" | "opening" | "treatment" | "ceiling"
 ): string {
   const id =
     typeof crypto !== "undefined" && "randomUUID" in crypto

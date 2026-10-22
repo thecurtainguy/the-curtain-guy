@@ -13,6 +13,7 @@ export type StudioSelection =
   | { kind: "treatment"; id: string }
   | { kind: "object"; id: string }
   | { kind: "opening"; id: string }
+  | { kind: "ceiling"; id: string }
   | null;
 
 export type StudioViewMode = "2d" | "3d" | "split";

@@ -45,7 +45,12 @@ export type StudioCameraView =
   | "ceiling"
   | "dollhouse";
 
-export type StudioLayerKey = "drapes" | "treatments" | "objects" | "openings";
+export type StudioLayerKey =
+  | "drapes"
+  | "treatments"
+  | "objects"
+  | "openings"
+  | "ceiling";
 
 export type StudioEditorSettings = {
   snapEnabled: boolean;
@@ -75,7 +80,13 @@ export const DEFAULT_STUDIO_EDITOR_SETTINGS: StudioEditorSettings = {
   showDimensions: true,
   showLabels: true,
   showSeating: true,
-  layers: { drapes: true, treatments: true, objects: true, openings: true },
+  layers: {
+    drapes: true,
+    treatments: true,
+    objects: true,
+    openings: true,
+    ceiling: true,
+  },
   quality: "high",
   tool: "select",
   autoRotate: false,

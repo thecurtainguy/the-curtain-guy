@@ -1,6 +1,11 @@
 "use client";
 
-import type { StudioDesignJson } from "@/data/studio";
+import type {
+  CeilingDrapeStyle,
+  StudioCeilingDrape,
+  StudioDesignJson,
+} from "@/data/studio";
+import { addCeilingDrape, createCeilingDrape } from "@/lib/studio-ceiling";
 import {
   alignStudioObjects,
   copyStudioItems,
@@ -322,6 +327,27 @@ export function useStudioEditorState({
     future.current = [];
   }, []);
 
+  const commitRef = useRef<StudioEditorContextValue["commit"] | null>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const hook = {
+      design: () => designRef.current,
+      commit: (next: StudioDesignJson) => commitRef.current?.(next),
+      addCeiling: (
+        style: CeilingDrapeStyle,
+        overrides: Partial<Omit<StudioCeilingDrape, "id" | "type">> = {}
+      ) => {
+        const drape = createCeilingDrape(style, designRef.current.room.floor, overrides);
+        commitRef.current?.(addCeilingDrape(designRef.current, drape));
+        return drape.id;
+      },
+    };
+    (window as unknown as { __tcgStudio?: typeof hook }).__tcgStudio = hook;
+    return () => {
+      delete (window as unknown as { __tcgStudio?: typeof hook }).__tcgStudio;
+    };
+  }, []);
+
   const commit = useCallback<StudioEditorContextValue["commit"]>(
     (next, options) => {
       const current = designRef.current;
@@ -346,6 +372,9 @@ export function useStudioEditorState({
     },
     [bumpHistory, onDesignChange, pushPast]
   );
+  useLayoutEffect(() => {
+    commitRef.current = commit;
+  }, [commit]);
 
   const beginTransaction = useCallback(() => {
     if (!transactionBase.current) transactionBase.current = designRef.current;

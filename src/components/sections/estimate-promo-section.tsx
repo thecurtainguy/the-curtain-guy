@@ -31,12 +31,12 @@ export function EstimatePromoSection() {
                   {t("description")}
                 </p>
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <Button variant="atelier" asChild size="atelier" className="min-h-11">
+                  <Button variant="atelier" asChild size="atelier">
                     <Link href="/get-estimate">
                       {t("cta")}
                     </Link>
                   </Button>
-                  <Button asChild variant="atelier-outline" size="atelier" className="min-h-11">
+                  <Button asChild variant="atelier-outline" size="atelier">
                     <Link href="/contact">{tc("contactBrand")}</Link>
                   </Button>
                 </div>

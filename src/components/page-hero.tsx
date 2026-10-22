@@ -84,12 +84,16 @@ export function PageHero({
 type QuoteCTAProps = {
   headline?: string;
   description?: string;
+  primaryLabel?: string;
+  secondaryLabel?: string;
   className?: string;
 };
 
 export function QuoteCTA({
   headline = "Ready to transform your Montreal venue?",
   description = "Tell us your event type, venue, date, and the look you want. We'll help shape the right event drape rental setup — with full-service delivery, installation, and teardown.",
+  primaryLabel = "Get Estimate",
+  secondaryLabel = "Contact Us",
   className,
 }: QuoteCTAProps) {
   return (
@@ -116,11 +120,11 @@ export function QuoteCTA({
             {description}
           </p>
           <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-            <Button variant="atelier" asChild size="atelier" className="min-h-11 w-full sm:w-auto">
-              <Link href="/get-estimate">Get Estimate</Link>
+            <Button variant="atelier" asChild size="atelier" className="w-full sm:w-auto">
+              <Link href="/get-estimate">{primaryLabel}</Link>
             </Button>
-            <Button asChild variant="atelier-outline" size="atelier" className="min-h-11 w-full sm:w-auto">
-              <Link href="/contact">Contact Us</Link>
+            <Button asChild variant="atelier-outline" size="atelier" className="w-full sm:w-auto">
+              <Link href="/contact">{secondaryLabel}</Link>
             </Button>
           </div>
         </Reveal>

@@ -196,7 +196,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
           delayChildren={1.55}
         >
           <StaggerItem className="w-full sm:w-auto">
-            <Button variant="atelier" asChild size="atelier" className="min-h-11 w-full px-6 sm:w-auto">
+            <Button variant="atelier" asChild size="atelier" className="w-full px-6 sm:w-auto">
               <Link href="/">
                 <Home className="size-4" strokeWidth={1.75} aria-hidden />
                 Back home
@@ -211,7 +211,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
                   asChild
                   variant="atelier-outline"
                   size="atelier"
-                  className="min-h-11 w-full bg-card/40 px-5 backdrop-blur-sm sm:w-auto"
+                  className="w-full bg-card/40 px-5 backdrop-blur-sm sm:w-auto"
                 >
                   <Link href={cta.href}>
                     <Icon className="size-4 text-primary" strokeWidth={1.75} aria-hidden />
@@ -259,7 +259,7 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
                 asChild
                 variant="atelier-outline"
                 size="atelier"
-                className="min-h-11 shrink-0"
+                className="shrink-0"
               >
                 <Link href={portal.href}>
                   <PortalGlyph kind={portal.kind} className="size-4 text-primary" />

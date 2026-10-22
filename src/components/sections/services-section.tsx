@@ -25,7 +25,7 @@ export function ServicesSection() {
               title={t("title")}
               description={t("description")}
             />
-            <Button asChild variant="atelier-outline" size="atelier" className="min-h-11 shrink-0">
+            <Button asChild variant="atelier-outline" size="atelier" className="shrink-0">
               <Link href="/services">
                 {tc("viewServices")}
               </Link>

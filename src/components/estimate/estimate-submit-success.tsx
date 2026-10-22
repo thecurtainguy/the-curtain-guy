@@ -152,7 +152,7 @@ export function EstimateSubmitSuccess({
           <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
             <p className="text-sm font-medium text-foreground">{t("guestCta")}</p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <Button variant="atelier" size="atelier" asChild className="min-h-10">
+              <Button variant="atelier" size="atelier" asChild>
                 <GuardedLink
                   href={`/account/signup?email=${encodeURIComponent(email.trim())}`}
                 >
@@ -160,7 +160,7 @@ export function EstimateSubmitSuccess({
                   Create an account
                 </GuardedLink>
               </Button>
-              <Button asChild variant="atelier-outline" size="atelier" className="min-h-10">
+              <Button asChild variant="atelier-outline" size="atelier">
                 <GuardedLink href="/account/login">Sign in</GuardedLink>
               </Button>
             </div>
@@ -171,10 +171,10 @@ export function EstimateSubmitSuccess({
           <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
             <p className="text-sm font-medium text-foreground">{t("customerCta")}</p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <Button variant="atelier" size="atelier" asChild className="min-h-10">
+              <Button variant="atelier" size="atelier" asChild>
                 <Link href={accountHref}>View estimate in account</Link>
               </Button>
-              <Button asChild variant="atelier-outline" size="atelier" className="min-h-10">
+              <Button asChild variant="atelier-outline" size="atelier">
                 <Link href="/account">
                   <LayoutDashboard className="size-4" />
                   Account dashboard
@@ -199,13 +199,13 @@ export function EstimateSubmitSuccess({
           <div className="mx-auto w-full max-w-lg rounded-2xl border border-border/40 bg-background/40 p-4 text-center">
             <p className="text-sm font-medium text-foreground">{t("title")}</p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <Button variant="atelier" size="atelier" asChild className="min-h-10">
+              <Button variant="atelier" size="atelier" asChild>
                 <Link href={adminHref}>
                   <Shield className="size-4" />
                   {t("ownerCta")}
                 </Link>
               </Button>
-              <Button asChild variant="atelier-outline" size="atelier" className="min-h-10">
+              <Button asChild variant="atelier-outline" size="atelier">
                 <Link href="/admin">
                   <LayoutDashboard className="size-4" />
                   Admin dashboard

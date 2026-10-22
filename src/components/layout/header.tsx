@@ -347,7 +347,7 @@ export function Header() {
             className="hidden sm:inline-flex"
           >
             <GuardedLink href="/get-estimate" aria-label={tc("getEstimate")}>
-              <span className="lg:max-xl:hidden">{tc("getEstimate")}</span>
+              <span className="lg:max-xl:hidden">{tc("getEstimateHeader")}</span>
               <span className="hidden lg:max-xl:inline">{tc("getEstimateShort")}</span>
             </GuardedLink>
           </Button>

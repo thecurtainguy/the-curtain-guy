@@ -107,7 +107,7 @@ export function Footer() {
                   {siteConfig.phone}
                 </a>
               </li>
-              <li>{siteConfig.location}</li>
+              <li>{tc("location")}</li>
               <li>
                 <GuardedLink
                   href="/get-estimate"

@@ -76,7 +76,7 @@ export function CtaBand({
             </p>
           )}
           <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
-            <Button variant="atelier" asChild size="atelier" className="min-h-11 w-full sm:w-auto">
+            <Button variant="atelier" asChild size="atelier" className="w-full sm:w-auto">
               <Link href={primaryHref}>{resolvedPrimaryLabel}</Link>
             </Button>
             {secondaryHref && resolvedSecondaryLabel && (
@@ -84,7 +84,7 @@ export function CtaBand({
                 asChild
                 variant="atelier-outline"
                 size="atelier"
-                className="min-h-11 w-full sm:w-auto"
+                className="w-full sm:w-auto"
               >
                 <Link href={secondaryHref}>{resolvedSecondaryLabel}</Link>
               </Button>

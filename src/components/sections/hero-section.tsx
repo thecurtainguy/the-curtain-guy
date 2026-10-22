@@ -30,7 +30,7 @@ export function HeroSection() {
             {t("description")}
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button variant="atelier" asChild size="atelier" className="min-h-11 w-full sm:w-auto">
+            <Button variant="atelier" asChild size="atelier" className="w-full sm:w-auto">
               <Link href="/get-estimate">
                 {tc("requestEstimate")}
               </Link>
@@ -39,7 +39,7 @@ export function HeroSection() {
               asChild
               variant="atelier-outline"
               size="atelier"
-              className="min-h-11 w-full sm:w-auto"
+              className="w-full sm:w-auto"
             >
               <Link href="/services">{tc("viewServices")}</Link>
             </Button>

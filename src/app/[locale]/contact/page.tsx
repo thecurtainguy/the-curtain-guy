@@ -132,7 +132,7 @@ export default async function ContactPage({ params }: PageProps) {
                   <p className="mt-2 text-sm text-muted-foreground">
                     {t("preferEstimateDescription")}
                   </p>
-                  <Button variant="atelier" size="atelier" asChild className="mt-4 min-h-11">
+                  <Button variant="atelier" size="atelier" asChild className="mt-4 ">
                     <Link href="/get-estimate">{tCommon("getEstimate")}</Link>
                   </Button>
                 </CardContent>
@@ -150,7 +150,12 @@ export default async function ContactPage({ params }: PageProps) {
         </div>
       </section>
 
-      <QuoteCTA />
+      <QuoteCTA
+        headline={tCommon("quoteCta.headline")}
+        description={tCommon("quoteCta.description")}
+        primaryLabel={tCommon("getEstimate")}
+        secondaryLabel={tCommon("contactUs")}
+      />
     </>
   );
 }

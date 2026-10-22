@@ -86,7 +86,7 @@ export function HowItWorksSection() {
             </Stagger>
 
             <div className="mt-8">
-              <Button variant="atelier" size="atelier" asChild className="min-h-11">
+              <Button variant="atelier" size="atelier" asChild>
                 <Link href="/get-estimate">{t("cta")}</Link>
               </Button>
             </div>

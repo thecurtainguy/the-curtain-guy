@@ -36,6 +36,7 @@ export default async function ReviewsPage({ params }: PageProps) {
   setRequestLocale(locale);
 
   const t = await getTranslations("reviews.page");
+  const tCommon = await getTranslations("common");
 
   return (
     <>
@@ -45,11 +46,11 @@ export default async function ReviewsPage({ params }: PageProps) {
         description={t("description")}
       >
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button variant="atelier" asChild size="atelier" className="min-h-11">
+          <Button variant="atelier" asChild size="atelier">
             <Link href="/get-estimate">{t("getEstimate")}</Link>
           </Button>
           <ShareExperienceDialog>
-            <Button variant="atelier-outline" size="atelier" className="min-h-11">
+            <Button variant="atelier-outline" size="atelier">
               {t("shareCta")}
             </Button>
           </ShareExperienceDialog>
@@ -58,7 +59,12 @@ export default async function ReviewsPage({ params }: PageProps) {
 
       <ReviewsShowcase />
 
-      <QuoteCTA />
+      <QuoteCTA
+        headline={tCommon("quoteCta.headline")}
+        description={tCommon("quoteCta.description")}
+        primaryLabel={tCommon("getEstimate")}
+        secondaryLabel={tCommon("contactUs")}
+      />
     </>
   );
 }

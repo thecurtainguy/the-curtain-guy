@@ -34,7 +34,7 @@ export async function generateMetadata({
 export default async function HomePage({ params }: PageProps) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const t = await getTranslations("common.quoteCta");
+  const tCommon = await getTranslations("common");
 
   return (
     <>
@@ -46,7 +46,12 @@ export default async function HomePage({ params }: PageProps) {
       <GalleryTeaserSection />
       <AreasTeaserSection />
       <AiTeaserSection />
-      <QuoteCTA headline={t("headline")} description={t("description")} />
+      <QuoteCTA
+        headline={tCommon("quoteCta.headline")}
+        description={tCommon("quoteCta.description")}
+        primaryLabel={tCommon("getEstimate")}
+        secondaryLabel={tCommon("contactUs")}
+      />
     </>
   );
 }

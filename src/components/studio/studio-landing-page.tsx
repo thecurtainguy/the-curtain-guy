@@ -91,11 +91,11 @@ export function StudioLandingPage() {
                 </RootLink>
               </Button>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-x-7 gap-y-1">
-              <Button asChild size="atelier" variant="atelier-link" className="h-auto px-1 py-2.5">
+            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-0.5">
+              <Button asChild size="atelier-sm" variant="atelier-link" className="h-auto px-1 py-2">
                 <RootLink href="/studio/saved">{t("hero.ctaSaved")}</RootLink>
               </Button>
-              <Button asChild size="atelier" variant="atelier-link" className="h-auto px-1 py-2.5">
+              <Button asChild size="atelier-sm" variant="atelier-link" className="h-auto px-1 py-2">
                 <Link href="/get-estimate">{t("hero.ctaEstimate")}</Link>
               </Button>
             </div>

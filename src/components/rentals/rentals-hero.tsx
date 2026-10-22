@@ -54,7 +54,7 @@ export async function RentalsHero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button variant="atelier" asChild size="atelier" className="min-h-11 w-full sm:w-auto">
+            <Button variant="atelier" asChild size="atelier" className="w-full sm:w-auto">
               <a href="#packages">
                 {t("heroBrowsePackagesCta")}
               </a>
@@ -63,7 +63,7 @@ export async function RentalsHero() {
               asChild
               variant="atelier-outline"
               size="atelier"
-              className="min-h-11 w-full sm:w-auto"
+              className="w-full sm:w-auto"
             >
               <a href="#items">{t("heroBrowseCta")}</a>
             </Button>
@@ -71,7 +71,7 @@ export async function RentalsHero() {
               asChild
               variant="atelier-outline"
               size="atelier"
-              className="min-h-11 w-full sm:w-auto"
+              className="w-full sm:w-auto"
             >
               <Link href="/get-estimate">{tc("requestEstimate")}</Link>
             </Button>

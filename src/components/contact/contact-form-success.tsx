@@ -45,14 +45,14 @@ export function ContactFormSuccess({ onSendAnother }: ContactFormSuccessProps) {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <Button variant="atelier" size="atelier" asChild className="min-h-10">
+        <Button variant="atelier" size="atelier" asChild>
           <Link href="/get-estimate">{t("planDraping")}</Link>
         </Button>
         {onSendAnother ? (
           <Button
             type="button"
             variant="atelier-outline" size="atelier"
-            className="min-h-10"
+            className=""
             onClick={onSendAnother}
           >
             <Sparkles className="size-4" />

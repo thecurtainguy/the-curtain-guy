@@ -20,6 +20,7 @@ export default function robots(): MetadataRoute.Robots {
           "/auth/",
           "/quote",
           "/quote/",
+          "/invoice/",
           "/studio/",
         ],
       },

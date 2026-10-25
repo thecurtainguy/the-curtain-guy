@@ -13,6 +13,7 @@ function isNonLocalizedPath(pathname: string) {
     pathname.startsWith("/api") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/quote") ||
+    pathname.startsWith("/invoice/") ||
     pathname.startsWith("/studio/") ||
     // Root-only marketing page outside [locale] — must skip next-intl or it 404s
     pathname === "/ai" ||

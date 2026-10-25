@@ -29,7 +29,8 @@ export function isRootOnlyPath(path: string): boolean {
     pathname.startsWith("/admin") ||
     pathname.startsWith("/account") ||
     pathname.startsWith("/auth") ||
-    pathname.startsWith("/quote")
+    pathname.startsWith("/quote") ||
+    pathname.startsWith("/invoice/")
   );
 }
 
@@ -44,7 +45,7 @@ export function getRootOnlyRedirectTarget(pathname: string): string | null {
     return `/studio/${studioSubpath[1]}`;
   }
 
-  const match = pathname.match(/^\/fr\/(admin|account|auth|quote|ai)(\/.*)?$/);
+  const match = pathname.match(/^\/fr\/(admin|account|auth|quote|invoice|ai)(\/.*)?$/);
   if (!match) return null;
   return `/${match[1]}${match[2] ?? ""}`;
 }

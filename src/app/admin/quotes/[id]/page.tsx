@@ -53,6 +53,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
           quoteId={quote.id}
           quoteStatus={quote.status}
           existingJobId={linkedJob?.id}
+          customerName={quote.customer_name}
         />
         {studioSummary ? (
           <StudioDesignSummaryCard

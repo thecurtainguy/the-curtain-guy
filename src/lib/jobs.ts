@@ -495,8 +495,19 @@ export async function updateJob(
   jobId: string,
   payload: JobUpdatePayload,
   ownerUserId: string
-): Promise<EventJobRow | null> {
+): Promise<{ job: EventJobRow; before: EventJobRow } | null> {
   const admin = createAdminSupabaseClient();
+  const { data: beforeData, error: loadError } = await admin
+    .from("event_jobs")
+    .select("*")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (loadError || !beforeData) {
+    console.error("[jobs] updateJob load failed", loadError);
+    return null;
+  }
+  const before = beforeData as EventJobRow;
+
   const { data, error } = await admin
     .from("event_jobs")
     .update(payload)
@@ -508,17 +519,29 @@ export async function updateJob(
     console.error("[jobs] updateJob failed", error);
     return null;
   }
+  const job = data as EventJobRow;
 
-  await recordJobEvent({
-    jobId,
-    actorUserId: ownerUserId,
-    actorRole: "owner",
-    eventType: "notes_updated",
-    title: "Job details updated",
-    customerVisible: false,
-  });
+  const changes = (Object.keys(payload) as Array<keyof JobUpdatePayload>)
+    .filter((key) => (before[key] ?? null) !== (job[key] ?? null))
+    .map((key) => ({ field: key, from: before[key] ?? null, to: job[key] ?? null }));
 
-  return data as EventJobRow;
+  if (changes.length > 0) {
+    await recordJobEvent({
+      jobId,
+      actorUserId: ownerUserId,
+      actorRole: "owner",
+      eventType: "notes_updated",
+      title: "Job details updated",
+      body: changes
+        .map((c) => `${c.field.replaceAll("_", " ")}: ${c.from ?? "—"} → ${c.to ?? "—"}`)
+        .join("\n")
+        .slice(0, 4000),
+      customerVisible: false,
+      metadata: { changes },
+    });
+  }
+
+  return { job, before };
 }
 
 export async function updateJobStatus(

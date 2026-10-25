@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
+import { syncInvoicesFromJob } from "@/lib/invoices";
 import { getAdminJob, updateJob, type JobUpdatePayload } from "@/lib/jobs";
 
 export const runtime = "nodejs";
@@ -47,13 +48,19 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  const job = await updateJob(id, body, owner.user.id);
-  if (!job) {
+  const result = await updateJob(id, body, owner.user.id);
+  if (!result) {
     return NextResponse.json(
       { ok: false, message: "Could not update job." },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ ok: true, job });
+  const synced = await syncInvoicesFromJob({
+    before: result.before,
+    after: result.job,
+    actorUserId: owner.user.id,
+  });
+
+  return NextResponse.json({ ok: true, job: result.job, invoicesUpdated: synced.updated });
 }

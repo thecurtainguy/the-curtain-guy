@@ -11,6 +11,8 @@ import {
 import { CustomerEventDetail } from "@/components/account/customer-event-detail";
 import { fetchEstimateFiles } from "@/lib/estimate-access";
 import { getCustomerJob } from "@/lib/jobs";
+import { CustomerInvoicesCard } from "@/components/invoices/customer-invoices-card";
+import { listCustomerInvoicesForJob } from "@/lib/invoices";
 
 export const metadata: Metadata = {
   title: "Event detail",
@@ -29,17 +31,23 @@ export default async function AccountEventDetailPage({ params }: PageProps) {
   const job = await getCustomerJob(id, current.user);
   if (!job) notFound();
 
-  const files = job.estimate_request_id
-    ? (
-        await fetchEstimateFiles(job.estimate_request_id, ["uploaded"], {
+  const [files, invoices] = await Promise.all([
+    job.estimate_request_id
+      ? fetchEstimateFiles(job.estimate_request_id, ["uploaded"], {
           customerVisibleOnly: true,
         })
-      )
-    : [];
+      : Promise.resolve([]),
+    listCustomerInvoicesForJob(job.id),
+  ]);
 
   return (
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
+      {invoices.length > 0 ? (
+        <div className="mb-6">
+          <CustomerInvoicesCard invoices={invoices} language={invoices[0].language} />
+        </div>
+      ) : null}
       <CustomerEventDetail
         job={job}
         quoteLineItems={job.quote_line_items}

@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import { AdminJobDetail } from "@/components/admin/admin-job-detail";
+import { AdminJobInvoices } from "@/components/admin/admin-job-invoices";
 import { fetchEstimateFiles } from "@/lib/estimate-access";
+import { listInvoicesForJob } from "@/lib/invoices";
 import { getAdminJob } from "@/lib/jobs";
 
 export const metadata: Metadata = {
@@ -21,14 +23,18 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
   const job = await getAdminJob(id);
   if (!job) notFound();
 
-  const files = job.estimate_request_id
-    ? await fetchEstimateFiles(job.estimate_request_id, ["uploaded", "pending"])
-    : [];
+  const [files, invoices] = await Promise.all([
+    job.estimate_request_id
+      ? fetchEstimateFiles(job.estimate_request_id, ["uploaded", "pending"])
+      : Promise.resolve([]),
+    listInvoicesForJob(id),
+  ]);
 
   return (
     <AdminPageFrame email={owner.profile.email}>
       <AdminJobDetail
         job={job}
+        billingSlot={<AdminJobInvoices jobId={job.id} invoices={invoices} />}
         estimateFiles={files.map((f) => ({
           id: f.id,
           original_file_name: f.original_file_name,

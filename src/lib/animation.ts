@@ -111,7 +111,7 @@ export type PageMotionPreset =
 export function getPageMotionPreset(pathname: string): PageMotionPreset {
   if (pathname.startsWith("/admin")) return "admin";
   if (pathname.startsWith("/account")) return "account";
-  if (pathname.startsWith("/quote/")) return "quote";
+  if (pathname.startsWith("/quote/") || pathname.startsWith("/invoice/")) return "quote";
   if (pathname.startsWith("/get-estimate")) return "estimate";
   if (pathname === "/ai" || pathname.startsWith("/ai/")) return "ai";
   if (pathname === "/gallery" || pathname.startsWith("/gallery/")) return "gallery";

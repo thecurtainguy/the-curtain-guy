@@ -54,9 +54,12 @@ type FileListItem = {
 export function AdminJobDetail({
   job: initialJob,
   estimateFiles = [],
+  billingSlot,
 }: {
   job: JobWithRelations;
   estimateFiles?: FileListItem[];
+  /** Rendered under the header (invoices panel). */
+  billingSlot?: React.ReactNode;
 }) {
   const router = useRouter();
   const [job, setJob] = useState(initialJob);
@@ -203,13 +206,19 @@ export function AdminJobDetail({
         ok?: boolean;
         message?: string;
         job?: JobWithRelations;
+        invoicesUpdated?: string[];
       };
       if (!response.ok || !payload.ok) {
         flash(undefined, payload.message ?? "Could not save job.");
         return;
       }
       setBaseline(JSON.stringify(buildPayload()));
-      flash("Job saved.");
+      const synced = payload.invoicesUpdated ?? [];
+      flash(
+        synced.length
+          ? `Job saved. Also updated ${synced.join(", ")} — check the invoice and resend if the client already has it.`
+          : "Job saved."
+      );
       router.refresh();
     } catch {
       flash(undefined, "Could not save job.");
@@ -399,6 +408,8 @@ export function AdminJobDetail({
           {error ?? message}
         </div>
       )}
+
+      {billingSlot}
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0 space-y-6">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Receipt } from "lucide-react";
 import type { CustomerLanguage } from "@/data/customer-language";
 import { computeAmountDue, getInvoiceCopy, type InvoiceRow } from "@/data/invoices";
-import { formatCadFromCents } from "@/data/quotes";
+import { formatMoneyFromCents } from "@/data/quotes";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 
 export function CustomerInvoicesCard({
@@ -45,7 +45,7 @@ export function CustomerInvoicesCard({
                     <InvoiceStatusBadge invoice={invoice} language={language} />
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t.total}: {formatCadFromCents(invoice.total_cents, language)}
+                    {t.totalIn(invoice.currency === "USD" ? "USD" : "CAD")}: {formatMoneyFromCents(invoice.total_cents, language, invoice.currency)}
                   </p>
                 </div>
                 {due.dueNowKind !== "none" ? (
@@ -54,7 +54,7 @@ export function CustomerInvoicesCard({
                       {due.dueNowKind === "deposit" ? t.depositDue : t.balanceDue}
                     </p>
                     <p className="font-heading text-lg font-semibold tabular-nums">
-                      {formatCadFromCents(due.dueNowCents, language)}
+                      {formatMoneyFromCents(due.dueNowCents, language, invoice.currency)}
                     </p>
                   </div>
                 ) : null}

@@ -10,6 +10,8 @@ import {
   ExternalLink,
   Loader2,
   Mail,
+  Building,
+  BookmarkPlus,
   PanelsTopLeft,
   RotateCcw,
 } from "lucide-react";
@@ -29,6 +31,7 @@ import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import type { JobWithRelations } from "@/lib/jobs";
+import { formatCustomerNumber, type CustomerVenueRow } from "@/data/customers";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
@@ -55,11 +58,13 @@ export function AdminJobDetail({
   job: initialJob,
   estimateFiles = [],
   billingSlot,
+  customer = null,
 }: {
   job: JobWithRelations;
   estimateFiles?: FileListItem[];
   /** Rendered under the header (invoices panel). */
   billingSlot?: React.ReactNode;
+  customer?: { id: string; customer_number: number; display_name: string; venues: CustomerVenueRow[] } | null;
 }) {
   const router = useRouter();
   const [job, setJob] = useState(initialJob);
@@ -104,6 +109,60 @@ export function AdminJobDetail({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [venueBusy, setVenueBusy] = useState(false);
+
+  function applySavedVenue(venue: CustomerVenueRow) {
+    setVenueName(venue.name);
+    setVenueAddress(venue.address ?? "");
+    setVenueCity(venue.city ?? "");
+    setVenueRegion(venue.region ?? "");
+    setVenuePostal(venue.postal_code ?? "");
+    setVenueCountry(venue.country || "Canada");
+    if (venue.access_notes) setAccessNotes(venue.access_notes);
+    if (venue.loading_notes) setLoadingNotes(venue.loading_notes);
+    if (venue.parking_notes) setParkingNotes(venue.parking_notes);
+    if (venue.elevator_notes) setElevatorNotes(venue.elevator_notes);
+    if (venue.room_notes) setRoomNotes(venue.room_notes);
+    flash(`Filled in ${venue.name}. Save the job to keep it.`);
+  }
+
+  async function saveVenueToCustomer() {
+    if (!customer) return;
+    if (!venueName.trim()) {
+      flash(undefined, "Add a venue name first.");
+      return;
+    }
+    setVenueBusy(true);
+    try {
+      const response = await fetch(`/api/admin/customers/${customer.id}/venues`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromJobId: job.id,
+          name: venueName,
+          address: venueAddress,
+          city: venueCity,
+          region: venueRegion,
+          postal_code: venuePostal,
+          country: venueCountry,
+          access_notes: accessNotes,
+          loading_notes: loadingNotes,
+          parking_notes: parkingNotes,
+          elevator_notes: elevatorNotes,
+          room_notes: roomNotes,
+        }),
+      });
+      const json = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      if (!response.ok || !json.ok) {
+        flash(undefined, json.message ?? "Could not save venue.");
+        return;
+      }
+      flash(`Saved ${venueName} to ${customer.display_name}'s venues.`);
+      router.refresh();
+    } finally {
+      setVenueBusy(false);
+    }
+  }
 
   const checklistProgress = useMemo(
     () => getChecklistProgress(job.checklist_items),
@@ -456,7 +515,58 @@ export function AdminJobDetail({
         </section>
 
         <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
-          <h2 className="font-heading text-lg font-semibold">Venue</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-heading text-lg font-semibold">Venue</h2>
+            {customer ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={venueBusy}
+                onClick={() => void saveVenueToCustomer()}
+              >
+                {venueBusy ? <Loader2 className="size-4 animate-spin" /> : <BookmarkPlus className="size-4" />}
+                Save to customer
+              </Button>
+            ) : null}
+          </div>
+          {customer ? (
+            <div className="mt-3 space-y-2">
+              <Link href={`/admin/customers/${customer.id}#venues`} className="text-xs text-muted-foreground hover:text-primary">
+                {formatCustomerNumber(customer.customer_number)} {customer.display_name}
+                {customer.venues.length ? ` · ${customer.venues.length} saved venue${customer.venues.length === 1 ? "" : "s"}` : " · no saved venues yet"}
+              </Link>
+              {customer.venues.length ? (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {customer.venues.map((venue) => {
+                    const active = venue.name === venueName;
+                    return (
+                      <button
+                        key={venue.id}
+                        type="button"
+                        onClick={() => applySavedVenue(venue)}
+                        className={cn(
+                          "flex items-start gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors",
+                          active
+                            ? "border-primary/50 bg-primary/10"
+                            : "border-border/40 bg-card/40 hover:border-primary/30"
+                        )}
+                      >
+                        <Building className="mt-0.5 size-4 shrink-0 text-primary" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{venue.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {[venue.address, venue.city].filter(Boolean).join(", ") || "No address"}
+                          </span>
+                        </span>
+                        {active ? <Check className="size-4 shrink-0 text-primary" /> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="venue_name">Venue name</Label>

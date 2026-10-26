@@ -249,10 +249,11 @@ export function formatQuoteUnitSuffix(
 export function formatQuoteUnitPrice(
   unitPriceCents: number,
   unit: string | null | undefined,
-  language: CustomerLanguage = "en"
+  language: CustomerLanguage = "en",
+  currency: string | null | undefined = "CAD"
 ): string {
   const suffix = formatQuoteUnitSuffix(unit, language);
-  const price = formatCadFromCents(unitPriceCents, language);
+  const price = formatMoneyFromCents(unitPriceCents, language, currency);
   return suffix ? `${price} ${suffix}` : price;
 }
 
@@ -470,6 +471,7 @@ export function computeManualTaxLineCents(
 
 export type QuoteRow = {
   id: string;
+  customer_id?: string | null;
   estimate_request_id: string;
   opportunity_ref: string;
   revision_number: number;
@@ -881,10 +883,19 @@ export function formatCadFromCents(
   cents: number,
   language: CustomerLanguage = "en"
 ): string {
+  return formatMoneyFromCents(cents, language, "CAD");
+}
+
+/** CAD prints as "$"; USD prints as "US$" so the two are never confused. */
+export function formatMoneyFromCents(
+  cents: number,
+  language: CustomerLanguage = "en",
+  currency: string | null | undefined = "CAD"
+): string {
   const value = (Number(cents) || 0) / 100;
   return new Intl.NumberFormat(customerLocaleTag(language), {
     style: "currency",
-    currency: "CAD",
+    currency: currency === "USD" ? "USD" : "CAD",
   }).format(value);
 }
 

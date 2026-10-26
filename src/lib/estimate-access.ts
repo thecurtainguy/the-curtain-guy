@@ -6,6 +6,7 @@ import { verifyUploadToken } from "@/lib/estimate-files";
 
 export type EstimateRequestRow = {
   id: string;
+  customer_id?: string | null;
   created_at: string;
   updated_at: string;
   status: string;

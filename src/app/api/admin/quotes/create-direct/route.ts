@@ -36,6 +36,7 @@ export async function POST(request: Request) {
     cityArea: typeof body.cityArea === "string" ? body.cityArea : null,
     ownerNotes: typeof body.ownerNotes === "string" ? body.ownerNotes : null,
     language: isCustomerLanguage(body.language) ? body.language : undefined,
+    customerId: typeof body.customerId === "string" && body.customerId ? body.customerId : null,
     createdByUserId: owner.user.id,
   });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCustomerLanguage } from "@/data/customer-language";
 import { requireCustomerOrOwner } from "@/lib/auth";
+import { syncCustomerLanguageFromProfile } from "@/lib/customers";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export async function PATCH(request: NextRequest) {
@@ -48,6 +49,10 @@ export async function PATCH(request: NextRequest) {
       { ok: false, message: "Could not update profile." },
       { status: 500 }
     );
+  }
+
+  if (current.profile.role === "customer" && isCustomerLanguage(body.preferredLanguage)) {
+    await syncCustomerLanguageFromProfile(current.user.id, body.preferredLanguage);
   }
 
   return NextResponse.json({ ok: true, profile: data });

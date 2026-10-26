@@ -13,6 +13,7 @@ import {
 import type { QuoteLineItemRow, QuoteRow } from "@/data/quotes";
 import { formatQuoteDisplayRef } from "@/data/quotes";
 import { isEmailVerified } from "@/lib/auth";
+import { fetchCustomerById } from "@/lib/customers";
 import type { EstimateRequestRow } from "@/lib/estimate-access";
 import { fetchEstimateById } from "@/lib/estimate-access";
 import {
@@ -353,17 +354,20 @@ export async function createJobFromQuote(
   const createdByUserId =
     actorUserId ?? quote.created_by_user_id ?? estimate?.user_id ?? null;
 
+  const customerId = quote.customer_id ?? estimate?.customer_id ?? null;
+  const customer = customerId ? await fetchCustomerById(customerId) : null;
   const admin = createAdminSupabaseClient();
   const insertPayload = {
     opportunity_ref: quote.opportunity_ref,
     estimate_request_id: quote.estimate_request_id,
     quote_id: quote.id,
-    customer_user_id: estimate?.user_id ?? null,
+    customer_id: customerId,
+    customer_user_id: estimate?.user_id ?? customer?.user_id ?? null,
     created_by_user_id: createdByUserId,
     customer_name: quote.customer_name ?? estimate?.customer_name ?? null,
     customer_email: quote.customer_email ?? estimate?.customer_email ?? null,
-    customer_phone: estimate?.customer_phone ?? null,
-    company_name: null,
+    customer_phone: estimate?.customer_phone ?? customer?.phone ?? null,
+    company_name: customer?.company_name ?? null,
     event_name: null,
     event_type: quote.event_type ?? estimate?.event_type ?? null,
     event_date: quote.event_date ?? estimate?.event_date ?? null,

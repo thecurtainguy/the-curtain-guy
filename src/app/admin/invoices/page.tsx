@@ -13,6 +13,7 @@ import { isInvoiceOverdue } from "@/data/invoices";
 import { formatCadFromCents } from "@/data/quotes";
 import { listInvoices, listRecentInvoiceEvents } from "@/lib/invoices";
 import { AdminInvoiceAuditLog } from "@/components/admin/admin-invoice-audit-log";
+import { AdminNewInvoiceButton } from "@/components/admin/customers/admin-new-invoice-dialog";
 
 export const metadata: Metadata = {
   title: "Invoices",
@@ -63,12 +64,15 @@ export default async function AdminInvoicesPage() {
           description="Deposits, payments, and balances for every booked event."
           icon={Receipt}
           actions={
-            <Button asChild variant="outline">
-              <Link href="/admin/billing">
-                <Landmark className="size-4" />
-                Billing settings
-              </Link>
-            </Button>
+            <>
+              <Button asChild variant="outline">
+                <Link href="/admin/billing">
+                  <Landmark className="size-4" />
+                  Billing settings
+                </Link>
+              </Button>
+              <AdminNewInvoiceButton />
+            </>
           }
         />
         <div className="grid gap-3 sm:grid-cols-3">

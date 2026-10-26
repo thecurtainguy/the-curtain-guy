@@ -12,6 +12,8 @@ import { fetchEventPlanByEstimateId } from "@/lib/event-plan-access";
 import { fetchJobByQuoteId } from "@/lib/jobs";
 import { listProductCategories } from "@/lib/product-categories";
 import { fetchQuoteById, findActivePublicQuoteUrl } from "@/lib/quotes";
+import { getCustomerLinkSummary } from "@/lib/customers";
+import { formatCustomerNumber } from "@/data/customers";
 import { fetchStudioDesignSummaryForQuote } from "@/lib/studio-quote-converter";
 import { BuildQuoteFromDesignButton } from "@/components/admin/studio-quote/build-quote-from-design-button";
 import { StudioDesignSummaryCard } from "@/components/admin/studio-quote/studio-design-summary-card";
@@ -45,6 +47,9 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
     : null;
   const categories = await listProductCategories();
   const studioSummary = await fetchStudioDesignSummaryForQuote(quote);
+  const customerLink = await getCustomerLinkSummary(quote.customer_id, {
+    excludeEmails: [quote.customer_email],
+  });
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -55,6 +60,23 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
           existingJobId={linkedJob?.id}
           customerName={quote.customer_name}
         />
+        {customerLink ? (
+          <Link
+            href={`/admin/customers/${customerLink.id}`}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/40 bg-card/25 px-4 py-3 text-sm hover:border-primary/40"
+          >
+            <span>
+              <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">Customer</span>{" "}
+              <span className="ml-2 font-medium">{customerLink.display_name}</span>
+              <span className="text-muted-foreground">
+                {" "}· {formatCustomerNumber(customerLink.customer_number)}
+                {customerLink.company_name ? ` · ${customerLink.company_name}` : ""}
+                {customerLink.quoteCc.length ? ` · Cc ${customerLink.quoteCc.join(", ")}` : ""}
+              </span>
+            </span>
+            <span className="text-xs text-muted-foreground">Open profile →</span>
+          </Link>
+        ) : null}
         {studioSummary ? (
           <StudioDesignSummaryCard
             summary={studioSummary}
@@ -115,6 +137,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
               : null
           }
           categories={categories}
+          defaultCc={customerLink?.quoteCc ?? []}
         />
       </div>
     </AdminPageFrame>

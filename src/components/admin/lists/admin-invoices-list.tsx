@@ -153,7 +153,7 @@ function List({ rows }: { rows: AdminInvoiceListRow[] }) {
           onCheckedChange={(checked) => setExtra("owing", checked ? "1" : null)}
         />
       )}
-      empty="No invoices yet. Create one from a job."
+      empty="No invoices yet. Create one from a job, a customer profile, or with New invoice."
     />
   );
 }

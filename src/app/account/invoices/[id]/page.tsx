@@ -43,7 +43,11 @@ export default async function AccountInvoicePage({ params }: PageProps) {
           <PortalBackLink href={`/account/events/${invoice.job_id}`}>
             {invoice.language === "fr" ? "Retour à l'événement" : "Back to event"}
           </PortalBackLink>
-        ) : null}
+        ) : (
+          <PortalBackLink href="/account">
+            {invoice.language === "fr" ? "Retour au tableau de bord" : "Back to dashboard"}
+          </PortalBackLink>
+        )}
         <InvoiceDocumentView
           invoice={toCustomerSafeInvoice(invoice)}
           settings={settings}

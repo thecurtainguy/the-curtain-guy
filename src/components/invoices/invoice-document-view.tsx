@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   Banknote,
   Building2,
@@ -8,6 +9,7 @@ import {
   FileSignature,
   Landmark,
   Mail,
+  Package,
   Receipt,
   UserRound,
   Wallet,
@@ -29,9 +31,10 @@ import {
   type PaymentMethod,
 } from "@/data/invoices";
 import {
-  formatCadFromCents,
+  formatMoneyFromCents,
   formatQuoteQuantity,
   formatQuoteUnitPrice,
+  quoteLineCategoryLabel,
 } from "@/data/quotes";
 import { formatQuoteDate, quoteEventTypeLabel } from "@/data/quote-copy";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
@@ -81,7 +84,7 @@ export function InvoiceDocumentView({
 }) {
   const language = invoice.language;
   const t = getInvoiceCopy(language);
-  const money = (cents: number) => formatCadFromCents(cents, language);
+  const money = (cents: number) => formatMoneyFromCents(cents, language, invoice.currency);
   const date = (value: string | null | undefined) => formatQuoteDate(value, language, "—");
   const due = computeAmountDue(invoice);
   const taxRows = getInvoiceTaxRows(invoice, { variant: "customer", language });
@@ -134,8 +137,13 @@ export function InvoiceDocumentView({
                 </span>
               ) : null}
               <span className="rounded-full border border-border/50 px-3 py-1">
-                {t.quoteRef} {invoice.opportunity_ref}
+                {invoice.quote_id ? t.quoteRef : t.reference} {invoice.opportunity_ref}
               </span>
+              {invoice.po_number ? (
+                <span className="rounded-full border border-border/50 px-3 py-1">
+                  {t.poNumber} {invoice.po_number}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="rounded-2xl border border-primary/40 bg-primary/10 p-5">
@@ -203,12 +211,39 @@ export function InvoiceDocumentView({
             <tbody>
               {invoice.line_items.map((line) => (
                 <tr key={line.id} className="border-b border-border/30 align-top">
-                  <td className="py-2.5 pr-4">{line.description}</td>
+                  <td className="py-2.5 pr-4">
+                    <div className="flex items-start gap-3">
+                      <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
+                        {line.image_url ? (
+                          <Image
+                            src={line.image_url}
+                            alt={line.image_alt || line.description}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex size-full items-center justify-center text-primary/50">
+                            <Package className="size-4" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p>{line.description}</p>
+                        {line.category ? (
+                          <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
+                            {quoteLineCategoryLabel({ ...line, category: line.category }, language)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </td>
                   <td className="py-2.5 text-right tabular-nums text-muted-foreground">
                     {formatQuoteQuantity(line.quantity, line.unit_label, language)}
                   </td>
                   <td className="py-2.5 text-right tabular-nums text-muted-foreground">
-                    {formatQuoteUnitPrice(line.unit_price_cents, line.unit_label, language)}
+                    {formatQuoteUnitPrice(line.unit_price_cents, line.unit_label, language, invoice.currency)}
                   </td>
                   <td className="py-2.5 text-right tabular-nums">{money(line.line_total_cents)}</td>
                 </tr>

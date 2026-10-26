@@ -29,6 +29,7 @@ export function AdminRecordPaymentDialog({
   paymentMethods,
   suggestedCents,
   suggestedKind,
+  preferredMethodId = null,
   open,
   onOpenChange,
   onRecorded,
@@ -37,6 +38,7 @@ export function AdminRecordPaymentDialog({
   paymentMethods: PaymentMethod[];
   suggestedCents: number;
   suggestedKind: PaymentKind;
+  preferredMethodId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRecorded: (invoice: InvoiceWithRelations) => void;
@@ -48,7 +50,11 @@ export function AdminRecordPaymentDialog({
   const [kind, setKind] = useState<PaymentKind>(suggestedKind);
   const [amount, setAmount] = useState((Math.max(0, suggestedCents) / 100).toFixed(2));
   const [paidOn, setPaidOn] = useState(todayIsoDate());
-  const [method, setMethod] = useState(methods.find((m) => m.enabled)?.id ?? "other");
+  const [method, setMethod] = useState(
+    methods.find((m) => m.enabled && m.id === preferredMethodId)?.id ??
+      methods.find((m) => m.enabled)?.id ??
+      "other"
+  );
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);

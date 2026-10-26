@@ -19,6 +19,9 @@ import { PortalStartEstimateButton } from "@/components/estimates/portal-start-e
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { listEstimatesForCustomer } from "@/lib/estimate-access";
 import { listQuotesForCustomer } from "@/lib/quotes";
+import { listCustomerInvoices } from "@/lib/invoices";
+import { CustomerInvoicesCard } from "@/components/invoices/customer-invoices-card";
+import { normalizeCustomerLanguage } from "@/data/customer-language";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -31,6 +34,8 @@ export default async function AccountHomePage() {
   const verified = isEmailVerified(current.user);
   const estimates = await listEstimatesForCustomer(current.user);
   const quotes = await listQuotesForCustomer(current.user);
+  const invoices = await listCustomerInvoices(current.user);
+  const language = normalizeCustomerLanguage(current.profile.preferred_language);
 
   const estimateRows: AccountDashboardEstimateRow[] = estimates.map((row) => ({
     id: row.id,
@@ -105,6 +110,8 @@ export default async function AccountHomePage() {
             </p>
           </div>
         </div>
+
+        <CustomerInvoicesCard invoices={invoices} language={language} />
 
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-3">

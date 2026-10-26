@@ -6,7 +6,7 @@ import {
   type InvoiceRow,
   type InvoiceWithRelations,
 } from "@/data/invoices";
-import { formatCadFromCents } from "@/data/quotes";
+import { formatMoneyFromCents } from "@/data/quotes";
 import { formatQuoteDate } from "@/data/quote-copy";
 import { getEstimateNotifyTo, getQuoteFrom } from "@/lib/env";
 import { getLocalizedDocumentText } from "@/lib/document-texts";
@@ -46,7 +46,8 @@ export function buildInvoiceEmailParts(input: {
   const { invoice } = input;
   const language = invoice.language;
   const t = getInvoiceCopy(language);
-  const money = (cents: number) => formatCadFromCents(cents, language);
+  const money = (cents: number) => formatMoneyFromCents(cents, language, invoice.currency);
+  const totalLabel = t.totalIn(invoice.currency === "USD" ? "USD" : "CAD");
   const due = computeAmountDue(invoice);
   const dueLabel =
     due.dueNowKind === "deposit" ? t.depositDue : t.balanceDue;
@@ -69,7 +70,8 @@ export function buildInvoiceEmailParts(input: {
     input.bodyText.trim(),
     "",
     `${t.invoice} ${invoice.invoice_number}`,
-    `${t.total}: ${money(invoice.total_cents)}`,
+    `${totalLabel}: ${money(invoice.total_cents)}`,
+    invoice.po_number ? `${t.poNumber} ${invoice.po_number}` : "",
     `${dueLabel}: ${money(due.dueNowCents)} (${dueDate})`,
     remainingLine ?? "",
     "",
@@ -83,7 +85,8 @@ export function buildInvoiceEmailParts(input: {
     <div style="margin:0 0 18px;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.2);">
       <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#b8860b;">${escapeEmailHtml(t.invoice)}</p>
       <p style="margin:0 0 10px;font-size:20px;color:#f8f5ec;">${escapeEmailHtml(invoice.invoice_number)}</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#cfc8b8;">${escapeEmailHtml(t.total)}: ${escapeEmailHtml(money(invoice.total_cents))}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#cfc8b8;">${escapeEmailHtml(totalLabel)}: ${escapeEmailHtml(money(invoice.total_cents))}</p>
+      ${invoice.po_number ? `<p style="margin:0 0 4px;font-size:13px;color:#cfc8b8;">${escapeEmailHtml(t.poNumber)} ${escapeEmailHtml(invoice.po_number)}</p>` : ""}
       <p style="margin:10px 0 0;font-size:18px;color:#d4af37;">${escapeEmailHtml(dueLabel)}: ${escapeEmailHtml(money(due.dueNowCents))}</p>
       <p style="margin:2px 0 0;font-size:12px;color:#8b909a;">${escapeEmailHtml(dueDate)}</p>
       ${remainingLine ? `<p style="margin:10px 0 0;padding-top:10px;border-top:1px solid rgba(212,175,55,0.2);font-size:13px;color:#f8f5ec;">${escapeEmailHtml(remainingLine)}</p>` : ""}

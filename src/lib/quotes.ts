@@ -32,6 +32,7 @@ import {
 import { formatEventPlanReference, type EventPlanSubmissionRow } from "@/data/event-plans";
 import { parseEventBuilderBrief } from "@/data/event-builder/brief";
 import { isEmailVerified } from "@/lib/auth";
+import { fetchCustomerById, findCustomerByEmail } from "@/lib/customers";
 import {
   fetchEstimateById,
   type EstimateRequestRow,
@@ -427,6 +428,8 @@ export async function recalculateQuoteTotals(quoteId: string): Promise<void> {
 export async function createQuoteFromEstimate(input: {
   estimate: EstimateRequestRow;
   createdByUserId?: string | null;
+  /** Explicit choice; otherwise the customer's preference, then the estimate's language. */
+  language?: CustomerLanguage | null;
 }): Promise<{ quote: QuoteRow; created: boolean } | { error: string }> {
   const opportunityRef = await ensureOpportunityRef(input.estimate.id);
   if (!opportunityRef) {
@@ -440,12 +443,19 @@ export async function createQuoteFromEstimate(input: {
   }
 
   const displayRef = buildQuoteDisplayRef(opportunityRef, 1);
-  const language = normalizeCustomerLanguage(input.estimate.language);
+  const customer = input.estimate.customer_id
+    ? await fetchCustomerById(input.estimate.customer_id)
+    : null;
+  const language =
+    input.language ??
+    customer?.preferred_language ??
+    normalizeCustomerLanguage(input.estimate.language);
   const defaultTerms = await getLocalizedDocumentText("quote.terms", language);
   const { data, error } = await admin
     .from("quotes")
     .insert({
       estimate_request_id: input.estimate.id,
+      customer_id: input.estimate.customer_id ?? null,
       opportunity_ref: opportunityRef,
       revision_number: 1,
       quote_display_ref: displayRef,
@@ -503,6 +513,7 @@ export type DirectQuoteInput = {
   cityArea?: string | null;
   ownerNotes?: string | null;
   language?: CustomerLanguage;
+  customerId?: string | null;
   createdByUserId: string;
 };
 
@@ -512,6 +523,8 @@ export async function findPreferredLanguageForEmail(
 ): Promise<CustomerLanguage> {
   const normalized = normalizeEmail(email);
   if (!normalized) return "en";
+  const customer = await findCustomerByEmail(normalized);
+  if (customer) return customer.preferred_language;
   const admin = createAdminSupabaseClient();
   const { data } = await admin
     .from("user_profiles")
@@ -561,6 +574,7 @@ export async function createDirectQuote(
     }),
     source: "admin_direct_quote",
     status: "quoted",
+    ...(input.customerId ? { customer_id: input.customerId } : {}),
     raw_payload: {
       ...form,
       created_via: "admin_direct_quote",
@@ -584,6 +598,7 @@ export async function createDirectQuote(
   const quoteResult = await createQuoteFromEstimate({
     estimate,
     createdByUserId: input.createdByUserId,
+    language: input.language ?? null,
   });
 
   if ("error" in quoteResult) {
@@ -759,6 +774,7 @@ export async function createQuoteRevision(input: {
     .from("quotes")
     .insert({
       estimate_request_id: source.estimate_request_id,
+      customer_id: source.customer_id ?? null,
       opportunity_ref: source.opportunity_ref,
       revision_number: nextRevision,
       quote_display_ref: displayRef,

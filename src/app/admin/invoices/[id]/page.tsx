@@ -6,6 +6,7 @@ import { AdminInvoiceEditor } from "@/components/admin/admin-invoice-editor";
 import { getBusinessSettings } from "@/lib/business-settings";
 import { getSiteUrl } from "@/lib/env";
 import { fetchInvoiceById, findActiveInvoiceUrl } from "@/lib/invoices";
+import { getCustomerLinkSummary } from "@/lib/customers";
 
 export const metadata: Metadata = {
   title: "Invoice",
@@ -25,6 +26,9 @@ export default async function AdminInvoicePage({ params }: PageProps) {
     findActiveInvoiceUrl(id, getSiteUrl()),
   ]);
   if (!invoice) notFound();
+  const customerLink = await getCustomerLinkSummary(invoice.customer_id, {
+    excludeEmails: [invoice.customer_email],
+  });
 
   return (
     <AdminPageFrame email={owner.profile.email}>
@@ -33,6 +37,7 @@ export default async function AdminInvoicePage({ params }: PageProps) {
         paymentMethods={settings.payment_methods}
         tradeName={settings.trade_name}
         initialPublicUrl={publicUrl}
+        customerLink={customerLink}
       />
     </AdminPageFrame>
   );

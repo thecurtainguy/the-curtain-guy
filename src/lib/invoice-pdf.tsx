@@ -12,6 +12,7 @@ import {
 import { PDFDocument } from "pdf-lib";
 import { customerLocaleTag } from "@/data/customer-language";
 import { downloadPaymentDocument } from "@/lib/business-settings";
+import { toPdfSafeImage } from "@/lib/pdf-image";
 import {
   businessAddressLines,
   businessText,
@@ -30,9 +31,10 @@ import {
   type CustomerSafeInvoice,
 } from "@/data/invoices";
 import {
-  formatCadFromCents,
+  formatMoneyFromCents,
   formatQuoteQuantity,
   formatQuoteUnitPrice,
+  quoteLineCategoryLabel,
 } from "@/data/quotes";
 import { formatQuoteDate, quoteEventTypeLabel } from "@/data/quote-copy";
 
@@ -183,7 +185,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.75,
     borderBottomColor: COLORS.line,
   },
-  colDesc: { width: "52%", paddingRight: 10 },
+  colThumb: { width: "7%", paddingRight: 6 },
+  colDesc: { width: "45%", paddingRight: 10 },
+  lineThumb: { width: 22, height: 22, borderRadius: 3, objectFit: "cover" },
+  lineThumbPlaceholder: { width: 22, height: 22, borderRadius: 3, backgroundColor: COLORS.goldWash },
+  lineCategory: {
+    marginTop: 2,
+    color: COLORS.gold,
+    fontSize: 6.5,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
   colQty: { width: "14%", paddingRight: 6 },
   colUnit: { width: "18%", paddingRight: 6 },
   colTotal: { width: "16%" },
@@ -344,7 +357,7 @@ function InvoicePdfDocument({
 }) {
   const language = invoice.language;
   const t = getInvoiceCopy(language);
-  const money = (cents: number) => formatCadFromCents(cents, language);
+  const money = (cents: number) => formatMoneyFromCents(cents, language, invoice.currency);
   const date = (value: string | null | undefined) => formatQuoteDate(value, language, "—");
   const taxRows = getInvoiceTaxRows(invoice, { variant: "customer", language });
   const due = computeAmountDue(invoice);
@@ -426,7 +439,7 @@ function InvoicePdfDocument({
         <Text style={styles.headerMeta}>
           {t.issueDate} {date(invoice.issue_date)}
           {invoice.due_date ? `  ·  ${t.dueDate} ${date(invoice.due_date)}` : ""}
-          {"  ·  CAD"}
+          {`  ·  ${invoice.currency === "USD" ? "USD" : "CAD"}`}
         </Text>
         <Text style={[styles.stamp, stampStyle(displayStatus), { alignSelf: "flex-start" }]}>
           {statusLabel}
@@ -469,7 +482,8 @@ function InvoicePdfDocument({
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>{t.event}</Text>
             <Meta label={t.invoiceNumber} value={invoice.invoice_number} />
-            <Meta label={t.quoteRef} value={invoice.opportunity_ref} />
+            <Meta label={invoice.quote_id ? t.quoteRef : t.reference} value={invoice.opportunity_ref} />
+            {invoice.po_number ? <Meta label={t.poNumber} value={invoice.po_number} /> : null}
             {invoice.event_type ? (
               <Meta
                 label={t.event}
@@ -492,6 +506,7 @@ function InvoicePdfDocument({
         </View>
 
         <View style={styles.tableHeader}>
+          <View style={styles.colThumb} />
           <View style={styles.colDesc}>
             <Text style={styles.th}>{t.description}</Text>
           </View>
@@ -507,8 +522,21 @@ function InvoicePdfDocument({
         </View>
         {invoice.line_items.map((line) => (
           <View key={line.id} style={styles.tr} wrap={false}>
+            <View style={styles.colThumb}>
+              {line.image_url ? (
+                // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
+                <Image src={line.image_url} style={styles.lineThumb} />
+              ) : (
+                <View style={styles.lineThumbPlaceholder} />
+              )}
+            </View>
             <View style={styles.colDesc}>
               <Text style={styles.body}>{line.description || "—"}</Text>
+              {line.category ? (
+                <Text style={styles.lineCategory}>
+                  {quoteLineCategoryLabel({ ...line, category: line.category }, language)}
+                </Text>
+              ) : null}
             </View>
             <View style={styles.colQty}>
               <Text style={[styles.body, styles.right]}>
@@ -517,7 +545,7 @@ function InvoicePdfDocument({
             </View>
             <View style={styles.colUnit}>
               <Text style={[styles.body, styles.right]}>
-                {formatQuoteUnitPrice(line.unit_price_cents, line.unit_label, language)}
+                {formatQuoteUnitPrice(line.unit_price_cents, line.unit_label, language, invoice.currency)}
               </Text>
             </View>
             <View style={styles.colTotal}>
@@ -708,9 +736,15 @@ export async function renderInvoicePdfBuffer(input: {
   const generatedAt = new Date().toLocaleString(customerLocaleTag(input.invoice.language), {
     timeZone: "America/Toronto",
   });
+  const lineItems = await Promise.all(
+    input.invoice.line_items.map(async (line) => ({
+      ...line,
+      image_url: await toPdfSafeImage(line.image_url),
+    }))
+  );
   const buffer = await renderToBuffer(
     <InvoicePdfDocument
-      invoice={input.invoice}
+      invoice={{ ...input.invoice, line_items: lineItems }}
       settings={input.settings}
       publicUrl={input.publicUrl}
       generatedAt={generatedAt}

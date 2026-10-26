@@ -75,6 +75,7 @@ export function AdminQuoteSendDialog({
   quote,
   opportunityFiles,
   publicQuoteUrlPreview,
+  defaultCc = [],
   onSent,
 }: {
   open: boolean;
@@ -82,6 +83,7 @@ export function AdminQuoteSendDialog({
   quote: QuoteWithRelations;
   opportunityFiles: OpportunityFileItem[];
   publicQuoteUrlPreview: string | null;
+  defaultCc?: string[];
   onSent: (result: { publicUrl?: string; message?: string }) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +94,7 @@ export function AdminQuoteSendDialog({
     language
   );
   const [to, setTo] = useState(quote.customer_email || "");
-  const [cc, setCc] = useState("");
+  const [cc, setCc] = useState(defaultCc.join(", "));
   const [bcc, setBcc] = useState(DEFAULT_BCC);
   const [subject, setSubject] = useState(buildDefaultQuoteEmailSubject(quote));
   const [bodyText, setBodyText] = useState(

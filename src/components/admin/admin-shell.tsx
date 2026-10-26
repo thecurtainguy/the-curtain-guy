@@ -18,6 +18,7 @@ import {
   Sparkles,
   Star,
   Truck,
+  Users,
 } from "lucide-react";
 import type { UserProfile } from "@/lib/auth";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
@@ -39,6 +40,7 @@ import {
 
 const links: PortalNavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
   { href: "/admin/products", label: "Inventory", icon: Package },

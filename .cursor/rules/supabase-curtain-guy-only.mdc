@@ -32,3 +32,12 @@ If a tool response points at a different ref or host, **stop** and ask before co
 2. Confirm project URL/ref matches `xszhnecwhjcywhqjzfit` when available.
 3. Prefer read/list tools before migrations or destructive SQL.
 4. Do not create migrations or change Auth unless the user explicitly requests it.
+
+## Migration file naming
+
+Local files must exactly match what the database records, so `supabase/migrations` never needs cleanup.
+
+- After `apply_migration`, call `list_migrations` and name the file `<version>_<name>.sql` using the **exact** version and name returned (e.g. `20261026081529_tcg_customers.sql`).
+- Never invent the timestamp locally before applying; the database assigns it.
+- New migration names use the `tcg_` prefix and snake_case.
+- Before finishing, diff `ls supabase/migrations` against `list_migrations`; both must list the same entries.

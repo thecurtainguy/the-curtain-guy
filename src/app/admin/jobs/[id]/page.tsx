@@ -7,6 +7,7 @@ import { AdminJobInvoices } from "@/components/admin/admin-job-invoices";
 import { fetchEstimateFiles } from "@/lib/estimate-access";
 import { listInvoicesForJob } from "@/lib/invoices";
 import { getAdminJob } from "@/lib/jobs";
+import { fetchCustomerById, listCustomerVenues } from "@/lib/customers";
 
 export const metadata: Metadata = {
   title: "Job detail",
@@ -23,11 +24,13 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
   const job = await getAdminJob(id);
   if (!job) notFound();
 
-  const [files, invoices] = await Promise.all([
+  const [files, invoices, customer, venues] = await Promise.all([
     job.estimate_request_id
       ? fetchEstimateFiles(job.estimate_request_id, ["uploaded", "pending"])
       : Promise.resolve([]),
     listInvoicesForJob(id),
+    job.customer_id ? fetchCustomerById(job.customer_id) : Promise.resolve(null),
+    job.customer_id ? listCustomerVenues(job.customer_id) : Promise.resolve([]),
   ]);
 
   return (
@@ -35,6 +38,16 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
       <AdminJobDetail
         job={job}
         billingSlot={<AdminJobInvoices jobId={job.id} invoices={invoices} />}
+        customer={
+          customer
+            ? {
+                id: customer.id,
+                customer_number: customer.customer_number,
+                display_name: customer.display_name,
+                venues,
+              }
+            : null
+        }
         estimateFiles={files.map((f) => ({
           id: f.id,
           original_file_name: f.original_file_name,

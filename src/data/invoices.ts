@@ -170,6 +170,8 @@ export type InvoiceRow = {
   job_id: string | null;
   quote_id: string | null;
   estimate_request_id: string | null;
+  customer_id: string | null;
+  po_number: string | null;
   status: InvoiceStatus;
   language: CustomerLanguage;
   customer_name: string | null;
@@ -225,6 +227,13 @@ export type InvoiceLineItemRow = {
   line_total_cents: number;
   is_taxable: boolean;
   sort_order: number;
+  product_id?: string | null;
+  category?: string | null;
+  category_label?: string | null;
+  category_label_fr?: string | null;
+  image_url?: string | null;
+  image_alt?: string | null;
+  source_quote_line_id?: string | null;
 };
 
 export type InvoicePaymentRow = {
@@ -411,13 +420,16 @@ export function getInvoiceTaxRows(
     | "manual_tax_cents"
     | "manual_tax_lines"
     | "total_cents"
-  >,
+  > & { currency?: string | null },
   options?: { variant?: "admin" | "customer"; language?: CustomerLanguage }
 ): QuoteTaxBreakdownRow[] {
-  return getQuoteTaxBreakdownRows(
+  const rows = getQuoteTaxBreakdownRows(
     { ...invoice, manual_tax_label: null },
     options
   );
+  if (invoice.currency !== "USD") return rows;
+  const label = getInvoiceCopy(options?.language ?? "en").totalIn("USD");
+  return rows.map((row) => (row.emphasis === "total" ? { ...row, label } : row));
 }
 
 export function sumPaymentsCents(
@@ -697,6 +709,9 @@ export const INVOICE_COPY = {
     issueDate: "Issue date",
     dueDate: "Due date",
     quoteRef: "Quote",
+    reference: "Reference",
+    poNumber: "PO #",
+    totalIn: (currency: string) => `Total ${currency}`,
     billTo: "Bill to",
     event: "Event",
     eventDate: "Event date",
@@ -748,6 +763,9 @@ export const INVOICE_COPY = {
     issueDate: "Date d'émission",
     dueDate: "Date d'échéance",
     quoteRef: "Soumission",
+    reference: "Référence",
+    poNumber: "Bon de commande",
+    totalIn: (currency: string) => `Total (${currency === "USD" ? "$ US" : "$ CA"})`,
     billTo: "Facturé à",
     event: "Événement",
     eventDate: "Date de l'événement",

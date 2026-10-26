@@ -34,8 +34,15 @@ import {
   type QuoteTaxMode,
 } from "@/data/quotes";
 import type { EventJobRow } from "@/data/jobs";
+import { resolveProductCategoryLabelFr, type ProductCategoryRow } from "@/data/product-categories";
+import { listProductCategories } from "@/lib/product-categories";
 import { getBusinessSettings } from "@/lib/business-settings";
-import { getCustomerJob } from "@/lib/jobs";
+import {
+  customerInvoiceDefaults,
+  fetchCustomerById,
+  logCustomerEvent,
+} from "@/lib/customers";
+import { getCustomerJob, listCustomerJobs } from "@/lib/jobs";
 import { recordJobEvent } from "@/lib/job-events";
 import { createQuoteToken, hashQuoteToken } from "@/lib/quote-tokens";
 import { fetchQuoteById } from "@/lib/quotes";
@@ -57,6 +64,70 @@ function normalizeInvoiceRow(row: Record<string, unknown>): InvoiceRow {
     deposit_percent: Number(r.deposit_percent),
     manual_tax_lines: normalizeManualTaxLines(r.manual_tax_lines),
   };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CATEGORY_RE = /^[a-z0-9][a-z0-9_]*$/;
+
+export type InvoiceLineInventoryInput = {
+  product_id?: string | null;
+  category?: string | null;
+  category_label?: string | null;
+  category_label_fr?: string | null;
+  image_url?: string | null;
+  image_alt?: string | null;
+  source_quote_line_id?: string | null;
+};
+
+function cleanShort(value: unknown, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, max) : null;
+}
+
+type KnownLinks = { products: Set<string>; quoteLines: Set<string>; categories: ProductCategoryRow[] };
+
+/** Sanitizes the inventory link on a line; links to deleted rows are dropped rather than failing the save. */
+function inventoryLineFields(line: InvoiceLineInventoryInput, known: KnownLinks) {
+  const productId =
+    typeof line.product_id === "string" && known.products.has(line.product_id) ? line.product_id : null;
+  const category =
+    typeof line.category === "string" && CATEGORY_RE.test(line.category) && line.category.length <= 60
+      ? line.category
+      : null;
+  const imageUrl = cleanShort(line.image_url, 2000);
+  return {
+    product_id: productId,
+    category,
+    category_label: category ? cleanShort(line.category_label, 120) : null,
+    category_label_fr: category
+      ? resolveProductCategoryLabelFr(category, known.categories) ?? cleanShort(line.category_label_fr, 120)
+      : null,
+    image_url: imageUrl && /^(https?:\/\/|\/)/.test(imageUrl) ? imageUrl : null,
+    image_alt: imageUrl ? cleanShort(line.image_alt, 300) : null,
+    source_quote_line_id:
+      typeof line.source_quote_line_id === "string" && known.quoteLines.has(line.source_quote_line_id)
+        ? line.source_quote_line_id
+        : null,
+  };
+}
+
+async function existingIds(table: string, values: Array<string | null | undefined>): Promise<Set<string>> {
+  const ids = [...new Set(values.filter((id): id is string => typeof id === "string" && UUID_RE.test(id)))];
+  if (ids.length === 0) return new Set();
+  const admin = createAdminSupabaseClient();
+  const { data } = await admin.from(table).select("id").in("id", ids);
+  return new Set(((data ?? []) as Array<{ id: string }>).map((row) => row.id));
+}
+
+async function resolveKnownLinks(lines: InvoiceLineInventoryInput[]): Promise<KnownLinks> {
+  const hasCategory = lines.some((line) => typeof line.category === "string" && line.category);
+  const [products, quoteLines, categories] = await Promise.all([
+    existingIds("products", lines.map((line) => line.product_id)),
+    existingIds("quote_line_items", lines.map((line) => line.source_quote_line_id)),
+    hasCategory ? listProductCategories() : Promise.resolve([] as ProductCategoryRow[]),
+  ]);
+  return { products, quoteLines, categories };
 }
 
 function normalizeLine(row: Record<string, unknown>): InvoiceLineItemRow {
@@ -138,6 +209,8 @@ const AUDIT_FIELD_LABELS: Record<string, string> = {
   customer_phone: "Client phone",
   company_name: "Company",
   billing_address: "Billing address",
+  po_number: "PO #",
+  currency: "Currency",
   event_date: "Event date",
   event_type: "Event type",
   venue_name: "Venue",
@@ -418,18 +491,24 @@ export async function createInvoiceFromJob(
     listInvoicesForJob(jobId),
   ]);
 
-  const language = normalizeCustomerLanguage(quote?.language);
+  const customerId = job.customer_id ?? quote?.customer_id ?? null;
+  const customer = customerId ? await fetchCustomerById(customerId) : null;
+  const defaults = customer ? customerInvoiceDefaults(customer) : null;
+  const language = defaults?.language ?? normalizeCustomerLanguage(quote?.language);
   const isFirstActive = !existing.some((inv) => inv.status !== "void");
   const today = todayIsoDate();
   const dueDate = resolveBalanceDueDate({
-    rule: settings.default_balance_due_rule,
-    days: settings.default_due_days,
+    rule: defaults?.balance_due_rule ?? settings.default_balance_due_rule,
+    days: defaults?.balance_due_days ?? settings.default_due_days,
     issueDate: today,
     eventDate: job.event_date,
   });
   const depositDueDate = [addDaysIso(today, settings.default_deposit_due_days), dueDate].sort()[0];
-  const taxMode: QuoteTaxMode =
-    quote && isQuoteTaxMode(quote.tax_mode) ? quote.tax_mode : "quebec_gst_qst";
+  const taxMode: QuoteTaxMode = defaults?.tax_exempt
+    ? "none"
+    : quote && isQuoteTaxMode(quote.tax_mode)
+      ? quote.tax_mode
+      : "quebec_gst_qst";
 
   const lines = isFirstActive && quote
     ? quote.line_items
@@ -449,6 +528,13 @@ export async function createInvoiceFromJob(
             line_total_cents: computeLineTotalCents(Number(item.quantity) || 0, unit),
             is_taxable: item.is_taxable !== false,
             sort_order: index,
+            product_id: item.product_id ?? null,
+            category: item.category ?? null,
+            category_label: item.category_label ?? null,
+            category_label_fr: item.category_label_fr ?? null,
+            image_url: item.image_url ?? null,
+            image_alt: item.image_alt ?? null,
+            source_quote_line_id: item.id,
           };
         })
     : [];
@@ -471,24 +557,27 @@ export async function createInvoiceFromJob(
         job_id: job.id,
         quote_id: job.quote_id,
         estimate_request_id: job.estimate_request_id,
+        customer_id: customerId,
         status: "draft",
         language,
         customer_name: job.customer_name,
         customer_email: job.customer_email,
         customer_phone: job.customer_phone,
-        company_name: job.company_name,
+        company_name: job.company_name || defaults?.company_name || null,
+        billing_address: defaults?.billing_address ?? null,
+        po_number: defaults?.po_number ?? null,
         event_date: job.event_date,
         event_type: job.event_type,
         venue_name: job.venue_name,
         issue_date: today,
         due_date: dueDate,
-        currency: job.currency || "CAD",
+        currency: defaults?.currency || job.currency || "CAD",
         tax_mode: taxMode,
         gst_rate: quote?.gst_rate ?? 0.05,
         qst_rate: quote?.qst_rate ?? 0.09975,
         manual_tax_lines: normalizeManualTaxLines(quote?.manual_tax_lines),
         deposit_mode: isFirstActive ? "percent" : "none",
-        deposit_percent: settings.default_deposit_percent,
+        deposit_percent: defaults?.deposit_percent ?? settings.default_deposit_percent,
         deposit_due_date: depositDueDate,
         notes: businessText(settings, "invoice_notes", language) || null,
         terms: businessText(settings, "invoice_terms", language) || null,
@@ -542,8 +631,155 @@ export async function createInvoiceFromJob(
     customerVisible: false,
     metadata: { invoice_id: inserted.id },
   });
+  if (customerId) {
+    await logCustomerEvent({
+      customerId,
+      actorUserId: ownerUserId,
+      eventType: "invoice_created",
+      summary: `Invoice ${inserted.invoice_number} created from job ${job.opportunity_ref}`,
+      metadata: { invoice_id: inserted.id, job_id: job.id },
+    });
+  }
 
   return { invoiceId: inserted.id, invoiceNumber: inserted.invoice_number };
+}
+
+export type DirectInvoiceInput = {
+  customerId: string;
+  eventDate?: string | null;
+  eventType?: string | null;
+  venueName?: string | null;
+  language?: string | null;
+  requestDeposit?: boolean;
+  poNumber?: string | null;
+  lines?: Array<
+    {
+      description?: string;
+      quantity?: number;
+      unit_label?: string | null;
+      unit_price_cents?: number;
+      is_taxable?: boolean;
+    } & InvoiceLineInventoryInput
+  >;
+};
+
+/** Invoice that doesn't come from a quote or job (damage fees, extras, one-off rentals). */
+export async function createDirectInvoice(
+  input: DirectInvoiceInput,
+  ownerUserId: string
+): Promise<{ invoiceId: string; invoiceNumber: string } | { error: string }> {
+  const customer = await fetchCustomerById(input.customerId);
+  if (!customer) return { error: "Customer not found." };
+  const settings = await getBusinessSettings();
+  const defaults = customerInvoiceDefaults(customer);
+  const admin = createAdminSupabaseClient();
+
+  const { data: refData, error: refError } = await admin.rpc("next_tcg_opportunity_ref");
+  const opportunityRef = typeof refData === "string" ? refData : null;
+  if (refError || !opportunityRef) {
+    console.error("[invoices] next_tcg_opportunity_ref", refError);
+    return { error: "Could not allocate an invoice number." };
+  }
+
+  const today = todayIsoDate();
+  const eventDate = cleanDate(input.eventDate);
+  const dueDate = resolveBalanceDueDate({
+    rule: defaults.balance_due_rule ?? settings.default_balance_due_rule,
+    days: defaults.balance_due_days ?? settings.default_due_days,
+    issueDate: today,
+    eventDate,
+  });
+  const depositDueDate = [addDaysIso(today, settings.default_deposit_due_days), dueDate].sort()[0];
+  const language = input.language ? normalizeCustomerLanguage(input.language) : defaults.language;
+  const invoiceNumber = formatInvoiceNumber(settings.invoice_prefix, opportunityRef, 0);
+
+  const { data, error } = await admin
+    .from("invoices")
+    .insert({
+      invoice_number: invoiceNumber,
+      opportunity_ref: opportunityRef,
+      sequence: 0,
+      customer_id: customer.id,
+      status: "draft",
+      language,
+      customer_name: customer.display_name,
+      customer_email: customer.primary_email,
+      customer_phone: customer.phone,
+      company_name: defaults.company_name,
+      billing_address: defaults.billing_address,
+      po_number: cleanText(input.poNumber, 80) ?? defaults.po_number,
+      event_date: eventDate,
+      event_type: cleanText(input.eventType, 120),
+      venue_name: cleanText(input.venueName, 200),
+      issue_date: today,
+      due_date: dueDate,
+      currency: defaults.currency,
+      tax_mode: defaults.tax_exempt ? "none" : "quebec_gst_qst",
+      deposit_mode: input.requestDeposit ? "percent" : "none",
+      deposit_percent: defaults.deposit_percent ?? settings.default_deposit_percent,
+      deposit_due_date: input.requestDeposit ? depositDueDate : null,
+      notes: businessText(settings, "invoice_notes", language) || null,
+      terms: businessText(settings, "invoice_terms", language) || null,
+      created_by_user_id: ownerUserId,
+    })
+    .select("id, invoice_number")
+    .single();
+  if (error || !data) {
+    console.error("[invoices] create direct", error);
+    return { error: "Could not create invoice." };
+  }
+  const invoiceId = data.id as string;
+
+  const directLines = (input.lines ?? [])
+    .filter((line) => (line.description || "").trim() || Number(line.unit_price_cents) > 0)
+    .slice(0, 200);
+  const knownLinks = await resolveKnownLinks(directLines);
+  const lines = directLines
+    .map((line, index) => {
+      const quantity = Number(line.quantity);
+      const qty = Number.isFinite(quantity) ? Math.max(0, quantity) : 1;
+      const unit = normalizeUnitPriceCents(line.unit_price_cents);
+      return {
+        invoice_id: invoiceId,
+        description: (line.description || "").trim().slice(0, 2000),
+        quantity: qty,
+        unit_label: cleanText(line.unit_label, 40),
+        unit_price_cents: unit,
+        line_total_cents: computeLineTotalCents(qty, unit),
+        is_taxable: line.is_taxable !== false,
+        sort_order: index,
+        ...inventoryLineFields(line, knownLinks),
+      };
+    });
+  if (lines.length > 0) {
+    const { error: lineError } = await admin.from("invoice_line_items").insert(lines);
+    if (lineError) console.error("[invoices] direct lines", lineError);
+  }
+
+  await recalculateInvoice(invoiceId, ownerUserId);
+  const created = await fetchInvoiceById(invoiceId);
+  await logInvoiceEvent({
+    invoiceId,
+    actorUserId: ownerUserId,
+    eventType: "invoice_created",
+    summary: `Direct invoice created for ${customer.display_name} · total ${formatCadFromCents(created?.total_cents ?? 0)}`,
+    metadata: {
+      direct: true,
+      customer_id: customer.id,
+      line_count: lines.length,
+      total_cents: created?.total_cents ?? null,
+      deposit_mode: created?.deposit_mode ?? null,
+      due_date: dueDate,
+    },
+  });
+  await logCustomerEvent({
+    customerId: customer.id,
+    actorUserId: ownerUserId,
+    eventType: "invoice_created",
+    summary: `Direct invoice ${invoiceNumber} created`,
+    metadata: { invoice_id: invoiceId },
+  });
+  return { invoiceId, invoiceNumber: data.invoice_number as string };
 }
 
 const JOB_SYNC_FIELDS = [
@@ -671,6 +907,8 @@ export type InvoiceSaveInput = {
   customer_phone?: string | null;
   company_name?: string | null;
   billing_address?: string | null;
+  po_number?: string | null;
+  currency?: string | null;
   event_date?: string | null;
   event_type?: string | null;
   venue_name?: string | null;
@@ -687,13 +925,15 @@ export type InvoiceSaveInput = {
   notes?: string | null;
   terms?: string | null;
   internal_notes?: string | null;
-  line_items?: Array<{
-    description?: string;
-    quantity?: number;
-    unit_label?: string | null;
-    unit_price_cents?: number;
-    is_taxable?: boolean;
-  }>;
+  line_items?: Array<
+    {
+      description?: string;
+      quantity?: number;
+      unit_label?: string | null;
+      unit_price_cents?: number;
+      is_taxable?: boolean;
+    } & InvoiceLineInventoryInput
+  >;
 };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -728,6 +968,7 @@ export async function saveInvoice(
     "customer_phone",
     "company_name",
     "billing_address",
+    "po_number",
     "event_type",
     "venue_name",
     "notes",
@@ -746,6 +987,9 @@ export async function saveInvoice(
   }
   if (input.language !== undefined) {
     update.language = normalizeCustomerLanguage(input.language);
+  }
+  if (input.currency === "CAD" || input.currency === "USD") {
+    update.currency = input.currency;
   }
   if (input.tax_mode && isQuoteTaxMode(input.tax_mode)) {
     update.tax_mode = input.tax_mode;
@@ -775,7 +1019,9 @@ export async function saveInvoice(
   }
 
   if (Array.isArray(input.line_items)) {
-    const rows = input.line_items.slice(0, 200).map((line, index) => {
+    const incoming = input.line_items.slice(0, 200);
+    const known = await resolveKnownLinks(incoming);
+    const rows = incoming.map((line, index) => {
       const quantity = Number(line.quantity);
       const qty = Number.isFinite(quantity) ? Math.max(0, quantity) : 0;
       const unit = normalizeUnitPriceCents(line.unit_price_cents);
@@ -788,6 +1034,7 @@ export async function saveInvoice(
         line_total_cents: computeLineTotalCents(qty, unit),
         is_taxable: line.is_taxable !== false,
         sort_order: index,
+        ...inventoryLineFields(line, known),
       };
     });
     const { error: deleteError } = await admin
@@ -1231,12 +1478,52 @@ export async function listCustomerInvoicesForJob(
   return invoices.filter((inv) => inv.status !== "draft");
 }
 
+async function customerIdsForUser(user: User): Promise<string[]> {
+  const admin = createAdminSupabaseClient();
+  const { data } = await admin.from("customers").select("id").eq("user_id", user.id);
+  return ((data ?? []) as { id: string }[]).map((row) => row.id);
+}
+
+function verifiedEmail(user: User): string | null {
+  const email = (user.email || "").trim().toLowerCase();
+  return email && user.email_confirmed_at ? email : null;
+}
+
 export async function getCustomerInvoice(
   invoiceId: string,
   user: User
 ): Promise<InvoiceWithRelations | null> {
   const invoice = await fetchInvoiceById(invoiceId);
-  if (!invoice || invoice.status === "draft" || !invoice.job_id) return null;
-  const job = await getCustomerJob(invoice.job_id, user);
-  return job ? invoice : null;
+  if (!invoice || invoice.status === "draft") return null;
+  if (invoice.job_id && (await getCustomerJob(invoice.job_id, user))) return invoice;
+  const email = verifiedEmail(user);
+  if (email && (invoice.customer_email || "").trim().toLowerCase() === email) return invoice;
+  if (invoice.customer_id && (await customerIdsForUser(user)).includes(invoice.customer_id)) {
+    return invoice;
+  }
+  return null;
+}
+
+/** Every sent invoice the signed-in client can open (jobs, linked customer, verified email). */
+export async function listCustomerInvoices(user: User): Promise<InvoiceRow[]> {
+  const admin = createAdminSupabaseClient();
+  const [jobs, customerIds] = await Promise.all([listCustomerJobs(user), customerIdsForUser(user)]);
+  const email = verifiedEmail(user);
+  const filters: string[] = [];
+  if (jobs.length > 0) filters.push(`job_id.in.(${jobs.map((job) => job.id).join(",")})`);
+  if (customerIds.length > 0) filters.push(`customer_id.in.(${customerIds.join(",")})`);
+  if (email && !/[,()]/.test(email)) filters.push(`customer_email.ilike.${email.replace(/[\\%_]/g, "\\$&")}`);
+  if (filters.length === 0) return [];
+  const { data, error } = await admin
+    .from("invoices")
+    .select("*")
+    .or(filters.join(","))
+    .neq("status", "draft")
+    .order("issue_date", { ascending: false })
+    .limit(200);
+  if (error) {
+    console.error("[invoices] listCustomerInvoices", error);
+    return [];
+  }
+  return (data ?? []).map((row) => normalizeInvoiceRow(row));
 }

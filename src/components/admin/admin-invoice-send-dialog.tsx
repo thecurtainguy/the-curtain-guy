@@ -66,12 +66,14 @@ function RecipientChips({ value, onChange }: { value: string; onChange: (value: 
 export function AdminInvoiceSendDialog({
   invoice,
   tradeName,
+  defaultCc = [],
   open,
   onOpenChange,
   onSent,
 }: {
   invoice: InvoiceWithRelations;
   tradeName: string;
+  defaultCc?: string[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSent: (invoice: InvoiceWithRelations, publicUrl: string | null, message: string) => void;
@@ -79,7 +81,7 @@ export function AdminInvoiceSendDialog({
   const t = getInvoiceCopy(invoice.language);
   const due = computeAmountDue(invoice);
   const [to, setTo] = useState(invoice.customer_email ?? "");
-  const [cc, setCc] = useState("");
+  const [cc, setCc] = useState(defaultCc.join(", "));
   const [bcc, setBcc] = useState(DEFAULT_BCC);
   const [subject, setSubject] = useState(t.emailSubject(invoice.invoice_number, tradeName));
   const [bodyText, setBodyText] = useState(

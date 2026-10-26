@@ -261,12 +261,14 @@ export function AdminQuoteBuilder({
   opportunityFiles = [],
   sourceEventPlan = null,
   categories = [],
+  defaultCc = [],
 }: {
   quote: QuoteWithRelations;
   initialGuestUrl?: string | null;
   opportunityFiles?: OpportunityFileItem[];
   sourceEventPlan?: QuoteSourceEventPlan | null;
   categories?: ProductCategoryRow[];
+  defaultCc?: string[];
 }) {
   const categoryOptions = useMemo(
     () => buildQuoteCategoryOptions(categories),
@@ -1855,6 +1857,7 @@ export function AdminQuoteBuilder({
           quote={quote}
           opportunityFiles={opportunityFiles}
           publicQuoteUrlPreview={publicUrl}
+          defaultCc={defaultCc}
           onSent={(result) => {
             if (result.publicUrl) setPublicUrl(result.publicUrl);
             flash(result.message ?? "Quote sent.");

@@ -165,6 +165,7 @@ export const DEFAULT_JOB_CHECKLIST: Array<{
 
 export type EventJobRow = {
   id: string;
+  customer_id?: string | null;
   opportunity_ref: string;
   estimate_request_id: string | null;
   quote_id: string | null;

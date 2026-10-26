@@ -12,6 +12,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { CustomerLanguagePicker } from "@/components/quotes/customer-language-picker";
+import { CustomerPicker, type PickedCustomer } from "@/components/admin/customers/customer-picker";
 import type { CustomerLanguage } from "@/data/customer-language";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +23,21 @@ import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
 
-export function AdminCreateQuoteForm() {
+export function AdminCreateQuoteForm({ initialCustomer = null }: { initialCustomer?: PickedCustomer | null }) {
   const router = useRouter();
-  const [customerName, setCustomerName] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
+  const [customer, setCustomer] = useState<PickedCustomer | null>(initialCustomer);
+  const [customerName, setCustomerName] = useState(initialCustomer?.display_name ?? "");
+  const [customerEmail, setCustomerEmail] = useState(initialCustomer?.primary_email ?? "");
+  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone ?? "");
+
+  function pickCustomer(next: PickedCustomer | null) {
+    setCustomer(next);
+    if (next) {
+      setCustomerName(next.display_name);
+      setCustomerEmail(next.primary_email);
+      setCustomerPhone(next.phone ?? "");
+    }
+  }
   const [eventDate, setEventDate] = useState("");
   const [eventType, setEventType] = useState("");
   const [venueName, setVenueName] = useState("");
@@ -53,6 +64,7 @@ export function AdminCreateQuoteForm() {
           venueName,
           cityArea,
           ownerNotes,
+          ...(customer ? { customerId: customer.id } : {}),
           ...(language ? { language } : {}),
         }),
       });
@@ -138,12 +150,13 @@ export function AdminCreateQuoteForm() {
             <div>
               <h3 className="font-heading text-base font-semibold">Customer</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Required so you can send the proposal later.
+                Pick an existing customer, or type new details and we&apos;ll create their profile.
               </p>
             </div>
           </div>
         </div>
         <div className="space-y-4 p-5">
+          <CustomerPicker value={customer} onChange={pickCustomer} />
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="direct-name">

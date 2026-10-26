@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -17,13 +18,16 @@ import {
   Languages,
   Link2,
   ListOrdered,
+  Package,
   Plus,
   Receipt,
   RotateCcw,
   Send,
   Trash2,
+  Truck,
   Undo2,
   UserRound,
+  Unlink,
   Wallet,
   XCircle,
 } from "lucide-react";
@@ -41,7 +45,7 @@ import {
 } from "@/data/invoices";
 import {
   computeLineTotalCents,
-  formatCadFromCents,
+  formatMoneyFromCents,
   percentInputToRate,
   rateToPercentInput,
   unitPriceCentsToDollarInput,
@@ -49,10 +53,19 @@ import {
   type QuoteTaxMode,
 } from "@/data/quotes";
 import type { CustomerLanguage } from "@/data/customer-language";
+import { formatCustomerNumber, type CustomerLinkSummary } from "@/data/customers";
 import { AdminInvoiceAuditLog } from "@/components/admin/admin-invoice-audit-log";
 import { OptionCard } from "@/components/estimate/option-card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
+import {
+  AdminInventoryPickerDialog,
+  type InventoryPickResult,
+} from "@/components/admin/admin-inventory-picker-dialog";
+import {
+  AdminLogisticsServiceDialog,
+  type LogisticsServicePick,
+} from "@/components/admin/admin-logistics-service-dialog";
 import { AdminInvoiceSendDialog } from "@/components/admin/admin-invoice-send-dialog";
 import { AdminRecordPaymentDialog } from "@/components/admin/admin-record-payment-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
@@ -72,7 +85,65 @@ type LineDraft = {
   unit_label: string;
   unit_price: string;
   is_taxable: boolean;
+  product_id: string | null;
+  category: string | null;
+  category_label: string | null;
+  category_label_fr: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+  source_quote_line_id: string | null;
 };
+
+const UNLINKED: Pick<
+  LineDraft,
+  "product_id" | "category" | "category_label" | "category_label_fr" | "image_url" | "image_alt" | "source_quote_line_id"
+> = {
+  product_id: null,
+  category: null,
+  category_label: null,
+  category_label_fr: null,
+  image_url: null,
+  image_alt: null,
+  source_quote_line_id: null,
+};
+
+function blankLine(): LineDraft {
+  return { key: newLineKey(), description: "", quantity: "1", unit_label: "", unit_price: "0.00", is_taxable: true, ...UNLINKED };
+}
+
+function lineFromInventory(item: InventoryPickResult): LineDraft {
+  return {
+    key: newLineKey(),
+    description: item.description,
+    quantity: "1",
+    unit_label: item.unitLabel,
+    unit_price: unitPriceCentsToDollarInput(item.unitPriceCents),
+    is_taxable: item.isTaxable,
+    ...UNLINKED,
+    product_id: item.productId,
+    category: item.category,
+    category_label: item.categoryLabel,
+    image_url: item.imageUrl,
+    image_alt: item.imageAlt,
+  };
+}
+
+function lineFromLogistics(item: LogisticsServicePick): LineDraft {
+  return {
+    key: newLineKey(),
+    description: item.included ? `${item.description} (included)` : item.description,
+    quantity: "1",
+    unit_label: item.unitLabel,
+    unit_price: item.included ? "0.00" : unitPriceCentsToDollarInput(item.unitPriceCents),
+    is_taxable: item.isTaxable,
+    ...UNLINKED,
+    product_id: item.productId,
+    category: item.category,
+    category_label: item.categoryLabel,
+    image_url: item.imageUrl,
+    image_alt: item.imageAlt,
+  };
+}
 
 type FormState = {
   customer_name: string;
@@ -80,6 +151,8 @@ type FormState = {
   customer_phone: string;
   company_name: string;
   billing_address: string;
+  po_number: string;
+  currency: "CAD" | "USD";
   event_date: string;
   venue_name: string;
   issue_date: string;
@@ -111,6 +184,8 @@ function toForm(invoice: InvoiceWithRelations): FormState {
     customer_phone: invoice.customer_phone ?? "",
     company_name: invoice.company_name ?? "",
     billing_address: invoice.billing_address ?? "",
+    po_number: invoice.po_number ?? "",
+    currency: invoice.currency === "USD" ? "USD" : "CAD",
     event_date: invoice.event_date ?? "",
     venue_name: invoice.venue_name ?? "",
     issue_date: invoice.issue_date ?? "",
@@ -133,6 +208,13 @@ function toForm(invoice: InvoiceWithRelations): FormState {
       unit_label: line.unit_label ?? "",
       unit_price: unitPriceCentsToDollarInput(line.unit_price_cents),
       is_taxable: line.is_taxable,
+      product_id: line.product_id ?? null,
+      category: line.category ?? null,
+      category_label: line.category_label ?? null,
+      category_label_fr: line.category_label_fr ?? null,
+      image_url: line.image_url ?? null,
+      image_alt: line.image_alt ?? null,
+      source_quote_line_id: line.source_quote_line_id ?? null,
     })),
   };
 }
@@ -154,6 +236,8 @@ function toPayload(form: FormState) {
     customer_phone: form.customer_phone,
     company_name: form.company_name,
     billing_address: form.billing_address,
+    po_number: form.po_number,
+    currency: form.currency,
     event_date: form.event_date || null,
     venue_name: form.venue_name,
     issue_date: form.issue_date || null,
@@ -175,6 +259,13 @@ function toPayload(form: FormState) {
       unit_label: line.unit_label || null,
       unit_price_cents: unitPriceDollarsToCents(line.unit_price || "0"),
       is_taxable: line.is_taxable,
+      product_id: line.product_id,
+      category: line.category,
+      category_label: line.category_label,
+      category_label_fr: line.category_label_fr,
+      image_url: line.image_url,
+      image_alt: line.image_alt,
+      source_quote_line_id: line.source_quote_line_id,
     })),
   };
 }
@@ -291,11 +382,13 @@ export function AdminInvoiceEditor({
   paymentMethods,
   tradeName,
   initialPublicUrl,
+  customerLink = null,
 }: {
   invoice: InvoiceWithRelations;
   paymentMethods: PaymentMethod[];
   tradeName: string;
   initialPublicUrl: string | null;
+  customerLink?: CustomerLinkSummary | null;
 }) {
   const router = useRouter();
   const [confirm, confirmDialog] = useBrandConfirm();
@@ -308,9 +401,12 @@ export function AdminInvoiceEditor({
   const [error, setError] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [logisticsOpen, setLogisticsOpen] = useState(false);
   const [publicUrl, setPublicUrl] = useState(initialPublicUrl);
   const [copied, setCopied] = useState(false);
 
+  const money = (cents: number) => formatMoneyFromCents(cents, "en", form.currency);
   const payload = useMemo(() => toPayload(form), [form]);
   const isDirty = JSON.stringify(payload) !== baseline;
   const isVoid = invoice.status === "void";
@@ -610,7 +706,14 @@ export function AdminInvoiceEditor({
         meta={
           <>
             <InvoiceStatusBadge invoice={invoice} />
-            <span>Quote {invoice.opportunity_ref}</span>
+            <span>
+              {invoice.quote_id ? "Quote" : "Ref"} {invoice.opportunity_ref}
+            </span>
+            {customerLink ? (
+              <Link href={`/admin/customers/${customerLink.id}`} className="text-primary hover:underline">
+                · {formatCustomerNumber(customerLink.customer_number)} {customerLink.display_name}
+              </Link>
+            ) : null}
             {invoice.sent_at ? <span>· sent {invoice.sent_at.slice(0, 10)}</span> : null}
             {invoice.viewed_at ? <span>· viewed {invoice.viewed_at.slice(0, 10)}</span> : null}
           </>
@@ -638,6 +741,16 @@ export function AdminInvoiceEditor({
               size="sm"
               disabled={isVoid}
               onClick={async () => {
+                if (customerLink?.po_required && !form.po_number.trim()) {
+                  const proceed = await confirm({
+                    eyebrow: "PO required",
+                    title: `${customerLink.display_name} requires a PO number`,
+                    description: "Their accounts payable may reject an invoice without one. Add it in Client & billing, or send anyway.",
+                    confirmLabel: "Send without PO",
+                    cancelLabel: "Add PO first",
+                  });
+                  if (!proceed) return;
+                }
                 if (await ensureSaved()) setSendOpen(true);
               }}
             >
@@ -673,17 +786,17 @@ export function AdminInvoiceEditor({
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile label="Invoice total" value={formatCadFromCents(liveTotals.total_cents)} hint={`incl. ${formatCadFromCents(liveTotals.total_tax_cents)} tax`} />
-        <StatTile label="Deposit" value={formatCadFromCents(liveDeposit)} hint={depositHint} />
-        <StatTile label="Paid" value={formatCadFromCents(invoice.amount_paid_cents)} hint={`${invoice.payments.length} payment${invoice.payments.length === 1 ? "" : "s"}`} />
+        <StatTile label="Invoice total" value={money(liveTotals.total_cents)} hint={`incl. ${money(liveTotals.total_tax_cents)} tax`} />
+        <StatTile label="Deposit" value={money(liveDeposit)} hint={depositHint} />
+        <StatTile label="Paid" value={money(invoice.amount_paid_cents)} hint={`${invoice.payments.length} payment${invoice.payments.length === 1 ? "" : "s"}`} />
         <StatTile
           accent
           label={liveDue.dueNowKind === "deposit" ? "Deposit due now" : "Balance due"}
-          value={formatCadFromCents(liveDue.dueNowKind === "none" ? Math.max(0, liveBalance) : liveDue.dueNowCents)}
+          value={money(liveDue.dueNowKind === "none" ? Math.max(0, liveBalance) : liveDue.dueNowCents)}
           hint={
             liveDue.dueNowKind === "none"
               ? liveBalance < 0
-                ? `Overpaid by ${formatCadFromCents(-liveBalance)}`
+                ? `Overpaid by ${money(-liveBalance)}`
                 : "Nothing owing"
               : liveDue.dueNowDate
                 ? `Due ${liveDue.dueNowDate}`
@@ -719,6 +832,58 @@ export function AdminInvoiceEditor({
                   <Label htmlFor="inv-address">Billing address</Label>
                   <Textarea id="inv-address" rows={3} value={form.billing_address} onChange={(e) => set("billing_address", e.target.value)} placeholder={"123 Rue Example\nMontréal, QC H2X 1Y4"} />
                 </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="inv-po">
+                      PO number
+                      {customerLink?.po_required ? <span className="ml-1 text-primary">· required</span> : null}
+                    </Label>
+                    <Input
+                      id="inv-po"
+                      value={form.po_number}
+                      onChange={(e) => set("po_number", e.target.value)}
+                      placeholder={customerLink?.default_po_number ?? "Optional"}
+                      className={cn(customerLink?.po_required && !form.po_number.trim() && "border-primary/60")}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Currency</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["CAD", "USD"] as const).map((currency) => (
+                        <button
+                          key={currency}
+                          type="button"
+                          role="radio"
+                          aria-checked={form.currency === currency}
+                          onClick={() => set("currency", currency)}
+                          className={cn(
+                            "flex h-9 items-center justify-center gap-1.5 rounded-xl border text-sm transition-colors",
+                            form.currency === currency
+                              ? "border-primary/50 bg-primary/10 text-foreground"
+                              : "border-border/40 bg-card/40 text-muted-foreground hover:border-primary/30"
+                          )}
+                        >
+                          {form.currency === currency ? <Check className="size-3.5 text-primary" /> : null}
+                          {currency}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {customerLink ? (
+                  <Link
+                    href={`/admin/customers/${customerLink.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-card/40 px-3 py-2 text-xs hover:border-primary/40"
+                  >
+                    <span className="min-w-0 truncate">
+                      <span className="text-primary">{formatCustomerNumber(customerLink.customer_number)}</span>{" "}
+                      {customerLink.display_name}
+                      {customerLink.tax_exempt ? " · tax exempt" : ""}
+                      {customerLink.invoiceCc.length ? ` · Cc ${customerLink.invoiceCc.join(", ")}` : ""}
+                    </span>
+                    <span className="shrink-0 text-muted-foreground">Customer profile →</span>
+                  </Link>
+                ) : null}
               </div>
             </Panel>
 
@@ -779,29 +944,48 @@ export function AdminInvoiceEditor({
             eyebrow="Scope"
             title="Line items"
             actions={
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  set("lines", [
-                    ...form.lines,
-                    { key: newLineKey(), description: "", quantity: "1", unit_label: "", unit_price: "0.00", is_taxable: true },
-                  ])
-                }
-              >
-                <Plus className="size-4" />
-                Add line
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="outline" disabled={isVoid} onClick={() => setInventoryOpen(true)}>
+                  <Package className="size-4" />
+                  From inventory
+                </Button>
+                <Button type="button" size="sm" variant="outline" disabled={isVoid} onClick={() => setLogisticsOpen(true)}>
+                  <Truck className="size-4" />
+                  Delivery / install
+                </Button>
+                <Button type="button" size="sm" variant="ghost" disabled={isVoid} onClick={() => set("lines", [...form.lines, blankLine()])}>
+                  <Plus className="size-4" />
+                  Custom line
+                </Button>
+              </div>
             }
           >
             {form.lines.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-                No lines yet. Add what you’re billing for.
-              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  { icon: Package, title: "From inventory", body: "Drapes, backdrops and decor with photo and price.", onClick: () => setInventoryOpen(true) },
+                  { icon: Truck, title: "Delivery / install", body: "Zone-priced transport, installation and teardown.", onClick: () => setLogisticsOpen(true) },
+                  { icon: Plus, title: "Custom line", body: "Anything else, typed by hand.", onClick: () => set("lines", [...form.lines, blankLine()]) },
+                ].map((tile) => (
+                  <button
+                    key={tile.title}
+                    type="button"
+                    disabled={isVoid}
+                    onClick={tile.onClick}
+                    className="group flex flex-col items-start gap-2 rounded-2xl border border-dashed border-border/60 bg-card/20 p-4 text-left transition hover:border-primary/50 hover:bg-primary/[0.05] disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    <span className="flex size-9 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
+                      <tile.icon className="size-4" />
+                    </span>
+                    <span className="font-heading text-sm text-foreground">{tile.title}</span>
+                    <span className="text-xs text-muted-foreground">{tile.body}</span>
+                  </button>
+                ))}
+              </div>
             ) : (
               <div className="space-y-3">
-                <div className="hidden grid-cols-[minmax(0,1fr)_80px_90px_120px_110px_auto] gap-2 px-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground md:grid">
+                <div className="hidden grid-cols-[44px_minmax(0,1fr)_80px_90px_120px_110px_auto] gap-2 px-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground md:grid">
+                  <span />
                   <span>Description</span>
                   <span>Qty</span>
                   <span>Unit</span>
@@ -814,20 +998,63 @@ export function AdminInvoiceEditor({
                   return (
                     <div
                       key={line.key}
-                      className="grid gap-2 rounded-xl border border-border/40 bg-background/30 p-3 md:grid-cols-[minmax(0,1fr)_80px_90px_120px_110px_auto] md:items-start md:border-0 md:bg-transparent md:p-1"
+                      className="grid gap-2 rounded-xl border border-border/40 bg-background/30 p-3 md:grid-cols-[44px_minmax(0,1fr)_80px_90px_120px_110px_auto] md:items-start md:border-0 md:bg-transparent md:p-1"
                     >
-                      <Textarea
-                        rows={1}
-                        value={line.description}
-                        onChange={(e) => updateLine(line.key, { description: e.target.value })}
-                        className="min-h-9 resize-y text-sm"
-                        aria-label="Description"
-                        placeholder="Description"
-                      />
+                      <div className="relative size-11 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
+                        {line.image_url ? (
+                          <Image
+                            src={line.image_url}
+                            alt={line.image_alt || line.description}
+                            fill
+                            className="object-cover"
+                            sizes="44px"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex size-full items-center justify-center text-muted-foreground">
+                            {line.category === "delivery" || line.category === "installation" ? (
+                              <Truck className="size-4" />
+                            ) : (
+                              <Package className="size-4" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 space-y-1.5">
+                        <Textarea
+                          rows={1}
+                          value={line.description}
+                          onChange={(e) => updateLine(line.key, { description: e.target.value })}
+                          className="min-h-9 resize-y text-sm"
+                          aria-label="Description"
+                          placeholder="Description"
+                        />
+                        {line.category || line.product_id ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {line.category ? (
+                              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                                {line.category_label || line.category.replaceAll("_", " ")}
+                              </span>
+                            ) : null}
+                            {line.product_id ? (
+                              <button
+                                type="button"
+                                onClick={() => updateLine(line.key, { product_id: null })}
+                                className="inline-flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[10px] text-muted-foreground transition hover:border-destructive/50 hover:text-destructive"
+                                title="Keep the text but stop tracking this line against inventory"
+                              >
+                                <Package className="size-3" />
+                                Inventory item
+                                <Unlink className="size-3" />
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
                       <Input inputMode="decimal" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} aria-label="Quantity" />
                       <Input value={line.unit_label} onChange={(e) => updateLine(line.key, { unit_label: e.target.value })} aria-label="Unit" placeholder="ft, set…" />
                       <Input inputMode="decimal" value={line.unit_price} onChange={(e) => updateLine(line.key, { unit_price: e.target.value })} aria-label="Unit price" />
-                      <div className="flex h-8 items-center justify-end text-sm tabular-nums">{formatCadFromCents(amount)}</div>
+                      <div className="flex h-8 items-center justify-end text-sm tabular-nums">{money(amount)}</div>
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
@@ -902,7 +1129,7 @@ export function AdminInvoiceEditor({
                     )}
                   >
                     <span>{row.label}</span>
-                    <span>{formatCadFromCents(row.amountCents)}</span>
+                    <span>{money(row.amountCents)}</span>
                   </div>
                 ))}
               </div>
@@ -978,7 +1205,7 @@ export function AdminInvoiceEditor({
                 </div>
                 <div className="mt-4 flex items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-4 py-3">
                   <span className="text-xs uppercase tracking-[0.14em] text-primary">Deposit</span>
-                  <span className="font-heading text-xl font-semibold tabular-nums">{formatCadFromCents(liveDeposit)}</span>
+                  <span className="font-heading text-xl font-semibold tabular-nums">{money(liveDeposit)}</span>
                 </div>
               </>
             ) : null}
@@ -1046,7 +1273,7 @@ export function AdminInvoiceEditor({
                     <div className="min-w-0 flex-1 text-sm">
                       <p className="font-medium tabular-nums">
                         {payment.kind === "refund" ? "−" : ""}
-                        {formatCadFromCents(payment.amount_cents)}
+                        {money(payment.amount_cents)}
                         <span className="ml-2 text-xs font-normal capitalize text-muted-foreground">{payment.kind}</span>
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -1133,10 +1360,25 @@ export function AdminInvoiceEditor({
         onSave={() => void save()}
       />
 
+      <AdminInventoryPickerDialog
+        open={inventoryOpen}
+        onOpenChange={setInventoryOpen}
+        onPick={(item) => setForm((prev) => ({ ...prev, lines: [...prev.lines, lineFromInventory(item)] }))}
+      />
+      <AdminLogisticsServiceDialog
+        open={logisticsOpen}
+        onOpenChange={setLogisticsOpen}
+        onPick={(item) => {
+          setForm((prev) => ({ ...prev, lines: [...prev.lines, lineFromLogistics(item)] }));
+          if (item.needsPricing && !item.included) flash(null, "Venue area isn’t priced yet — set the delivery price on the new line.");
+        }}
+      />
+
       {sendOpen ? (
         <AdminInvoiceSendDialog
           invoice={invoice}
           tradeName={tradeName}
+          defaultCc={customerLink?.invoiceCc ?? []}
           open={sendOpen}
           onOpenChange={setSendOpen}
           onSent={(next, url, msg) => {
@@ -1154,6 +1396,7 @@ export function AdminInvoiceEditor({
           paymentMethods={paymentMethods}
           suggestedCents={liveDue.dueNowCents}
           suggestedKind={liveDue.dueNowKind === "deposit" ? "deposit" : "payment"}
+          preferredMethodId={customerLink?.preferred_payment_method ?? null}
           open={paymentOpen}
           onOpenChange={setPaymentOpen}
           onRecorded={(next) => {

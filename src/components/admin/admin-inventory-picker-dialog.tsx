@@ -248,8 +248,8 @@ export function AdminInventoryPickerDialog({
         title={colorProduct ? "Choose colors" : "Add from inventory"}
         description={
           colorProduct
-            ? "Pick one or more colors. Each one becomes its own quote line with its photo and price."
-            : "Pick a product or service. Photo and price snapshot onto the quote line."
+            ? "Pick one or more colors. Each one becomes its own line with its photo and price."
+            : "Pick a product or service. Photo and price snapshot onto the line."
         }
         scrollBody={false}
         bodyClassName="gap-4"

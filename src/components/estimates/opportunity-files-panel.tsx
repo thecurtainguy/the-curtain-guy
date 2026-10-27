@@ -106,7 +106,7 @@ export function OpportunityFilesPanel({
   const poolCount = totalFileCount ?? files.length;
   const remainingSlots = Math.max(0, ESTIMATE_MAX_FILES - poolCount);
   const defaultDescription = isAdmin
-    ? `Internal or shared · synced on estimate & quote · max ${ESTIMATE_MAX_FILES} · 10MB`
+    ? "Internal or shared · synced on estimate & quote"
     : `Upload or view · synced on estimate & quote · max ${ESTIMATE_MAX_FILES} · 10MB`;
 
   return (
@@ -120,14 +120,24 @@ export function OpportunityFilesPanel({
         <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
           <FileUp className="size-4" />
         </span>
-        <div className="min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
-            Files
-          </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
+              Files
+            </p>
+            {isAdmin ? (
+              <span
+                className="rounded-full border border-border/50 bg-background/40 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground"
+                title={`${poolCount} of ${ESTIMATE_MAX_FILES} files used`}
+              >
+                {poolCount}/{ESTIMATE_MAX_FILES}
+              </span>
+            ) : null}
+          </div>
           <h2 className="mt-0.5 font-heading text-base font-semibold leading-snug">
             {title}
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
             {description ?? defaultDescription}
           </p>
         </div>
@@ -141,7 +151,7 @@ export function OpportunityFilesPanel({
       {isAdmin && activity ? <FileActivityDrawer items={activity} /> : null}
 
       {remainingSlots > 0 || isAdmin ? (
-        <div className="border-t border-border/60 pt-3">
+        <div className={isAdmin ? undefined : "border-t border-border/60 pt-3"}>
           <OpportunityFileUploader
             estimateRequestId={estimateRequestId}
             remainingSlots={remainingSlots}
@@ -332,13 +342,13 @@ function OpportunityFilesList({
                 </div>
 
                 {file.upload_status === "uploaded" || audience === "admin" ? (
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="-mr-1 -mt-0.5 flex shrink-0 items-center gap-0.5">
                     {audience === "admin" && file.upload_status === "uploaded" ? (
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        className="size-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                        className="size-7 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                         onClick={() => void toggleVisibility(file)}
                         disabled={Boolean(busyId)}
                         title={
@@ -362,7 +372,7 @@ function OpportunityFilesList({
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        className="size-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                        className="size-7 text-muted-foreground hover:bg-primary/10 hover:text-primary"
                         onClick={() => void downloadFile(file.id)}
                         disabled={Boolean(busyId)}
                         title="View / download"
@@ -380,7 +390,7 @@ function OpportunityFilesList({
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => void deleteFile(file)}
                         disabled={Boolean(busyId)}
                         title="Delete file"
@@ -582,74 +592,84 @@ function OpportunityFileControls({
   ];
 
   return (
-    <div className="mt-2 space-y-2">
-      <SelectInput
-        size="sm"
-        className="h-8 w-full text-xs"
-        value={kind}
-        disabled={Boolean(busyId)}
-        aria-label="File type"
-        onChange={(next) =>
-          next !== kind &&
-          onPatch({ fileKind: next as EstimateFileKind }, `kind-${file.id}`)
-        }
-        options={ESTIMATE_FILE_KINDS.map((value) => ({
-          value,
-          label: estimateFileKindLabel(value),
-          description: ESTIMATE_FILE_KIND_HINTS[value],
-        }))}
-      />
-      <div className="flex items-center gap-2">
-        <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Add to PDF
-        </span>
-        {targets.map((target) => {
-          const Icon = target.icon;
-          const busy = busyId === `${target.key}-${file.id}`;
-          return (
-            <button
-              key={target.key}
-              type="button"
-              aria-pressed={target.on}
-              disabled={!shared || Boolean(busyId)}
-              title={
-                shared
-                  ? `${target.on ? "Remove from" : "Attach to"} the ${target.label.toLowerCase()} PDF`
-                  : "Share the file first. Internal files never go to the customer."
-              }
-              onClick={() =>
-                onPatch(target.patch(!target.on), `${target.key}-${file.id}`)
-              }
-              className={cn(
-                "inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium transition-colors",
-                target.on
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-border/50 bg-background/40 text-muted-foreground hover:border-primary/30 hover:text-foreground",
-                !shared && "cursor-not-allowed opacity-50 hover:border-border/50 hover:text-muted-foreground"
-              )}
-            >
-              {busy ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : target.on ? (
-                <Check className="size-3.5" />
-              ) : (
-                <Icon className="size-3.5" />
-              )}
-              {target.label}
-            </button>
-          );
-        })}
+    <div className="mt-2 space-y-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <SelectInput
+          size="sm"
+          className="h-8 min-w-[7.5rem] flex-1 text-xs"
+          value={kind}
+          disabled={Boolean(busyId)}
+          aria-label="File type"
+          onChange={(next) =>
+            next !== kind &&
+            onPatch({ fileKind: next as EstimateFileKind }, `kind-${file.id}`)
+          }
+          options={ESTIMATE_FILE_KINDS.map((value) => ({
+            value,
+            label: estimateFileKindLabel(value),
+            description: ESTIMATE_FILE_KIND_HINTS[value],
+          }))}
+        />
+        <div
+          role="group"
+          aria-label="Add to PDF"
+          className={cn(
+            "inline-flex h-8 shrink-0 items-center gap-0.5 rounded-xl border border-border/50 bg-background/40 p-0.5",
+            !shared && "opacity-50"
+          )}
+        >
+          <span className="px-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            PDF
+          </span>
+          {targets.map((target) => {
+            const Icon = target.icon;
+            const busy = busyId === `${target.key}-${file.id}`;
+            return (
+              <button
+                key={target.key}
+                type="button"
+                aria-pressed={target.on}
+                aria-label={`${target.on ? "Remove from" : "Attach to"} the ${target.label.toLowerCase()} PDF`}
+                disabled={!shared || Boolean(busyId)}
+                title={
+                  shared
+                    ? `${target.on ? "Remove from" : "Attach to"} the ${target.label.toLowerCase()} PDF`
+                    : "Share the file first. Internal files never go to the customer."
+                }
+                onClick={() =>
+                  onPatch(target.patch(!target.on), `${target.key}-${file.id}`)
+                }
+                className={cn(
+                  "inline-flex h-full items-center gap-1 rounded-lg px-2 text-[11px] font-medium transition-colors",
+                  target.on
+                    ? "bg-primary/15 text-primary ring-1 ring-primary/35"
+                    : "text-muted-foreground hover:bg-card/70 hover:text-foreground",
+                  !shared && "cursor-not-allowed hover:bg-transparent hover:text-muted-foreground"
+                )}
+              >
+                {busy ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : target.on ? (
+                  <Check className="size-3" />
+                ) : (
+                  <Icon className="size-3" />
+                )}
+                {target.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
       {kind === "concept" && shared ? (
-        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
-          <Sparkles className="mt-0.5 size-3 shrink-0 text-primary" />
-          Shown with an AI-concept disclaimer wherever the customer sees it.
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Sparkles className="size-3 shrink-0 text-primary" />
+          Customer sees an AI-concept disclaimer.
         </p>
       ) : null}
       {!shared ? (
-        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
-          <Lock className="mt-0.5 size-3 shrink-0" />
-          Internal: never attached to quotes, invoices, or emails.
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Lock className="size-3 shrink-0" />
+          Internal: never on quotes, invoices, or emails.
         </p>
       ) : null}
       {included ? (
@@ -741,43 +761,80 @@ function OpportunityFileUploader({
     );
   }
 
+  const visibilityToggle = (
+    <div
+      className="grid grid-cols-2 gap-1 rounded-xl border border-border/40 bg-background/40 p-1"
+      role="group"
+      aria-label="Upload visibility"
+    >
+      <button
+        type="button"
+        onClick={() => setCustomerVisible(false)}
+        aria-pressed={!customerVisible}
+        className={cn(
+          "inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
+          !customerVisible
+            ? "bg-primary/15 text-foreground ring-1 ring-primary/30"
+            : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
+        )}
+      >
+        <Lock className="size-3 text-primary" aria-hidden />
+        Internal
+      </button>
+      <button
+        type="button"
+        onClick={() => setCustomerVisible(true)}
+        aria-pressed={customerVisible}
+        className={cn(
+          "inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
+          customerVisible
+            ? "bg-primary/15 text-foreground ring-1 ring-primary/30"
+            : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
+        )}
+      >
+        <Share2 className="size-3 text-primary" aria-hidden />
+        Shared
+      </button>
+    </div>
+  );
+
+  const feedback = (
+    <>
+      {message ? <p className="text-xs feedback-success">{message}</p> : null}
+      {error ? (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </>
+  );
+
+  if (isAdmin) {
+    return (
+      <div className="space-y-2">
+        <EstimateFilePicker
+          files={files}
+          onChange={setFiles}
+          disabled={busy}
+          dense
+          uploadProgress={busy || progress.length > 0 ? progress : undefined}
+        />
+        {files.length > 0 ? (
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            {visibilityToggle}
+            <Button type="button" size="sm" onClick={() => void upload()} disabled={busy}>
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+              Upload ({files.length})
+            </Button>
+          </div>
+        ) : null}
+        {feedback}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      {isAdmin ? (
-        <div
-          className="grid grid-cols-2 gap-1 rounded-xl border border-border/40 bg-background/40 p-1"
-          role="group"
-          aria-label="Upload visibility"
-        >
-          <button
-            type="button"
-            onClick={() => setCustomerVisible(false)}
-            className={cn(
-              "inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
-              !customerVisible
-                ? "bg-primary/15 text-foreground ring-1 ring-primary/30"
-                : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
-            )}
-          >
-            <Lock className="size-3 text-primary" aria-hidden />
-            Internal
-          </button>
-          <button
-            type="button"
-            onClick={() => setCustomerVisible(true)}
-            className={cn(
-              "inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors",
-              customerVisible
-                ? "bg-primary/15 text-foreground ring-1 ring-primary/30"
-                : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
-            )}
-          >
-            <Share2 className="size-3 text-primary" aria-hidden />
-            Shared
-          </button>
-        </div>
-      ) : null}
-
       <EstimateFilePicker
         files={files}
         onChange={setFiles}
@@ -795,12 +852,7 @@ function OpportunityFileUploader({
         {busy ? <Loader2 className="size-4 animate-spin" /> : null}
         Upload{files.length > 0 ? ` (${files.length})` : ""}
       </Button>
-      {message ? <p className="text-xs feedback-success">{message}</p> : null}
-      {error ? (
-        <p className="text-xs text-destructive" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {feedback}
     </div>
   );
 }

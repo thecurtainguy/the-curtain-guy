@@ -8,6 +8,7 @@ import {
   Clock,
   Download,
   Eye,
+  History,
   Laptop,
   Mail,
   MapPin,
@@ -83,6 +84,7 @@ function Chip({ tone, children }: { tone: Tone; children: React.ReactNode }) {
 }
 
 function emailChips(email: EngagementEmail, trackingConfigured: boolean): Array<{ tone: Tone; label: string }> {
+  if (!email.tracked) return [{ tone: "muted", label: "Sent · before delivery tracking" }];
   if (email.bouncedAt) return [{ tone: "bad", label: "Bounced" }];
   if (email.failedAt) return [{ tone: "bad", label: "Failed" }];
   const chips: Array<{ tone: Tone; label: string }> = [];
@@ -118,6 +120,10 @@ function describeActivity(item: EngagementActivity): { title: string; muted: boo
       return { title: owner ? "PDF opened by you" : "PDF downloaded", muted: owner || item.isBot, icon: Download };
     case "owner":
       return { title: "Opened by you", muted: true, icon: UserRound };
+    case "legacy_open":
+      return { title: "Link opened · before tracking", muted: true, icon: History };
+    case "legacy_pdf":
+      return { title: "PDF opened · before tracking", muted: true, icon: History };
     default:
       return {
         title: item.isBot ? "Checked by email security" : "Link opened, not read",
@@ -166,6 +172,9 @@ function ActivityRow({ item }: { item: EngagementActivity }) {
             </span>
           ) : null}
           {item.source === "account" ? <span>Portal</span> : null}
+          {item.kind === "legacy_open" || item.kind === "legacy_pdf" ? (
+            <span>Unverified: could be a scanner or your own copy</span>
+          ) : null}
         </div>
       </div>
     </li>
@@ -205,6 +214,11 @@ export function DocumentEngagementCard({
                   {" "}· first <Stamp value={engagement.firstViewedAt} />
                 </>
               ) : null}
+            </>
+          ) : engagement.legacyLastOpenedAt ? (
+            <>
+              No verified reads yet · link last opened{" "}
+              <Stamp value={engagement.legacyLastOpenedAt} className="text-foreground" /> before tracking
             </>
           ) : (
             "Not read by the customer yet."

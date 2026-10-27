@@ -39,6 +39,8 @@ type Props = {
   className?: string;
   /** Denser layout for narrow portal rails */
   compact?: boolean;
+  /** Single-row drop zone (admin rails); selected files list below it. */
+  dense?: boolean;
   /** Optional live upload statuses shown after estimate submit */
   uploadProgress?: FileUploadProgress[];
 };
@@ -59,6 +61,7 @@ export function EstimateFilePicker({
   disabled,
   className,
   compact = false,
+  dense = false,
   uploadProgress,
 }: Props) {
   const t = useTranslations("estimate.filePicker");
@@ -152,6 +155,129 @@ export function EstimateFilePicker({
     handleSelect(event.dataTransfer.files);
   }
 
+  const fileInput = (
+    <input
+      ref={inputRef}
+      type="file"
+      className="sr-only"
+      accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
+      multiple
+      disabled={disabled}
+      onChange={(event) => handleSelect(event.target.files)}
+    />
+  );
+
+  const selectedList =
+    files.length > 0 && !uploadProgress?.length ? (
+      <ul className={cn("space-y-2", dense ? "mt-2" : compact ? "mt-3" : "mt-4")}>
+        {files.map((item) => (
+          <li
+            key={item.id}
+            className="flex items-center justify-between gap-2 rounded-xl border border-border/40 bg-background/40 px-2.5 py-2"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-xs text-foreground sm:text-sm">
+                {item.file.name}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {formatFileSize(item.file.size)}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              onClick={() => removeFile(item.id)}
+              disabled={disabled}
+              aria-label={t("remove")}
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : null;
+
+  const progressList =
+    uploadProgress && uploadProgress.length > 0 ? (
+      <ul className={cn("space-y-2", dense ? "mt-2" : compact ? "mt-3" : "mt-4")}>
+        {uploadProgress.map((item) => (
+          <li
+            key={item.id}
+            className="flex items-center justify-between gap-2 rounded-xl border border-border/40 bg-background/40 px-2.5 py-2"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-xs text-foreground sm:text-sm">
+                {item.name}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {formatFileSize(item.size)}
+                {item.message ? ` · ${item.message}` : ""}
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] capitalize text-muted-foreground">
+              {item.status === "uploading" || item.status === "queued" ? (
+                <Loader2 className="size-3.5 animate-spin text-primary" />
+              ) : null}
+              {item.status === "uploaded" ? (
+                <CheckCircle2 className="size-3.5 text-emerald-400" />
+              ) : null}
+              {item.status === "failed" ? (
+                <X className="size-3.5 text-destructive" />
+              ) : null}
+              {statusLabels[item.status]}
+            </span>
+          </li>
+        ))}
+      </ul>
+    ) : null;
+
+  const errorLine = error ? (
+    <p className="flex items-start gap-2 text-sm text-destructive" role="alert">
+      <X className="mt-0.5 size-4 shrink-0" />
+      {error}
+    </p>
+  ) : null;
+
+  if (dense) {
+    return (
+      <div
+        className={cn("space-y-2", className)}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        <div>
+          <button
+            type="button"
+            disabled={disabled || files.length >= ESTIMATE_MAX_FILES}
+            onClick={() => inputRef.current?.click()}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-xl border border-dashed px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+              dragOver
+                ? "border-primary bg-primary/10"
+                : "border-primary/35 bg-background/30 hover:border-primary/60 hover:bg-primary/5"
+            )}
+          >
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <FileUp className="size-3.5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-medium text-foreground">
+                {dragOver ? "Drop files to attach" : `${t("addFiles")} or drop here`}
+              </span>
+              <span className="block truncate text-[11px] text-muted-foreground">{t("hint")}</span>
+            </span>
+          </button>
+          {fileInput}
+          {selectedList}
+          {progressList}
+        </div>
+        {errorLine}
+      </div>
+    );
+  }
+
   return (
     <div className={cn(compact ? "space-y-2" : "space-y-3", className)}>
       <div
@@ -218,85 +344,12 @@ export function EstimateFilePicker({
           </Button>
         </div>
 
-        <input
-          ref={inputRef}
-          type="file"
-          className="sr-only"
-          accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
-          multiple
-          disabled={disabled}
-          onChange={(event) => handleSelect(event.target.files)}
-        />
-
-        {files.length > 0 && !uploadProgress?.length && (
-          <ul className={cn("space-y-2", compact ? "mt-3" : "mt-4")}>
-            {files.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-border/40 bg-background/40 px-2.5 py-2"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-xs text-foreground sm:text-sm">
-                    {item.file.name}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {formatFileSize(item.file.size)}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                  onClick={() => removeFile(item.id)}
-                  disabled={disabled}
-                  aria-label={t("remove")}
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {uploadProgress && uploadProgress.length > 0 && (
-          <ul className={cn("space-y-2", compact ? "mt-3" : "mt-4")}>
-            {uploadProgress.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-border/40 bg-background/40 px-2.5 py-2"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-xs text-foreground sm:text-sm">
-                    {item.name}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {formatFileSize(item.size)}
-                    {item.message ? ` · ${item.message}` : ""}
-                  </p>
-                </div>
-                <span className="inline-flex shrink-0 items-center gap-1 text-[11px] capitalize text-muted-foreground">
-                  {item.status === "uploading" || item.status === "queued" ? (
-                    <Loader2 className="size-3.5 animate-spin text-primary" />
-                  ) : null}
-                  {item.status === "uploaded" ? (
-                    <CheckCircle2 className="size-3.5 text-emerald-400" />
-                  ) : null}
-                  {item.status === "failed" ? (
-                    <X className="size-3.5 text-destructive" />
-                  ) : null}
-                  {statusLabels[item.status]}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        {fileInput}
+        {selectedList}
+        {progressList}
       </div>
 
-      {error && (
-        <p className="flex items-start gap-2 text-sm text-destructive" role="alert">
-          <X className="mt-0.5 size-4 shrink-0" />
-          {error}
-        </p>
-      )}
+      {errorLine}
     </div>
   );
 }

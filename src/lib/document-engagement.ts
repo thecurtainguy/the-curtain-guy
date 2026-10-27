@@ -5,10 +5,16 @@ import {
   type DocumentViewSource,
 } from "@/lib/document-views";
 import { isEmailTrackingConfigured, listEmailMessages } from "@/lib/email-tracking";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+
+/** Opens logged before this moment came from the old page-load tracking and cannot be verified. */
+export const ENGAGEMENT_TRACKING_STARTED_AT = "2026-10-27T23:00:00Z";
+
+export type EngagementActivityKind = DocumentViewKind | "legacy_open" | "legacy_pdf";
 
 export type EngagementActivity = {
   id: string;
-  kind: DocumentViewKind;
+  kind: EngagementActivityKind;
   source: DocumentViewSource;
   at: string;
   activeSeconds: number;
@@ -23,6 +29,8 @@ export type EngagementActivity = {
 
 export type EngagementEmail = {
   id: string;
+  /** False for sends recorded before delivery tracking existed. */
+  tracked: boolean;
   to: string[];
   cc: string[];
   subject: string | null;
@@ -48,6 +56,8 @@ export type DocumentEngagement = {
   lastViewedAt: string | null;
   ownerOpens: number;
   unreadChecks: number;
+  /** Most recent open logged by the old page-load tracking (unverified). */
+  legacyLastOpenedAt: string | null;
   emails: EngagementEmail[];
   ownerCopies: number;
   trackingConfigured: boolean;
@@ -57,8 +67,43 @@ export type DocumentEngagement = {
 const isOwnerSource = (source: DocumentViewSource) =>
   source === "owner_copy" || source === "admin_session";
 
+async function listLegacyActivity(target: DocumentTarget): Promise<EngagementActivity[]> {
+  const admin = createAdminSupabaseClient();
+  const isQuote = "quoteId" in target;
+  const { data, error } = await admin
+    .from(isQuote ? "quote_events" : "invoice_events")
+    .select("id, event_type, actor_type, created_at")
+    .eq(isQuote ? "quote_id" : "invoice_id", isQuote ? target.quoteId : target.invoiceId)
+    .in("event_type", [isQuote ? "quote_viewed" : "invoice_viewed", "pdf_downloaded"])
+    .in("actor_type", ["public_link", "customer"])
+    .lt("created_at", ENGAGEMENT_TRACKING_STARTED_AT)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) {
+    console.error("[engagement] legacy events", error);
+    return [];
+  }
+  return (data ?? []).map((event) => ({
+    id: `legacy-${event.id as string}`,
+    kind: event.event_type === "pdf_downloaded" ? "legacy_pdf" : "legacy_open",
+    source: event.actor_type === "customer" ? "account" : "public_link",
+    at: event.created_at as string,
+    activeSeconds: 0,
+    device: null,
+    browser: null,
+    os: null,
+    location: null,
+    isBot: false,
+    returning: false,
+  }));
+}
+
 export async function getDocumentEngagement(target: DocumentTarget): Promise<DocumentEngagement> {
-  const [rows, messages] = await Promise.all([listDocumentViews(target), listEmailMessages(target)]);
+  const [rows, messages, legacy] = await Promise.all([
+    listDocumentViews(target),
+    listEmailMessages(target),
+    listLegacyActivity(target),
+  ]);
 
   const customerViews = rows.filter((row) => row.kind === "view" && !row.is_bot);
   const readers = new Set(customerViews.map((row) => row.visitor_id ?? row.id));
@@ -87,7 +132,8 @@ export async function getDocumentEngagement(target: DocumentTarget): Promise<Doc
         returning,
       };
     })
-    .reverse();
+    .reverse()
+    .concat(legacy);
 
   return {
     views: customerViews.length,
@@ -98,10 +144,12 @@ export async function getDocumentEngagement(target: DocumentTarget): Promise<Doc
     lastViewedAt: lastSeen.at(-1) ?? null,
     ownerOpens: rows.filter((row) => row.kind === "owner" || (row.kind === "pdf" && isOwnerSource(row.source))).length,
     unreadChecks: rows.filter((row) => row.kind === "link_hit").length,
+    legacyLastOpenedAt: legacy.find((item) => item.kind === "legacy_open")?.at ?? null,
     emails: messages
       .filter((message) => message.audience === "customer")
       .map((message) => ({
         id: message.id,
+        tracked: Boolean(message.resend_id),
         to: message.to_emails,
         cc: message.cc_emails,
         subject: message.subject,

@@ -395,13 +395,26 @@ const styles = StyleSheet.create({
   termsAfterPricing: {
     marginTop: 10,
   },
-  termsCard: {
-    borderWidth: 1,
-    borderColor: COLORS.line,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 9,
-    backgroundColor: COLORS.white,
+  termsHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+    borderBottomWidth: 0.75,
+    borderBottomColor: COLORS.gold,
+    paddingBottom: 4,
+    marginBottom: 6,
+  },
+  termsTitle: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 1.3,
+    textTransform: "uppercase",
+    color: COLORS.ink,
+  },
+  termsContinued: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Oblique",
+    color: COLORS.muted,
   },
   termRow: {
     flexDirection: "row",
@@ -530,6 +543,15 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Reports whether a page comes after the first page a breakable section was laid out on. */
+function createContinuationTracker() {
+  let firstPage = Number.POSITIVE_INFINITY;
+  return (pageNumber: number) => {
+    firstPage = Math.min(firstPage, pageNumber);
+    return pageNumber > firstPage;
+  };
+}
+
 function QuotePdfDocument({
   quote,
   publicUrl,
@@ -564,6 +586,7 @@ function QuotePdfDocument({
     quote.terms,
     language === "fr" ? DEFAULT_QUOTE_TERMS_FR : DEFAULT_QUOTE_TERMS
   );
+  const isTermsContinuation = createContinuationTracker();
   const proposalUrl = publicUrl || quote.share_url || null;
   const base = siteUrl.replace(/\/$/, "");
   const websiteUrl = `https://${siteConfig.domain}`;
@@ -853,8 +876,16 @@ function QuotePdfDocument({
         {notesCard && !longNotes ? notesCard : null}
 
         <View style={longNotes ? styles.termsAfterPricing : styles.termsDock}>
-          <View style={styles.termsCard}>
-            <Text style={styles.sectionTitle}>{t.termsTitle}</Text>
+          <View>
+            <View style={styles.termsHeader} fixed>
+              <Text style={styles.termsTitle}>{t.termsTitle}</Text>
+              <Text
+                style={styles.termsContinued}
+                render={({ pageNumber }) =>
+                  isTermsContinuation(pageNumber) ? `(${p.continued})` : ""
+                }
+              />
+            </View>
             {terms.map((line, index) => (
               <View
                 key={`${index}-${line.slice(0, 16)}`}

@@ -139,6 +139,7 @@ export type QuoteCopy = {
     noPricedItems: string;
     includedSuffix: string;
     generated: string;
+    continued: string;
     subject: (ref: string) => string;
     mailBodyWithUrl: (url: string) => string;
     mailBodyNoUrl: (ref: string) => string;
@@ -302,6 +303,7 @@ const en: QuoteCopy = {
     noPricedItems: "No priced line items yet.",
     includedSuffix: " (Included)",
     generated: "Generated",
+    continued: "continued",
     subject: (ref) => `Proposal ${ref}`,
     mailBodyWithUrl: (url) => `Regarding your draping proposal:\n\n${url}`,
     mailBodyNoUrl: (ref) => `Regarding proposal ${ref}`,
@@ -473,6 +475,7 @@ const fr: QuoteCopy = {
     noPricedItems: "Aucun article tarifé pour le moment.",
     includedSuffix: " (inclus)",
     generated: "Généré le",
+    continued: "suite",
     subject: (ref) => `Soumission ${ref}`,
     mailBodyWithUrl: (url) => `Au sujet de votre soumission de drapage :\n\n${url}`,
     mailBodyNoUrl: (ref) => `Au sujet de la soumission ${ref}`,

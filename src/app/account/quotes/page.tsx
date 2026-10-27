@@ -16,6 +16,7 @@ import {
 import { PortalStartEstimateButton } from "@/components/estimates/portal-start-estimate-button";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { listQuotesForCustomer } from "@/lib/quotes";
+import { customerQuoteStatus } from "@/data/quotes";
 
 export const metadata: Metadata = {
   title: "Your proposals",
@@ -29,7 +30,7 @@ export default async function AccountQuotesPage() {
 
   const listRows: AccountQuoteListRow[] = quotes.map((row) => ({
     id: row.id,
-    status: row.status,
+    status: customerQuoteStatus(row.status),
     opportunity_ref: row.opportunity_ref,
     revision_number: row.revision_number,
     total_cents: row.total_cents,

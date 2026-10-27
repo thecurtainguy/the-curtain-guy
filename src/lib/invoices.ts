@@ -1568,6 +1568,7 @@ export function toCustomerSafeInvoice(
     created_by_user_id: _creator,
     events: _events,
     view_count: _views,
+    viewed_at: _viewed,
     last_viewed_at: _lastViewed,
     payments,
     ...rest
@@ -1577,6 +1578,7 @@ export function toCustomerSafeInvoice(
   void _creator;
   void _events;
   void _views;
+  void _viewed;
   void _lastViewed;
   return {
     ...rest,

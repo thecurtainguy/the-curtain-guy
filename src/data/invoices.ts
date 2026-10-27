@@ -344,7 +344,12 @@ export type InvoiceWithRelations = InvoiceRow & {
 /** Customer payload — no internal notes, token hash, or activity log. */
 export type CustomerSafeInvoice = Omit<
   InvoiceRow,
-  "internal_notes" | "public_token_hash" | "created_by_user_id" | "view_count" | "last_viewed_at"
+  | "internal_notes"
+  | "public_token_hash"
+  | "created_by_user_id"
+  | "view_count"
+  | "viewed_at"
+  | "last_viewed_at"
 > & {
   line_items: InvoiceLineItemRow[];
   payments: Array<

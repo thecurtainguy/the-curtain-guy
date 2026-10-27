@@ -22,6 +22,7 @@ import { listQuotesForCustomer } from "@/lib/quotes";
 import { listCustomerInvoices } from "@/lib/invoices";
 import { CustomerInvoicesCard } from "@/components/invoices/customer-invoices-card";
 import { normalizeCustomerLanguage } from "@/data/customer-language";
+import { customerQuoteStatus } from "@/data/quotes";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -48,7 +49,7 @@ export default async function AccountHomePage() {
 
   const quoteRows: AccountDashboardQuoteRow[] = quotes.map((row) => ({
     id: row.id,
-    status: row.status,
+    status: customerQuoteStatus(row.status),
     opportunity_ref: row.opportunity_ref,
     revision_number: row.revision_number,
     total_cents: row.total_cents,

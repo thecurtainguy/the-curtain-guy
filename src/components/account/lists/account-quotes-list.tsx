@@ -35,7 +35,7 @@ function formatEventDate(value: string | null): string {
 }
 
 const STATUS_OPTIONS: PortalStatusOption[] = QUOTE_STATUSES.filter(
-  (status) => status !== "draft"
+  (status) => status !== "draft" && status !== "viewed"
 ).map((status) => ({
   value: status,
   label: status.replaceAll("_", " "),

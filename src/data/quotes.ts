@@ -345,6 +345,11 @@ const QUOTE_REQUEST_STATUS_LABELS_FR: Record<QuoteRequestStatus, string> = {
   needs_info: "Précisions requises",
 };
 
+/** Read tracking is owner-only: customers see a viewed quote as plain "sent". */
+export function customerQuoteStatus(status: QuoteStatus): QuoteStatus {
+  return status === "viewed" ? "sent" : status;
+}
+
 export function quoteStatusLabel(
   status: QuoteStatus,
   language: CustomerLanguage = "en"
@@ -680,7 +685,6 @@ export type CustomerSafeQuote = {
   customer_notes: string | null;
   terms: string | null;
   sent_at: string | null;
-  viewed_at: string | null;
   accepted_at: string | null;
   accepted_by_name: string | null;
   declined_at: string | null;

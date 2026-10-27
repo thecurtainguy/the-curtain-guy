@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   BookOpenCheck,
+  ChevronDown,
   Clock,
   Download,
   Eye,
@@ -25,14 +26,15 @@ import type {
 } from "@/lib/document-engagement";
 import { cn } from "@/lib/utils";
 
-const ACTIVITY_PREVIEW = 8;
+const ACTIVITY_PREVIEW = 3;
 
-function formatStamp(value: string): string {
+function formatStamp(value: string, withSeconds = false): string {
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    ...(withSeconds ? { second: "2-digit" } : {}),
   }).format(new Date(value));
 }
 
@@ -43,10 +45,18 @@ function formatDuration(seconds: number): string {
   return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
 }
 
-function Stamp({ value, className }: { value: string; className?: string }) {
+function Stamp({
+  value,
+  className,
+  withSeconds,
+}: {
+  value: string;
+  className?: string;
+  withSeconds?: boolean;
+}) {
   return (
     <time dateTime={value} className={className} suppressHydrationWarning>
-      {formatStamp(value)}
+      {formatStamp(value, withSeconds)}
     </time>
   );
 }
@@ -133,11 +143,36 @@ function describeActivity(item: EngagementActivity): { title: string; muted: boo
   }
 }
 
-function ActivityRow({ item }: { item: EngagementActivity }) {
-  const { title, muted, icon: Icon } = describeActivity(item);
-  const device = [item.device ? (DEVICE_LABEL[item.device] ?? item.device) : null, item.browser, item.os]
+function deviceLabel(item: EngagementActivity): string {
+  return [item.device ? (DEVICE_LABEL[item.device] ?? item.device) : null, item.browser, item.os]
     .filter(Boolean)
     .join(" · ");
+}
+
+/** Back-to-back identical events (same action, device, and place) collapse into one row. Reads stay separate. */
+function groupActivity(items: EngagementActivity[]): EngagementActivity[][] {
+  const groups: EngagementActivity[][] = [];
+  let lastKey: string | null = null;
+  for (const item of items) {
+    const key =
+      item.kind === "view"
+        ? null
+        : [describeActivity(item).title, deviceLabel(item), item.location ?? "", item.source ?? ""].join("|");
+    if (key !== null && key === lastKey) {
+      groups[groups.length - 1].push(item);
+    } else {
+      groups.push([item]);
+    }
+    lastKey = key;
+  }
+  return groups;
+}
+
+function ActivityRow({ items }: { items: EngagementActivity[] }) {
+  const item = items[0];
+  const repeated = items.length > 1;
+  const { title, muted, icon: Icon } = describeActivity(item);
+  const device = deviceLabel(item);
   return (
     <li className={cn("flex gap-3 py-2.5", muted && "opacity-55")}>
       <span
@@ -154,6 +189,11 @@ function ActivityRow({ item }: { item: EngagementActivity }) {
             {title}
             {item.kind === "view" && item.activeSeconds > 0 ? (
               <span className="font-normal text-muted-foreground"> · {formatDuration(item.activeSeconds)}</span>
+            ) : null}
+            {repeated ? (
+              <span className="ml-1.5 rounded-full bg-muted/60 px-1.5 py-px text-[10px] font-semibold text-muted-foreground">
+                ×{items.length}
+              </span>
             ) : null}
           </p>
           <Stamp value={item.at} className="shrink-0 text-[11px] text-muted-foreground" />
@@ -176,6 +216,19 @@ function ActivityRow({ item }: { item: EngagementActivity }) {
             <span>Unverified: could be a scanner or your own copy</span>
           ) : null}
         </div>
+        {repeated ? (
+          <ul className="mt-1.5 flex flex-wrap gap-1">
+            {items.map((entry) => (
+              <li key={entry.id}>
+                <Stamp
+                  value={entry.at}
+                  withSeconds
+                  className="inline-block rounded-md border border-border/40 bg-background/50 px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground"
+                />
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     </li>
   );
@@ -189,8 +242,10 @@ export function DocumentEngagementCard({
   documentLabel: "quote" | "invoice";
 }) {
   const [showAll, setShowAll] = useState(false);
-  const activity = showAll ? engagement.activity : engagement.activity.slice(0, ACTIVITY_PREVIEW);
-  const hidden = engagement.activity.length - activity.length;
+  const groups = groupActivity(engagement.activity);
+  const preview = groups.slice(0, ACTIVITY_PREVIEW);
+  const rest = groups.slice(ACTIVITY_PREVIEW);
+  const historyId = `engagement-history-${documentLabel}`;
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border/40 bg-card/25">
@@ -270,25 +325,54 @@ export function DocumentEngagementCard({
           </div>
         ) : null}
 
-        {activity.length > 0 ? (
+        {groups.length > 0 ? (
           <div>
-            <div className="flex items-center gap-2">
-              <Activity className="size-3.5 text-primary" />
-              <h3 className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">Activity</h3>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Activity className="size-3.5 text-primary" />
+                <h3 className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">Activity</h3>
+              </div>
+              <span className="text-[10px] text-muted-foreground">
+                {engagement.activity.length} {engagement.activity.length === 1 ? "event" : "events"}
+              </span>
             </div>
             <ul className="mt-1 divide-y divide-border/30">
-              {activity.map((item) => (
-                <ActivityRow key={item.id} item={item} />
+              {preview.map((items) => (
+                <ActivityRow key={items[0].id} items={items} />
               ))}
             </ul>
-            {hidden > 0 || showAll ? (
-              <button
-                type="button"
-                className="mt-1 text-xs font-medium text-primary hover:underline"
-                onClick={() => setShowAll((value) => !value)}
-              >
-                {showAll ? "Show less" : `Show ${hidden} more`}
-              </button>
+            {rest.length > 0 ? (
+              <>
+                <div
+                  id={historyId}
+                  inert={!showAll}
+                  className={cn(
+                    "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+                    showAll ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                  )}
+                >
+                  <ul
+                    className={cn(
+                      "min-h-0 divide-y divide-border/30 overflow-hidden",
+                      showAll && "border-t border-border/30"
+                    )}
+                  >
+                    {rest.map((items) => (
+                      <ActivityRow key={items[0].id} items={items} />
+                    ))}
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  aria-expanded={showAll}
+                  aria-controls={historyId}
+                  onClick={() => setShowAll((value) => !value)}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border/40 bg-background/40 px-3 py-2 text-xs font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/5"
+                >
+                  {showAll ? "Collapse history" : `View full history · ${rest.length} more`}
+                  <ChevronDown className={cn("size-3.5 transition-transform duration-300", showAll && "rotate-180")} />
+                </button>
+              </>
             ) : null}
           </div>
         ) : (

@@ -16,6 +16,7 @@ import {
 import {
   DEFAULT_QUOTE_TERMS,
   DEFAULT_QUOTE_TERMS_FR,
+  customerQuoteStatus,
   formatMoneyFromCents,
   formatQuoteQuantity,
   formatQuoteUnitPrice,
@@ -750,7 +751,7 @@ function QuotePdfDocument({
             ) : null}
             <Meta
               label={p.status}
-              value={quoteStatusLabel(quote.status, language)}
+              value={quoteStatusLabel(customerQuoteStatus(quote.status), language)}
             />
             <Meta label={p.currency} value={currency} />
           </View>

@@ -61,6 +61,7 @@ const ATTACHMENT_COPY: Record<
     conceptDisclaimer: string;
     conceptStamp: string;
     open: string;
+    pageOf: (page: number, total: number) => string;
   }
 > = {
   en: {
@@ -73,6 +74,7 @@ const ATTACHMENT_COPY: Record<
     conceptStamp:
       "Concept illustration (AI-assisted). Not a guarantee of the final result.",
     open: "Open",
+    pageOf: (page, total) => `Page ${page} of ${total}`,
   },
   fr: {
     title: "Concept et références",
@@ -84,6 +86,7 @@ const ATTACHMENT_COPY: Record<
     conceptStamp:
       "Illustration conceptuelle (assistée par IA). Ne garantit pas le résultat final.",
     open: "Ouvrir",
+    pageOf: (page, total) => `Page ${page} de ${total}`,
   },
 };
 

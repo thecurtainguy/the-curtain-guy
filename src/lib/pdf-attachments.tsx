@@ -1,5 +1,5 @@
 import { Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFPage } from "pdf-lib";
 import sharp from "sharp";
 import type { CustomerLanguage } from "@/data/customer-language";
 import {
@@ -30,6 +30,7 @@ export type PdfFileAttachment = {
   caption: string | null;
   fileName: string;
   bytes: Uint8Array;
+  pageCount: number;
 };
 
 export type DocumentAttachments = {
@@ -86,7 +87,9 @@ export async function loadDocumentAttachments(
       };
       if (file.content_type === "application/pdf") {
         if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-") return null;
-        return { type: "pdf" as const, value: { ...base, bytes: new Uint8Array(bytes) } };
+        const trailing = await loadTrailingPdf(file.id, new Uint8Array(bytes));
+        if (!trailing) return null;
+        return { type: "pdf" as const, value: { ...base, ...trailing, kind: file.file_kind } };
       }
       if (!file.content_type.startsWith("image/")) return null;
       try {
@@ -118,6 +121,30 @@ export async function loadDocumentAttachments(
     if (item?.type === "pdf") result.pdfs.push(item.value);
   }
   return result;
+}
+
+/** A PDF merged after the rendered document; concept pages get a disclaimer stamp. */
+export type TrailingPdf = {
+  id: string;
+  bytes: Uint8Array;
+  pageCount: number;
+  kind?: EstimateFileKind;
+};
+
+/** Reads a PDF for merging after the rendered document; null when unreadable. */
+export async function loadTrailingPdf(id: string, bytes: Uint8Array): Promise<TrailingPdf | null> {
+  try {
+    const source = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    return { id, bytes, pageCount: source.getPageCount() };
+  } catch (error) {
+    console.error("[pdf-attachments] skip unreadable PDF", id, error);
+    return null;
+  }
+}
+
+/** Pages that {@link appendPdfAttachments} adds after the rendered document. */
+export function appendedPageCount(pdfs: TrailingPdf[]): number {
+  return pdfs.reduce((sum, pdf) => sum + pdf.pageCount, 0);
 }
 
 /** Short-lived signed URLs for web views (proposal page). */
@@ -240,15 +267,21 @@ export function renderAttachmentPages(input: {
   attachments: DocumentAttachments;
   language: CustomerLanguage;
   documentRef: string;
+  /** Pages merged after rendering, counted in "Page X of Y". */
+  appendedPages: number;
 }) {
-  const { attachments, language, documentRef } = input;
+  const { attachments, language, documentRef, appendedPages } = input;
   const copy = getAttachmentCopy(language);
   const footer = (
     <View style={styles.footer} fixed>
       <Text>
         {siteConfig.name} · {documentRef}
       </Text>
-      <Text>{siteConfig.domain}</Text>
+      <Text
+        render={({ pageNumber, totalPages }) =>
+          `${copy.pageOf(pageNumber, totalPages + appendedPages)} · ${siteConfig.domain}`
+        }
+      />
     </View>
   );
 
@@ -313,23 +346,26 @@ export function renderAttachmentPages(input: {
   return [...imagePages, indexPage];
 }
 
-/** Merges PDF attachments after the rendered document; concept pages get a disclaimer stamp. */
+/** Merges PDFs after the rendered document and stamps their page numbers. */
 export async function appendPdfAttachments(
   documentPdf: Buffer,
-  pdfs: PdfFileAttachment[],
+  pdfs: TrailingPdf[],
   language: CustomerLanguage
 ): Promise<Buffer> {
   if (pdfs.length === 0) return documentPdf;
   try {
     const merged = await PDFDocument.load(documentPdf);
     const font = await merged.embedFont(StandardFonts.Helvetica);
-    const stamp = getAttachmentCopy(language).conceptStamp;
+    const copy = getAttachmentCopy(language);
+    const stamp = copy.conceptStamp;
+    const appended: PDFPage[] = [];
     for (const pdf of pdfs) {
       try {
         const source = await PDFDocument.load(pdf.bytes, { ignoreEncryption: true });
         const pages = await merged.copyPages(source, source.getPageIndices());
         for (const page of pages) {
           merged.addPage(page);
+          appended.push(page);
           if (pdf.kind !== "concept") continue;
           const { width } = page.getSize();
           const size = 7;
@@ -354,6 +390,24 @@ export async function appendPdfAttachments(
         console.error("[pdf-attachments] skip unreadable PDF", pdf.id, error);
       }
     }
+    const total = merged.getPageCount();
+    const firstAppended = total - appended.length + 1;
+    appended.forEach((page, index) => {
+      const label = copy.pageOf(firstAppended + index, total);
+      const { width } = page.getSize();
+      const size = 7;
+      const textWidth = font.widthOfTextAtSize(label, size);
+      const x = width - textWidth - 24;
+      page.drawRectangle({
+        x: x - 6,
+        y: 8,
+        width: textWidth + 12,
+        height: size + 7,
+        color: rgb(0.96, 0.94, 0.88),
+        opacity: 0.92,
+      });
+      page.drawText(label, { x, y: 12, size, font, color: rgb(0.42, 0.39, 0.35) });
+    });
     return Buffer.from(await merged.save());
   } catch (error) {
     console.error("[pdf-attachments] merge failed", error);

@@ -37,6 +37,7 @@ import { siteConfig } from "@/data/site";
 import { getLocalizedDocumentTexts } from "@/lib/document-texts";
 import {
   appendPdfAttachments,
+  appendedPageCount,
   loadDocumentAttachments,
   renderAttachmentPages,
 } from "@/lib/pdf-attachments";
@@ -559,6 +560,7 @@ function QuotePdfDocument({
   siteUrl,
   pdfFooter,
   extraPages,
+  appendedPages = 0,
 }: {
   quote: CustomerSafeQuote;
   publicUrl?: string | null;
@@ -566,6 +568,8 @@ function QuotePdfDocument({
   siteUrl: string;
   pdfFooter: string;
   extraPages?: ReactNode;
+  /** Pages merged after rendering (PDF attachments), counted in "Page X of Y". */
+  appendedPages?: number;
 }) {
   const language = quote.language;
   const t = getQuoteCopy(language);
@@ -908,11 +912,12 @@ function QuotePdfDocument({
             {"\n"}
             {pdfFooter}
           </Text>
-          <Text style={styles.footerRight}>
-            {p.generated} {generatedAt}
-            {"\n"}
-            {siteConfig.domain}
-          </Text>
+          <Text
+            style={styles.footerRight}
+            render={({ pageNumber, totalPages }) =>
+              `${p.pageOf(pageNumber, totalPages + appendedPages)}\n${p.generated} ${generatedAt} · ${siteConfig.domain}`
+            }
+          />
         </View>
       </Page>
       {extraPages}
@@ -948,6 +953,7 @@ export async function renderQuotePdfBuffer(input: {
     input.quote.estimate_request_id,
     "quote"
   );
+  const appendedPages = appendedPageCount(attachments.pdfs);
   const buffer = await renderToBuffer(
     <QuotePdfDocument
       quote={quote}
@@ -959,7 +965,9 @@ export async function renderQuotePdfBuffer(input: {
         attachments,
         language,
         documentRef: input.quote.quote_display_ref,
+        appendedPages,
       })}
+      appendedPages={appendedPages}
     />
   );
   return appendPdfAttachments(Buffer.from(buffer), attachments.pdfs, language);

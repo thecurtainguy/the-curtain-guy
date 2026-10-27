@@ -10,13 +10,15 @@ import {
   View,
   renderToBuffer,
 } from "@react-pdf/renderer";
-import { PDFDocument } from "pdf-lib";
 import { customerLocaleTag } from "@/data/customer-language";
 import { downloadPaymentDocument } from "@/lib/business-settings";
 import {
+  appendedPageCount,
   appendPdfAttachments,
   loadDocumentAttachments,
+  loadTrailingPdf,
   renderAttachmentPages,
+  type TrailingPdf,
 } from "@/lib/pdf-attachments";
 import { toPdfSafeImage } from "@/lib/pdf-image";
 import {
@@ -370,12 +372,15 @@ function InvoicePdfDocument({
   publicUrl,
   generatedAt,
   extraPages,
+  appendedPages = 0,
 }: {
   invoice: CustomerSafeInvoice;
   settings: BusinessSettings;
   publicUrl?: string | null;
   generatedAt: string;
   extraPages?: ReactNode;
+  /** Pages merged after rendering (PDF attachments, payment document), counted in "Page X of Y". */
+  appendedPages?: number;
 }) {
   const language = invoice.language;
   const t = getInvoiceCopy(language);
@@ -442,7 +447,7 @@ function InvoicePdfDocument({
       <Text
         style={styles.footerRight}
         render={({ pageNumber, totalPages }) =>
-          `${invoice.invoice_number}\n${t.pageOf(pageNumber, totalPages)}\n${generatedAt}`
+          `${invoice.invoice_number}\n${t.pageOf(pageNumber, totalPages + appendedPages)}\n${generatedAt}`
         }
       />
     </View>
@@ -776,6 +781,11 @@ export async function renderInvoicePdfBuffer(input: {
     input.invoice.estimate_request_id,
     "invoice"
   );
+  const paymentDocument = await loadPaymentDocument(input.settings);
+  const trailingPdfs = paymentDocument
+    ? [...attachments.pdfs, paymentDocument]
+    : attachments.pdfs;
+  const appendedPages = appendedPageCount(trailingPdfs);
   const buffer = await renderToBuffer(
     <InvoicePdfDocument
       invoice={{ ...input.invoice, line_items: lineItems }}
@@ -786,32 +796,17 @@ export async function renderInvoicePdfBuffer(input: {
         attachments,
         language: input.invoice.language,
         documentRef: input.invoice.invoice_number,
+        appendedPages,
       })}
+      appendedPages={appendedPages}
     />
   );
-  const withAttachments = await appendPdfAttachments(
-    Buffer.from(buffer),
-    attachments.pdfs,
-    input.invoice.language
-  );
-  if (!hasActivePaymentDocument(input.settings) || !input.settings.payment_document_path) {
-    return withAttachments;
-  }
-  return appendPaymentDocument(withAttachments, input.settings.payment_document_path);
+  return appendPdfAttachments(Buffer.from(buffer), trailingPdfs, input.invoice.language);
 }
 
-/** Appends the payment document (void cheque) pages; falls back to the invoice alone on any failure. */
-async function appendPaymentDocument(invoicePdf: Buffer, documentPath: string): Promise<Buffer> {
-  const documentBytes = await downloadPaymentDocument(documentPath);
-  if (!documentBytes) return invoicePdf;
-  try {
-    const merged = await PDFDocument.load(invoicePdf);
-    const extra = await PDFDocument.load(documentBytes, { ignoreEncryption: true });
-    const pages = await merged.copyPages(extra, extra.getPageIndices());
-    for (const page of pages) merged.addPage(page);
-    return Buffer.from(await merged.save());
-  } catch (error) {
-    console.error("[invoice-pdf] append payment document failed", error);
-    return invoicePdf;
-  }
+/** The payment document (void cheque) appended after the invoice, when active and readable. */
+async function loadPaymentDocument(settings: BusinessSettings): Promise<TrailingPdf | null> {
+  if (!hasActivePaymentDocument(settings) || !settings.payment_document_path) return null;
+  const bytes = await downloadPaymentDocument(settings.payment_document_path);
+  return bytes ? loadTrailingPdf("payment-document", bytes) : null;
 }

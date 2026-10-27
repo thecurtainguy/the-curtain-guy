@@ -4,11 +4,19 @@ import {
   DEFAULT_QST_RATE,
   isQuoteStatus,
   isQuoteTaxMode,
+  type QuoteRow,
   type QuoteStatus,
   type QuoteTaxMode,
 } from "@/data/quotes";
 import { isCustomerLanguage } from "@/data/customer-language";
-import { isCustomerCurrency } from "@/data/customers";
+import { isCustomerCurrency, type CustomerVenueRow } from "@/data/customers";
+import { ensureCustomerVenue } from "@/lib/customers";
+import { parseQuotePaymentTerms } from "@/data/quote-payment-terms";
+import {
+  QUOTE_SCHEDULE_DATE_FIELDS,
+  QUOTE_SCHEDULE_TIME_FIELDS,
+  normalizeScheduleTime,
+} from "@/data/quote-schedule";
 import { requireOwner } from "@/lib/auth";
 import {
   fetchQuoteById,
@@ -18,6 +26,8 @@ import {
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -78,6 +88,7 @@ export async function PUT(request: Request, context: RouteContext) {
     "customer_email",
     "event_type",
     "venue_name",
+    "venue_address",
     "city_area",
     "customer_notes",
     "owner_notes",
@@ -91,12 +102,66 @@ export async function PUT(request: Request, context: RouteContext) {
         typeof value === "string" ? value.trim() || null : null;
     }
   }
+  if (typeof updates.venue_address === "string" && updates.venue_address.length > 400) {
+    return NextResponse.json(
+      { ok: false, message: "Venue address is too long (400 characters max)." },
+      { status: 400 }
+    );
+  }
+
+  const admin = createAdminSupabaseClient();
+  if ("customer_venue_id" in body) {
+    const venueId = typeof body.customer_venue_id === "string" ? body.customer_venue_id : null;
+    if (venueId) {
+      const { data: venue } = await admin
+        .from("customer_venues")
+        .select("id, customer_id")
+        .eq("id", venueId)
+        .maybeSingle();
+      if (!venue || (existing.customer_id && venue.customer_id !== existing.customer_id)) {
+        return NextResponse.json(
+          { ok: false, message: "That saved venue doesn't belong to this customer." },
+          { status: 400 }
+        );
+      }
+    }
+    updates.customer_venue_id = venueId;
+  }
 
   if ("event_date" in body) {
     updates.event_date =
       typeof body.event_date === "string" && body.event_date.trim()
         ? body.event_date.trim()
         : null;
+  }
+  for (const field of QUOTE_SCHEDULE_DATE_FIELDS) {
+    if (!(field in body)) continue;
+    const value = typeof body[field] === "string" ? (body[field] as string).trim() : "";
+    if (value && !ISO_DATE.test(value)) {
+      return NextResponse.json(
+        { ok: false, message: `Invalid ${field.replace("_", " ")}.` },
+        { status: 400 }
+      );
+    }
+    updates[field] = value || null;
+  }
+  for (const field of QUOTE_SCHEDULE_TIME_FIELDS) {
+    if (!(field in body)) continue;
+    const value = normalizeScheduleTime(body[field]);
+    if (value === undefined) {
+      return NextResponse.json(
+        { ok: false, message: `Invalid time for ${field.replaceAll("_", " ")}.` },
+        { status: 400 }
+      );
+    }
+    updates[field] = value;
+  }
+  if ("payment_deposit_mode" in body) {
+    const parsed = parseQuotePaymentTerms(body);
+    if ("error" in parsed) {
+      return NextResponse.json({ ok: false, message: parsed.error }, { status: 400 });
+    }
+    Object.assign(updates, parsed.terms);
   }
   if ("valid_until" in body) {
     updates.valid_until =
@@ -183,7 +248,6 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
 
-  const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from("quotes")
     .update(updates)
@@ -202,14 +266,37 @@ export async function PUT(request: Request, context: RouteContext) {
     await recalculateQuoteTotals(id);
   }
 
+  let saved = data as QuoteRow;
+  let savedVenue: CustomerVenueRow | null = null;
+  const venueTouched = ["venue_name", "venue_address", "customer_venue_id"].some((f) => f in updates);
+  if (venueTouched && saved.customer_id && saved.venue_name && !saved.customer_venue_id) {
+    savedVenue = await ensureCustomerVenue({
+      customerId: saved.customer_id,
+      venueName: saved.venue_name,
+      venueAddress: saved.venue_address,
+      actor: { userId: owner.user.id, email: owner.profile.email },
+      source: { kind: "quote", id, ref: saved.quote_display_ref },
+    });
+    if (savedVenue) {
+      const { error: linkError } = await admin
+        .from("quotes")
+        .update({ customer_venue_id: savedVenue.id })
+        .eq("id", id);
+      if (linkError) console.error("[quotes] link saved venue", linkError);
+      else saved = { ...saved, customer_venue_id: savedVenue.id };
+    }
+  }
+
   await logQuoteEvent({
     quoteId: id,
     actorType: "owner",
     actorUserId: owner.user.id,
     actorEmail: owner.profile.email,
     eventType: "quote_edited",
-    summary: "Quote details updated",
-    metadata: { fields: Object.keys(updates) },
+    summary: savedVenue
+      ? `Quote details updated · venue linked to the customer profile (${savedVenue.name})`
+      : "Quote details updated",
+    metadata: { fields: Object.keys(updates), customer_venue_id: savedVenue?.id ?? null },
   });
 
   const refreshed = shouldRecalculate
@@ -218,6 +305,6 @@ export async function PUT(request: Request, context: RouteContext) {
 
   return NextResponse.json({
     ok: true,
-    quote: refreshed ?? data,
+    quote: refreshed ?? saved,
   });
 }

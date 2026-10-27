@@ -8,6 +8,7 @@ import {
   isContactRole,
   isCustomerCurrency,
   isCustomerKind,
+  type CustomerContactOption,
   type CustomerContactRow,
   type CustomerEventRow,
   type CustomerFieldChange,
@@ -528,6 +529,7 @@ export async function getCustomerLinkSummary(
     customer_number: customer.customer_number,
     display_name: customer.display_name,
     company_name: customer.company_name,
+    primary_email: customer.primary_email,
     kind: customer.kind,
     preferred_language: customer.preferred_language,
     po_required: customer.po_required,
@@ -538,7 +540,42 @@ export async function getCustomerLinkSummary(
     invoiceCc: customerCcEmails(contacts, "invoices", exclude),
     quoteCc: customerCcEmails(contacts, "quotes", exclude),
     venues,
+    contactOptions: buildContactOptions(customer, contacts),
   };
+}
+
+function buildContactOptions(
+  customer: CustomerRow,
+  contacts: CustomerContactRow[]
+): CustomerContactOption[] {
+  const seen = new Set<string>();
+  const options: CustomerContactOption[] = [];
+  const add = (option: CustomerContactOption) => {
+    const key = option.email.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    options.push(option);
+  };
+  add({
+    id: "primary",
+    name: customer.display_name,
+    email: customer.primary_email,
+    title: null,
+    role: null,
+    primary: true,
+  });
+  for (const contact of contacts) {
+    if (!contact.email) continue;
+    add({
+      id: contact.id,
+      name: contact.name,
+      email: contact.email,
+      title: contact.title,
+      role: contact.role,
+      primary: false,
+    });
+  }
+  return options;
 }
 
 // ---------------------------------------------------------------------------
@@ -1131,11 +1168,40 @@ function buildVenueUpdate(input: VenueInput): Record<string, unknown> {
   return update;
 }
 
+/** ref is the display label, e.g. "Quote TCG-10007" or "Invoice INV-10039". */
+type VenueSource = { kind: "quote" | "invoice"; id: string; ref: string };
+
+/**
+ * Venue typed on a quote or invoice → the customer's saved venue with the same name,
+ * or a new saved venue. An existing saved venue is never overwritten.
+ */
+export async function ensureCustomerVenue(input: {
+  customerId: string;
+  venueName: string | null | undefined;
+  venueAddress: string | null | undefined;
+  actor: Actor;
+  source: VenueSource;
+}): Promise<CustomerVenueRow | null> {
+  const name = input.venueName?.trim();
+  if (!name) return null;
+  const existing = (await listCustomerVenues(input.customerId)).find(
+    (venue) => venue.name.trim().toLowerCase() === name.toLowerCase()
+  );
+  if (existing) return existing;
+  const result = await createVenue(
+    input.customerId,
+    { name, address: input.venueAddress?.trim() || null },
+    input.actor,
+    { fromDocument: input.source }
+  );
+  return "venue" in result ? result.venue : null;
+}
+
 export async function createVenue(
   customerId: string,
   input: VenueInput,
   actor: Actor,
-  options?: { fromJobId?: string }
+  options?: { fromJobId?: string; fromDocument?: VenueSource }
 ): Promise<{ venue: CustomerVenueRow } | { error: string }> {
   const update = buildVenueUpdate(input);
   if (!update.name) return { error: "Venue name is required." };
@@ -1150,12 +1216,21 @@ export async function createVenue(
     return { error: "Could not save venue." };
   }
   const venue = data as CustomerVenueRow;
+  const fromDocument = options?.fromDocument;
   await logCustomerEvent({
     customerId,
     actorUserId: actor.userId,
     eventType: "venue_added",
-    summary: options?.fromJobId ? `Venue saved from a job: ${venue.name}` : `Venue added: ${venue.name}`,
-    metadata: { venue, job_id: options?.fromJobId ?? null },
+    summary: fromDocument
+      ? `Venue saved from ${fromDocument.ref}: ${venue.name}`
+      : options?.fromJobId
+        ? `Venue saved from a job: ${venue.name}`
+        : `Venue added: ${venue.name}`,
+    metadata: {
+      venue,
+      job_id: options?.fromJobId ?? null,
+      ...(fromDocument ? { [`${fromDocument.kind}_id`]: fromDocument.id } : {}),
+    },
   });
   return { venue };
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { normalizeCustomerLanguage } from "@/data/customer-language";
+import { canMarkQuoteAccepted } from "@/data/quotes";
 import { getResendApiKey } from "@/lib/env";
 import { sendJobConfirmedEmail } from "@/lib/job-email";
 import { createJobFromQuote, getAdminJob } from "@/lib/jobs";
@@ -43,6 +44,19 @@ export async function POST(request: Request, context: RouteContext) {
   const quote = await fetchQuoteById(quoteId);
   if (!quote) {
     return NextResponse.json({ ok: false, message: "Quote not found." }, { status: 404 });
+  }
+
+  if (quote.status !== "accepted" && !canMarkQuoteAccepted(quote.status)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message:
+          quote.status === "draft"
+            ? "Send the quote first, or mark it as sent if you delivered it outside the system."
+            : "This quote can't be accepted in its current status. Create a revision instead.",
+      },
+      { status: 400 }
+    );
   }
 
   const acceptedByName = (body.acceptedByName || quote.customer_name || "").trim().slice(0, 200);

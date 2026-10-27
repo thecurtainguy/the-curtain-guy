@@ -118,6 +118,31 @@ export type CustomerVenueRow = {
   updated_at: string;
 };
 
+type VenueAddressParts = {
+  address?: string | null;
+  city?: string | null;
+  region?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+};
+
+/** One-line venue address for documents, e.g. "1234 Rue Sherbrooke O, Montréal, QC H3A 1B1". */
+export function formatVenueAddress(parts: VenueAddressParts): string {
+  const street = parts.address?.trim() || "";
+  const city = parts.city?.trim() || "";
+  const regionPostal = [parts.region?.trim(), parts.postal_code?.trim()].filter(Boolean).join(" ");
+  const country = parts.country?.trim() || "";
+  const streetLower = street.toLowerCase();
+  return [
+    street,
+    city && !streetLower.includes(city.toLowerCase()) ? city : "",
+    regionPostal && !streetLower.includes(regionPostal.toLowerCase()) ? regionPostal : "",
+    country && country.toLowerCase() !== "canada" ? country : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 export type CustomerEventRow = {
   id: string;
   customer_id: string | null;
@@ -238,11 +263,22 @@ export function customerCcEmails(
 }
 
 /** Compact customer info passed to quote / invoice / job pages. */
+/** A person who can be the named contact on a quote: the primary contact plus extra contacts with an email. */
+export type CustomerContactOption = {
+  id: string;
+  name: string;
+  email: string;
+  title: string | null;
+  role: ContactRole | null;
+  primary: boolean;
+};
+
 export type CustomerLinkSummary = {
   id: string;
   customer_number: number;
   display_name: string;
   company_name: string | null;
+  primary_email: string;
   kind: CustomerKind;
   preferred_language: CustomerLanguage;
   po_required: boolean;
@@ -253,4 +289,5 @@ export type CustomerLinkSummary = {
   invoiceCc: string[];
   quoteCc: string[];
   venues: CustomerVenueRow[];
+  contactOptions: CustomerContactOption[];
 };

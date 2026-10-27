@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getCurrentProfile, isOwnerProfile } from "@/lib/auth";
+import { logEstimateFileEvent } from "@/lib/estimate-file-events";
 import {
   canManageEstimateUploads,
   fetchEstimateById,
@@ -119,6 +120,24 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+
+  const isOwner = isOwnerProfile(current?.profile ?? null);
+  const shared = file.customer_visible !== false;
+  await logEstimateFileEvent({
+    fileId: file.id,
+    estimateRequestId: file.estimate_request_id,
+    fileName: file.original_file_name,
+    actorType: isOwner ? "owner" : "customer",
+    actorUserId: current?.user.id ?? null,
+    actorEmail: current?.user.email ?? file.uploader_email ?? null,
+    eventType: "file_uploaded",
+    summary: isOwner
+      ? `Uploaded (${shared ? "shared" : "internal"})`
+      : uploadToken && !current
+        ? "Uploaded by the customer (upload link)"
+        : "Uploaded by the customer",
+    metadata: { customer_visible: shared, via_upload_link: Boolean(uploadToken && !current) },
+  });
 
   return NextResponse.json({ ok: true, estimateFileId: file.id });
 }

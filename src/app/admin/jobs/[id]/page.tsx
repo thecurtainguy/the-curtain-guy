@@ -56,6 +56,10 @@ export default async function AdminJobDetailPage({ params }: PageProps) {
           uploaded_at: f.uploaded_at,
           upload_status: f.upload_status,
           customer_visible: f.customer_visible !== false,
+          file_kind: f.file_kind,
+          caption: f.caption,
+          include_in_quote: f.include_in_quote,
+          include_in_invoice: f.include_in_invoice,
         }))}
       />
     </AdminPageFrame>

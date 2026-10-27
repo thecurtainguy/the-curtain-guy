@@ -88,7 +88,7 @@ export const DOCUMENT_TEXT_DEFS: DocumentTextDefinition[] = [
     label: "Default terms & conditions",
     description:
       "Copied onto new quotes. You can still edit terms on each quote before sending.",
-    rows: 10,
+    rows: 18,
     defaultBody: DEFAULT_QUOTE_TERMS,
     appliesTo: ["New quotes", "PDF fallback", "Web proposal fallback"],
     previewKind: "pdf_terms",
@@ -103,7 +103,7 @@ export const DOCUMENT_TEXT_DEFS: DocumentTextDefinition[] = [
       "Second line in the proposal PDF footer, under company contact details.",
     rows: 3,
     defaultBody:
-      "Planning proposal only. Booking confirmed separately in writing.",
+      "Planning proposal · Booking is secured only after written confirmation and receipt of any required deposit.",
     appliesTo: ["Proposal PDF"],
     previewKind: "pdf_footer",
   },
@@ -117,7 +117,7 @@ export const DOCUMENT_TEXT_DEFS: DocumentTextDefinition[] = [
       "Closing note on the quote-ready email (availability and payment).",
     rows: 4,
     defaultBody:
-      "Availability is not guaranteed until confirmed. Setup, installation, and teardown are planned around your event timeline. No payment is requested in this email.",
+      "Please review the scope, event schedule, payment milestones, and Terms & Conditions before accepting. Inventory, crew, and the event date remain subject to written confirmation and receipt of any required deposit. No payment is collected on the proposal page.",
     appliesTo: ["Quote-ready email"],
     previewKind: "email_note",
   },
@@ -155,7 +155,7 @@ export const DOCUMENT_TEXT_DEFS: DocumentTextDefinition[] = [
     label: "Default terms & conditions — Français",
     description:
       "Copied onto new French quotes and used when a quote is switched to French.",
-    rows: 10,
+    rows: 18,
     defaultBody: DEFAULT_QUOTE_TERMS_FR,
     appliesTo: ["New French quotes", "French PDF", "French web proposal"],
     previewKind: "pdf_terms",
@@ -169,7 +169,7 @@ export const DOCUMENT_TEXT_DEFS: DocumentTextDefinition[] = [
     description: "Footer line on French proposal PDFs.",
     rows: 3,
     defaultBody:
-      "Proposition de planification seulement. La réservation est confirmée séparément par écrit.",
+      "Proposition de planification · La réservation est garantie uniquement après confirmation écrite et réception de tout dépôt exigé.",
     appliesTo: ["French PDF"],
     previewKind: "pdf_footer",
   },
@@ -182,7 +182,7 @@ export const DOCUMENT_TEXT_DEFS: DocumentTextDefinition[] = [
     description: "Closing note on French quote-ready emails.",
     rows: 4,
     defaultBody:
-      "La disponibilité n’est garantie qu’après confirmation. L’installation et le démontage sont planifiés selon l’horaire de votre événement. Aucun paiement n’est demandé dans ce courriel.",
+      "Veuillez vérifier la portée des travaux, l’horaire de l’événement, les étapes de paiement et les conditions générales avant d’accepter. L’inventaire, l’équipe et la date de l’événement demeurent assujettis à une confirmation écrite et à la réception de tout dépôt exigé. Aucun paiement n’est perçu sur la page de la soumission.",
     appliesTo: ["French quote-ready email"],
     previewKind: "email_note",
   },

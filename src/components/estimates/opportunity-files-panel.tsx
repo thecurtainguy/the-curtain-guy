@@ -3,14 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Check,
+  ChevronDown,
   Download,
   Eye,
   EyeOff,
+  FileText,
   FileUp,
+  History,
   Loader2,
   Lock,
+  Receipt,
+  RotateCcw,
   Share2,
+  Sparkles,
+  Trash2,
 } from "lucide-react";
+import { useBrandConfirm } from "@/components/ui/brand-dialog";
+import type { FileActivityItem } from "@/data/estimate-file-events";
 import {
   EstimateFilePicker,
   uploadEstimateFiles,
@@ -18,6 +28,15 @@ import {
   type SelectedEstimateFile,
 } from "@/components/estimates/estimate-file-picker";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SelectInput } from "@/components/ui/select-input";
+import {
+  ESTIMATE_FILE_CAPTION_MAX,
+  ESTIMATE_FILE_KINDS,
+  ESTIMATE_FILE_KIND_HINTS,
+  estimateFileKindLabel,
+  type EstimateFileKind,
+} from "@/data/estimate-file-kinds";
 import { ESTIMATE_MAX_FILES, formatFileSize } from "@/lib/estimate-files-shared";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +48,19 @@ export type OpportunityFileItem = {
   uploaded_at: string | null;
   upload_status: string;
   customer_visible?: boolean;
+  file_kind?: EstimateFileKind;
+  caption?: string | null;
+  include_in_quote?: boolean;
+  include_in_invoice?: boolean;
+  deleted_at?: string | null;
+};
+
+type FilePatch = {
+  customerVisible?: boolean;
+  fileKind?: EstimateFileKind;
+  caption?: string | null;
+  includeInQuote?: boolean;
+  includeInInvoice?: boolean;
 };
 
 function shortType(contentType: string): string {
@@ -54,6 +86,8 @@ export function OpportunityFilesPanel({
   title = "Floor plans & inspiration",
   description,
   totalFileCount,
+  deletedFiles = [],
+  activity,
   className,
 }: {
   estimateRequestId: string;
@@ -62,6 +96,10 @@ export function OpportunityFilesPanel({
   title?: string;
   description?: string;
   totalFileCount?: number;
+  /** Admin only. Soft-deleted files that can be restored. */
+  deletedFiles?: OpportunityFileItem[];
+  /** Admin only. Omit where another log (e.g. the quote change log) already shows it. */
+  activity?: FileActivityItem[];
   className?: string;
 }) {
   const isAdmin = audience === "admin";
@@ -97,6 +135,11 @@ export function OpportunityFilesPanel({
 
       <OpportunityFilesList files={files} audience={audience} />
 
+      {isAdmin && deletedFiles.length > 0 ? (
+        <DeletedFilesDrawer files={deletedFiles} />
+      ) : null}
+      {isAdmin && activity ? <FileActivityDrawer items={activity} /> : null}
+
       {remainingSlots > 0 || isAdmin ? (
         <div className="border-t border-border/60 pt-3">
           <OpportunityFileUploader
@@ -118,6 +161,7 @@ function OpportunityFilesList({
   audience: "admin" | "customer";
 }) {
   const router = useRouter();
+  const [confirm, confirmDialog] = useBrandConfirm();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,28 +189,80 @@ function OpportunityFilesList({
     }
   }
 
-  async function toggleVisibility(file: OpportunityFileItem) {
+  async function patchFile(
+    file: OpportunityFileItem,
+    patch: FilePatch,
+    busyKey: string
+  ) {
     if (audience !== "admin") return;
-    setBusyId(`vis-${file.id}`);
+    setBusyId(busyKey);
     setError(null);
     try {
-      const nextVisible = file.customer_visible === false;
       const response = await fetch(`/api/admin/estimate-files/${file.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerVisible: nextVisible }),
+        body: JSON.stringify(patch),
       });
       const payload = (await response.json()) as {
         ok?: boolean;
         message?: string;
       };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not update visibility.");
+        setError(payload.message ?? "Could not update the file.");
         return;
       }
       router.refresh();
     } catch {
-      setError("Could not update visibility.");
+      setError("Could not update the file.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function toggleVisibility(file: OpportunityFileItem) {
+    return patchFile(
+      file,
+      { customerVisible: file.customer_visible === false },
+      `vis-${file.id}`
+    );
+  }
+
+  async function deleteFile(file: OpportunityFileItem) {
+    if (audience !== "admin") return;
+    const attachedTo = [
+      file.include_in_quote ? "quote" : null,
+      file.include_in_invoice ? "invoice" : null,
+    ].filter(Boolean);
+    const ok = await confirm({
+      title: "Delete this file?",
+      eyebrow: "Opportunity files",
+      icon: Trash2,
+      description: (
+        <>
+          <span className="font-medium text-foreground">{file.original_file_name}</span>{" "}
+          will be hidden everywhere
+          {attachedTo.length ? ` and removed from the ${attachedTo.join(" and ")} PDF` : ""}.
+          It stays in the audit trail and can be restored from Deleted files.
+        </>
+      ),
+      confirmLabel: "Delete file",
+      destructive: true,
+    });
+    if (!ok) return;
+    setBusyId(`del-${file.id}`);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/estimate-files/${file.id}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json()) as { ok?: boolean; message?: string };
+      if (!response.ok || !payload.ok) {
+        setError(payload.message ?? "Could not delete the file.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Could not delete the file.");
     } finally {
       setBusyId(null);
     }
@@ -235,9 +331,9 @@ function OpportunityFilesList({
                   </p>
                 </div>
 
-                {file.upload_status === "uploaded" ? (
+                {file.upload_status === "uploaded" || audience === "admin" ? (
                   <div className="flex shrink-0 items-center gap-1">
-                    {audience === "admin" ? (
+                    {audience === "admin" && file.upload_status === "uploaded" ? (
                       <Button
                         type="button"
                         variant="ghost"
@@ -261,25 +357,52 @@ function OpportunityFilesList({
                         )}
                       </Button>
                     ) : null}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="size-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
-                      onClick={() => void downloadFile(file.id)}
-                      disabled={Boolean(busyId)}
-                      title="View / download"
-                      aria-label="View or download file"
-                    >
-                      {dlBusy ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Download className="size-3.5" />
-                      )}
-                    </Button>
+                    {file.upload_status === "uploaded" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                        onClick={() => void downloadFile(file.id)}
+                        disabled={Boolean(busyId)}
+                        title="View / download"
+                        aria-label="View or download file"
+                      >
+                        {dlBusy ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Download className="size-3.5" />
+                        )}
+                      </Button>
+                    ) : null}
+                    {audience === "admin" ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => void deleteFile(file)}
+                        disabled={Boolean(busyId)}
+                        title="Delete file"
+                        aria-label={`Delete ${file.original_file_name}`}
+                      >
+                        {busyId === `del-${file.id}` ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-3.5" />
+                        )}
+                      </Button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
+              {audience === "admin" && file.upload_status === "uploaded" ? (
+                <OpportunityFileControls
+                  file={file}
+                  busyId={busyId}
+                  onPatch={(patch, busyKey) => void patchFile(file, patch, busyKey)}
+                />
+              ) : null}
             </li>
           );
         })}
@@ -288,6 +411,261 @@ function OpportunityFilesList({
         <p className="text-xs text-destructive" role="alert">
           {error}
         </p>
+      ) : null}
+      {confirmDialog}
+    </div>
+  );
+}
+
+function DrawerSummary({
+  icon: Icon,
+  label,
+  count,
+}: {
+  icon: typeof History;
+  label: string;
+  count: number;
+}) {
+  return (
+    <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground [&::-webkit-details-marker]:hidden">
+      <Icon className="size-3.5 text-primary" aria-hidden />
+      <span className="flex-1">{label}</span>
+      <span className="rounded-full border border-border/50 bg-background/40 px-1.5 py-0.5 text-[10px]">
+        {count}
+      </span>
+      <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden />
+    </summary>
+  );
+}
+
+function DeletedFilesDrawer({ files }: { files: OpportunityFileItem[] }) {
+  const router = useRouter();
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function restore(file: OpportunityFileItem) {
+    setBusyId(file.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/estimate-files/${file.id}/restore`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as { ok?: boolean; message?: string };
+      if (!response.ok || !payload.ok) {
+        setError(payload.message ?? "Could not restore the file.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Could not restore the file.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <details className="group rounded-xl border border-border/40 bg-background/25">
+      <DrawerSummary icon={Trash2} label="Deleted files" count={files.length} />
+      <ul className="space-y-1.5 px-3 pb-3">
+        {files.map((file) => (
+          <li
+            key={file.id}
+            className="flex items-center gap-2 rounded-lg border border-border/30 bg-card/40 px-2.5 py-2"
+          >
+            <div className="min-w-0 flex-1">
+              <p
+                className="truncate text-xs font-medium text-muted-foreground line-through decoration-muted-foreground/50"
+                title={file.original_file_name}
+              >
+                {file.original_file_name}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                {file.customer_visible === false ? "Internal" : "Shared"}
+                {file.deleted_at ? ` · deleted ${shortWhen(file.deleted_at)}` : ""}
+              </p>
+            </div>
+            {file.uploaded_at ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 shrink-0 px-2 text-xs text-primary hover:bg-primary/10"
+                onClick={() => void restore(file)}
+                disabled={Boolean(busyId)}
+              >
+                {busyId === file.id ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <RotateCcw className="size-3" />
+                )}
+                Restore
+              </Button>
+            ) : (
+              <span className="shrink-0 text-[10px] text-muted-foreground">Unfinished</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {error ? (
+        <p className="px-3 pb-3 text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </details>
+  );
+}
+
+function FileActivityDrawer({ items }: { items: FileActivityItem[] }) {
+  return (
+    <details className="group rounded-xl border border-border/40 bg-background/25">
+      <DrawerSummary icon={History} label="File activity" count={items.length} />
+      {items.length === 0 ? (
+        <p className="px-3 pb-3 text-xs text-muted-foreground">No file activity yet.</p>
+      ) : (
+        <ul className="max-h-64 space-y-1.5 overflow-y-auto px-3 pb-3">
+          {items.map((item) => (
+            <li
+              key={item.id}
+              className="rounded-lg border border-border/30 bg-card/40 px-2.5 py-2"
+            >
+              <p className="truncate text-xs font-medium text-foreground" title={item.file_name}>
+                {item.file_name}
+              </p>
+              <p className="text-[11px] text-muted-foreground">{item.summary}</p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground/80">
+                {new Date(item.created_at).toLocaleString("en-CA", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+                {" · "}
+                {item.actor_email ?? item.actor_type}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
+}
+
+function OpportunityFileControls({
+  file,
+  busyId,
+  onPatch,
+}: {
+  file: OpportunityFileItem;
+  busyId: string | null;
+  onPatch: (patch: FilePatch, busyKey: string) => void;
+}) {
+  const shared = file.customer_visible !== false;
+  const kind = file.file_kind ?? "document";
+  const included = Boolean(file.include_in_quote || file.include_in_invoice);
+  const [caption, setCaption] = useState(file.caption ?? "");
+
+  const targets = [
+    {
+      key: "quote" as const,
+      label: "Quote",
+      icon: FileText,
+      on: Boolean(file.include_in_quote),
+      patch: (next: boolean): FilePatch => ({ includeInQuote: next }),
+    },
+    {
+      key: "invoice" as const,
+      label: "Invoice",
+      icon: Receipt,
+      on: Boolean(file.include_in_invoice),
+      patch: (next: boolean): FilePatch => ({ includeInInvoice: next }),
+    },
+  ];
+
+  return (
+    <div className="mt-2 space-y-2">
+      <SelectInput
+        size="sm"
+        className="h-8 w-full text-xs"
+        value={kind}
+        disabled={Boolean(busyId)}
+        aria-label="File type"
+        onChange={(next) =>
+          next !== kind &&
+          onPatch({ fileKind: next as EstimateFileKind }, `kind-${file.id}`)
+        }
+        options={ESTIMATE_FILE_KINDS.map((value) => ({
+          value,
+          label: estimateFileKindLabel(value),
+          description: ESTIMATE_FILE_KIND_HINTS[value],
+        }))}
+      />
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Add to PDF
+        </span>
+        {targets.map((target) => {
+          const Icon = target.icon;
+          const busy = busyId === `${target.key}-${file.id}`;
+          return (
+            <button
+              key={target.key}
+              type="button"
+              aria-pressed={target.on}
+              disabled={!shared || Boolean(busyId)}
+              title={
+                shared
+                  ? `${target.on ? "Remove from" : "Attach to"} the ${target.label.toLowerCase()} PDF`
+                  : "Share the file first. Internal files never go to the customer."
+              }
+              onClick={() =>
+                onPatch(target.patch(!target.on), `${target.key}-${file.id}`)
+              }
+              className={cn(
+                "inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-xs font-medium transition-colors",
+                target.on
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/50 bg-background/40 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                !shared && "cursor-not-allowed opacity-50 hover:border-border/50 hover:text-muted-foreground"
+              )}
+            >
+              {busy ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : target.on ? (
+                <Check className="size-3.5" />
+              ) : (
+                <Icon className="size-3.5" />
+              )}
+              {target.label}
+            </button>
+          );
+        })}
+      </div>
+      {kind === "concept" && shared ? (
+        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          <Sparkles className="mt-0.5 size-3 shrink-0 text-primary" />
+          Shown with an AI-concept disclaimer wherever the customer sees it.
+        </p>
+      ) : null}
+      {!shared ? (
+        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          <Lock className="mt-0.5 size-3 shrink-0" />
+          Internal: never attached to quotes, invoices, or emails.
+        </p>
+      ) : null}
+      {included ? (
+        <Input
+          value={caption}
+          maxLength={ESTIMATE_FILE_CAPTION_MAX}
+          placeholder="Caption on the PDF (optional)"
+          className="h-8 text-xs"
+          disabled={Boolean(busyId)}
+          onChange={(event) => setCaption(event.target.value)}
+          onBlur={() => {
+            if (caption.trim() !== (file.caption ?? "")) {
+              onPatch({ caption: caption.trim() || null }, `cap-${file.id}`);
+            }
+          }}
+        />
       ) : null}
     </div>
   );

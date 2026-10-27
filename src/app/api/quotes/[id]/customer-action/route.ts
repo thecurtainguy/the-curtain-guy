@@ -1,10 +1,18 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import {
+  isCustomerLanguage,
+  normalizeCustomerLanguage,
+  type CustomerLanguage,
+} from "@/data/customer-language";
 import type { QuoteRequestType } from "@/data/quotes";
 import { getQuoteUpsellByKey } from "@/data/quote-upsells";
 import { getCurrentUser } from "@/lib/auth";
-import { getResendApiKey } from "@/lib/env";
+import { getResendApiKey, getSiteUrl } from "@/lib/env";
 import { fetchEstimateById } from "@/lib/estimate-access";
-import { sendQuoteOwnerActionNotification } from "@/lib/quote-email";
+import {
+  sendQuoteAcceptedCustomerEmail,
+  sendQuoteOwnerActionNotification,
+} from "@/lib/quote-email";
 import {
   createCustomerRequest,
   customerCanAccessQuote,
@@ -12,6 +20,7 @@ import {
   logQuoteEvent,
 } from "@/lib/quotes";
 import { ensureDraftJobAfterQuoteAccepted } from "@/lib/jobs";
+import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -28,6 +37,8 @@ type ActionBody = {
   title?: string;
   requestType?: QuoteRequestType;
   acceptedByName?: string;
+  acceptedTerms?: boolean;
+  acceptedTermsLanguage?: CustomerLanguage;
   declinedByName?: string;
 };
 
@@ -49,6 +60,31 @@ async function notifyOwner(
     });
   } catch (err) {
     console.error("[quotes] owner notify failed", err);
+  }
+}
+
+async function sendAcceptedConfirmation(
+  quoteId: string,
+  proposalUrl: string,
+  acceptedByName: string,
+  alsoTo: string | null,
+  language: CustomerLanguage
+) {
+  const apiKey = getResendApiKey();
+  if (!apiKey) return;
+  const quote = await fetchQuoteById(quoteId);
+  if (!quote) return;
+  try {
+    await sendQuoteAcceptedCustomerEmail({
+      apiKey,
+      quote,
+      proposalUrl,
+      acceptedByName,
+      alsoTo,
+      language,
+    });
+  } catch (err) {
+    console.error("[quotes] customer acceptance email failed", err);
   }
 }
 
@@ -78,7 +114,13 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  if (quote.status === "draft" || quote.status === "cancelled") {
+  if (
+    quote.status === "draft" ||
+    quote.status === "accepted" ||
+    quote.status === "declined" ||
+    quote.status === "cancelled" ||
+    quote.status === "expired"
+  ) {
     return NextResponse.json(
       { ok: false, message: "This quote is not available for customer action." },
       { status: 400 }
@@ -107,6 +149,24 @@ export async function POST(request: Request, context: RouteContext) {
         { status: 400 }
       );
     }
+    if (body.acceptedTerms !== true) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Please confirm that you agree to the proposal and its terms.",
+        },
+        { status: 400 }
+      );
+    }
+    const quoteLanguage = normalizeCustomerLanguage(quote.language);
+    const acceptedTermsLanguage = isCustomerLanguage(body.acceptedTermsLanguage)
+      ? body.acceptedTermsLanguage
+      : quoteLanguage;
+    const termsSnapshot = await resolveQuoteTermsForView(
+      quote.terms,
+      quoteLanguage,
+      acceptedTermsLanguage
+    );
     await admin
       .from("quotes")
       .update({
@@ -122,7 +182,21 @@ export async function POST(request: Request, context: RouteContext) {
       actorEmail: email,
       eventType: "customer_accepted",
       summary: `Customer accepted quote (${acceptedByName})`,
-      metadata: { accepted_by_name: acceptedByName },
+      metadata: {
+        accepted_by_name: acceptedByName,
+        terms_acknowledged: true,
+        terms_language: acceptedTermsLanguage,
+        terms_snapshot: termsSnapshot,
+        quote_display_ref: quote.quote_display_ref,
+        quote_revision: quote.revision_number,
+        payment_schedule: {
+          deposit_mode: quote.payment_deposit_mode,
+          deposit_percent: quote.payment_deposit_percent,
+          deposit_fixed_cents: quote.payment_deposit_fixed_cents,
+          balance_due_rule: quote.payment_balance_due_rule,
+          balance_due_days: quote.payment_balance_due_days,
+        },
+      },
     });
     await notifyOwner(
       id,
@@ -133,6 +207,15 @@ export async function POST(request: Request, context: RouteContext) {
       quoteId: id,
       actorUserId: user.id,
     });
+    after(() =>
+      sendAcceptedConfirmation(
+        id,
+        `${getSiteUrl().replace(/\/$/, "")}/account/quotes/${id}`,
+        acceptedByName,
+        user.email ?? null,
+        acceptedTermsLanguage
+      )
+    );
     return NextResponse.json({
       ok: true,
       status: "accepted",

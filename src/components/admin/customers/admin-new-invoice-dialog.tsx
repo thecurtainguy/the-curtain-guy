@@ -42,6 +42,7 @@ export function AdminNewInvoiceButton({
   const [eventDate, setEventDate] = useState("");
   const [eventType, setEventType] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [venueAddress, setVenueAddress] = useState("");
   const [language, setLanguage] = useState<CustomerLanguage | null>(null);
   const [requestDeposit, setRequestDeposit] = useState(false);
   const [poNumber, setPoNumber] = useState(billing?.default_po_number ?? "");
@@ -57,6 +58,7 @@ export function AdminNewInvoiceButton({
     setEventDate("");
     setEventType("");
     setVenueName("");
+    setVenueAddress("");
     setLanguage(null);
     setRequestDeposit(false);
     setPoNumber(billing?.default_po_number ?? "");
@@ -82,6 +84,7 @@ export function AdminNewInvoiceButton({
                 eventDate: eventDate || null,
                 eventType: eventType || null,
                 venueName: venueName || null,
+                venueAddress: venueAddress || null,
                 language: effectiveLanguage,
                 requestDeposit,
                 poNumber: poNumber || null,
@@ -183,6 +186,16 @@ export function AdminNewInvoiceButton({
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="ni-venue">Venue</Label>
                     <Input id="ni-venue" value={venueName} onChange={(e) => setVenueName(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="ni-venue-address">Venue address</Label>
+                    <Input
+                      id="ni-venue-address"
+                      value={venueAddress}
+                      onChange={(e) => setVenueAddress(e.target.value)}
+                      placeholder="Street, city, province, postal code"
+                      maxLength={400}
+                    />
                   </div>
                 </div>
               </CustomerPanel>

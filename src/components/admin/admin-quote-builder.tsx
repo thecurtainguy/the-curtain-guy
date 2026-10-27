@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Building,
   Check,
+  ChevronDown,
   Copy,
   Download,
-  ExternalLink,
   Eye,
   FileText,
   Loader2,
   Package,
   Pencil,
   Plus,
+  Send,
+  Star,
   Trash2,
   Truck,
+  UserRound,
 } from "lucide-react";
 import { PRODUCT_UNIT_LABELS } from "@/data/products";
 import {
@@ -60,11 +63,20 @@ import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
 import { CustomerLanguagePicker } from "@/components/quotes/customer-language-picker";
 import { CustomerLanguageBadge } from "@/components/quotes/customer-language-badge";
 import { CustomerCurrencyPicker } from "@/components/quotes/customer-currency-picker";
-import type {
-  CustomerCurrency,
-  CustomerLinkSummary,
-  CustomerVenueRow,
+import {
+  CONTACT_ROLE_LABELS,
+  formatVenueAddress,
+  type CustomerCurrency,
+  type CustomerLinkSummary,
+  type CustomerVenueRow,
 } from "@/data/customers";
+import {
+  quotePaymentTermsFrom,
+  type QuotePaymentDefaults,
+  type QuotePaymentTerms,
+} from "@/data/quote-payment-terms";
+import { QuotePaymentTermsFields } from "@/components/admin/quote-payment-terms-fields";
+import { OptionCard } from "@/components/estimate/option-card";
 import {
   normalizeCustomerLanguage,
   type CustomerLanguage,
@@ -76,6 +88,7 @@ import { AdminQuotePreviewDialog } from "@/components/admin/admin-quote-preview-
 import { AdminQuoteSendDialog } from "@/components/admin/admin-quote-send-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
+import { QuoteCustomerCard } from "@/components/admin/quote-customer-card";
 import {
   OpportunityFilesPanel,
   type OpportunityFileItem,
@@ -85,12 +98,20 @@ import type { QuoteWithRelations } from "@/lib/quotes";
 import { formatEventPlanReference } from "@/data/event-plans";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
+import {
+  QuoteScheduleFields,
+  scheduleDraftFromQuote,
+  scheduleDraftPayload,
+  type QuoteScheduleDraft,
+} from "@/components/admin/quote-schedule-fields";
+import type { FileActivityItem } from "@/data/estimate-file-events";
 import { EventTypeInput } from "@/components/ui/event-type-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectInput } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useStickyRail } from "@/hooks/use-sticky-rail";
 import {
   AdminInventoryPickerDialog,
   type InventoryPickResult,
@@ -266,25 +287,42 @@ function lineFromLogistics(item: LogisticsServicePick): DraftLine {
   };
 }
 
+const FALLBACK_PAYMENT_DEFAULTS: QuotePaymentDefaults = {
+  deposit_percent: 50,
+  balance_due_rule: "event_date",
+  balance_due_days: 0,
+};
+
 export function AdminQuoteBuilder({
   quote,
   initialGuestUrl = null,
   opportunityFiles = [],
+  deletedOpportunityFiles = [],
+  fileActivity = [],
   sourceEventPlan = null,
   categories = [],
   defaultCc = [],
   customer = null,
+  studioPanel = null,
+  bookingActions = null,
+  paymentDefaults = FALLBACK_PAYMENT_DEFAULTS,
 }: {
   quote: QuoteWithRelations;
   initialGuestUrl?: string | null;
   opportunityFiles?: OpportunityFileItem[];
+  deletedOpportunityFiles?: OpportunityFileItem[];
+  /** Merged into the change log so file deletes and PDF attachments are audited with the quote. */
+  fileActivity?: FileActivityItem[];
   sourceEventPlan?: QuoteSourceEventPlan | null;
   categories?: ProductCategoryRow[];
   defaultCc?: string[];
-  customer?: Pick<
-    CustomerLinkSummary,
-    "id" | "display_name" | "currency" | "tax_exempt" | "venues"
-  > | null;
+  customer?: CustomerLinkSummary | null;
+  /** Studio card rendered in the right rail. */
+  studioPanel?: ReactNode;
+  /** Mark accepted / job / invoice buttons for the Actions grid (2 columns). */
+  bookingActions?: ReactNode;
+  /** Customer defaults, falling back to the business defaults, for new payment terms. */
+  paymentDefaults?: QuotePaymentDefaults;
 }) {
   const categoryOptions = useMemo(
     () => buildQuoteCategoryOptions(categories),
@@ -321,6 +359,24 @@ export function AdminQuoteBuilder({
   const eventPlanRef = sourceEventPlan
     ? formatEventPlanReference(sourceEventPlan.id, sourceEventPlan.reference)
     : null;
+  const stickyRailRef = useStickyRail<HTMLElement>();
+  const changeLog = useMemo(
+    () =>
+      [
+        ...(quote.events ?? []).map((event) => ({ ...event, fileName: null as string | null })),
+        ...fileActivity.map((item) => ({ ...item, fileName: item.file_name })),
+      ].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      ),
+    [quote.events, fileActivity]
+  );
+  const booked = quote.status === "accepted";
+  const timeline = [
+    { label: "Sent", at: quote.sent_at, by: null },
+    { label: "Viewed", at: quote.viewed_at, by: null },
+    { label: "Accepted", at: quote.accepted_at, by: quote.accepted_by_name },
+    { label: "Declined", at: quote.declined_at, by: quote.declined_by_name },
+  ].filter((row): row is { label: string; at: string; by: string | null } => Boolean(row.at));
   const router = useRouter();
   const { setDirty, clearDirty } = useOptionalUnsavedChanges();
   const [isEditing, setIsEditing] = useState(false);
@@ -328,8 +384,16 @@ export function AdminQuoteBuilder({
   const [customerName, setCustomerName] = useState(quote.customer_name ?? "");
   const [customerEmail, setCustomerEmail] = useState(quote.customer_email ?? "");
   const [eventDate, setEventDate] = useState(toDateInput(quote.event_date));
+  const [schedule, setSchedule] = useState<QuoteScheduleDraft>(() =>
+    scheduleDraftFromQuote(quote)
+  );
   const [eventType, setEventType] = useState(quote.event_type ?? "");
   const [venueName, setVenueName] = useState(quote.venue_name ?? "");
+  const [venueAddress, setVenueAddress] = useState(quote.venue_address ?? "");
+  const [venueId, setVenueId] = useState<string | null>(quote.customer_venue_id ?? null);
+  const [paymentTerms, setPaymentTerms] = useState<QuotePaymentTerms>(() =>
+    quotePaymentTermsFrom(quote)
+  );
   const [cityArea, setCityArea] = useState(quote.city_area ?? "");
   const [validUntil, setValidUntil] = useState(toDateInput(quote.valid_until));
   const [customerNotes, setCustomerNotes] = useState(quote.customer_notes ?? "");
@@ -356,7 +420,6 @@ export function AdminQuoteBuilder({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [publicUrl, setPublicUrl] = useState<string | null>(initialGuestUrl);
-  const [copied, setCopied] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [logisticsOpen, setLogisticsOpen] = useState(false);
   const [applyingDefaultTerms, setApplyingDefaultTerms] = useState(false);
@@ -372,8 +435,12 @@ export function AdminQuoteBuilder({
     setCustomerName(source.customer_name ?? "");
     setCustomerEmail(source.customer_email ?? "");
     setEventDate(toDateInput(source.event_date));
+    setSchedule(scheduleDraftFromQuote(source));
     setEventType(source.event_type ?? "");
     setVenueName(source.venue_name ?? "");
+    setVenueAddress(source.venue_address ?? "");
+    setVenueId(source.customer_venue_id ?? null);
+    setPaymentTerms(quotePaymentTermsFrom(source));
     setCityArea(source.city_area ?? "");
     setValidUntil(toDateInput(source.valid_until));
     setCustomerNotes(source.customer_notes ?? "");
@@ -466,8 +533,12 @@ export function AdminQuoteBuilder({
       customer_name: customerName,
       customer_email: customerEmail,
       event_date: eventDate || null,
+      ...scheduleDraftPayload(schedule),
       event_type: eventType,
       venue_name: venueName,
+      venue_address: venueAddress,
+      customer_venue_id: venueId,
+      ...paymentTerms,
       city_area: cityArea,
       valid_until: validUntil || null,
       customer_notes: customerNotes,
@@ -480,7 +551,15 @@ export function AdminQuoteBuilder({
 
   function applySavedVenue(venue: CustomerVenueRow) {
     setVenueName(venue.name);
+    setVenueAddress(formatVenueAddress(venue));
+    setVenueId(venue.id);
     if (venue.city) setCityArea(venue.city);
+  }
+
+  function changeVenueName(value: string) {
+    setVenueName(value);
+    const linked = customer?.venues.find((v) => v.id === venueId);
+    if (linked && linked.name !== value) setVenueId(null);
   }
 
   const money = (cents: number) => formatMoneyFromCents(cents, "en", currency);
@@ -672,17 +751,6 @@ export function AdminQuoteBuilder({
       flash(undefined, "Could not create revision.");
     } finally {
       setRevising(false);
-    }
-  }
-
-  async function copyPublicUrl() {
-    if (!publicUrl) return;
-    try {
-      await navigator.clipboard.writeText(publicUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      flash(undefined, "Could not copy link.");
     }
   }
 
@@ -928,12 +996,55 @@ export function AdminQuoteBuilder({
         </div>
       )}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0 space-y-6">
       <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-heading text-lg font-semibold">Customer & event</h2>
         </div>
+        {isEditing && customer ? (
+          <div className="mt-4 space-y-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <Label>Quote contact</Label>
+              <Link
+                href={`/admin/customers/${customer.id}`}
+                className="text-xs text-muted-foreground hover:text-primary"
+              >
+                {customer.contactOptions.length > 1 ? "Manage contacts" : "Add contacts on the customer profile"}
+              </Link>
+            </div>
+            {customer.contactOptions.length > 1 ? (
+              <div className="@container">
+                <div className="grid grid-cols-1 gap-2 @[34rem]:grid-cols-2 @[52rem]:grid-cols-3">
+                  {customer.contactOptions.map((contact) => (
+                    <OptionCard
+                      key={contact.id}
+                      className="p-3"
+                      option={{
+                        id: contact.id,
+                        label: contact.name,
+                        description: [
+                          contact.email,
+                          contact.primary
+                            ? "Primary"
+                            : contact.title || (contact.role ? CONTACT_ROLE_LABELS[contact.role] : null),
+                        ]
+                          .filter(Boolean)
+                          .join(" · "),
+                        icon: contact.primary ? Star : UserRound,
+                      }}
+                      selected={customerEmail.trim().toLowerCase() === contact.email.toLowerCase()}
+                      onSelect={() => {
+                        setCustomerName(contact.name);
+                        setCustomerEmail(contact.email);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="customer_name">Name</Label>
@@ -955,15 +1066,6 @@ export function AdminQuoteBuilder({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="event_date">Event date</Label>
-            <DateInput
-              id="event_date"
-              value={eventDate}
-              onChange={setEventDate}
-              disabled={!isEditing}
-            />
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="event_type">Event type</Label>
             <EventTypeInput
               id="event_type"
@@ -977,7 +1079,7 @@ export function AdminQuoteBuilder({
             <Input
               id="venue_name"
               value={venueName}
-              onChange={(e) => setVenueName(e.target.value)}
+              onChange={(e) => changeVenueName(e.target.value)}
               disabled={!isEditing}
             />
           </div>
@@ -999,6 +1101,17 @@ export function AdminQuoteBuilder({
               disabled={!isEditing}
             />
           </div>
+          <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+            <Label htmlFor="venue_address">Venue address</Label>
+            <Input
+              id="venue_address"
+              value={venueAddress}
+              onChange={(e) => setVenueAddress(e.target.value)}
+              placeholder="Street, city, province, postal code — shown on the proposal and PDF"
+              maxLength={400}
+              disabled={!isEditing}
+            />
+          </div>
         </div>
 
         {isEditing && customer?.venues.length ? (
@@ -1008,7 +1121,7 @@ export function AdminQuoteBuilder({
             </p>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {customer.venues.map((venue) => {
-                const active = venue.name === venueName;
+                const active = venue.id === venueId;
                 return (
                   <button
                     key={venue.id}
@@ -1025,7 +1138,7 @@ export function AdminQuoteBuilder({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium">{venue.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {[venue.address, venue.city].filter(Boolean).join(", ") || "No address"}
+                        {formatVenueAddress(venue) || "No address"}
                       </span>
                     </span>
                     {active ? <Check className="size-4 shrink-0 text-primary" /> : null}
@@ -1036,108 +1149,58 @@ export function AdminQuoteBuilder({
           </div>
         ) : null}
 
-        <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
-          <div>
-            <Label>Currency</Label>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Every amount on the proposal, PDF, and email. Carries over to
-              the job and its invoices.
-            </p>
+        <QuoteScheduleFields
+          eventDate={eventDate}
+          onEventDateChange={setEventDate}
+          draft={schedule}
+          onChange={(patch) => setSchedule((prev) => ({ ...prev, ...patch }))}
+          disabled={!isEditing}
+        />
+
+        <div className="mt-4 rounded-2xl border border-border/40 bg-background/30 p-4">
+          <Label>Currency & language</Label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Applies to the proposal, PDF, and email. Currency carries over to
+            the job and its invoices; default terms follow the language unless
+            you edited them.
+          </p>
+          <div className="@container mt-3">
+            <div className="grid gap-4 @[34rem]:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  Currency
+                  {customer ? (
+                    <span className="normal-case tracking-normal">
+                      {" "}· customer default {customer.currency}
+                    </span>
+                  ) : null}
+                </p>
+                <CustomerCurrencyPicker
+                  value={currency}
+                  onChange={setCurrency}
+                  disabled={!isEditing}
+                  customerDefault={customer?.currency ?? null}
+                  compact
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                  Language
+                </p>
+                <CustomerLanguagePicker
+                  value={language}
+                  onChange={(next) => void changeLanguage(next)}
+                  disabled={!isEditing}
+                  compact
+                />
+              </div>
+            </div>
           </div>
-          <CustomerCurrencyPicker
-            value={currency}
-            onChange={setCurrency}
-            disabled={!isEditing}
-            customerDefault={customer?.currency ?? null}
-          />
           {customer && customer.currency !== currency ? (
-            <p className="text-xs text-amber-700 dark:text-amber-300">
+            <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
               {customer.display_name} is billed in {customer.currency} by default.
             </p>
           ) : null}
-        </div>
-
-        <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
-          <div>
-            <Label>Customer language</Label>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Proposal page, PDF, and quote email. Default terms switch with
-              the language unless you edited them.
-            </p>
-          </div>
-          <CustomerLanguagePicker
-            value={language}
-            onChange={(next) => void changeLanguage(next)}
-            disabled={!isEditing}
-          />
-        </div>
-
-        <div className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="customer_notes">Customer notes</Label>
-            <Textarea
-              id="customer_notes"
-              rows={4}
-              value={customerNotes}
-              onChange={(e) => setCustomerNotes(e.target.value)}
-              disabled={!isEditing}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="owner_notes">Owner notes</Label>
-            <Textarea
-              id="owner_notes"
-              rows={4}
-              value={ownerNotes}
-              onChange={(e) => setOwnerNotes(e.target.value)}
-              disabled={!isEditing}
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Label htmlFor="terms">Terms & conditions</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                One term per line — same numbered list as the PDF.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <DocumentTextPreviewButton
-                kind="pdf_terms"
-                label="Terms & conditions"
-                body={terms}
-              />
-              {isEditing ? (
-                <button
-                  type="button"
-                  className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                  onClick={() => void applyDefaultTerms()}
-                  disabled={applyingDefaultTerms}
-                >
-                  {applyingDefaultTerms ? "Loading…" : "Use default terms"}
-                </button>
-              ) : (
-                <Link
-                  href="/admin/documents"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Edit defaults
-                </Link>
-              )}
-            </div>
-          </div>
-          {isEditing ? (
-            <Textarea
-              id="terms"
-              rows={8}
-              value={terms}
-              onChange={(e) => setTerms(e.target.value)}
-              className="min-h-32 resize-y"
-            />
-          ) : null}
-          <QuoteTermsList terms={terms} />
         </div>
       </section>
 
@@ -1591,6 +1654,15 @@ export function AdminQuoteBuilder({
             <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" currency={currency} />
           </div>
         </div>
+        <QuotePaymentTermsFields
+          value={paymentTerms}
+          onChange={setPaymentTerms}
+          defaults={paymentDefaults}
+          totalCents={draftTotals.total_cents}
+          eventDate={eventDate || null}
+          currency={currency}
+          disabled={!isEditing}
+        />
       </section>
 
       <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
@@ -1755,162 +1827,220 @@ export function AdminQuoteBuilder({
           )}
         </div>
       </section>
+
+      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
+        <h2 className="font-heading text-lg font-semibold">Notes & terms</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Customer notes and terms appear on the proposal and PDF. Owner notes
+          stay internal.
+        </p>
+        <div className="mt-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="customer_notes">Customer notes</Label>
+            <Textarea
+              id="customer_notes"
+              rows={4}
+              value={customerNotes}
+              onChange={(e) => setCustomerNotes(e.target.value)}
+              disabled={!isEditing}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="owner_notes">Owner notes</Label>
+            <Textarea
+              id="owner_notes"
+              rows={4}
+              value={ownerNotes}
+              onChange={(e) => setOwnerNotes(e.target.value)}
+              disabled={!isEditing}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <Label htmlFor="terms">Terms & conditions</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                One term per line — same numbered list as the PDF.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <DocumentTextPreviewButton
+                kind="pdf_terms"
+                label="Terms & conditions"
+                body={terms}
+              />
+              {isEditing ? (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                  onClick={() => void applyDefaultTerms()}
+                  disabled={applyingDefaultTerms}
+                >
+                  {applyingDefaultTerms ? "Loading…" : "Use default terms"}
+                </button>
+              ) : (
+                <Link
+                  href="/admin/documents"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Edit defaults
+                </Link>
+              )}
+            </div>
+          </div>
+          {isEditing ? (
+            <Textarea
+              id="terms"
+              rows={8}
+              value={terms}
+              onChange={(e) => setTerms(e.target.value)}
+              className="min-h-32 resize-y"
+            />
+          ) : null}
+          <QuoteTermsList terms={terms} />
+        </div>
+      </section>
       </div>
 
-      <aside className="space-y-6 xl:sticky xl:top-4">
-      <QuoteGuestProposalCard
-        ensureEndpoint={`/api/admin/quotes/${quote.id}/guest-link`}
-        initialUrl={publicUrl}
-      />
-      {quote.estimate_request_id ? (
-        <OpportunityFilesPanel
-          estimateRequestId={quote.estimate_request_id}
-          files={opportunityFiles}
-          audience="admin"
-          title="Opportunity files"
+      <aside
+        ref={stickyRailRef}
+        className="min-w-0 space-y-4 xl:sticky"
+      >
+        <QuoteGuestProposalCard
+          ensureEndpoint={`/api/admin/quotes/${quote.id}/guest-link`}
+          initialUrl={publicUrl}
         />
-      ) : null}
-      <section className="rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-heading text-lg font-semibold">Quote summary</h2>
-        <div className="mt-4 rounded-2xl border border-border/40 bg-background/40 p-4">
-          <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" currency={currency} />
-        </div>
-        <dl className="mt-4 space-y-2 text-xs text-muted-foreground">
-          <div className="flex justify-between gap-2">
-            <dt>Status</dt>
-            <dd>
-              <QuoteStatusBadge status={quote.status} />
-            </dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt>Sent</dt>
-            <dd className="font-medium text-foreground">
-              {quote.sent_at ? new Date(quote.sent_at).toLocaleString() : "—"}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt>Viewed</dt>
-            <dd className="font-medium text-foreground">
-              {quote.viewed_at
-                ? new Date(quote.viewed_at).toLocaleString()
-                : "—"}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt>Accepted</dt>
-            <dd className="text-right font-medium text-foreground">
-              {quote.accepted_at
-                ? new Date(quote.accepted_at).toLocaleString()
-                : "—"}
-              {quote.accepted_by_name ? (
-                <p className="mt-0.5 text-xs font-normal text-muted-foreground">
-                  by {quote.accepted_by_name}
-                </p>
-              ) : null}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt>Declined</dt>
-            <dd className="text-right font-medium text-foreground">
-              {quote.declined_at
-                ? new Date(quote.declined_at).toLocaleString()
-                : "—"}
-              {quote.declined_by_name ? (
-                <p className="mt-0.5 text-xs font-normal text-muted-foreground">
-                  by {quote.declined_by_name}
-                </p>
-              ) : null}
-            </dd>
-          </div>
-        </dl>
-        {sourceEventPlan && eventPlanRef ? (
-          <Button asChild variant="outline" size="sm" className="mt-4 w-full">
-            <Link href={`/admin/event-plans/${sourceEventPlan.id}`}>
-              Open event plan {eventPlanRef}
-            </Link>
-          </Button>
-        ) : null}
-        {quote.estimate_request_id ? (
-          <Button asChild variant="outline" size="sm" className="mt-2 w-full">
-            <Link href={`/admin/estimates/${quote.estimate_request_id}`}>
-              Open linked estimate
-            </Link>
-          </Button>
-        ) : null}
-      </section>
 
-      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
-        <h2 className="font-heading text-lg font-semibold">Send & share</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Customer sees{" "}
-          <code className="text-xs text-primary">/quote/[token]</code> after
-          send.
-        </p>
-        <div className="mt-4 flex flex-col gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setPreviewOpen(true)}
-          >
-            <Eye className="size-4" />
-            Preview as customer
-          </Button>
-          <Button type="button" onClick={() => void sendQuote()}>
-            Send quote
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void createRevision()}
-            disabled={revising}
-          >
-            {revising ? <Loader2 className="size-4 animate-spin" /> : null}
-            Create revision
-          </Button>
-          <Button asChild variant="outline">
-            <a href={`/api/quotes/${quote.id}/pdf`} target="_blank" rel="noreferrer">
-              <Download className="size-4" />
-              View PDF
-            </a>
-          </Button>
-          {publicUrl ? (
-            <>
-              <Button asChild variant="outline">
-                <a href={publicUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="size-4" />
-                  Open public link
-                </a>
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => void copyPublicUrl()}
-              >
-                {copied ? (
-                  <Check className="size-4 text-emerald-600 dark:text-emerald-300" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-                {copied ? "Copied" : "Copy link"}
-              </Button>
-            </>
+        {customer ? (
+          <QuoteCustomerCard
+            customer={customer}
+            contactName={customerName}
+            contactEmail={customerEmail}
+          />
+        ) : null}
+
+        <section className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-heading text-lg font-semibold">Quote summary</h2>
+            <QuoteStatusBadge status={quote.status} />
+          </div>
+          <div className="mt-3 rounded-2xl border border-border/40 bg-background/40 p-3">
+            <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" currency={currency} />
+          </div>
+          {timeline.length > 0 ? (
+            <dl className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+              {timeline.map((row) => (
+                <div key={row.label} className="flex justify-between gap-2">
+                  <dt>{row.label}</dt>
+                  <dd className="text-right font-medium text-foreground">
+                    {new Date(row.at).toLocaleString()}
+                    {row.by ? (
+                      <span className="block text-[11px] font-normal text-muted-foreground">
+                        by {row.by}
+                      </span>
+                    ) : null}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           ) : null}
-        </div>
-        {publicUrl ? (
-          <p className="mt-3 break-all rounded-2xl border border-border/40 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
-            {publicUrl}
-          </p>
-        ) : null}
-      </section>
+          {(sourceEventPlan && eventPlanRef) || quote.estimate_request_id ? (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {sourceEventPlan && eventPlanRef ? (
+                <Button asChild variant="outline" size="sm" className="min-w-0">
+                  <Link href={`/admin/event-plans/${sourceEventPlan.id}`}>
+                    <span className="truncate">Plan {eventPlanRef}</span>
+                  </Link>
+                </Button>
+              ) : null}
+              {quote.estimate_request_id ? (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className={cn("min-w-0", !(sourceEventPlan && eventPlanRef) && "col-span-2")}
+                >
+                  <Link href={`/admin/estimates/${quote.estimate_request_id}`}>
+                    Linked estimate
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
 
-      <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
-        <h2 className="font-heading text-lg font-semibold">Change log</h2>
-        <p className="mt-1 text-xs text-muted-foreground">Admin only</p>
-        <ul className="mt-4 max-h-80 space-y-2 overflow-y-auto">
-          {(quote.events || []).length === 0 ? (
-            <li className="text-sm text-muted-foreground">No events yet.</li>
-          ) : (
-            quote.events!.map((event) => (
+        <section className="rounded-2xl border border-border/40 bg-card/25 p-4">
+          <h2 className="font-heading text-lg font-semibold">Actions</h2>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {booked ? <Fragment key="booking">{bookingActions}</Fragment> : null}
+            <Button
+              type="button"
+              variant={booked ? "outline" : "default"}
+              size={booked ? "sm" : "default"}
+              className="col-span-2"
+              onClick={() => void sendQuote()}
+            >
+              <Send className="size-4" />
+              Send quote
+            </Button>
+            {booked ? null : <Fragment key="booking">{bookingActions}</Fragment>}
+            <Button type="button" variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
+              <Eye className="size-4" />
+              Preview
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href={`/api/quotes/${quote.id}/pdf`} target="_blank" rel="noreferrer">
+                <Download className="size-4" />
+                PDF
+              </a>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="col-span-2"
+              onClick={() => void createRevision()}
+              disabled={revising}
+            >
+              {revising ? <Loader2 className="size-4 animate-spin" /> : <Copy className="size-4" />}
+              Create revision
+            </Button>
+          </div>
+        </section>
+
+        {studioPanel}
+
+        {quote.estimate_request_id ? (
+          <OpportunityFilesPanel
+            estimateRequestId={quote.estimate_request_id}
+            files={opportunityFiles}
+            deletedFiles={deletedOpportunityFiles}
+            audience="admin"
+            title="Opportunity files"
+          />
+        ) : null}
+
+        <details className="group rounded-2xl border border-border/40 bg-card/25">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+            <span className="min-w-0">
+              <span className="flex items-center gap-2">
+                <span className="font-heading text-lg font-semibold">Change log</span>
+                <span className="rounded-full border border-border/50 bg-background/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {changeLog.length}
+                </span>
+              </span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                {changeLog[0]
+                  ? `Latest: ${changeLog[0].summary} · ${new Date(changeLog[0].created_at).toLocaleDateString()}`
+                  : "Admin only · no events yet"}
+              </span>
+            </span>
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <ul className="max-h-80 space-y-2 overflow-y-auto px-4 pb-4">
+            {changeLog.map((event) => (
               <li
                 key={event.id}
                 className="rounded-2xl border border-border/30 bg-background/30 px-3 py-2 text-sm"
@@ -1921,6 +2051,14 @@ export function AdminQuoteBuilder({
                     {new Date(event.created_at).toLocaleString()}
                   </time>
                 </div>
+                {event.fileName ? (
+                  <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-foreground/80">
+                    <FileText className="size-3 shrink-0 text-primary" aria-hidden />
+                    <span className="truncate" title={event.fileName}>
+                      {event.fileName}
+                    </span>
+                  </p>
+                ) : null}
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {event.actor_type}
                   {event.actor_email ? ` · ${event.actor_email}` : ""}
@@ -1928,10 +2066,9 @@ export function AdminQuoteBuilder({
                   {event.event_type.replaceAll("_", " ")}
                 </p>
               </li>
-            ))
-          )}
-        </ul>
-      </section>
+            ))}
+          </ul>
+        </details>
       </aside>
       </div>
       <AdminFloatingSaveButton

@@ -43,6 +43,14 @@ export const brandLogo = {
   height: 1024,
 } as const;
 
+/** "TG" drape monogram — fallback thumbnail for line items without a photo */
+export const brandMonogram = {
+  src: "/images/brand/logo-monogram.png",
+  alt: "The Curtain Guy",
+  width: 256,
+  height: 256,
+} as const;
+
 /** Horizontal lockup for site header — transparent PNG (skip Next optimizer) */
 export const brandLogoHorizontal = {
   src: "/images/brand/logo-horizontal-lockup.png",

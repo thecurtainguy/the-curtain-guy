@@ -9,6 +9,35 @@ import {
   type QuoteTaxMode,
 } from "@/data/quotes";
 
+export const DEFAULT_INVOICE_TERMS = [
+  "This invoice is issued under the accepted proposal for the event and should be read together with that proposal and its approved revisions.",
+  "The event date, inventory, and crew are secured only after written booking confirmation and receipt of the required deposit.",
+  "The deposit is applied to the invoice total. The remaining balance is payable by the due date shown on this invoice.",
+  "Please include the invoice number with every payment. Payment is considered received once the funds have been successfully processed or cleared.",
+  "Cancellation, rescheduling, scope changes, additional labour, and damage charges are governed by the accepted proposal and any subsequent written approvals.",
+  "Rental items remain the property of The Curtain Guy and must remain accessible and available for teardown at the agreed time.",
+  "Please report questions or payment discrepancies promptly to info@thecurtainguy.com or 514-963-3193.",
+].join("\n");
+
+export const DEFAULT_INVOICE_TERMS_FR = [
+  "La présente facture est émise conformément à la soumission acceptée pour l’événement et doit être lue avec cette soumission et ses révisions approuvées.",
+  "La date de l’événement, l’inventaire et l’équipe sont réservés uniquement après la confirmation écrite de la réservation et la réception du dépôt exigé.",
+  "Le dépôt est appliqué au total de la facture. Le solde est payable au plus tard à la date d’échéance indiquée sur cette facture.",
+  "Veuillez indiquer le numéro de facture avec chaque paiement. Le paiement est considéré comme reçu lorsque les fonds ont été traités ou compensés avec succès.",
+  "Les annulations, reports, modifications de la portée, heures de travail additionnelles et frais pour dommages sont régis par la soumission acceptée et toute approbation écrite ultérieure.",
+  "Les articles loués demeurent la propriété de The Curtain Guy et doivent rester accessibles et disponibles pour le démontage à l’heure convenue.",
+  "Veuillez signaler rapidement toute question ou divergence de paiement à info@thecurtainguy.com ou au 514-963-3193.",
+].join("\n");
+
+export const DEFAULT_INVOICE_FOOTER =
+  "Thank you for choosing The Curtain Guy.";
+export const DEFAULT_INVOICE_FOOTER_FR =
+  "Merci d’avoir choisi The Curtain Guy.";
+export const DEFAULT_PAYMENT_PAGE_INTRO =
+  "Choose a payment method below and include your invoice number as the payment reference so we can apply the payment correctly.";
+export const DEFAULT_PAYMENT_PAGE_INTRO_FR =
+  "Choisissez un mode de paiement ci-dessous et indiquez votre numéro de facture comme référence afin que nous puissions appliquer le paiement correctement.";
+
 export const INVOICE_STATUSES = [
   "draft",
   "sent",
@@ -197,6 +226,8 @@ export type InvoiceRow = {
   event_date: string | null;
   event_type: string | null;
   venue_name: string | null;
+  venue_address?: string | null;
+  customer_venue_id?: string | null;
   issue_date: string;
   due_date: string | null;
   currency: string;

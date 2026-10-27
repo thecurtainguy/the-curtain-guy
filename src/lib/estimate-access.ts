@@ -3,6 +3,10 @@ import type { UserProfile } from "@/lib/auth";
 import { isEmailVerified, isOwnerProfile } from "@/lib/auth";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { verifyUploadToken } from "@/lib/estimate-files";
+import {
+  normalizeEstimateFileKind,
+  type EstimateFileKind,
+} from "@/data/estimate-file-kinds";
 
 export type EstimateRequestRow = {
   id: string;
@@ -52,9 +56,29 @@ export type EstimateFileRow = {
   file_size_bytes: number;
   upload_status: string;
   customer_visible: boolean;
+  file_kind: EstimateFileKind;
+  caption: string | null;
+  /** Quote PDF + proposal page. Only ever true for shared files. */
+  include_in_quote: boolean;
+  /** Invoice PDF. Only ever true for shared files. */
+  include_in_invoice: boolean;
   created_at: string;
   uploaded_at: string | null;
+  deleted_at?: string | null;
+  deleted_by_user_id?: string | null;
 };
+
+export function normalizeEstimateFileRow(row: EstimateFileRow): EstimateFileRow {
+  const customerVisible = row.customer_visible !== false;
+  return {
+    ...row,
+    customer_visible: customerVisible,
+    file_kind: normalizeEstimateFileKind(row.file_kind),
+    caption: row.caption?.trim() || null,
+    include_in_quote: customerVisible && row.include_in_quote === true,
+    include_in_invoice: customerVisible && row.include_in_invoice === true,
+  };
+}
 
 export function customerCanAccessEstimate(
   estimate: Pick<EstimateRequestRow, "user_id" | "customer_email">,
@@ -140,10 +164,7 @@ export async function fetchEstimateFiles(
   const { data, error } = await query;
 
   if (error || !data) return [];
-  return (data as EstimateFileRow[]).map((row) => ({
-    ...row,
-    customer_visible: row.customer_visible !== false,
-  }));
+  return (data as EstimateFileRow[]).map(normalizeEstimateFileRow);
 }
 
 export async function countEstimateFiles(estimateId: string): Promise<number> {

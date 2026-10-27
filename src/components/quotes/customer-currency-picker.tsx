@@ -1,7 +1,11 @@
 "use client";
 
 import { Banknote } from "lucide-react";
-import { OptionCard } from "@/components/estimate/option-card";
+import {
+  COMPACT_OPTION_CARD,
+  COMPACT_OPTION_GRID,
+  OptionCard,
+} from "@/components/estimate/option-card";
 import { CUSTOMER_CURRENCIES, type CustomerCurrency } from "@/data/customers";
 import { cn } from "@/lib/utils";
 
@@ -15,19 +19,22 @@ export function CustomerCurrencyPicker({
   onChange,
   disabled,
   customerDefault,
+  compact = false,
   className,
 }: {
   value: CustomerCurrency;
   onChange: (currency: CustomerCurrency) => void;
   disabled?: boolean;
   customerDefault?: CustomerCurrency | null;
+  /** Label only, tighter padding. */
+  compact?: boolean;
   className?: string;
 }) {
-  return (
+  const picker = (
     <div
       role="radiogroup"
       className={cn(
-        "grid gap-3 sm:grid-cols-2",
+        compact ? COMPACT_OPTION_GRID : "grid gap-3 sm:grid-cols-2",
         disabled && "pointer-events-none opacity-60",
         className
       )}
@@ -39,16 +46,19 @@ export function CustomerCurrencyPicker({
           option={{
             id: currency,
             label: currency,
-            description:
-              customerDefault === currency
+            description: compact
+              ? undefined
+              : customerDefault === currency
                 ? `${DESCRIPTIONS[currency]} Customer default.`
                 : DESCRIPTIONS[currency],
             icon: Banknote,
           }}
           selected={value === currency}
           onSelect={() => onChange(currency)}
+          className={compact ? COMPACT_OPTION_CARD : undefined}
         />
       ))}
     </div>
   );
+  return compact ? <div className="@container">{picker}</div> : picker;
 }

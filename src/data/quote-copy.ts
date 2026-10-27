@@ -82,6 +82,7 @@ export type QuoteCopy = {
   fullName: string;
   fullNamePlaceholder: string;
   acceptRecordHint: string;
+  acceptTermsAcknowledgement: string;
   confirmAcceptance: string;
   changesLabel: string;
   changesPlaceholder: string;
@@ -241,6 +242,8 @@ const en: QuoteCopy = {
   fullName: "Full name",
   fullNamePlaceholder: "Your full name",
   acceptRecordHint: "We’ll record who accepted this proposal.",
+  acceptTermsAcknowledgement:
+    "I confirm that I am authorized to accept this proposal and agree to its scope, payment schedule, and Terms & Conditions.",
   confirmAcceptance: "Confirm acceptance",
   changesLabel: "What would you like adjusted?",
   changesPlaceholder: "I’d like to adjust the backdrop height…",
@@ -410,6 +413,8 @@ const fr: QuoteCopy = {
   fullName: "Nom complet",
   fullNamePlaceholder: "Votre nom complet",
   acceptRecordHint: "Nous enregistrerons le nom de la personne qui accepte.",
+  acceptTermsAcknowledgement:
+    "Je confirme avoir l’autorisation d’accepter cette soumission et j’accepte sa portée, son calendrier de paiement et ses conditions générales.",
   confirmAcceptance: "Confirmer l’acceptation",
   changesLabel: "Que souhaitez-vous modifier?",
   changesPlaceholder: "J’aimerais ajuster la hauteur de la toile de fond…",
@@ -514,6 +519,8 @@ const API_ERRORS_FR: Record<string, string> = {
     "Cette soumission n’est plus disponible.",
   "Please enter your full name to accept.":
     "Veuillez entrer votre nom complet pour accepter.",
+  "Please confirm that you agree to the proposal and its terms.":
+    "Veuillez confirmer que vous acceptez la soumission et ses conditions.",
   "Please enter your full name to decline.":
     "Veuillez entrer votre nom complet pour refuser.",
   "Please describe the changes you need.":

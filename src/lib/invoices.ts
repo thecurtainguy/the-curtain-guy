@@ -34,11 +34,14 @@ import {
   type QuoteTaxMode,
 } from "@/data/quotes";
 import type { EventJobRow } from "@/data/jobs";
+import { formatVenueAddress } from "@/data/customers";
+import { quotePaymentTermsFrom } from "@/data/quote-payment-terms";
 import { resolveProductCategoryLabelFr, type ProductCategoryRow } from "@/data/product-categories";
 import { listProductCategories } from "@/lib/product-categories";
 import { getBusinessSettings } from "@/lib/business-settings";
 import {
   customerInvoiceDefaults,
+  ensureCustomerVenue,
   fetchCustomerById,
   logCustomerEvent,
 } from "@/lib/customers";
@@ -214,6 +217,8 @@ const AUDIT_FIELD_LABELS: Record<string, string> = {
   event_date: "Event date",
   event_type: "Event type",
   venue_name: "Venue",
+  venue_address: "Venue address",
+  customer_venue_id: "Saved venue",
   issue_date: "Issue date",
   due_date: "Balance due date",
   language: "Language",
@@ -499,13 +504,30 @@ export async function createInvoiceFromJob(
     : defaults?.language ?? "en";
   const isFirstActive = !existing.some((inv) => inv.status !== "void");
   const today = todayIsoDate();
+  // Terms the customer accepted on the quote win over the customer / business defaults.
+  const quoteTerms = isFirstActive && quote ? quotePaymentTermsFrom(quote) : null;
+  const acceptedTerms =
+    quoteTerms?.payment_deposit_mode && quoteTerms.payment_balance_due_rule ? quoteTerms : null;
   const dueDate = resolveBalanceDueDate({
-    rule: defaults?.balance_due_rule ?? settings.default_balance_due_rule,
-    days: defaults?.balance_due_days ?? settings.default_due_days,
+    rule:
+      acceptedTerms?.payment_balance_due_rule ??
+      defaults?.balance_due_rule ??
+      settings.default_balance_due_rule,
+    days:
+      acceptedTerms?.payment_balance_due_days ??
+      defaults?.balance_due_days ??
+      settings.default_due_days,
     issueDate: today,
     eventDate: job.event_date,
   });
-  const depositDueDate = [addDaysIso(today, settings.default_deposit_due_days), dueDate].sort()[0];
+  const depositDueDate = acceptedTerms
+    ? today
+    : [addDaysIso(today, settings.default_deposit_due_days), dueDate].sort()[0];
+  const depositMode: DepositMode = acceptedTerms
+    ? acceptedTerms.payment_deposit_mode!
+    : isFirstActive
+      ? "percent"
+      : "none";
   const taxMode: QuoteTaxMode = defaults?.tax_exempt
     ? "none"
     : quote && isQuoteTaxMode(quote.tax_mode)
@@ -571,6 +593,8 @@ export async function createInvoiceFromJob(
         event_date: job.event_date,
         event_type: job.event_type,
         venue_name: job.venue_name,
+        venue_address: jobVenueAddress(job) || quote?.venue_address || null,
+        customer_venue_id: quote?.customer_venue_id ?? null,
         issue_date: today,
         due_date: dueDate,
         currency: quote?.currency || defaults?.currency || job.currency || "CAD",
@@ -578,9 +602,15 @@ export async function createInvoiceFromJob(
         gst_rate: quote?.gst_rate ?? 0.05,
         qst_rate: quote?.qst_rate ?? 0.09975,
         manual_tax_lines: normalizeManualTaxLines(quote?.manual_tax_lines),
-        deposit_mode: isFirstActive ? "percent" : "none",
-        deposit_percent: defaults?.deposit_percent ?? settings.default_deposit_percent,
-        deposit_due_date: depositDueDate,
+        deposit_mode: depositMode,
+        deposit_percent:
+          acceptedTerms?.payment_deposit_percent ??
+          defaults?.deposit_percent ??
+          settings.default_deposit_percent,
+        ...(depositMode === "fixed"
+          ? { deposit_cents: acceptedTerms?.payment_deposit_fixed_cents ?? 0 }
+          : {}),
+        deposit_due_date: depositMode === "none" ? null : depositDueDate,
         notes: businessText(settings, "invoice_notes", language) || null,
         terms: businessText(settings, "invoice_terms", language) || null,
         created_by_user_id: ownerUserId,
@@ -610,7 +640,7 @@ export async function createInvoiceFromJob(
     invoiceId: inserted.id,
     actorUserId: ownerUserId,
     eventType: "invoice_created",
-    summary: `${quote ? `Created from ${quote.opportunity_ref}` : "Invoice created"} · total ${formatCadFromCents(created?.total_cents ?? 0)}`,
+    summary: `${quote ? `Created from ${quote.opportunity_ref}` : "Invoice created"} · total ${formatCadFromCents(created?.total_cents ?? 0)}${acceptedTerms ? " · payment terms from the quote" : ""}`,
     metadata: {
       quote_id: job.quote_id,
       job_id: job.id,
@@ -621,7 +651,11 @@ export async function createInvoiceFromJob(
       deposit_cents: created?.deposit_cents ?? null,
       deposit_due_date: depositDueDate,
       due_date: dueDate,
-      due_rule: settings.default_balance_due_rule,
+      due_rule:
+        acceptedTerms?.payment_balance_due_rule ??
+        defaults?.balance_due_rule ??
+        settings.default_balance_due_rule,
+      terms_from_quote: Boolean(acceptedTerms),
     },
   });
   await recordJobEvent({
@@ -651,6 +685,7 @@ export type DirectInvoiceInput = {
   eventDate?: string | null;
   eventType?: string | null;
   venueName?: string | null;
+  venueAddress?: string | null;
   language?: string | null;
   requestDeposit?: boolean;
   poNumber?: string | null;
@@ -694,6 +729,8 @@ export async function createDirectInvoice(
   const depositDueDate = [addDaysIso(today, settings.default_deposit_due_days), dueDate].sort()[0];
   const language = input.language ? normalizeCustomerLanguage(input.language) : defaults.language;
   const invoiceNumber = formatInvoiceNumber(settings.invoice_prefix, opportunityRef, 0);
+  const venueName = cleanText(input.venueName, 200);
+  const venueAddress = cleanText(input.venueAddress, 400);
 
   const { data, error } = await admin
     .from("invoices")
@@ -712,7 +749,8 @@ export async function createDirectInvoice(
       po_number: cleanText(input.poNumber, 80) ?? defaults.po_number,
       event_date: eventDate,
       event_type: cleanText(input.eventType, 120),
-      venue_name: cleanText(input.venueName, 200),
+      venue_name: venueName,
+      venue_address: venueAddress,
       issue_date: today,
       due_date: dueDate,
       currency: defaults.currency,
@@ -731,6 +769,21 @@ export async function createDirectInvoice(
     return { error: "Could not create invoice." };
   }
   const invoiceId = data.id as string;
+
+  const venue = await ensureCustomerVenue({
+    customerId: customer.id,
+    venueName,
+    venueAddress,
+    actor: { userId: ownerUserId },
+    source: { kind: "invoice", id: invoiceId, ref: `Invoice ${invoiceNumber}` },
+  });
+  if (venue) {
+    const { error: venueError } = await admin
+      .from("invoices")
+      .update({ customer_venue_id: venue.id })
+      .eq("id", invoiceId);
+    if (venueError) console.error("[invoices] link saved venue", venueError);
+  }
 
   const directLines = (input.lines ?? [])
     .filter((line) => (line.description || "").trim() || Number(line.unit_price_cents) > 0)
@@ -788,11 +841,29 @@ const JOB_SYNC_FIELDS = [
   "event_date",
   "event_type",
   "venue_name",
+  "venue_address",
   "customer_name",
   "customer_email",
   "customer_phone",
   "company_name",
 ] as const;
+
+function jobVenueAddress(job: EventJobRow): string {
+  return formatVenueAddress({
+    address: job.venue_address,
+    city: job.venue_city,
+    region: job.venue_region,
+    postal_code: job.venue_postal_code,
+    country: job.venue_country,
+  });
+}
+
+function jobSyncValues(job: EventJobRow): Record<string, string | null> {
+  return {
+    ...(job as unknown as Record<string, string | null>),
+    venue_address: jobVenueAddress(job) || null,
+  };
+}
 
 function clampToIssue(date: string, issueDate: string): string {
   return date < issueDate ? issueDate : date;
@@ -831,8 +902,8 @@ export async function syncInvoicesFromJob(input: {
   after: EventJobRow;
   actorUserId: string | null;
 }): Promise<{ updated: string[] }> {
-  const before = input.before as unknown as Record<string, string | null>;
-  const after = input.after as unknown as Record<string, string | null>;
+  const before = jobSyncValues(input.before);
+  const after = jobSyncValues(input.after);
   const changed = JOB_SYNC_FIELDS.filter((f) => (before[f] ?? null) !== (after[f] ?? null));
   if (changed.length === 0) return { updated: [] };
 
@@ -914,6 +985,8 @@ export type InvoiceSaveInput = {
   event_date?: string | null;
   event_type?: string | null;
   venue_name?: string | null;
+  venue_address?: string | null;
+  customer_venue_id?: string | null;
   issue_date?: string | null;
   due_date?: string | null;
   language?: string | null;
@@ -973,12 +1046,27 @@ export async function saveInvoice(
     "po_number",
     "event_type",
     "venue_name",
+    "venue_address",
     "notes",
     "terms",
     "internal_notes",
   ] as const;
   for (const key of textKeys) {
-    if (key in input) update[key] = cleanText(input[key]);
+    if (key in input) update[key] = cleanText(input[key], key === "venue_address" ? 400 : 4000);
+  }
+  if ("customer_venue_id" in input) {
+    const venueId = typeof input.customer_venue_id === "string" ? input.customer_venue_id : null;
+    if (venueId) {
+      const { data: venue } = await createAdminSupabaseClient()
+        .from("customer_venues")
+        .select("customer_id")
+        .eq("id", venueId)
+        .maybeSingle();
+      if (!venue || (current.customer_id && venue.customer_id !== current.customer_id)) {
+        return { error: "That saved venue doesn't belong to this customer." };
+      }
+    }
+    update.customer_venue_id = venueId;
   }
   for (const key of ["event_date", "due_date", "deposit_due_date"] as const) {
     if (key in input) update[key] = cleanDate(input[key]);
@@ -1009,6 +1097,20 @@ export async function saveInvoice(
   }
   if (depositMode === "fixed" && input.deposit_fixed_cents != null) {
     update.deposit_cents = Math.max(0, Math.round(Number(input.deposit_fixed_cents) || 0));
+  }
+
+  const venueTouched = ["venue_name", "venue_address", "customer_venue_id"].some((f) => f in update);
+  const venueName = ("venue_name" in update ? update.venue_name : current.venue_name) as string | null;
+  const venueLinked = "customer_venue_id" in update ? update.customer_venue_id : current.customer_venue_id;
+  if (venueTouched && current.customer_id && venueName && !venueLinked) {
+    const venue = await ensureCustomerVenue({
+      customerId: current.customer_id,
+      venueName,
+      venueAddress: ("venue_address" in update ? update.venue_address : current.venue_address) as string | null,
+      actor: { userId: ownerUserId },
+      source: { kind: "invoice", id: invoiceId, ref: `Invoice ${current.invoice_number}` },
+    });
+    if (venue) update.customer_venue_id = venue.id;
   }
 
   const admin = createAdminSupabaseClient();

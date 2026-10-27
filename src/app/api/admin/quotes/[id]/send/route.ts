@@ -14,6 +14,7 @@ import {
   type EstimateFileRow,
 } from "@/lib/estimate-access";
 import { getOutboundEmailCopyTo, getResendApiKey, getSiteUrl } from "@/lib/env";
+import { logEstimateFileEvent } from "@/lib/estimate-file-events";
 import {
   isValidEmailAddress,
   parseEmailList,
@@ -122,7 +123,8 @@ async function persistUploadToOpportunity(input: {
       content_type: input.upload.contentType,
       file_size_bytes: input.bytes.length,
       upload_status: "uploaded",
-      customer_visible: false,
+      // Emailed to the customer, so it is shared by definition.
+      customer_visible: true,
       uploaded_at: new Date().toISOString(),
     })
     .select("id")
@@ -132,6 +134,17 @@ async function persistUploadToOpportunity(input: {
     console.error("[quotes] estimate_files insert failed", insertError?.message);
     return null;
   }
+  await logEstimateFileEvent({
+    fileId: row.id as string,
+    estimateRequestId: input.estimateRequestId,
+    fileName: input.upload.filename,
+    actorType: "owner",
+    actorUserId: input.ownerUserId,
+    actorEmail: input.ownerEmail,
+    eventType: "file_uploaded",
+    summary: "Uploaded with the quote email (shared)",
+    metadata: { customer_visible: true, source: "quote_email" },
+  });
   return row.id as string;
 }
 
@@ -234,9 +247,11 @@ export async function POST(request: Request, context: RouteContext) {
   const attachmentNames: string[] = [];
 
   if (opportunityFileIds.length > 0 && quote.estimate_request_id) {
-    const files = await fetchEstimateFiles(quote.estimate_request_id, [
-      "uploaded",
-    ]);
+    const files = await fetchEstimateFiles(
+      quote.estimate_request_id,
+      ["uploaded"],
+      { customerVisibleOnly: true }
+    );
     const byId = new Map(files.map((file) => [file.id, file]));
     for (const fileId of opportunityFileIds) {
       const file = byId.get(fileId);

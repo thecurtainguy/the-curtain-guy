@@ -12,9 +12,12 @@ import {
   MessageSquare,
   Phone,
   Receipt,
+  Send,
+  Smartphone,
   Users,
+  type LucideIcon,
 } from "lucide-react";
-import type { QuoteStatus } from "@/data/quotes";
+import { canMarkQuoteAccepted, type QuoteStatus } from "@/data/quotes";
 import { Button } from "@/components/ui/button";
 import { BrandDialogContent, BrandDialogSection } from "@/components/ui/brand-dialog";
 import { DateInput } from "@/components/ui/date-input";
@@ -26,14 +29,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { todayIsoDate } from "@/data/invoices";
 import { cn } from "@/lib/utils";
 
-const CHANNELS = [
+type ChannelOption = { id: string; label: string; icon: LucideIcon };
+
+const ACCEPT_CHANNELS = [
   { id: "email", label: "Email", icon: Mail },
   { id: "phone", label: "Phone", icon: Phone },
   { id: "in_person", label: "In person", icon: Users },
   { id: "other", label: "Other", icon: MessageSquare },
-] as const;
+] as const satisfies readonly ChannelOption[];
 
-type ChannelId = (typeof CHANNELS)[number]["id"];
+const SENT_CHANNELS = [
+  { id: "email", label: "Email", icon: Mail },
+  { id: "text", label: "Text", icon: Smartphone },
+  { id: "in_person", label: "In person", icon: Users },
+  { id: "other", label: "Other", icon: MessageSquare },
+] as const satisfies readonly ChannelOption[];
 
 export function AdminQuoteJobActions({
   quoteId,
@@ -51,9 +61,11 @@ export function AdminQuoteJobActions({
   const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [sentDialogOpen, setSentDialogOpen] = useState(false);
 
   const accepted = quoteStatus === "accepted";
-  const canMarkAccepted = !accepted && quoteStatus !== "cancelled";
+  const isDraft = quoteStatus === "draft";
+  const canMarkAccepted = canMarkQuoteAccepted(quoteStatus);
 
   async function createJob() {
     setCreating(true);
@@ -104,73 +116,89 @@ export function AdminQuoteJobActions({
     }
   }
 
-  if (!accepted && !existingJobId && !canMarkAccepted) return null;
+  if (!accepted && !existingJobId && !canMarkAccepted && !isDraft) return null;
 
   return (
-    <section className="rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/10 via-card/30 to-card/20 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex gap-3">
-          <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-            {existingJobId || accepted ? (
-              <CalendarDays className="size-5" />
-            ) : (
-              <Handshake className="size-5" />
-            )}
-          </span>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-primary">
-              Booked event
-            </p>
-            <h2 className="mt-1 font-heading text-lg font-semibold text-foreground">
-              {existingJobId
-                ? "Job linked"
-                : accepted
-                  ? "Ready to create job"
-                  : "Client said yes outside the portal?"}
-            </h2>
-            <p className="mt-1 max-w-lg text-sm text-muted-foreground">
-              {existingJobId
-                ? "Open the job to schedule install, then issue the invoice and track the deposit."
-                : accepted
-                  ? "A draft job is usually created automatically on accept. Use this if one is missing."
-                  : "Record an acceptance received by email, phone, or in person. The quote becomes accepted and a job is created."}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {existingJobId ? (
-            <>
-              <LoadingButton
-                type="button"
-                variant="outline"
-                isLoading={creatingInvoice}
-                loadingText="Creating"
-                icon={<Receipt className="size-4" />}
-                onClick={() => void createInvoice()}
-              >
-                Create invoice
-              </LoadingButton>
-              <Button asChild>
-                <Link href={`/admin/jobs/${existingJobId}`}>Open Job</Link>
-              </Button>
-            </>
-          ) : accepted ? (
-            <Button type="button" onClick={() => void createJob()} disabled={creating}>
-              {creating ? <Loader2 className="size-4 animate-spin" /> : null}
-              Create Job
-            </Button>
-          ) : (
-            <Button type="button" onClick={() => setDialogOpen(true)}>
-              <Check className="size-4" />
-              Mark accepted
-            </Button>
-          )}
-        </div>
-      </div>
+    <>
+      {existingJobId ? (
+        <>
+          <Button asChild size="sm">
+            <Link href={`/admin/jobs/${existingJobId}`}>
+              <CalendarDays className="size-4" />
+              Open job
+            </Link>
+          </Button>
+          <LoadingButton
+            type="button"
+            variant="outline"
+            size="sm"
+            isLoading={creatingInvoice}
+            loadingText="Creating"
+            icon={<Receipt className="size-4" />}
+            onClick={() => void createInvoice()}
+          >
+            Invoice
+          </LoadingButton>
+        </>
+      ) : accepted ? (
+        <Button
+          type="button"
+          className="col-span-2"
+          onClick={() => void createJob()}
+          disabled={creating}
+          title="A job is usually created on accept. Use this if one is missing."
+        >
+          {creating ? <Loader2 className="size-4 animate-spin" /> : <CalendarDays className="size-4" />}
+          Create job
+        </Button>
+      ) : isDraft ? (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setSentDialogOpen(true)}
+            title="You delivered the quote yourself (own email, text, in person)"
+          >
+            <Send className="size-4" />
+            Mark sent
+          </Button>
+          <Button type="button" variant="outline" size="sm" disabled>
+            <Handshake className="size-4" />
+            Mark accepted
+          </Button>
+          <p className="col-span-2 text-[11px] leading-snug text-muted-foreground">
+            Mark accepted unlocks once the customer has the quote: send it, or mark it sent if you
+            delivered it yourself.
+          </p>
+        </>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="col-span-2"
+          onClick={() => setDialogOpen(true)}
+          title="Client said yes by email, phone, or in person"
+        >
+          <Handshake className="size-4" />
+          Mark accepted
+        </Button>
+      )}
       {error ? (
-        <p className="mt-3 text-sm text-destructive" role="alert">
+        <p className="col-span-2 text-xs text-destructive" role="alert">
           {error}
         </p>
+      ) : null}
+      {sentDialogOpen ? (
+        <MarkSentDialog
+          quoteId={quoteId}
+          onOpenChange={setSentDialogOpen}
+          onDone={() => {
+            setSentDialogOpen(false);
+            router.refresh();
+          }}
+        />
       ) : null}
       {dialogOpen ? (
         <MarkAcceptedDialog
@@ -184,7 +212,7 @@ export function AdminQuoteJobActions({
           }}
         />
       ) : null}
-    </section>
+    </>
   );
 }
 
@@ -201,7 +229,7 @@ function MarkAcceptedDialog({
 }) {
   const [name, setName] = useState(defaultName);
   const [acceptedOn, setAcceptedOn] = useState(todayIsoDate());
-  const [channel, setChannel] = useState<ChannelId>("email");
+  const [channel, setChannel] = useState<string>("email");
   const [note, setNote] = useState("");
   const [createJob, setCreateJob] = useState(true);
   const [sendConfirmation, setSendConfirmation] = useState(false);
@@ -268,38 +296,7 @@ function MarkAcceptedDialog({
       >
         <div className="space-y-5">
           <BrandDialogSection label="How did they accept?">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {CHANNELS.map((option) => {
-                const Icon = option.icon;
-                const selected = channel === option.id;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setChannel(option.id)}
-                    className={cn(
-                      "relative flex flex-col items-center gap-2 rounded-2xl border p-3 text-sm transition-colors",
-                      selected
-                        ? "border-primary/50 bg-primary/10 text-foreground"
-                        : "border-border/40 bg-card/40 text-muted-foreground hover:border-primary/30"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "absolute top-2 right-2 flex size-4 items-center justify-center rounded-full border",
-                        selected ? "border-primary bg-primary text-primary-foreground" : "border-border/70"
-                      )}
-                    >
-                      {selected ? <Check className="size-2.5" /> : null}
-                    </span>
-                    <span className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                      <Icon className="size-4" />
-                    </span>
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
+            <ChannelPicker options={ACCEPT_CHANNELS} value={channel} onChange={setChannel} />
           </BrandDialogSection>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -359,6 +356,145 @@ function MarkAcceptedDialog({
                 </span>
               </span>
             </label>
+          </div>
+
+          {error ? (
+            <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      </BrandDialogContent>
+    </Dialog>
+  );
+}
+
+function ChannelPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly ChannelOption[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {options.map((option) => {
+        const Icon = option.icon;
+        const selected = value === option.id;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChange(option.id)}
+            className={cn(
+              "relative flex flex-col items-center gap-2 rounded-2xl border p-3 text-sm transition-colors",
+              selected
+                ? "border-primary/50 bg-primary/10 text-foreground"
+                : "border-border/40 bg-card/40 text-muted-foreground hover:border-primary/30"
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-2 right-2 flex size-4 items-center justify-center rounded-full border",
+                selected ? "border-primary bg-primary text-primary-foreground" : "border-border/70"
+              )}
+            >
+              {selected ? <Check className="size-2.5" /> : null}
+            </span>
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Icon className="size-4" />
+            </span>
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MarkSentDialog({
+  quoteId,
+  onOpenChange,
+  onDone,
+}: {
+  quoteId: string;
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
+  const [sentOn, setSentOn] = useState(todayIsoDate());
+  const [channel, setChannel] = useState<string>("email");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/quotes/${quoteId}/mark-sent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sentOn, channel, note }),
+      });
+      const payload = (await response.json()) as { ok?: boolean; message?: string };
+      if (!response.ok || !payload.ok) {
+        setError(payload.message ?? "Could not mark the quote as sent.");
+        return;
+      }
+      onDone();
+    } catch {
+      setError("Could not mark the quote as sent.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <BrandDialogContent
+        size="md"
+        icon={Send}
+        eyebrow="Sent outside the system"
+        title="Mark quote as sent"
+        description="No email goes out. The quote moves to Sent and the timeline notes how you delivered it."
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <LoadingButton
+              type="button"
+              isLoading={busy}
+              loadingText="Saving"
+              icon={<Check className="size-4" />}
+              onClick={() => void submit()}
+            >
+              Mark sent
+            </LoadingButton>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <BrandDialogSection label="How did you send it?">
+            <ChannelPicker options={SENT_CHANNELS} value={channel} onChange={setChannel} />
+          </BrandDialogSection>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="sent-on">Date sent</Label>
+              <DateInput id="sent-on" value={sentOn} onChange={setSentOn} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sent-note">Note (optional)</Label>
+              <Input
+                id="sent-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. PDF emailed from Gmail"
+              />
+            </div>
           </div>
 
           {error ? (

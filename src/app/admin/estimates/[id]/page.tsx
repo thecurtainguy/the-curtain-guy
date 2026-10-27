@@ -6,10 +6,8 @@ import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { EstimateBriefView } from "@/components/estimates/estimate-brief-view";
-import {
-  fetchEstimateById,
-  fetchEstimateFiles,
-} from "@/lib/estimate-access";
+import { fetchEstimateById } from "@/lib/estimate-access";
+import { loadAdminOpportunityFiles } from "@/lib/estimate-file-events";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { fetchJobByEstimateId } from "@/lib/jobs";
 import { AdminEstimateActions } from "@/components/admin/admin-estimate-actions";
@@ -43,7 +41,7 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
   const estimate = await fetchEstimateById(id);
   if (!estimate) notFound();
 
-  const files = await fetchEstimateFiles(id, ["uploaded", "pending"]);
+  const { files, deletedFiles, activity } = await loadAdminOpportunityFiles(id);
   const quotes = await listQuotesForEstimate(id);
   const linkedJob = await fetchJobByEstimateId(id);
 
@@ -136,6 +134,8 @@ export default async function AdminEstimateDetailPage({ params }: PageProps) {
             <OpportunityFilesPanel
               estimateRequestId={estimate.id}
               files={files}
+              deletedFiles={deletedFiles}
+              activity={activity}
               audience="admin"
               className="border-border bg-card"
             />

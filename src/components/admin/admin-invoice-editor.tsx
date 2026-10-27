@@ -8,6 +8,7 @@ import {
   Ban,
   Banknote,
   BadgePercent,
+  Building2,
   CalendarDays,
   Check,
   CircleDollarSign,
@@ -54,7 +55,7 @@ import {
   type QuoteTaxMode,
 } from "@/data/quotes";
 import type { CustomerLanguage } from "@/data/customer-language";
-import { formatCustomerNumber, type CustomerLinkSummary } from "@/data/customers";
+import { formatCustomerNumber, formatVenueAddress, type CustomerLinkSummary } from "@/data/customers";
 import { AdminInvoiceAuditLog } from "@/components/admin/admin-invoice-audit-log";
 import { OptionCard } from "@/components/estimate/option-card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
@@ -156,6 +157,8 @@ type FormState = {
   currency: "CAD" | "USD";
   event_date: string;
   venue_name: string;
+  venue_address: string;
+  customer_venue_id: string | null;
   issue_date: string;
   due_date: string;
   language: CustomerLanguage;
@@ -189,6 +192,8 @@ function toForm(invoice: InvoiceWithRelations): FormState {
     currency: invoice.currency === "USD" ? "USD" : "CAD",
     event_date: invoice.event_date ?? "",
     venue_name: invoice.venue_name ?? "",
+    venue_address: invoice.venue_address ?? "",
+    customer_venue_id: invoice.customer_venue_id ?? null,
     issue_date: invoice.issue_date ?? "",
     due_date: invoice.due_date ?? "",
     language: invoice.language,
@@ -241,6 +246,8 @@ function toPayload(form: FormState) {
     currency: form.currency,
     event_date: form.event_date || null,
     venue_name: form.venue_name,
+    venue_address: form.venue_address,
+    customer_venue_id: form.customer_venue_id,
     issue_date: form.issue_date || null,
     due_date: form.due_date || null,
     language: form.language,
@@ -923,9 +930,64 @@ export function AdminInvoiceEditor({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="inv-venue">Venue</Label>
-                  <Input id="inv-venue" value={form.venue_name} onChange={(e) => set("venue_name", e.target.value)} />
+                  <Input
+                    id="inv-venue"
+                    value={form.venue_name}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setForm((prev) => {
+                        const linked = customerLink?.venues.find((v) => v.id === prev.customer_venue_id);
+                        return {
+                          ...prev,
+                          venue_name: value,
+                          customer_venue_id: linked && linked.name !== value ? null : prev.customer_venue_id,
+                        };
+                      });
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="inv-venue-address">Venue address</Label>
+                  <Input
+                    id="inv-venue-address"
+                    value={form.venue_address}
+                    onChange={(e) => set("venue_address", e.target.value)}
+                    placeholder="Street, city, province, postal code — shown on the invoice and PDF"
+                    maxLength={400}
+                  />
                 </div>
               </div>
+              {customerLink?.venues.length ? (
+                <div className="mt-4 space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Building2 className="size-3.5 text-primary" />
+                    Saved venues for {customerLink.display_name}
+                  </Label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {customerLink.venues.map((venue) => (
+                      <OptionCard
+                        key={venue.id}
+                        option={{
+                          id: venue.id,
+                          label: venue.name,
+                          description: formatVenueAddress(venue) || "No address",
+                          icon: Building2,
+                        }}
+                        selected={form.customer_venue_id === venue.id}
+                        onSelect={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            venue_name: venue.name,
+                            venue_address: formatVenueAddress(venue),
+                            customer_venue_id: venue.id,
+                          }))
+                        }
+                        className="p-3"
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-4 space-y-1.5">
                 <Label className="flex items-center gap-1.5">
                   <Languages className="size-3.5 text-primary" />

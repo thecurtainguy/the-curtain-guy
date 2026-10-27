@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { ReactNode } from "react";
 import {
   Document,
   Image,
@@ -12,6 +13,11 @@ import {
 import { PDFDocument } from "pdf-lib";
 import { customerLocaleTag } from "@/data/customer-language";
 import { downloadPaymentDocument } from "@/lib/business-settings";
+import {
+  appendPdfAttachments,
+  loadDocumentAttachments,
+  renderAttachmentPages,
+} from "@/lib/pdf-attachments";
 import { toPdfSafeImage } from "@/lib/pdf-image";
 import {
   businessAddressLines,
@@ -59,6 +65,7 @@ const COLORS = {
 };
 
 const LOGO_PATH = path.join(process.cwd(), "public/images/brand/logo-full.png");
+const MONOGRAM_PATH = path.join(process.cwd(), "public/images/brand/logo-monogram.png");
 
 const styles = StyleSheet.create({
   page: {
@@ -197,9 +204,9 @@ const styles = StyleSheet.create({
   },
   colThumb: { width: "7%", paddingRight: 6 },
   colDesc: { width: "45%", paddingRight: 10 },
-  colDescWide: { width: "52%", paddingRight: 10 },
   lineThumb: { width: 22, height: 22, borderRadius: 3, objectFit: "cover" },
-  lineThumbPlaceholder: { width: 22, height: 22, borderRadius: 3, backgroundColor: COLORS.goldWash },
+  lineThumbPlaceholder: { width: 22, height: 22, borderRadius: 3, backgroundColor: COLORS.goldWash, padding: 3 },
+  lineThumbMonogram: { width: "100%", height: "100%", objectFit: "contain" },
   lineCategory: {
     marginTop: 2,
     color: COLORS.gold,
@@ -340,11 +347,13 @@ const styles = StyleSheet.create({
   methodInstructions: { fontSize: 8, color: COLORS.muted, lineHeight: 1.4, marginTop: 2 },
 });
 
+const wholeWords = (word: string) => [word];
+
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.metaRow}>
       <Text style={styles.metaLabel}>{label}</Text>
-      <Text style={styles.metaValue}>{value}</Text>
+      <Text style={styles.metaValue} hyphenationCallback={wholeWords}>{value}</Text>
     </View>
   );
 }
@@ -360,11 +369,13 @@ function InvoicePdfDocument({
   settings,
   publicUrl,
   generatedAt,
+  extraPages,
 }: {
   invoice: CustomerSafeInvoice;
   settings: BusinessSettings;
   publicUrl?: string | null;
   generatedAt: string;
+  extraPages?: ReactNode;
 }) {
   const language = invoice.language;
   const t = getInvoiceCopy(language);
@@ -376,8 +387,6 @@ function InvoicePdfDocument({
   const statusLabel = INVOICE_STATUS_LABELS[language][displayStatus];
   const addressLines = businessAddressLines(settings);
   const methods = visiblePaymentMethods(settings.payment_methods, language, invoice.currency);
-  const showThumbs = invoice.line_items.some((line) => line.image_url);
-  const descStyle = showThumbs ? styles.colDesc : styles.colDescWide;
   const terms = splitInvoiceTerms(invoice.terms);
   const footerText = businessText(settings, "invoice_footer", language);
   const payTitle = businessText(settings, "payment_page_title", language);
@@ -505,7 +514,10 @@ function InvoicePdfDocument({
               />
             ) : null}
             <Meta label={t.eventDate} value={date(invoice.event_date)} />
-            <Meta label={t.venue} value={invoice.venue_name || "—"} />
+            <Meta
+              label={t.venue}
+              value={[invoice.venue_name, invoice.venue_address].filter(Boolean).join("\n") || "—"}
+            />
           </View>
           <View style={styles.duePanel}>
             <Text style={styles.dueLabel}>{due.dueNowKind === "none" ? t.balanceDue : dueNowTitle}</Text>
@@ -520,8 +532,8 @@ function InvoicePdfDocument({
         </View>
 
         <View style={styles.tableHeader}>
-          {showThumbs ? <View style={styles.colThumb} /> : null}
-          <View style={descStyle}>
+          <View style={styles.colThumb} />
+          <View style={styles.colDesc}>
             <Text style={styles.th}>{t.description}</Text>
           </View>
           <View style={styles.colQty}>
@@ -536,17 +548,18 @@ function InvoicePdfDocument({
         </View>
         {invoice.line_items.map((line) => (
           <View key={line.id} style={styles.tr} wrap={false}>
-            {showThumbs ? (
-              <View style={styles.colThumb}>
-                {line.image_url ? (
-                  // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
-                  <Image src={line.image_url} style={styles.lineThumb} />
-                ) : (
-                  <View style={styles.lineThumbPlaceholder} />
-                )}
-              </View>
-            ) : null}
-            <View style={descStyle}>
+            <View style={styles.colThumb}>
+              {line.image_url ? (
+                // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
+                <Image src={line.image_url} style={styles.lineThumb} />
+              ) : (
+                <View style={styles.lineThumbPlaceholder}>
+                  {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+                  <Image src={MONOGRAM_PATH} style={styles.lineThumbMonogram} />
+                </View>
+              )}
+            </View>
+            <View style={styles.colDesc}>
               <Text style={styles.body}>{line.description || "—"}</Text>
               {line.category ? (
                 <Text style={styles.lineCategory}>
@@ -736,6 +749,7 @@ function InvoicePdfDocument({
           {footer}
         </Page>
       ) : null}
+      {extraPages}
     </Document>
   );
 }
@@ -758,18 +772,32 @@ export async function renderInvoicePdfBuffer(input: {
       image_url: await toPdfSafeImage(line.image_url),
     }))
   );
+  const attachments = await loadDocumentAttachments(
+    input.invoice.estimate_request_id,
+    "invoice"
+  );
   const buffer = await renderToBuffer(
     <InvoicePdfDocument
       invoice={{ ...input.invoice, line_items: lineItems }}
       settings={input.settings}
       publicUrl={input.publicUrl}
       generatedAt={generatedAt}
+      extraPages={renderAttachmentPages({
+        attachments,
+        language: input.invoice.language,
+        documentRef: input.invoice.invoice_number,
+      })}
     />
   );
+  const withAttachments = await appendPdfAttachments(
+    Buffer.from(buffer),
+    attachments.pdfs,
+    input.invoice.language
+  );
   if (!hasActivePaymentDocument(input.settings) || !input.settings.payment_document_path) {
-    return Buffer.from(buffer);
+    return withAttachments;
   }
-  return appendPaymentDocument(Buffer.from(buffer), input.settings.payment_document_path);
+  return appendPaymentDocument(withAttachments, input.settings.payment_document_path);
 }
 
 /** Appends the payment document (void cheque) pages; falls back to the invoice alone on any failure. */

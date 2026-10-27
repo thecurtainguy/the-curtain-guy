@@ -4,6 +4,15 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EstimateOption } from "@/data/estimate";
 
+/**
+ * Compact two-up picker sized by its container, not the viewport: one column
+ * when very narrow, two columns from 15rem, icons only from 20rem.
+ * The grid must sit inside an `@container` element.
+ */
+export const COMPACT_OPTION_GRID = "grid grid-cols-1 gap-2 @[15rem]:grid-cols-2";
+export const COMPACT_OPTION_CARD =
+  "items-center gap-2.5 p-3 [&>span:first-child]:hidden @[20rem]:[&>span:first-child]:flex";
+
 type OptionCardProps = {
   option: EstimateOption;
   selected: boolean;

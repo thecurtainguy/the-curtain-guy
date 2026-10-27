@@ -7,18 +7,24 @@ import type { LucideIcon } from "lucide-react";
 import {
   Building2,
   Calendar,
+  CalendarCheck,
   CheckCircle2,
   ChevronDown,
+  Clock,
   Download,
   FileText,
+  Hammer,
   HelpCircle,
+  Image as ImageIcon,
   MapPin,
   MessageSquarePlus,
+  PackageOpen,
   PartyPopper,
   PencilLine,
   Plus,
   Send,
   Sparkles,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
@@ -44,7 +50,15 @@ import {
   type CustomerSafeQuote,
 } from "@/data/quotes";
 import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
+import { QuoteAttachmentGallery } from "@/components/quotes/quote-attachment-gallery";
+import {
+  getAttachmentCopy,
+  type AttachmentViewItem,
+} from "@/data/estimate-file-kinds";
 import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
+import { UnitPriceCell } from "@/components/quotes/unit-price-cell";
+import { LineItemThumb } from "@/components/quotes/line-item-thumb";
+import { QUOTE_PAYMENT_COPY, quotePaymentRows } from "@/data/quote-payment-terms";
 import {
   getAddOnUpsells,
   getServiceUpsells,
@@ -58,6 +72,11 @@ import {
   quoteEventTypeLabel,
   type QuoteCopy,
 } from "@/data/quote-copy";
+import {
+  QUOTE_SCHEDULE_COPY,
+  quoteScheduleRows,
+  type QuoteScheduleKey,
+} from "@/data/quote-schedule";
 import { siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +89,8 @@ type Props = {
   heroImageSrc?: string;
   /** Owner preview: renders the customer view but never posts actions. */
   preview?: boolean;
+  /** Shared files the owner attached to this quote. */
+  attachments?: AttachmentViewItem[];
 };
 
 type ActionPanel =
@@ -86,10 +107,18 @@ type ActionPayload = {
   sourceKey?: string;
   title?: string;
   acceptedByName?: string;
+  acceptedTerms?: boolean;
+  acceptedTermsLanguage?: CustomerLanguage;
   declinedByName?: string;
 };
 
 const FEATURED_UPSELL_COUNT = 3;
+
+const SCHEDULE_ICONS: Record<QuoteScheduleKey, LucideIcon> = {
+  install: Hammer,
+  event: PartyPopper,
+  teardown: PackageOpen,
+};
 
 function StatTile({
   icon: Icon,
@@ -233,10 +262,14 @@ export function QuoteProposalView({
   shareUrl,
   heroImageSrc,
   preview = false,
+  attachments = [],
 }: Props) {
   const router = useRouter();
   const language = quote.language;
   const t = getQuoteCopy(language);
+  const attachmentCopy = getAttachmentCopy(language);
+  const scheduleCopy = QUOTE_SCHEDULE_COPY[language];
+  const scheduleRows = quoteScheduleRows(quote, language);
   const [optimisticStatus, setOptimisticStatus] = useState<
     CustomerSafeQuote["status"] | null
   >(null);
@@ -244,6 +277,7 @@ export function QuoteProposalView({
   const [panel, setPanel] = useState<ActionPanel>(null);
   const [message, setMessage] = useState("");
   const [acceptName, setAcceptName] = useState(quote.customer_name || "");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmNote, setConfirmNote] = useState<string | null>(null);
@@ -352,6 +386,7 @@ export function QuoteProposalView({
       setPanel(null);
       setMessage("");
       setAcceptName(quote.customer_name || "");
+      setAcceptedTerms(false);
       router.refresh();
       return true;
     } catch {
@@ -383,9 +418,18 @@ export function QuoteProposalView({
       setMessage={setMessage}
       acceptName={acceptName}
       setAcceptName={setAcceptName}
+      acceptedTerms={acceptedTerms}
+      setAcceptedTerms={setAcceptedTerms}
       busy={busy}
       t={t}
-      onAction={(payload) => void postAction(payload)}
+      onAction={(payload) =>
+        void postAction({
+          ...payload,
+          ...(payload.action === "accept"
+            ? { acceptedTermsLanguage: language }
+            : {}),
+        })
+      }
     />
   ) : null;
 
@@ -599,6 +643,74 @@ export function QuoteProposalView({
                 value={formatQuoteDate(quote.valid_until, language, t.tbd)}
               />
             </div>
+            {scheduleRows.length > 0 ? (
+              <div className="mt-2 rounded-xl border border-primary/20 bg-primary/[0.04] p-3">
+                <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
+                  {scheduleCopy.title}
+                </p>
+                <div
+                  className={cn(
+                    "mt-2 grid gap-2",
+                    scheduleRows.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
+                  )}
+                >
+                  {scheduleRows.map((row) => {
+                    const Icon = SCHEDULE_ICONS[row.key];
+                    return (
+                      <div
+                        key={row.key}
+                        className="flex items-start gap-2.5 rounded-lg border border-border/35 bg-background/40 p-2.5"
+                      >
+                        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Icon className="size-3.5" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                            {row.label}
+                          </p>
+                          <p className="mt-0.5 text-sm leading-snug text-foreground">
+                            {formatQuoteDate(row.date, language, t.tbd)}
+                          </p>
+                          {row.window ? (
+                            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Clock className="size-3" aria-hidden />
+                              {row.window}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+            {quote.venue_address ? (
+              <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-border/35 bg-background/35 p-3 backdrop-blur-sm">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <MapPin className="size-3.5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    {t.statVenue}
+                  </p>
+                  {quote.venue_name ? (
+                    <p className="mt-0.5 text-sm font-medium leading-snug text-foreground">
+                      {quote.venue_name}
+                    </p>
+                  ) : null}
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      [quote.venue_name, quote.venue_address].filter(Boolean).join(", ")
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm leading-snug text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+                  >
+                    {quote.venue_address}
+                  </a>
+                </div>
+              </div>
+            ) : null}
             {quote.bill_to ? (
               <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-border/35 bg-background/35 p-3 backdrop-blur-sm">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -646,20 +758,21 @@ export function QuoteProposalView({
             title={t.includedTitle}
             description={t.includedDescription}
           >
-            <div className="overflow-hidden rounded-2xl border border-border/35 bg-background/25">
+            <div className="@container overflow-hidden rounded-2xl border border-border/35 bg-background/25">
               {quote.line_items.length === 0 ? (
                 <p className="px-5 py-8 text-center text-sm text-muted-foreground">
                   {t.noLineItems}
                 </p>
               ) : (
                 <>
-                  <div className="hidden border-b border-border/30 px-5 py-2.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.6fr)_80px_128px_110px] sm:gap-3">
+                  <div className="@2xl:grid @2xl:grid-cols-[minmax(0,1fr)_auto_auto_auto] @2xl:gap-x-6">
+                  <div className="hidden border-b border-border/30 px-5 py-2.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground @2xl:col-span-4 @2xl:grid @2xl:grid-cols-subgrid @2xl:gap-x-6">
                     <span>{t.colItem}</span>
                     <span className="text-right">{t.colQty}</span>
                     <span className="text-right">{t.colPrice}</span>
                     <span className="text-right">{t.colAmount}</span>
                   </div>
-                  <ul className="divide-y divide-border/30">
+                  <ul className="divide-y divide-border/30 @2xl:col-span-4 @2xl:grid @2xl:grid-cols-subgrid @2xl:gap-x-6">
                     {quote.line_items.map((item) => {
                       const showMoney =
                         item.status === "priced" || item.status === "approved";
@@ -667,29 +780,15 @@ export function QuoteProposalView({
                       return (
                         <li
                           key={item.id}
-                          className="grid gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1.6fr)_80px_128px_110px] sm:items-center sm:gap-3 sm:px-5"
+                          className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-3 px-4 py-4 sm:px-5 @2xl:col-span-4 @2xl:grid-cols-subgrid @2xl:items-center @2xl:gap-x-6"
                         >
                           <div className="flex min-w-0 gap-3">
-                            <div
-                              className={cn(
-                                "relative size-14 shrink-0 overflow-hidden rounded-xl border sm:size-16",
-                                item.image_url
-                                  ? "border-border/40 bg-muted/30"
-                                  : "border-[#e2d4b0]/40 bg-[#f5efe0] dark:border-primary/20 dark:bg-primary/10"
-                              )}
-                              aria-hidden={!item.image_url}
-                            >
-                              {item.image_url ? (
-                                <Image
-                                  src={item.image_url}
-                                  alt={item.image_alt || item.description}
-                                  fill
-                                  className="object-cover"
-                                  sizes="64px"
-                                  unoptimized
-                                />
-                              ) : null}
-                            </div>
+                            <LineItemThumb
+                              src={item.image_url}
+                              alt={item.image_alt || item.description}
+                              sizes="64px"
+                              className="size-14 rounded-xl @2xl:size-16"
+                            />
                             <div className="min-w-0 space-y-2">
                               <p className="font-medium text-foreground">
                                 {item.description}
@@ -712,30 +811,42 @@ export function QuoteProposalView({
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-muted-foreground sm:hidden">
+                              <p className="text-xs text-muted-foreground @2xl:hidden">
                                 {t.qtyShort}{" "}
                                 {formatQuoteQuantity(item.quantity, item.unit_label, language)}
-                                {showMoney
-                                  ? ` · ${formatQuoteUnitPrice(item.unit_price_cents, item.unit_label || "each", language, quote.currency)}`
-                                  : ""}
+                                {showMoney ? (
+                                  <>
+                                    {" · "}
+                                    <span className="whitespace-nowrap">
+                                      {formatQuoteUnitPrice(item.unit_price_cents, item.unit_label || "each", language, quote.currency)}
+                                    </span>
+                                  </>
+                                ) : null}
                               </p>
                             </div>
                           </div>
-                          <p className="hidden text-right text-sm tabular-nums text-foreground sm:block">
+                          <p className="hidden whitespace-nowrap text-right text-sm tabular-nums text-foreground @2xl:block">
                             {formatQuoteQuantity(item.quantity, item.unit_label, language)}
                           </p>
-                          <p className="hidden text-right text-sm tabular-nums text-muted-foreground sm:block">
-                            {showMoney
-                              ? formatQuoteUnitPrice(item.unit_price_cents, item.unit_label, language, quote.currency)
-                              : "—"}
-                          </p>
-                          <div className="text-left sm:text-right">
+                          <div className="hidden text-right @2xl:block">
+                            {showMoney ? (
+                              <UnitPriceCell
+                                cents={item.unit_price_cents}
+                                unit={item.unit_label}
+                                language={language}
+                                currency={quote.currency}
+                              />
+                            ) : (
+                              <p className="text-sm text-muted-foreground">—</p>
+                            )}
+                          </div>
+                          <div className="text-right">
                             {included ? (
                               <p className="text-sm font-medium text-primary">
                                 {t.included}
                               </p>
                             ) : showMoney ? (
-                              <p className="font-heading text-base font-semibold tabular-nums text-foreground sm:text-lg">
+                              <p className="whitespace-nowrap font-heading text-base font-semibold tabular-nums text-foreground @2xl:text-lg">
                                 {formatMoneyFromCents(item.line_total_cents, language, quote.currency)}
                               </p>
                             ) : (
@@ -746,6 +857,7 @@ export function QuoteProposalView({
                       );
                     })}
                   </ul>
+                  </div>
                   <div className="border-t border-border/40 bg-background/25 px-4 py-4 sm:px-5">
                     <div className="ml-auto w-full max-w-sm">
                       <QuoteTaxBreakdown
@@ -760,6 +872,16 @@ export function QuoteProposalView({
               )}
             </div>
           </GlassSection>
+
+          {attachments.length > 0 ? (
+            <GlassSection
+              icon={ImageIcon}
+              title={attachmentCopy.title}
+              description={attachmentCopy.subtitle}
+            >
+              <QuoteAttachmentGallery items={attachments} language={language} />
+            </GlassSection>
+          ) : null}
 
           {quote.requests.length > 0 ? (
             <GlassSection
@@ -966,8 +1088,43 @@ function TotalCard({
             currency={quote.currency}
           />
         </div>
+        <PaymentSchedule quote={quote} />
       </div>
     </section>
+  );
+}
+
+function PaymentSchedule({ quote }: { quote: CustomerSafeQuote }) {
+  const rows = quotePaymentRows(quote, quote.language);
+  if (rows.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
+        {QUOTE_PAYMENT_COPY[quote.language].title}
+      </p>
+      {rows.map((row) => (
+        <div
+          key={row.key}
+          className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/[0.04] p-3"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            {row.key === "deposit" ? <Wallet className="size-3.5" /> : <CalendarCheck className="size-3.5" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-xs font-medium text-foreground">{row.label}</p>
+              <p className="font-heading text-base font-semibold tabular-nums text-foreground">
+                {formatMoneyFromCents(row.amountCents, quote.language, quote.currency)}
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {row.due}
+              {row.detail ? ` · ${row.detail}` : ""}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -978,6 +1135,8 @@ function RespondCard({
   setMessage,
   acceptName,
   setAcceptName,
+  acceptedTerms,
+  setAcceptedTerms,
   busy,
   t,
   onAction,
@@ -988,6 +1147,8 @@ function RespondCard({
   setMessage: (value: string) => void;
   acceptName: string;
   setAcceptName: (value: string) => void;
+  acceptedTerms: boolean;
+  setAcceptedTerms: (value: boolean) => void;
   busy: boolean;
   t: QuoteCopy;
   onAction: (payload: ActionPayload) => void;
@@ -1088,10 +1249,24 @@ function RespondCard({
                 {t.acceptRecordHint}
               </p>
             </div>
+            <label
+              htmlFor="quote-accept-terms"
+              className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/45 bg-background/45 p-3 text-xs leading-relaxed text-muted-foreground transition-colors hover:border-primary/35 hover:bg-primary/5"
+            >
+              <input
+                id="quote-accept-terms"
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(event) => setAcceptedTerms(event.target.checked)}
+                disabled={busy}
+                className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary"
+              />
+              <span>{t.acceptTermsAcknowledgement}</span>
+            </label>
             <LoadingButton
               type="button"
               className={cn(railBtnPrimary, "w-full")}
-              disabled={acceptName.trim().length < 2}
+              disabled={acceptName.trim().length < 2 || !acceptedTerms}
               isLoading={busy}
               loadingText={t.sending}
               icon={<CheckCircle2 className="size-4" />}
@@ -1099,6 +1274,7 @@ function RespondCard({
                 onAction({
                   action: "accept",
                   acceptedByName: acceptName.trim(),
+                  acceptedTerms,
                 })
               }
             >

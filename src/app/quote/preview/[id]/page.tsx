@@ -10,6 +10,7 @@ import { heroImage } from "@/data/site";
 import { requireOwner } from "@/lib/auth";
 import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { getSiteUrl } from "@/lib/env";
+import { listAttachmentViewItems } from "@/lib/pdf-attachments";
 import {
   fetchQuoteById,
   findActivePublicQuoteUrl,
@@ -61,6 +62,10 @@ export default async function QuoteCustomerPreviewPage({
     { shareUrl }
   );
 
+  const attachments = await listAttachmentViewItems(
+    safe.estimate_request_id,
+    "quote"
+  );
   return (
     <div className="relative min-h-[70vh] py-10 sm:py-14">
       <PageLocale locale={language} />
@@ -71,6 +76,7 @@ export default async function QuoteCustomerPreviewPage({
       <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         <QuoteProposalView
           quote={safe}
+          attachments={attachments}
           mode="public"
           preview
           actionEndpoint=""

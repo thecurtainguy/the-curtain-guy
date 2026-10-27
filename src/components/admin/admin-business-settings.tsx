@@ -431,7 +431,14 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-1.5 lg:col-span-2">
             <Label>Terms (one per line)</Label>
-            <Textarea rows={6} value={settings[textKey("invoice_terms")]} onChange={(e) => set(textKey("invoice_terms"), e.target.value)} />
+            <Textarea
+              rows={10}
+              value={settings[textKey("invoice_terms")]}
+              onChange={(e) => set(textKey("invoice_terms"), e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Each line is numbered separately on the invoice page and PDF.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label>Default notes to client</Label>

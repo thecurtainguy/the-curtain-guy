@@ -1,4 +1,5 @@
 import path from "node:path";
+import type { ReactNode } from "react";
 import {
   Document,
   Page,
@@ -30,8 +31,15 @@ import {
   getQuoteCopy,
   quoteEventTypeLabel,
 } from "@/data/quote-copy";
+import { formatTimeWindow, quoteScheduleRows } from "@/data/quote-schedule";
+import { QUOTE_PAYMENT_COPY, quotePaymentRows } from "@/data/quote-payment-terms";
 import { siteConfig } from "@/data/site";
 import { getLocalizedDocumentTexts } from "@/lib/document-texts";
+import {
+  appendPdfAttachments,
+  loadDocumentAttachments,
+  renderAttachmentPages,
+} from "@/lib/pdf-attachments";
 import { toPdfSafeImage } from "@/lib/pdf-image";
 
 const COLORS = {
@@ -53,6 +61,7 @@ const LOGO_PATH = path.join(
   process.cwd(),
   "public/images/brand/logo-full.png"
 );
+const MONOGRAM_PATH = path.join(process.cwd(), "public/images/brand/logo-monogram.png");
 
 const styles = StyleSheet.create({
   page: {
@@ -255,6 +264,12 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 3,
     backgroundColor: COLORS.goldWash,
+    padding: 2.5,
+  },
+  lineThumbMonogram: {
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
   },
   colDesc: {
     width: "34%",
@@ -295,7 +310,39 @@ const styles = StyleSheet.create({
     marginTop: 8,
     flexDirection: "row",
     justifyContent: "flex-end",
+    alignItems: "flex-start",
+    gap: 10,
   },
+  paymentBox: {
+    flex: 1,
+    maxWidth: 300,
+    marginRight: "auto",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: COLORS.white,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: COLORS.line,
+  },
+  paymentTitle: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    color: COLORS.goldDeep,
+    marginBottom: 5,
+  },
+  paymentRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingVertical: 3,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.line,
+  },
+  paymentLabel: { fontSize: 8, fontFamily: "Helvetica-Bold", color: COLORS.ink },
+  paymentDue: { fontSize: 7.5, color: COLORS.muted, marginTop: 1 },
+  paymentAmount: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: COLORS.ink },
   totalsBox: {
     width: 200,
     paddingVertical: 8,
@@ -344,6 +391,9 @@ const styles = StyleSheet.create({
     marginTop: "auto",
     justifyContent: "flex-end",
     paddingTop: 10,
+  },
+  termsAfterPricing: {
+    marginTop: 10,
   },
   termsCard: {
     borderWidth: 1,
@@ -466,11 +516,16 @@ function IconDot({ color = COLORS.gold }: { color?: string }) {
   );
 }
 
+const wholeWords = (word: string) => [word];
+
+const LONG_NOTES_CHARS = 900;
+const LONG_NOTES_LINES = 12;
+
 function Meta({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.metaRow}>
       <Text style={styles.metaLabel}>{label}</Text>
-      <Text style={styles.metaValue}>{value}</Text>
+      <Text style={styles.metaValue} hyphenationCallback={wholeWords}>{value}</Text>
     </View>
   );
 }
@@ -481,12 +536,14 @@ function QuotePdfDocument({
   generatedAt,
   siteUrl,
   pdfFooter,
+  extraPages,
 }: {
   quote: CustomerSafeQuote;
   publicUrl?: string | null;
   generatedAt: string;
   siteUrl: string;
   pdfFooter: string;
+  extraPages?: ReactNode;
 }) {
   const language = quote.language;
   const t = getQuoteCopy(language);
@@ -525,6 +582,20 @@ function QuotePdfDocument({
       : quote.quote_display_ref
   );
   const whatsappHref = `https://wa.me/?text=${whatsappText}`;
+  const paymentRows = quotePaymentRows(quote, language);
+  const notes = quote.customer_notes?.trim() || "";
+  // Long notes would push the terms off the pricing pages, so they get their own page after the terms.
+  const longNotes = notes.length > LONG_NOTES_CHARS || notes.split("\n").length > LONG_NOTES_LINES;
+  const notesCard = notes ? (
+    <View style={styles.notesCard} break={longNotes}>
+      <Text style={styles.sectionTitle} minPresenceAhead={40}>
+        {t.notesForYou}
+      </Text>
+      <Text style={styles.notesBody} orphans={3} widows={3}>
+        {notes}
+      </Text>
+    </View>
+  ) : null;
 
   return (
     <Document
@@ -537,6 +608,8 @@ function QuotePdfDocument({
       <Page size="LETTER" style={styles.page} wrap>
         <View style={styles.header} fixed={false}>
           <View style={styles.logoWrap}>
+            {/* react-pdf Image does not expose the DOM alt attribute. */}
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image src={LOGO_PATH} style={styles.logo} />
           </View>
           <View style={styles.headerCopy}>
@@ -604,9 +677,35 @@ function QuotePdfDocument({
               label={p.type}
               value={quoteEventTypeLabel(quote.event_type, language) || "—"}
             />
-            <Meta label={p.date} value={formatPdfDate(quote.event_date)} />
-            <Meta label={p.venue} value={quote.venue_name || "—"} />
-            <Meta label={p.cityArea} value={quote.city_area || "—"} />
+            <Meta
+              label={p.date}
+              value={[
+                formatPdfDate(quote.event_date),
+                formatTimeWindow(quote.event_start_time, quote.event_end_time, language),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            />
+            {quoteScheduleRows(quote, language)
+              .filter((row) => row.key !== "event")
+              .map((row) => (
+                <Meta
+                  key={row.key}
+                  label={row.label}
+                  value={
+                    [row.date ? formatPdfDate(row.date) : null, row.window]
+                      .filter(Boolean)
+                      .join(" · ") || "—"
+                  }
+                />
+              ))}
+            <Meta
+              label={p.venue}
+              value={[quote.venue_name, quote.venue_address].filter(Boolean).join("\n") || "—"}
+            />
+            {quote.venue_address ? null : (
+              <Meta label={p.cityArea} value={quote.city_area || "—"} />
+            )}
           </View>
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>{p.client}</Text>
@@ -667,7 +766,10 @@ function QuotePdfDocument({
                   // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
                   <Image src={item.image_url} style={styles.lineThumb} />
                 ) : (
-                  <View style={styles.lineThumbPlaceholder} />
+                  <View style={styles.lineThumbPlaceholder}>
+                    {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image */}
+                    <Image src={MONOGRAM_PATH} style={styles.lineThumbMonogram} />
+                  </View>
                 )}
               </View>
               <View style={styles.colDesc}>
@@ -710,6 +812,23 @@ function QuotePdfDocument({
         )}
 
         <View style={styles.totalsWrap} wrap={false}>
+          {paymentRows.length ? (
+            <View style={styles.paymentBox}>
+              <Text style={styles.paymentTitle}>{QUOTE_PAYMENT_COPY[language].title}</Text>
+              {paymentRows.map((row) => (
+                <View key={row.key} style={styles.paymentRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentLabel}>{row.label}</Text>
+                    <Text style={styles.paymentDue} hyphenationCallback={wholeWords}>
+                      {row.due}
+                      {row.detail ? ` · ${row.detail}` : ""}
+                    </Text>
+                  </View>
+                  <Text style={styles.paymentAmount}>{money(row.amountCents)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <View style={styles.totalsBox}>
             {taxRows.map((row) => {
               const isTotal = row.emphasis === "total";
@@ -731,14 +850,9 @@ function QuotePdfDocument({
           </View>
         </View>
 
-        {quote.customer_notes ? (
-          <View style={styles.notesCard} wrap={false}>
-            <Text style={styles.sectionTitle}>{t.notesForYou}</Text>
-            <Text style={styles.notesBody}>{quote.customer_notes}</Text>
-          </View>
-        ) : null}
+        {notesCard && !longNotes ? notesCard : null}
 
-        <View style={styles.termsDock} wrap={false}>
+        <View style={longNotes ? styles.termsAfterPricing : styles.termsDock}>
           <View style={styles.termsCard}>
             <Text style={styles.sectionTitle}>{t.termsTitle}</Text>
             {terms.map((line, index) => (
@@ -754,6 +868,8 @@ function QuotePdfDocument({
           </View>
         </View>
 
+        {longNotes ? notesCard : null}
+
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
             {siteConfig.name} · {siteConfig.email} · {siteConfig.phone} ·{" "}
@@ -768,6 +884,7 @@ function QuotePdfDocument({
           </Text>
         </View>
       </Page>
+      {extraPages}
     </Document>
   );
 }
@@ -796,6 +913,10 @@ export async function renderQuotePdfBuffer(input: {
     line_items: lineItems,
     terms: input.quote.terms?.trim() || copy["quote.terms"],
   };
+  const attachments = await loadDocumentAttachments(
+    input.quote.estimate_request_id,
+    "quote"
+  );
   const buffer = await renderToBuffer(
     <QuotePdfDocument
       quote={quote}
@@ -803,7 +924,12 @@ export async function renderQuotePdfBuffer(input: {
       generatedAt={generatedAt}
       siteUrl={siteUrl}
       pdfFooter={copy["quote.pdf_footer"]}
+      extraPages={renderAttachmentPages({
+        attachments,
+        language,
+        documentRef: input.quote.quote_display_ref,
+      })}
     />
   );
-  return Buffer.from(buffer);
+  return appendPdfAttachments(Buffer.from(buffer), attachments.pdfs, language);
 }

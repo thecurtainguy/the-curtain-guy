@@ -391,8 +391,9 @@ export function AdminQuoteSendDialog({
                       Opportunity files
                     </p>
                     {uploadedOpportunityFiles.map((file) => {
-                      const checked = selectedFileIds.includes(file.id);
-                      const ready = file.upload_status === "uploaded";
+                      const internal = file.customer_visible === false;
+                      const checked = !internal && selectedFileIds.includes(file.id);
+                      const ready = file.upload_status === "uploaded" && !internal;
                       return (
                         <label
                           key={file.id}
@@ -417,7 +418,11 @@ export function AdminQuoteSendDialog({
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {formatFileSize(file.file_size_bytes)}
-                              {!ready ? " · uploading…" : ""}
+                              {internal
+                                ? " · internal, never sent to the customer"
+                                : !ready
+                                  ? " · uploading…"
+                                  : ""}
                             </span>
                           </span>
                           <span className="rounded-full border border-border/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">

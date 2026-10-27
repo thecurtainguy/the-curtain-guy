@@ -16,6 +16,7 @@ import { OpportunityFilesPanel } from "@/components/estimates/opportunity-files-
 import { PortalBackLink } from "@/components/portal/portal-back-link";
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
+import { listAttachmentViewItems } from "@/lib/pdf-attachments";
 import { normalizeCustomerLanguage } from "@/data/customer-language";
 import { resolveQuoteTerms } from "@/lib/document-texts";
 import {
@@ -101,6 +102,10 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
     (file) => file.customer_visible !== false
   );
 
+  const attachments = await listAttachmentViewItems(
+    safe.estimate_request_id,
+    "quote"
+  );
   return (
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
@@ -144,6 +149,7 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
           </section>
           <QuoteProposalView
             quote={safe}
+            attachments={attachments}
             mode="account"
             actionEndpoint={`/api/quotes/${id}/customer-action`}
             pdfUrl={`/api/quotes/${id}/pdf`}

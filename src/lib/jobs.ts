@@ -12,6 +12,7 @@ import {
 } from "@/data/jobs";
 import type { QuoteLineItemRow, QuoteRow } from "@/data/quotes";
 import { formatQuoteDisplayRef } from "@/data/quotes";
+import { formatVenueAddress, type CustomerVenueRow } from "@/data/customers";
 import { isEmailVerified } from "@/lib/auth";
 import { fetchCustomerById } from "@/lib/customers";
 import type { EstimateRequestRow } from "@/lib/estimate-access";
@@ -326,6 +327,40 @@ export async function getCustomerJob(
   };
 }
 
+/**
+ * Structured job address from the quote. Uses the saved venue's fields when the quote's
+ * address snapshot still matches it; otherwise keeps the address exactly as typed.
+ */
+async function jobVenueFieldsFromQuote(
+  quote: QuoteRow,
+  estimate: { venue_name?: string | null; city_area?: string | null } | null
+) {
+  const fallback = {
+    venue_name: quote.venue_name ?? estimate?.venue_name ?? null,
+    venue_address: quote.venue_address ?? null,
+    venue_city: quote.city_area ?? estimate?.city_area ?? null,
+    venue_region: null as string | null,
+    venue_postal_code: null as string | null,
+    venue_country: "Canada",
+  };
+  if (!quote.customer_venue_id) return fallback;
+  const { data } = await createAdminSupabaseClient()
+    .from("customer_venues")
+    .select("*")
+    .eq("id", quote.customer_venue_id)
+    .maybeSingle();
+  const venue = data as CustomerVenueRow | null;
+  if (!venue || formatVenueAddress(venue) !== (quote.venue_address ?? "")) return fallback;
+  return {
+    venue_name: quote.venue_name ?? venue.name,
+    venue_address: venue.address,
+    venue_city: venue.city ?? fallback.venue_city,
+    venue_region: venue.region,
+    venue_postal_code: venue.postal_code,
+    venue_country: venue.country || "Canada",
+  };
+}
+
 export async function createJobFromQuote(
   quoteId: string,
   actorUserId: string | null,
@@ -357,6 +392,7 @@ export async function createJobFromQuote(
   const customerId = quote.customer_id ?? estimate?.customer_id ?? null;
   const customer = customerId ? await fetchCustomerById(customerId) : null;
   const admin = createAdminSupabaseClient();
+  const venueFields = await jobVenueFieldsFromQuote(quote, estimate);
   const insertPayload = {
     opportunity_ref: quote.opportunity_ref,
     estimate_request_id: quote.estimate_request_id,
@@ -371,10 +407,16 @@ export async function createJobFromQuote(
     event_name: null,
     event_type: quote.event_type ?? estimate?.event_type ?? null,
     event_date: quote.event_date ?? estimate?.event_date ?? null,
+    event_start_time: quote.event_start_time ?? null,
+    event_end_time: quote.event_end_time ?? null,
+    install_date: quote.install_date ?? null,
+    install_start_time: quote.install_start_time ?? null,
+    install_end_time: quote.install_end_time ?? null,
+    teardown_date: quote.teardown_date ?? null,
+    teardown_start_time: quote.teardown_start_time ?? null,
+    teardown_end_time: quote.teardown_end_time ?? null,
     guest_count: estimate?.guest_count ?? null,
-    venue_name: quote.venue_name ?? estimate?.venue_name ?? null,
-    venue_city: quote.city_area ?? estimate?.city_area ?? null,
-    venue_country: "Canada",
+    ...venueFields,
     status: "draft" as JobStatus,
     currency: quote.currency,
     accepted_quote_total_cents: quote.total_cents,

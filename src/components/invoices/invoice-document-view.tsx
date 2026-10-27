@@ -1,4 +1,3 @@
-import Image from "next/image";
 import {
   Banknote,
   Building2,
@@ -9,7 +8,6 @@ import {
   FileSignature,
   Landmark,
   Mail,
-  Package,
   Receipt,
   UserRound,
   Wallet,
@@ -33,11 +31,12 @@ import {
 import {
   formatMoneyFromCents,
   formatQuoteQuantity,
-  formatQuoteUnitPrice,
   quoteLineCategoryLabel,
 } from "@/data/quotes";
 import { formatQuoteDate, quoteEventTypeLabel } from "@/data/quote-copy";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
+import { UnitPriceCell } from "@/components/quotes/unit-price-cell";
+import { LineItemThumb } from "@/components/quotes/line-item-thumb";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -89,7 +88,6 @@ export function InvoiceDocumentView({
   const due = computeAmountDue(invoice);
   const taxRows = getInvoiceTaxRows(invoice, { variant: "customer", language });
   const methods = visiblePaymentMethods(settings.payment_methods, language, invoice.currency);
-  const showThumbs = invoice.line_items.some((line) => line.image_url);
   const terms = splitInvoiceTerms(invoice.terms);
   const hasDeposit = invoice.deposit_mode !== "none" && invoice.deposit_cents > 0;
   const schedule = invoicePaymentSchedule(invoice);
@@ -183,6 +181,18 @@ export function InvoiceDocumentView({
           ) : null}
           <p className="text-sm text-muted-foreground">{date(invoice.event_date)}</p>
           <p className="text-sm text-muted-foreground">{invoice.venue_name || "—"}</p>
+          {invoice.venue_address ? (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                [invoice.venue_name, invoice.venue_address].filter(Boolean).join(", ")
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline"
+            >
+              {invoice.venue_address}
+            </a>
+          ) : null}
         </Card>
         <Card icon={Building2} title={settings.trade_name}>
           <p className="font-medium">{settings.legal_name}</p>
@@ -216,24 +226,12 @@ export function InvoiceDocumentView({
                 <tr key={line.id} className="border-b border-border/30 align-top">
                   <td className="py-2.5 pr-4">
                     <div className="flex items-start gap-3">
-                      {showThumbs ? (
-                        <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
-                          {line.image_url ? (
-                            <Image
-                              src={line.image_url}
-                              alt={line.image_alt || line.description}
-                              fill
-                              className="object-cover"
-                              sizes="40px"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="flex size-full items-center justify-center text-primary/50">
-                              <Package className="size-4" />
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
+                      <LineItemThumb
+                        src={line.image_url}
+                        alt={line.image_alt || line.description}
+                        sizes="40px"
+                        className="size-10 rounded-lg"
+                      />
                       <div className="min-w-0">
                         <p>{line.description}</p>
                         {line.category ? (
@@ -244,13 +242,18 @@ export function InvoiceDocumentView({
                       </div>
                     </div>
                   </td>
-                  <td className="py-2.5 text-right tabular-nums text-muted-foreground">
+                  <td className="whitespace-nowrap py-2.5 pl-4 text-right tabular-nums text-muted-foreground">
                     {formatQuoteQuantity(line.quantity, line.unit_label, language)}
                   </td>
-                  <td className="py-2.5 text-right tabular-nums text-muted-foreground">
-                    {formatQuoteUnitPrice(line.unit_price_cents, line.unit_label, language, invoice.currency)}
+                  <td className="py-2.5 pl-4 text-right">
+                    <UnitPriceCell
+                      cents={line.unit_price_cents}
+                      unit={line.unit_label}
+                      language={language}
+                      currency={invoice.currency}
+                    />
                   </td>
-                  <td className="py-2.5 text-right tabular-nums">{money(line.line_total_cents)}</td>
+                  <td className="whitespace-nowrap py-2.5 pl-4 text-right tabular-nums">{money(line.line_total_cents)}</td>
                 </tr>
               ))}
             </tbody>

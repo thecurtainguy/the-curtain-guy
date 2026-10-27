@@ -42,6 +42,7 @@ export default async function AdminQuotesPage() {
     customer_name: row.customer_name,
     customer_email: row.customer_email,
     total_cents: row.total_cents,
+    currency: row.currency,
     event_date: row.event_date,
     revision_number: row.revision_number,
     sent_at: row.sent_at,

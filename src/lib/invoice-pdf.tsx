@@ -107,12 +107,22 @@ const styles = StyleSheet.create({
     marginTop: 5,
     borderWidth: 1,
     borderRadius: 10,
-    paddingVertical: 2,
-    paddingHorizontal: 7,
+    paddingTop: 3,
+    paddingBottom: 1.6,
+    paddingLeft: 8,
+    paddingRight: 5,
     fontSize: 7.5,
+    lineHeight: 1,
     fontFamily: "Helvetica-Bold",
     letterSpacing: 1,
     textTransform: "uppercase",
+  },
+  onlineLink: {
+    marginTop: 4,
+    color: COLORS.goldDeep,
+    fontSize: 8.5,
+    fontFamily: "Helvetica-Bold",
+    textDecoration: "none",
   },
   grid: { flexDirection: "row", gap: 8, marginBottom: 12 },
   panel: {
@@ -187,6 +197,7 @@ const styles = StyleSheet.create({
   },
   colThumb: { width: "7%", paddingRight: 6 },
   colDesc: { width: "45%", paddingRight: 10 },
+  colDescWide: { width: "52%", paddingRight: 10 },
   lineThumb: { width: 22, height: 22, borderRadius: 3, objectFit: "cover" },
   lineThumbPlaceholder: { width: 22, height: 22, borderRadius: 3, backgroundColor: COLORS.goldWash },
   lineCategory: {
@@ -365,6 +376,8 @@ function InvoicePdfDocument({
   const statusLabel = INVOICE_STATUS_LABELS[language][displayStatus];
   const addressLines = businessAddressLines(settings);
   const methods = visiblePaymentMethods(settings.payment_methods, language, invoice.currency);
+  const showThumbs = invoice.line_items.some((line) => line.image_url);
+  const descStyle = showThumbs ? styles.colDesc : styles.colDescWide;
   const terms = splitInvoiceTerms(invoice.terms);
   const footerText = businessText(settings, "invoice_footer", language);
   const payTitle = businessText(settings, "payment_page_title", language);
@@ -385,8 +398,9 @@ function InvoicePdfDocument({
     row.dueDate ? `${date(row.dueDate)}${row.isEventDay ? ` (${t.scheduleEventDay})` : ""}` : t.dueOnReceipt;
   const scheduleDateText = (row: InvoiceScheduleRow) =>
     row.dueDate ? `${row.kind === "deposit" ? t.dueBy : t.scheduleDueOn} ${scheduleDay(row)}` : t.dueOnReceipt;
+  const billToCompany = invoice.company_name?.trim() || null;
   const billToLines = [
-    invoice.company_name,
+    billToCompany ? invoice.customer_name : null,
     ...(invoice.billing_address || "").split(/\r?\n/),
     invoice.customer_email,
     invoice.customer_phone,
@@ -472,7 +486,7 @@ function InvoicePdfDocument({
         <View style={styles.grid} wrap={false}>
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>{t.billTo}</Text>
-            <Text style={styles.strong}>{invoice.customer_name || "—"}</Text>
+            <Text style={styles.strong}>{billToCompany || invoice.customer_name || "—"}</Text>
             {billToLines.map((line, index) => (
               <Text key={`${index}-${line}`} style={styles.bodyMuted}>
                 {line}
@@ -506,8 +520,8 @@ function InvoicePdfDocument({
         </View>
 
         <View style={styles.tableHeader}>
-          <View style={styles.colThumb} />
-          <View style={styles.colDesc}>
+          {showThumbs ? <View style={styles.colThumb} /> : null}
+          <View style={descStyle}>
             <Text style={styles.th}>{t.description}</Text>
           </View>
           <View style={styles.colQty}>
@@ -522,15 +536,17 @@ function InvoicePdfDocument({
         </View>
         {invoice.line_items.map((line) => (
           <View key={line.id} style={styles.tr} wrap={false}>
-            <View style={styles.colThumb}>
-              {line.image_url ? (
-                // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
-                <Image src={line.image_url} style={styles.lineThumb} />
-              ) : (
-                <View style={styles.lineThumbPlaceholder} />
-              )}
-            </View>
-            <View style={styles.colDesc}>
+            {showThumbs ? (
+              <View style={styles.colThumb}>
+                {line.image_url ? (
+                  // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
+                  <Image src={line.image_url} style={styles.lineThumb} />
+                ) : (
+                  <View style={styles.lineThumbPlaceholder} />
+                )}
+              </View>
+            ) : null}
+            <View style={descStyle}>
               <Text style={styles.body}>{line.description || "—"}</Text>
               {line.category ? (
                 <Text style={styles.lineCategory}>
@@ -700,7 +716,7 @@ function InvoicePdfDocument({
               <View style={[styles.card, { flex: 1 }]}>
                 <Text style={styles.sectionTitle}>{businessText(settings, "payment_document_label", language)}</Text>
                 <Text style={styles.body}>
-                  {t.documentAttached(businessText(settings, "payment_document_label", language))}
+                  {t.documentAttached}
                 </Text>
               </View>
             ) : null}
@@ -710,8 +726,8 @@ function InvoicePdfDocument({
                 {settings.email} · {settings.phone} · {settings.website}
               </Text>
               {publicUrl ? (
-                <Link src={publicUrl} style={[styles.bodyMuted, { marginTop: 3 }]}>
-                  {publicUrl}
+                <Link src={publicUrl} style={styles.onlineLink}>
+                  {t.viewOnline}
                 </Link>
               ) : null}
             </View>

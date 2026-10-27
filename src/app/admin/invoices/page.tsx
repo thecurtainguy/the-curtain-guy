@@ -45,6 +45,7 @@ export default async function AdminInvoicesPage() {
     due_date: inv.due_date,
     event_date: inv.event_date,
     total_cents: inv.total_cents,
+    currency: inv.currency,
     amount_paid_cents: inv.amount_paid_cents,
     balance_due_cents: inv.balance_due_cents,
   }));

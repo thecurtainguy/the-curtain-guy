@@ -10,7 +10,7 @@ import {
 } from "@/components/portal/list";
 import {
   QUOTE_STATUSES,
-  formatCadFromCents,
+  formatMoneyFromCents,
   formatQuoteRevisionLabel,
   resolveQuoteDisplayRef,
   type QuoteStatus,
@@ -24,6 +24,7 @@ export type AdminQuoteListRow = {
   customer_name: string | null;
   customer_email: string;
   total_cents: number;
+  currency: string;
   event_date: string | null;
   revision_number: number;
   sent_at: string | null;
@@ -107,7 +108,7 @@ const columns: PortalListColumn<AdminQuoteListRow>[] = [
     align: "right",
     render: (row) => (
       <span className="font-medium tabular-nums">
-        {formatCadFromCents(row.total_cents)}
+        {formatMoneyFromCents(row.total_cents, "en", row.currency)}
       </span>
     ),
   },

@@ -1,7 +1,7 @@
 import {
   customerQuoteDisplayRef,
   customerQuoteLineStatus,
-  formatCadFromCents,
+  formatMoneyFromCents,
   formatQuoteFilenameStem,
   formatQuoteQuantity,
   getQuoteTaxBreakdownRows,
@@ -87,6 +87,7 @@ export type QuoteEmailComposeDefaultsInput = {
     | "manual_tax_lines"
     | "total_before_tax_cents"
     | "total_tax_cents"
+    | "currency"
   >;
   emailNote?: string;
   defaultBcc?: string;
@@ -248,12 +249,14 @@ export function buildQuoteReadyEmailParts(input: {
   const { quote, publicQuoteUrl, bodyText, emailFooter } = input;
   const language = quoteLanguage(quote);
   const e = getQuoteCopy(language).mail;
-  const money = (cents: number) => formatCadFromCents(cents, language);
+  const money = (cents: number) =>
+    formatMoneyFromCents(cents, language, quote.currency);
   const displayRef = customerQuoteDisplayRef(quote);
   const eventBits = getQuoteEmailEventBits(quote);
   const taxRows = getQuoteTaxBreakdownRows(quote, {
     variant: "customer",
     language,
+    currency: quote.currency,
   });
   const colon = (label: string) => labelWithColon(label, language);
   const showOpportunity = !displayRef.includes(quote.opportunity_ref);

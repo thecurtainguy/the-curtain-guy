@@ -15,7 +15,7 @@ import {
   invoiceDisplayStatus,
   type InvoiceRow,
 } from "@/data/invoices";
-import { formatCadFromCents } from "@/data/quotes";
+import { formatMoneyFromCents } from "@/data/quotes";
 import { Button } from "@/components/ui/button";
 
 export type AdminInvoiceListRow = Pick<
@@ -30,6 +30,7 @@ export type AdminInvoiceListRow = Pick<
   | "due_date"
   | "event_date"
   | "total_cents"
+  | "currency"
   | "amount_paid_cents"
   | "balance_due_cents"
 >;
@@ -89,7 +90,7 @@ const columns: PortalListColumn<AdminInvoiceListRow>[] = [
     sortable: true,
     sortType: "number",
     sortValue: (row) => row.total_cents,
-    render: (row) => <span className="tabular-nums">{formatCadFromCents(row.total_cents)}</span>,
+    render: (row) => <span className="tabular-nums">{formatMoneyFromCents(row.total_cents, "en", row.currency)}</span>,
   },
   {
     id: "paid",
@@ -98,7 +99,7 @@ const columns: PortalListColumn<AdminInvoiceListRow>[] = [
     sortType: "number",
     sortValue: (row) => row.amount_paid_cents,
     render: (row) => (
-      <span className="tabular-nums text-muted-foreground">{formatCadFromCents(row.amount_paid_cents)}</span>
+      <span className="tabular-nums text-muted-foreground">{formatMoneyFromCents(row.amount_paid_cents, "en", row.currency)}</span>
     ),
   },
   {
@@ -109,7 +110,7 @@ const columns: PortalListColumn<AdminInvoiceListRow>[] = [
     sortValue: (row) => row.balance_due_cents,
     render: (row) => (
       <span className="font-medium tabular-nums">
-        {row.status === "void" ? "—" : formatCadFromCents(row.balance_due_cents)}
+        {row.status === "void" ? "—" : formatMoneyFromCents(row.balance_due_cents, "en", row.currency)}
       </span>
     ),
   },

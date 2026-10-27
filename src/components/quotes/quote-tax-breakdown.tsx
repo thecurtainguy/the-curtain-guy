@@ -1,5 +1,5 @@
 import {
-  formatCadFromCents,
+  formatMoneyFromCents,
   getQuoteTaxBreakdownRows,
   type QuoteRow,
 } from "@/data/quotes";
@@ -26,14 +26,16 @@ export function QuoteTaxBreakdown({
   quote,
   variant = "customer",
   language = "en",
+  currency = "CAD",
   className,
 }: {
   quote: QuoteTaxFields;
   variant?: "admin" | "customer";
   language?: CustomerLanguage;
+  currency?: string | null;
   className?: string;
 }) {
-  const rows = getQuoteTaxBreakdownRows(quote, { variant, language });
+  const rows = getQuoteTaxBreakdownRows(quote, { variant, language, currency });
 
   return (
     <dl className={cn("space-y-2", className)}>
@@ -71,7 +73,7 @@ export function QuoteTaxBreakdown({
                     : "text-sm font-medium text-foreground"
               )}
             >
-              {formatCadFromCents(row.amountCents, language)}
+              {formatMoneyFromCents(row.amountCents, language, currency)}
             </dd>
           </div>
         );

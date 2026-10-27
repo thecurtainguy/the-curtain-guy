@@ -8,7 +8,7 @@ import {
   computeAmountDue,
   type InvoiceRow,
 } from "@/data/invoices";
-import { formatCadFromCents } from "@/data/quotes";
+import { formatMoneyFromCents } from "@/data/quotes";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { LoadingButton } from "@/components/ui/loading-button";
 
@@ -101,17 +101,17 @@ export function AdminJobInvoices({
                   <div className="grid grid-cols-3 gap-4 text-right text-sm tabular-nums">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Total</p>
-                      <p>{formatCadFromCents(invoice.total_cents)}</p>
+                      <p>{formatMoneyFromCents(invoice.total_cents, "en", invoice.currency)}</p>
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Paid</p>
-                      <p>{formatCadFromCents(invoice.amount_paid_cents)}</p>
+                      <p>{formatMoneyFromCents(invoice.amount_paid_cents, "en", invoice.currency)}</p>
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.14em] text-primary">
                         {due.dueNowKind === "deposit" ? "Deposit due" : "Balance"}
                       </p>
-                      <p className="font-semibold">{formatCadFromCents(due.dueNowCents)}</p>
+                      <p className="font-semibold">{formatMoneyFromCents(due.dueNowCents, "en", invoice.currency)}</p>
                     </div>
                   </div>
                   <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />

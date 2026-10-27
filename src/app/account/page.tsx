@@ -52,6 +52,7 @@ export default async function AccountHomePage() {
     opportunity_ref: row.opportunity_ref,
     revision_number: row.revision_number,
     total_cents: row.total_cents,
+    currency: row.currency,
     event_type: row.event_type,
     updated_at: row.updated_at,
   }));

@@ -15,7 +15,7 @@ import {
 import {
   DEFAULT_QUOTE_TERMS,
   DEFAULT_QUOTE_TERMS_FR,
-  formatCadFromCents,
+  formatMoneyFromCents,
   formatQuoteQuantity,
   formatQuoteUnitPrice,
   getQuoteTaxBreakdownRows,
@@ -491,6 +491,8 @@ function QuotePdfDocument({
   const language = quote.language;
   const t = getQuoteCopy(language);
   const p = t.pdf;
+  const currency = quote.currency === "USD" ? "USD" : "CAD";
+  const money = (cents: number) => formatMoneyFromCents(cents, language, currency);
   const formatPdfDate = (value: string | null | undefined) =>
     formatQuoteDate(value, language, "—");
   const pricedItems = quote.line_items.filter(
@@ -499,6 +501,7 @@ function QuotePdfDocument({
   const taxRows = getQuoteTaxBreakdownRows(quote, {
     variant: "customer",
     language,
+    currency,
   });
   const terms = splitQuoteTerms(
     quote.terms,
@@ -544,7 +547,7 @@ function QuotePdfDocument({
               {quote.valid_until
                 ? `  ·  ${p.validUntil} ${formatPdfDate(quote.valid_until)}`
                 : ""}
-              {"  ·  CAD"}
+              {`  ·  ${currency}`}
             </Text>
             <Text style={styles.headerTag}>
               {p.tagline} · {p.motto}
@@ -607,13 +610,23 @@ function QuotePdfDocument({
           </View>
           <View style={styles.panel}>
             <Text style={styles.panelTitle}>{p.client}</Text>
-            <Meta label={p.name} value={quote.customer_name || "—"} />
+            {quote.bill_to?.company_name ? (
+              <>
+                <Meta label={p.company} value={quote.bill_to.company_name} />
+                <Meta label={p.contact} value={quote.customer_name || "—"} />
+              </>
+            ) : (
+              <Meta label={p.name} value={quote.customer_name || "—"} />
+            )}
             <Meta label={t.email} value={quote.customer_email || "—"} />
+            {quote.bill_to?.address ? (
+              <Meta label={p.billingAddress} value={quote.bill_to.address} />
+            ) : null}
             <Meta
               label={p.status}
               value={quoteStatusLabel(quote.status, language)}
             />
-            <Meta label={p.currency} value="CAD" />
+            <Meta label={p.currency} value={currency} />
           </View>
         </View>
 
@@ -680,7 +693,8 @@ function QuotePdfDocument({
                     : formatQuoteUnitPrice(
                         item.unit_price_cents,
                         item.unit_label,
-                        language
+                        language,
+                        currency
                       )}
                 </Text>
               </View>
@@ -688,7 +702,7 @@ function QuotePdfDocument({
                 <Text style={[styles.cell, styles.cellRight]}>
                   {item.status === "included"
                     ? t.included
-                    : formatCadFromCents(item.line_total_cents, language)}
+                    : money(item.line_total_cents)}
                 </Text>
               </View>
             </View>
@@ -709,7 +723,7 @@ function QuotePdfDocument({
                   <Text
                     style={isTotal ? styles.totalFinalValue : styles.totalValue}
                   >
-                    {formatCadFromCents(row.amountCents, language)}
+                    {money(row.amountCents)}
                   </Text>
                 </View>
               );

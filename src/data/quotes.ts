@@ -253,7 +253,15 @@ export function formatQuoteUnitPrice(
   currency: string | null | undefined = "CAD"
 ): string {
   const suffix = formatQuoteUnitSuffix(unit, language);
-  const price = formatMoneyFromCents(unitPriceCents, language, currency);
+  const cents = Number(unitPriceCents) || 0;
+  const price = Number.isInteger(cents)
+    ? formatMoneyFromCents(cents, language, currency)
+    : new Intl.NumberFormat(customerLocaleTag(language), {
+        style: "currency",
+        currency: currency === "USD" ? "USD" : "CAD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      }).format(cents / 100);
   return suffix ? `${price} ${suffix}` : price;
 }
 
@@ -618,6 +626,14 @@ export type CustomerSafeQuote = {
   line_items: QuoteLineItemRow[];
   requests: QuoteCustomerRequestRow[];
   share_url?: string | null;
+  /** From the linked customer profile, when it has a company or billing address. */
+  bill_to?: QuoteBillTo | null;
+};
+
+export type QuoteBillTo = {
+  company_name: string | null;
+  /** Multi-line billing address. */
+  address: string | null;
 };
 
 export type QuoteTaxTotalsInput = {
@@ -746,7 +762,7 @@ const TAX_ROW_LABELS: Record<
     gst: string;
     qst: string;
     tax: string;
-    total: string;
+    total: (currency: string | null | undefined) => string;
   }
 > = {
   en: {
@@ -756,7 +772,7 @@ const TAX_ROW_LABELS: Record<
     gst: "GST",
     qst: "QST",
     tax: "Tax",
-    total: "Total CAD",
+    total: (currency) => `Total ${currency === "USD" ? "USD" : "CAD"}`,
   },
   fr: {
     subtotal: "Sous-total",
@@ -765,7 +781,7 @@ const TAX_ROW_LABELS: Record<
     gst: "TPS",
     qst: "TVQ",
     tax: "Taxe",
-    total: "Total ($ CA)",
+    total: (currency) => `Total (${currency === "USD" ? "$ US" : "$ CA"})`,
   },
 };
 
@@ -794,7 +810,11 @@ export function getQuoteTaxBreakdownRows(
     | "manual_tax_lines"
     | "total_cents"
   >,
-  options?: { variant?: "admin" | "customer"; language?: CustomerLanguage }
+  options?: {
+    variant?: "admin" | "customer";
+    language?: CustomerLanguage;
+    currency?: string | null;
+  }
 ): QuoteTaxBreakdownRow[] {
   const variant = options?.variant ?? "customer";
   const language = options?.language ?? "en";
@@ -871,7 +891,7 @@ export function getQuoteTaxBreakdownRows(
 
   rows.push({
     key: "total",
-    label: labels.total,
+    label: labels.total(options?.currency),
     amountCents: quote.total_cents || 0,
     emphasis: "total",
   });

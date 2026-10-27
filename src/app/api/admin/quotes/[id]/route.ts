@@ -8,6 +8,7 @@ import {
   type QuoteTaxMode,
 } from "@/data/quotes";
 import { isCustomerLanguage } from "@/data/customer-language";
+import { isCustomerCurrency } from "@/data/customers";
 import { requireOwner } from "@/lib/auth";
 import {
   fetchQuoteById,
@@ -111,6 +112,15 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
     updates.language = body.language;
+  }
+  if ("currency" in body) {
+    if (!isCustomerCurrency(body.currency)) {
+      return NextResponse.json(
+        { ok: false, message: "Invalid currency." },
+        { status: 400 }
+      );
+    }
+    updates.currency = body.currency;
   }
   if ("status" in body && typeof body.status === "string") {
     if (!isQuoteStatus(body.status)) {

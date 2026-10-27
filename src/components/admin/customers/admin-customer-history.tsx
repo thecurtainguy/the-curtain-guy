@@ -172,7 +172,7 @@ export function AdminCustomerHistory({ history }: { history: CustomerHistory }) 
                   title={quote.quote_display_ref}
                   subtitle={`Created ${formatDate(quote.created_at)}${quote.event_date ? ` · Event ${formatDate(quote.event_date)}` : ""} · ${(quote.language ?? "en").toUpperCase()}`}
                   badge={<Pill>{QUOTE_STATUS_LABELS[quote.status as QuoteStatus] ?? humanize(quote.status)}</Pill>}
-                  meta={formatMoneyFromCents(quote.total_cents, "en", "CAD")}
+                  meta={formatMoneyFromCents(quote.total_cents, "en", quote.currency)}
                 />
               ))
             ) : (
@@ -205,7 +205,11 @@ export function AdminCustomerHistory({ history }: { history: CustomerHistory }) 
                   meta={
                     <span className={p.kind === "refund" ? "text-destructive" : "text-primary"}>
                       {p.kind === "refund" ? "−" : ""}
-                      {formatMoneyFromCents(p.amount_cents, "en", "CAD")}
+                      {formatMoneyFromCents(
+                        p.amount_cents,
+                        "en",
+                        history.invoices.find((inv) => inv.id === p.invoice_id)?.currency
+                      )}
                     </span>
                   }
                 />

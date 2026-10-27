@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
+  Building2,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -35,7 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  formatCadFromCents,
+  formatMoneyFromCents,
   formatQuoteQuantity,
   formatQuoteUnitPrice,
   getCustomerRevisionNumber,
@@ -598,6 +599,40 @@ export function QuoteProposalView({
                 value={formatQuoteDate(quote.valid_until, language, t.tbd)}
               />
             </div>
+            {quote.bill_to ? (
+              <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-border/35 bg-background/35 p-3 backdrop-blur-sm">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Building2 className="size-3.5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    {t.billedTo}
+                  </p>
+                  {quote.bill_to.company_name ? (
+                    <p className="mt-0.5 text-sm font-medium leading-snug text-foreground">
+                      {quote.bill_to.company_name}
+                    </p>
+                  ) : null}
+                  {quote.customer_name ? (
+                    <p
+                      className={cn(
+                        "leading-snug",
+                        quote.bill_to.company_name
+                          ? "mt-0.5 text-xs text-muted-foreground"
+                          : "mt-0.5 text-sm font-medium text-foreground"
+                      )}
+                    >
+                      {quote.customer_name}
+                    </p>
+                  ) : null}
+                  {quote.bill_to.address ? (
+                    <p className="mt-0.5 whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
+                      {quote.bill_to.address}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </GlassSection>
 
           {/* Mobile / tablet: total + respond early */}
@@ -681,7 +716,7 @@ export function QuoteProposalView({
                                 {t.qtyShort}{" "}
                                 {formatQuoteQuantity(item.quantity, item.unit_label, language)}
                                 {showMoney
-                                  ? ` · ${formatQuoteUnitPrice(item.unit_price_cents, item.unit_label || "each", language)}`
+                                  ? ` · ${formatQuoteUnitPrice(item.unit_price_cents, item.unit_label || "each", language, quote.currency)}`
                                   : ""}
                               </p>
                             </div>
@@ -691,7 +726,7 @@ export function QuoteProposalView({
                           </p>
                           <p className="hidden text-right text-sm tabular-nums text-muted-foreground sm:block">
                             {showMoney
-                              ? formatQuoteUnitPrice(item.unit_price_cents, item.unit_label, language)
+                              ? formatQuoteUnitPrice(item.unit_price_cents, item.unit_label, language, quote.currency)
                               : "—"}
                           </p>
                           <div className="text-left sm:text-right">
@@ -701,7 +736,7 @@ export function QuoteProposalView({
                               </p>
                             ) : showMoney ? (
                               <p className="font-heading text-base font-semibold tabular-nums text-foreground sm:text-lg">
-                                {formatCadFromCents(item.line_total_cents, language)}
+                                {formatMoneyFromCents(item.line_total_cents, language, quote.currency)}
                               </p>
                             ) : (
                               <p className="text-sm text-muted-foreground">—</p>
@@ -717,6 +752,7 @@ export function QuoteProposalView({
                         quote={quote}
                         variant="customer"
                         language={language}
+                        currency={quote.currency}
                       />
                     </div>
                   </div>
@@ -908,7 +944,7 @@ function TotalCard({
       <div className="relative space-y-4">
         <div className="border-b border-border/35 pb-4">
           <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
-            {t.totalTitle}
+            {t.totalTitle(quote.currency)}
           </p>
           <p
             className={cn(
@@ -916,7 +952,7 @@ function TotalCard({
               compact ? "text-3xl" : "text-4xl"
             )}
           >
-            {formatCadFromCents(quote.total_cents, quote.language)}
+            {formatMoneyFromCents(quote.total_cents, quote.language, quote.currency)}
           </p>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             {t.totalHint}
@@ -927,6 +963,7 @@ function TotalCard({
             quote={quote}
             variant="customer"
             language={quote.language}
+            currency={quote.currency}
           />
         </div>
       </div>

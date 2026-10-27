@@ -73,6 +73,16 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
                 {customerLink.company_name ? ` · ${customerLink.company_name}` : ""}
                 {customerLink.quoteCc.length ? ` · Cc ${customerLink.quoteCc.join(", ")}` : ""}
               </span>
+              <span className="ml-2 inline-flex gap-1.5 align-middle">
+                <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  {customerLink.currency}
+                </span>
+                {customerLink.tax_exempt ? (
+                  <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    Tax exempt
+                  </span>
+                ) : null}
+              </span>
             </span>
             <span className="text-xs text-muted-foreground">Open profile →</span>
           </Link>
@@ -138,6 +148,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
           }
           categories={categories}
           defaultCc={customerLink?.quoteCc ?? []}
+          customer={customerLink}
         />
       </div>
     </AdminPageFrame>

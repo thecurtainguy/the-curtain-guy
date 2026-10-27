@@ -438,13 +438,10 @@ export function getInvoiceTaxRows(
   > & { currency?: string | null },
   options?: { variant?: "admin" | "customer"; language?: CustomerLanguage }
 ): QuoteTaxBreakdownRow[] {
-  const rows = getQuoteTaxBreakdownRows(
+  return getQuoteTaxBreakdownRows(
     { ...invoice, manual_tax_label: null },
-    options
+    { ...options, currency: invoice.currency }
   );
-  if (invoice.currency !== "USD") return rows;
-  const label = getInvoiceCopy(options?.language ?? "en").totalIn("USD");
-  return rows.map((row) => (row.emphasis === "total" ? { ...row, label } : row));
 }
 
 export function sumPaymentsCents(
@@ -759,7 +756,7 @@ export const INVOICE_COPY = {
     neq: "NEQ",
     downloadPdf: "Download PDF",
     paymentReference: "Payment reference",
-    documentAttached: (label: string) => `${label} is attached as the last page of this invoice PDF.`,
+    documentAttached: "Attached as the last page of this invoice PDF.",
     scheduleTitle: "Payment schedule",
     scheduleDeposit: "Deposit",
     scheduleBalance: "Remaining balance",
@@ -769,6 +766,7 @@ export const INVOICE_COPY = {
     scheduleUpcoming: "To pay",
     remainingAfterDeposit: (amount: string, date: string) => `Then ${amount} due ${date}`,
     questions: "Questions about this invoice?",
+    viewOnline: "View this invoice online",
     pageOf: (page: number, total: number) => `Page ${page} of ${total}`,
     emailSubject: (number: string, business: string) => `Invoice ${number} · ${business}`,
     emailGreeting: (name: string | null) => (name ? `Hi ${name},` : "Hello,"),
@@ -813,7 +811,7 @@ export const INVOICE_COPY = {
     neq: "NEQ",
     downloadPdf: "Télécharger le PDF",
     paymentReference: "Référence de paiement",
-    documentAttached: (label: string) => `${label} : à la dernière page de ce PDF de facture.`,
+    documentAttached: "Joint en dernière page de ce PDF de facture.",
     scheduleTitle: "Échéancier de paiement",
     scheduleDeposit: "Dépôt",
     scheduleBalance: "Solde restant",
@@ -823,6 +821,7 @@ export const INVOICE_COPY = {
     scheduleUpcoming: "À payer",
     remainingAfterDeposit: (amount: string, date: string) => `Puis ${amount} payable le ${date}`,
     questions: "Des questions sur cette facture?",
+    viewOnline: "Consulter cette facture en ligne",
     pageOf: (page: number, total: number) => `Page ${page} de ${total}`,
     emailSubject: (number: string, business: string) => `Facture ${number} · ${business}`,
     emailGreeting: (name: string | null) => (name ? `Bonjour ${name},` : "Bonjour,"),

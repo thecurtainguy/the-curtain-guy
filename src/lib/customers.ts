@@ -397,6 +397,7 @@ export type CustomerHistory = {
       | "total_cents"
       | "event_date"
       | "language"
+      | "currency"
       | "created_at"
       | "updated_at"
     >
@@ -420,7 +421,7 @@ export async function fetchCustomerHistory(customerId: string): Promise<Customer
       .order("created_at", { ascending: false }),
     admin
       .from("quotes")
-      .select("id, quote_display_ref, opportunity_ref, revision_number, status, total_cents, event_date, language, created_at, updated_at")
+      .select("id, quote_display_ref, opportunity_ref, revision_number, status, total_cents, currency, event_date, language, created_at, updated_at")
       .eq("customer_id", customerId)
       .order("created_at", { ascending: false }),
     admin

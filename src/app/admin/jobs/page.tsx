@@ -34,6 +34,7 @@ export default async function AdminJobsPage() {
     checklist_total: row.checklist_total,
     quote_display_ref: row.quote_display_ref,
     accepted_quote_total_cents: row.accepted_quote_total_cents,
+    currency: row.currency,
   }));
 
   return (

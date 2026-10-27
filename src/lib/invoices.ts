@@ -494,7 +494,9 @@ export async function createInvoiceFromJob(
   const customerId = job.customer_id ?? quote?.customer_id ?? null;
   const customer = customerId ? await fetchCustomerById(customerId) : null;
   const defaults = customer ? customerInvoiceDefaults(customer) : null;
-  const language = defaults?.language ?? normalizeCustomerLanguage(quote?.language);
+  const language = quote
+    ? normalizeCustomerLanguage(quote.language)
+    : defaults?.language ?? "en";
   const isFirstActive = !existing.some((inv) => inv.status !== "void");
   const today = todayIsoDate();
   const dueDate = resolveBalanceDueDate({
@@ -571,7 +573,7 @@ export async function createInvoiceFromJob(
         venue_name: job.venue_name,
         issue_date: today,
         due_date: dueDate,
-        currency: defaults?.currency || job.currency || "CAD",
+        currency: quote?.currency || defaults?.currency || job.currency || "CAD",
         tax_mode: taxMode,
         gst_rate: quote?.gst_rate ?? 0.05,
         qst_rate: quote?.qst_rate ?? 0.09975,

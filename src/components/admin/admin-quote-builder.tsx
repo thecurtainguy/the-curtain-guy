@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Building,
   Check,
   Copy,
   Download,
@@ -33,7 +34,7 @@ import {
   unitPriceCentsForLineTotal,
   unitPriceCentsToDollarInput,
   unitPriceDollarsToCents,
-  formatCadFromCents,
+  formatMoneyFromCents,
   formatQuoteRevisionLabel,
   getQuoteCategoryDefaultDescription,
   isZeroPricedQuoteLine,
@@ -58,6 +59,12 @@ import { QuoteTaxBreakdown } from "@/components/quotes/quote-tax-breakdown";
 import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
 import { CustomerLanguagePicker } from "@/components/quotes/customer-language-picker";
 import { CustomerLanguageBadge } from "@/components/quotes/customer-language-badge";
+import { CustomerCurrencyPicker } from "@/components/quotes/customer-currency-picker";
+import type {
+  CustomerCurrency,
+  CustomerLinkSummary,
+  CustomerVenueRow,
+} from "@/data/customers";
 import {
   normalizeCustomerLanguage,
   type CustomerLanguage,
@@ -234,6 +241,10 @@ function lineFromInventory(item: InventoryPickResult): DraftLine {
   };
 }
 
+function quoteCurrency(value: string | null | undefined): CustomerCurrency {
+  return value === "USD" ? "USD" : "CAD";
+}
+
 function lineFromLogistics(item: LogisticsServicePick): DraftLine {
   return {
     key: `new-${crypto.randomUUID()}`,
@@ -262,6 +273,7 @@ export function AdminQuoteBuilder({
   sourceEventPlan = null,
   categories = [],
   defaultCc = [],
+  customer = null,
 }: {
   quote: QuoteWithRelations;
   initialGuestUrl?: string | null;
@@ -269,6 +281,10 @@ export function AdminQuoteBuilder({
   sourceEventPlan?: QuoteSourceEventPlan | null;
   categories?: ProductCategoryRow[];
   defaultCc?: string[];
+  customer?: Pick<
+    CustomerLinkSummary,
+    "id" | "display_name" | "currency" | "tax_exempt" | "venues"
+  > | null;
 }) {
   const categoryOptions = useMemo(
     () => buildQuoteCategoryOptions(categories),
@@ -322,6 +338,9 @@ export function AdminQuoteBuilder({
   const [language, setLanguage] = useState<CustomerLanguage>(
     normalizeCustomerLanguage(quote.language)
   );
+  const [currency, setCurrency] = useState<CustomerCurrency>(
+    quoteCurrency(quote.currency)
+  );
   const [lines, setLines] = useState<DraftLine[]>(() => linesFromQuote(quote));
   const [taxMode, setTaxMode] = useState<QuoteTaxMode>(
     quote.tax_mode || "quebec_gst_qst"
@@ -361,6 +380,7 @@ export function AdminQuoteBuilder({
     setOwnerNotes(source.owner_notes ?? "");
     setTerms(source.terms ?? "");
     setLanguage(normalizeCustomerLanguage(source.language));
+    setCurrency(quoteCurrency(source.currency));
     setLines(linesFromQuote(source));
     setTaxMode(source.tax_mode || "quebec_gst_qst");
     setManualTaxLines(manualTaxLinesFromQuote(source));
@@ -454,8 +474,16 @@ export function AdminQuoteBuilder({
       owner_notes: ownerNotes,
       terms,
       language,
+      currency,
     };
   }
+
+  function applySavedVenue(venue: CustomerVenueRow) {
+    setVenueName(venue.name);
+    if (venue.city) setCityArea(venue.city);
+  }
+
+  const money = (cents: number) => formatMoneyFromCents(cents, "en", currency);
 
   async function fetchDefaultTerms(): Promise<Record<
     CustomerLanguage,
@@ -809,14 +837,14 @@ export function AdminQuoteBuilder({
           <div className="flex flex-col items-stretch gap-3 sm:items-end">
             <div className="text-left sm:text-right">
               <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                Total CAD
+                Total {currency}
               </p>
               <p className="mt-1 font-heading text-3xl font-semibold text-primary">
-                {formatCadFromCents(draftTotals.total_cents)}
+                {money(draftTotals.total_cents)}
               </p>
               {isEditing && draftTotals.total_cents !== quote.total_cents ? (
                 <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                  Saved: {formatCadFromCents(quote.total_cents)} · unsaved changes
+                  Saved: {formatMoneyFromCents(quote.total_cents, "en", quote.currency)} · unsaved changes
                 </p>
               ) : (
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -973,6 +1001,62 @@ export function AdminQuoteBuilder({
           </div>
         </div>
 
+        {isEditing && customer?.venues.length ? (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Saved venues for {customer.display_name}
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {customer.venues.map((venue) => {
+                const active = venue.name === venueName;
+                return (
+                  <button
+                    key={venue.id}
+                    type="button"
+                    onClick={() => applySavedVenue(venue)}
+                    className={cn(
+                      "flex items-start gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors",
+                      active
+                        ? "border-primary/50 bg-primary/10"
+                        : "border-border/40 bg-card/40 hover:border-primary/30"
+                    )}
+                  >
+                    <Building className="mt-0.5 size-4 shrink-0 text-primary" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">{venue.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {[venue.address, venue.city].filter(Boolean).join(", ") || "No address"}
+                      </span>
+                    </span>
+                    {active ? <Check className="size-4 shrink-0 text-primary" /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
+          <div>
+            <Label>Currency</Label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Every amount on the proposal, PDF, and email. Carries over to
+              the job and its invoices.
+            </p>
+          </div>
+          <CustomerCurrencyPicker
+            value={currency}
+            onChange={setCurrency}
+            disabled={!isEditing}
+            customerDefault={customer?.currency ?? null}
+          />
+          {customer && customer.currency !== currency ? (
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              {customer.display_name} is billed in {customer.currency} by default.
+            </p>
+          ) : null}
+        </div>
+
         <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
           <div>
             <Label>Customer language</Label>
@@ -1062,7 +1146,7 @@ export function AdminQuoteBuilder({
           <div>
             <h2 className="font-heading text-lg font-semibold">Line items</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Unit prices in CAD dollars. Includes teardown when needed for
+              Unit prices in {currency} dollars. Includes teardown when needed for
               event close-out.
             </p>
           </div>
@@ -1224,7 +1308,7 @@ export function AdminQuoteBuilder({
                   </div>
                   <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs text-muted-foreground">
-                      CAD {formatQuoteUnitSuffix(line.unitLabel)}
+                      {currency} {formatQuoteUnitSuffix(line.unitLabel)}
                     </Label>
                     <Input
                       inputMode="decimal"
@@ -1311,7 +1395,7 @@ export function AdminQuoteBuilder({
                       </div>
                     ) : (
                       <p className="w-full text-right text-sm font-medium tabular-nums">
-                        {formatCadFromCents(lineTotal)}
+                        {money(lineTotal)}
                       </p>
                     )}
                     {isEditing ? (
@@ -1347,10 +1431,10 @@ export function AdminQuoteBuilder({
             <h2 className="font-heading text-lg font-semibold">Tax</h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {taxMode === "manual"
-                ? "Manual percentage lines on taxable line items. CAD."
+                ? `Manual percentage lines on taxable line items. ${currency}.`
                 : taxMode === "quebec_gst_qst"
-                  ? "Quebec GST 5% + QST 9.975% on taxable line items. CAD."
-                  : "No tax applied. CAD."}
+                  ? `Quebec GST 5% + QST 9.975% on taxable line items. ${currency}.`
+                  : `No tax applied. ${currency}.`}
             </p>
           </div>
         </div>
@@ -1370,6 +1454,21 @@ export function AdminQuoteBuilder({
                 }))}
               />
             </div>
+
+            {customer?.tax_exempt && taxMode !== "none" ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                <span>{customer.display_name} is marked tax exempt on their profile.</span>
+                {isEditing ? (
+                  <button
+                    type="button"
+                    className="font-medium text-primary hover:underline"
+                    onClick={() => setTaxMode("none")}
+                  >
+                    Set to no tax
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
 
             {isEditing ? (
               <div className="flex flex-wrap gap-2">
@@ -1489,7 +1588,7 @@ export function AdminQuoteBuilder({
             <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.18em] text-primary">
               Totals preview
             </p>
-            <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" />
+            <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" currency={currency} />
           </div>
         </div>
       </section>
@@ -1616,7 +1715,7 @@ export function AdminQuoteBuilder({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Unit CAD</Label>
+                      <Label className="text-xs">Unit {currency}</Label>
                       <Input
                         value={convertPrice}
                         onChange={(e) => setConvertPrice(e.target.value)}
@@ -1674,7 +1773,7 @@ export function AdminQuoteBuilder({
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="font-heading text-lg font-semibold">Quote summary</h2>
         <div className="mt-4 rounded-2xl border border-border/40 bg-background/40 p-4">
-          <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" />
+          <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" currency={currency} />
         </div>
         <dl className="mt-4 space-y-2 text-xs text-muted-foreground">
           <div className="flex justify-between gap-2">

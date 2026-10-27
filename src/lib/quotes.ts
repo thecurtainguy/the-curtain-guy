@@ -3,6 +3,7 @@ import {
   DEFAULT_GST_RATE,
   DEFAULT_QST_RATE,
   type CustomerSafeQuote,
+  type QuoteBillTo,
   type QuoteCustomerRequestRow,
   type QuoteEventRow,
   type QuoteEventType,
@@ -31,6 +32,7 @@ import {
 } from "@/data/estimate";
 import { formatEventPlanReference, type EventPlanSubmissionRow } from "@/data/event-plans";
 import { parseEventBuilderBrief } from "@/data/event-builder/brief";
+import { formatCustomerBillingAddress, type CustomerRow } from "@/data/customers";
 import { isEmailVerified } from "@/lib/auth";
 import { fetchCustomerById, findCustomerByEmail } from "@/lib/customers";
 import {
@@ -69,6 +71,7 @@ export type QuoteWithRelations = QuoteRow & {
   line_items: QuoteLineItemRow[];
   requests: QuoteCustomerRequestRow[];
   events?: QuoteEventRow[];
+  bill_to?: QuoteBillTo | null;
 };
 
 function normalizeEmail(email: string | null | undefined): string {
@@ -153,6 +156,7 @@ export function toCustomerSafeQuote(
       .map((item) => ({ ...item, status: customerQuoteLineStatus(item) })),
     requests: quote.requests || [],
     share_url: options?.shareUrl ?? null,
+    bill_to: quote.bill_to ?? null,
   };
 }
 
@@ -229,7 +233,7 @@ export async function fetchQuoteById(
     return null;
   }
 
-  const [{ data: lineItems }, { data: requests }, eventsResult] =
+  const [{ data: lineItems }, { data: requests }, eventsResult, customer] =
     await Promise.all([
       admin
         .from("quote_line_items")
@@ -249,6 +253,9 @@ export async function fetchQuoteById(
             .order("created_at", { ascending: false })
             .limit(200)
         : Promise.resolve({ data: null }),
+      quote.customer_id
+        ? fetchCustomerById(quote.customer_id as string)
+        : Promise.resolve(null),
     ]);
 
   return {
@@ -258,7 +265,15 @@ export async function fetchQuoteById(
     events: options?.includeEvents
       ? ((eventsResult.data || []) as QuoteEventRow[])
       : undefined,
+    bill_to: customer ? quoteBillToFromCustomer(customer) : null,
   };
+}
+
+function quoteBillToFromCustomer(customer: CustomerRow): QuoteBillTo | null {
+  const company = customer.company_name?.trim() || null;
+  const address = formatCustomerBillingAddress(customer) || null;
+  if (!company && !address) return null;
+  return { company_name: company, address };
 }
 
 export async function fetchQuoteByPublicToken(
@@ -445,7 +460,7 @@ export async function createQuoteFromEstimate(input: {
   const displayRef = buildQuoteDisplayRef(opportunityRef, 1);
   const customer = input.estimate.customer_id
     ? await fetchCustomerById(input.estimate.customer_id)
-    : null;
+    : await findCustomerByEmail(input.estimate.customer_email);
   const language =
     input.language ??
     customer?.preferred_language ??
@@ -455,7 +470,7 @@ export async function createQuoteFromEstimate(input: {
     .from("quotes")
     .insert({
       estimate_request_id: input.estimate.id,
-      customer_id: input.estimate.customer_id ?? null,
+      customer_id: input.estimate.customer_id ?? customer?.id ?? null,
       opportunity_ref: opportunityRef,
       revision_number: 1,
       quote_display_ref: displayRef,
@@ -467,8 +482,8 @@ export async function createQuoteFromEstimate(input: {
       venue_name: input.estimate.venue_name,
       city_area: input.estimate.city_area,
       status: "draft",
-      currency: "CAD",
-      tax_mode: "quebec_gst_qst",
+      currency: customer?.currency ?? "CAD",
+      tax_mode: customer?.tax_exempt ? "none" : "quebec_gst_qst",
       gst_rate: DEFAULT_GST_RATE,
       qst_rate: DEFAULT_QST_RATE,
       terms: defaultTerms,
@@ -786,7 +801,7 @@ export async function createQuoteRevision(input: {
       city_area: source.city_area,
       status: "draft",
       language: normalizeCustomerLanguage(source.language),
-      currency: "CAD",
+      currency: source.currency || "CAD",
       tax_mode: source.tax_mode || "quebec_gst_qst",
       gst_rate: Number(source.gst_rate ?? DEFAULT_GST_RATE),
       qst_rate: Number(source.qst_rate ?? DEFAULT_QST_RATE),

@@ -14,7 +14,7 @@ import {
   formatJobRef,
   type JobStatus,
 } from "@/data/jobs";
-import { formatCadFromCents } from "@/data/quotes";
+import { formatMoneyFromCents } from "@/data/quotes";
 import { Button } from "@/components/ui/button";
 
 export type AdminJobListRow = {
@@ -33,6 +33,7 @@ export type AdminJobListRow = {
   checklist_total: number;
   quote_display_ref: string | null;
   accepted_quote_total_cents: number | null;
+  currency: string;
 };
 
 const STATUS_OPTIONS: PortalStatusOption[] = JOB_STATUSES.map((status) => ({
@@ -139,7 +140,7 @@ const columns: PortalListColumn<AdminJobListRow>[] = [
         {row.quote_display_ref || "—"}
         {row.accepted_quote_total_cents != null ? (
           <div className="tabular-nums text-foreground">
-            {formatCadFromCents(row.accepted_quote_total_cents)}
+            {formatMoneyFromCents(row.accepted_quote_total_cents, "en", row.currency)}
           </div>
         ) : null}
       </div>

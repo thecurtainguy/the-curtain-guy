@@ -1,5 +1,5 @@
 import {
-  formatCadFromCents,
+  formatMoneyFromCents,
   resolveQuoteDisplayRef,
   type QuoteRow,
 } from "@/data/quotes";
@@ -135,7 +135,7 @@ export async function sendQuoteOwnerActionNotification(input: {
     `Action: ${input.actionLabel}`,
     input.details || "",
     `Customer: ${input.quote.customer_name || "—"} <${input.quote.customer_email}>`,
-    `Total: ${formatCadFromCents(input.quote.total_cents)} CAD`,
+    `Total: ${formatMoneyFromCents(input.quote.total_cents, "en", input.quote.currency)} ${input.quote.currency || "CAD"}`,
     `Admin: ${adminUrl}`,
   ]
     .filter(Boolean)
@@ -157,7 +157,7 @@ export async function sendQuoteOwnerActionNotification(input: {
       ${escapeEmailHtml(input.quote.customer_name || "Customer")} · ${escapeEmailHtml(input.quote.customer_email)}
     </p>
     <p style="margin:0 0 16px;font-size:16px;color:#d4af37;">
-      ${escapeEmailHtml(formatCadFromCents(input.quote.total_cents))}
+      ${escapeEmailHtml(formatMoneyFromCents(input.quote.total_cents, "en", input.quote.currency))}
     </p>
     <a href="${escapeEmailHtml(adminUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
       Open in admin

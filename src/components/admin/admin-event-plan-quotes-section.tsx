@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Loader2 } from "lucide-react";
 import {
-  formatCadFromCents,
+  formatMoneyFromCents,
   formatQuoteRevisionLabel,
   resolveQuoteDisplayRef,
   type QuoteRow,
@@ -69,7 +69,7 @@ export function AdminEventPlanQuotesSection({
               <span>Latest</span>
               <QuoteStatusBadge status={latest.status} />
               <span className="tabular-nums text-foreground">
-                {formatCadFromCents(latest.total_cents)}
+                {formatMoneyFromCents(latest.total_cents, "en", latest.currency)}
               </span>
             </div>
           ) : (
@@ -136,7 +136,7 @@ export function AdminEventPlanQuotesSection({
                     return revLabel ? <span>{revLabel}</span> : null;
                   })()}
                   <span className="tabular-nums text-foreground">
-                    {formatCadFromCents(quote.total_cents)}
+                    {formatMoneyFromCents(quote.total_cents, "en", quote.currency)}
                   </span>
                 </div>
               </div>

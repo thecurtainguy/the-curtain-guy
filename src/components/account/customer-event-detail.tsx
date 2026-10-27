@@ -19,7 +19,7 @@ import {
 import type { EventJobMessageRow } from "@/data/jobs";
 import {
   customerQuoteLineStatus,
-  formatCadFromCents,
+  formatMoneyFromCents,
   quoteLineCategoryLabel,
 } from "@/data/quotes";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -241,7 +241,7 @@ export function CustomerEventDetail({
           <h2 className="font-heading text-lg font-semibold">What&apos;s included</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Accepted proposal total{" "}
-            {formatCadFromCents(job.accepted_quote_total_cents ?? 0)}
+            {formatMoneyFromCents(job.accepted_quote_total_cents ?? 0, "en", job.currency)}
           </p>
           <ul className="mt-4 divide-y divide-border/40 rounded-2xl border border-border/40">
             {quoteLineItems
@@ -257,7 +257,7 @@ export function CustomerEventDetail({
                   {customerQuoteLineStatus(item) === "included" ? (
                     <p className="text-primary">Included</p>
                   ) : (
-                    <p className="tabular-nums">{formatCadFromCents(item.line_total_cents)}</p>
+                    <p className="tabular-nums">{formatMoneyFromCents(item.line_total_cents, "en", job.currency)}</p>
                   )}
                 </li>
               ))}

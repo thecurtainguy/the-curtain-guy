@@ -25,7 +25,7 @@ import {
   getNextJobStatuses,
   type JobStatus,
 } from "@/data/jobs";
-import { formatCadFromCents, quoteLineCategoryLabel, resolveQuoteDisplayRef } from "@/data/quotes";
+import { formatMoneyFromCents, quoteLineCategoryLabel, resolveQuoteDisplayRef } from "@/data/quotes";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { EstimateFilesList } from "@/components/estimates/estimate-files-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
@@ -677,7 +677,7 @@ export function AdminJobDetail({
               <h2 className="font-heading text-lg font-semibold">Accepted quote</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {resolveQuoteDisplayRef(job.quote)} ·{" "}
-                {formatCadFromCents(job.accepted_quote_total_cents ?? job.quote.total_cents)}
+                {formatMoneyFromCents(job.accepted_quote_total_cents ?? job.quote.total_cents, "en", job.currency)}
               </p>
             </div>
             <Button asChild variant="outline" size="sm">
@@ -697,7 +697,7 @@ export function AdminJobDetail({
                   </p>
                 </div>
                 <p className="tabular-nums text-foreground">
-                  {formatCadFromCents(item.line_total_cents)}
+                  {formatMoneyFromCents(item.line_total_cents, "en", job.currency)}
                 </p>
               </li>
             ))}

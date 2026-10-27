@@ -89,6 +89,7 @@ export function InvoiceDocumentView({
   const due = computeAmountDue(invoice);
   const taxRows = getInvoiceTaxRows(invoice, { variant: "customer", language });
   const methods = visiblePaymentMethods(settings.payment_methods, language, invoice.currency);
+  const showThumbs = invoice.line_items.some((line) => line.image_url);
   const terms = splitInvoiceTerms(invoice.terms);
   const hasDeposit = invoice.deposit_mode !== "none" && invoice.deposit_cents > 0;
   const schedule = invoicePaymentSchedule(invoice);
@@ -167,8 +168,10 @@ export function InvoiceDocumentView({
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card icon={UserRound} title={t.billTo}>
-          <p className="font-medium">{invoice.customer_name || "—"}</p>
-          {invoice.company_name ? <p className="text-sm text-muted-foreground">{invoice.company_name}</p> : null}
+          <p className="font-medium">{invoice.company_name || invoice.customer_name || "—"}</p>
+          {invoice.company_name && invoice.customer_name ? (
+            <p className="text-sm text-muted-foreground">{invoice.customer_name}</p>
+          ) : null}
           {invoice.billing_address ? (
             <p className="whitespace-pre-line text-sm text-muted-foreground">{invoice.billing_address}</p>
           ) : null}
@@ -213,22 +216,24 @@ export function InvoiceDocumentView({
                 <tr key={line.id} className="border-b border-border/30 align-top">
                   <td className="py-2.5 pr-4">
                     <div className="flex items-start gap-3">
-                      <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
-                        {line.image_url ? (
-                          <Image
-                            src={line.image_url}
-                            alt={line.image_alt || line.description}
-                            fill
-                            className="object-cover"
-                            sizes="40px"
-                            unoptimized
-                          />
-                        ) : (
-                          <div className="flex size-full items-center justify-center text-primary/50">
-                            <Package className="size-4" />
-                          </div>
-                        )}
-                      </div>
+                      {showThumbs ? (
+                        <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
+                          {line.image_url ? (
+                            <Image
+                              src={line.image_url}
+                              alt={line.image_alt || line.description}
+                              fill
+                              className="object-cover"
+                              sizes="40px"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="flex size-full items-center justify-center text-primary/50">
+                              <Package className="size-4" />
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                       <div className="min-w-0">
                         <p>{line.description}</p>
                         {line.category ? (
@@ -390,7 +395,7 @@ export function InvoiceDocumentView({
                   {businessText(settings, "payment_document_label", language)}
                 </span>
                 <span className="block text-xs text-muted-foreground">
-                  {t.documentAttached(businessText(settings, "payment_document_label", language))}
+                  {t.documentAttached}
                 </span>
               </span>
               <Download className="size-4 shrink-0 text-primary" />

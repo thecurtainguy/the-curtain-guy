@@ -8,7 +8,7 @@ import {
   type InvoiceWithRelations,
 } from "@/data/invoices";
 import { CUSTOMER_LANGUAGE_LABELS } from "@/data/customer-language";
-import { formatCadFromCents } from "@/data/quotes";
+import { formatMoneyFromCents } from "@/data/quotes";
 import { Dialog } from "@/components/ui/dialog";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
@@ -199,13 +199,13 @@ export function AdminInvoiceSendDialog({
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-border/40 bg-card/30 p-3">
               <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Total</p>
-              <p className="mt-1 font-heading text-lg font-semibold tabular-nums">{formatCadFromCents(invoice.total_cents)}</p>
+              <p className="mt-1 font-heading text-lg font-semibold tabular-nums">{formatMoneyFromCents(invoice.total_cents, "en", invoice.currency)}</p>
             </div>
             <div className="rounded-2xl border border-primary/40 bg-primary/10 p-3 sm:col-span-2">
               <p className="text-[10px] uppercase tracking-[0.14em] text-primary">
                 {due.dueNowKind === "deposit" ? "Deposit requested" : "Amount due"}
               </p>
-              <p className="mt-1 font-heading text-lg font-semibold tabular-nums">{formatCadFromCents(due.dueNowCents)}</p>
+              <p className="mt-1 font-heading text-lg font-semibold tabular-nums">{formatMoneyFromCents(due.dueNowCents, "en", invoice.currency)}</p>
             </div>
           </div>
 

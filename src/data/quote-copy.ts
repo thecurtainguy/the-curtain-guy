@@ -38,6 +38,7 @@ export type QuoteCopy = {
   statVenue: string;
   statCity: string;
   statValidUntil: string;
+  billedTo: string;
 
   includedTitle: string;
   includedDescription: string;
@@ -68,7 +69,7 @@ export type QuoteCopy = {
   addForReview: string;
   sending: string;
 
-  totalTitle: string;
+  totalTitle: (currency: string | null | undefined) => string;
   totalHint: string;
 
   respondTitle: string;
@@ -125,6 +126,9 @@ export type QuoteCopy = {
     cityArea: string;
     client: string;
     name: string;
+    company: string;
+    contact: string;
+    billingAddress: string;
     status: string;
     currency: string;
     scopePricing: string;
@@ -193,6 +197,7 @@ const en: QuoteCopy = {
   statVenue: "Venue",
   statCity: "City",
   statValidUntil: "Valid until",
+  billedTo: "Billed to",
 
   includedTitle: "What’s included",
   includedDescription: "Priced and included items in this proposal.",
@@ -223,7 +228,7 @@ const en: QuoteCopy = {
   addForReview: "Add for review",
   sending: "Sending…",
 
-  totalTitle: "Proposal total · CAD",
+  totalTitle: (currency) => `Proposal total · ${currency === "USD" ? "USD" : "CAD"}`,
   totalHint: "Based on priced and included line items.",
 
   respondTitle: "Respond",
@@ -282,6 +287,9 @@ const en: QuoteCopy = {
     cityArea: "City / area",
     client: "Client",
     name: "Name",
+    company: "Company",
+    contact: "Contact",
+    billingAddress: "Billing address",
     status: "Status",
     currency: "Currency",
     scopePricing: "Scope & pricing",
@@ -355,6 +363,7 @@ const fr: QuoteCopy = {
   statVenue: "Lieu",
   statCity: "Ville",
   statValidUntil: "Valide jusqu’au",
+  billedTo: "Facturé à",
 
   includedTitle: "Ce qui est inclus",
   includedDescription: "Articles tarifés et inclus dans cette soumission.",
@@ -387,7 +396,7 @@ const fr: QuoteCopy = {
   addForReview: "Ajouter pour révision",
   sending: "Envoi…",
 
-  totalTitle: "Total de la soumission · $ CA",
+  totalTitle: (currency) => `Total de la soumission · ${currency === "USD" ? "$ US" : "$ CA"}`,
   totalHint: "Basé sur les articles tarifés et inclus.",
 
   respondTitle: "Répondre",
@@ -447,6 +456,9 @@ const fr: QuoteCopy = {
     cityArea: "Ville / secteur",
     client: "Client",
     name: "Nom",
+    company: "Entreprise",
+    contact: "Personne-ressource",
+    billingAddress: "Adresse de facturation",
     status: "Statut",
     currency: "Devise",
     scopePricing: "Portée et prix",

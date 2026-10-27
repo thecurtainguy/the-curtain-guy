@@ -131,13 +131,9 @@ export function NotFoundStage({ portal }: NotFoundStageProps) {
             ? { opacity: 1 }
             : { opacity: 0, filter: "blur(12px)", scale: 1.04 }
         }
-        animate={
-          prefersReducedMotion
-            ? { opacity: 1 }
-            : { opacity: 1, filter: "blur(0px)", scale: 1 }
-        }
+        animate={{ opacity: 1, filter: "blur(0px)", scale: 1 }}
         transition={{
-          duration: motionDurations.hero,
+          duration: prefersReducedMotion ? 0 : motionDurations.hero,
           ease: premiumEase,
           delay: 0.05,
         }}

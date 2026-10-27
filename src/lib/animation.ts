@@ -83,10 +83,26 @@ export const revealVariants: Record<
   },
 };
 
-/** Reduced-motion: opacity only — no translate/scale/blur. */
+/**
+ * Reduced-motion: opacity only. `visible` still resets transform/filter instantly because
+ * SSR renders the full variant's hidden state (blur, offset) before the media query is known.
+ */
 export const reducedReveal = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    scale: 1,
+    filter: "blur(0px)",
+    transition: {
+      duration: 0.2,
+      x: { duration: 0 },
+      y: { duration: 0 },
+      scale: { duration: 0 },
+      filter: { duration: 0 },
+    },
+  },
 } as const;
 
 export const pageTransitionVariants = {

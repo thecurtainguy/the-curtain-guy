@@ -88,7 +88,7 @@ export function InvoiceDocumentView({
   const date = (value: string | null | undefined) => formatQuoteDate(value, language, "—");
   const due = computeAmountDue(invoice);
   const taxRows = getInvoiceTaxRows(invoice, { variant: "customer", language });
-  const methods = visiblePaymentMethods(settings.payment_methods, language);
+  const methods = visiblePaymentMethods(settings.payment_methods, language, invoice.currency);
   const terms = splitInvoiceTerms(invoice.terms);
   const hasDeposit = invoice.deposit_mode !== "none" && invoice.deposit_cents > 0;
   const schedule = invoicePaymentSchedule(invoice);

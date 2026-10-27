@@ -56,6 +56,19 @@ export const PAYMENT_METHOD_KINDS = [
 ] as const;
 export type PaymentMethodKind = (typeof PAYMENT_METHOD_KINDS)[number];
 
+export const PAYMENT_CURRENCIES = ["CAD", "USD"] as const;
+export type PaymentCurrency = (typeof PAYMENT_CURRENCIES)[number];
+
+/** Interac e-Transfer is CAD-only, and Canadian banks (incl. Wealthsimple) won't take USD cheques. */
+export function defaultPaymentMethodCurrencies(kind: PaymentMethodKind): PaymentCurrency[] {
+  return kind === "etransfer" || kind === "cheque" ? ["CAD"] : ["CAD", "USD"];
+}
+
+export function paymentMethodAcceptsCurrency(method: PaymentMethod, currency: string | null | undefined): boolean {
+  const target: PaymentCurrency = currency === "USD" ? "USD" : "CAD";
+  return (method.currencies ?? defaultPaymentMethodCurrencies(method.kind)).includes(target);
+}
+
 /** French (`_fr`) values are optional; blank ones fall back to English. */
 export type PaymentMethodField = {
   label: string;
@@ -73,6 +86,8 @@ export type PaymentMethod = {
   fields: PaymentMethodField[];
   instructions: string;
   instructions_fr?: string;
+  /** Invoice currencies this method is offered for. */
+  currencies?: PaymentCurrency[];
 };
 
 export const BALANCE_DUE_RULES = [
@@ -629,13 +644,14 @@ function localized(english: string, french: string | undefined, language: Custom
   return language === "fr" && french?.trim() ? french : english;
 }
 
-/** Methods shown to clients in their language — enabled, with blank fields dropped. */
+/** Methods shown to clients in their language — enabled for this currency, with blank fields dropped. */
 export function visiblePaymentMethods(
   methods: PaymentMethod[],
-  language: CustomerLanguage = "en"
+  language: CustomerLanguage = "en",
+  currency?: string | null
 ): PaymentMethod[] {
   return methods
-    .filter((method) => method.enabled)
+    .filter((method) => method.enabled && (currency === undefined || paymentMethodAcceptsCurrency(method, currency)))
     .map((method) => ({
       ...method,
       label: localized(method.label, method.label_fr, language),
@@ -672,6 +688,9 @@ export function normalizePaymentMethods(value: unknown): PaymentMethod[] {
           }))
           .slice(0, 12)
       : [];
+    const currencies = Array.isArray(record.currencies)
+      ? PAYMENT_CURRENCIES.filter((c) => (record.currencies as unknown[]).includes(c))
+      : [];
     result.push({
       id: String(record.id || `${kind}-${result.length}`).slice(0, 60),
       kind,
@@ -681,6 +700,7 @@ export function normalizePaymentMethods(value: unknown): PaymentMethod[] {
       fields,
       instructions: String(record.instructions ?? "").slice(0, 1000),
       instructions_fr: String(record.instructions_fr ?? "").slice(0, 1000),
+      currencies: currencies.length > 0 ? currencies : defaultPaymentMethodCurrencies(kind),
     });
   }
   return result.slice(0, 12);

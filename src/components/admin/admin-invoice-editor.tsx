@@ -39,6 +39,7 @@ import {
   getInvoiceTaxRows,
   paymentMethodLabel,
   todayIsoDate,
+  visiblePaymentMethods,
   type DepositMode,
   type InvoiceWithRelations,
   type PaymentMethod,
@@ -868,6 +869,12 @@ export function AdminInvoiceEditor({
                         </button>
                       ))}
                     </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Client sees:{" "}
+                      {visiblePaymentMethods(paymentMethods, "en", form.currency)
+                        .map((m) => m.label)
+                        .join(", ") || "no payment methods — check Billing settings"}
+                    </p>
                   </div>
                 </div>
                 {customerLink ? (

@@ -11,6 +11,7 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarPlus,
+  Check,
   Eye,
   FileCheck2,
   FileSignature,
@@ -25,7 +26,9 @@ import {
   Wallet,
 } from "lucide-react";
 import {
+  defaultPaymentMethodCurrencies,
   formatInvoiceNumber,
+  PAYMENT_CURRENCIES,
   type BalanceDueRule,
   type BusinessSettings,
   type PaymentMethod,
@@ -456,7 +459,7 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
         description={
           lang === "fr"
             ? "Editing the French version. Blank French fields fall back to the English text shown in grey."
-            : "Enabled methods appear on page 2 of every invoice and on the client’s invoice page. Empty fields are hidden."
+            : "Enabled methods appear on page 2 of every invoice and on the client’s invoice page, only for the invoice currencies you tick. Empty fields are hidden."
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -475,6 +478,7 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
                   label: "New method",
                   fields: [{ label: "Details", value: "" }],
                   instructions: "",
+                  currencies: ["CAD", "USD"],
                 },
               ])
             }
@@ -527,6 +531,37 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
                   </button>
                 </div>
                 <div className="space-y-3 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Offer on</span>
+                    {PAYMENT_CURRENCIES.map((currency) => {
+                      const current = method.currencies ?? defaultPaymentMethodCurrencies(method.kind);
+                      const on = current.includes(currency);
+                      return (
+                        <button
+                          key={currency}
+                          type="button"
+                          role="switch"
+                          aria-checked={on}
+                          disabled={on && current.length === 1}
+                          title={on && current.length === 1 ? "Turn the method off instead" : undefined}
+                          onClick={() =>
+                            updateMethod(index, {
+                              currencies: on ? current.filter((c) => c !== currency) : PAYMENT_CURRENCIES.filter((c) => c === currency || current.includes(c)),
+                            })
+                          }
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed",
+                            on ? "border-primary/40 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:border-primary/30"
+                          )}
+                        >
+                          <span className={cn("flex size-3.5 items-center justify-center rounded-full border", on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/50")}>
+                            {on ? <Check className="size-2.5" /> : null}
+                          </span>
+                          {currency} invoices
+                        </button>
+                      );
+                    })}
+                  </div>
                   {method.fields.map((field, fieldIndex) => (
                     <div key={fieldIndex} className="grid grid-cols-[120px_minmax(0,1fr)_auto] gap-2">
                       <Input

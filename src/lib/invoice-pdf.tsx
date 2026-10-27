@@ -364,7 +364,7 @@ function InvoicePdfDocument({
   const displayStatus = invoiceDisplayStatus(invoice);
   const statusLabel = INVOICE_STATUS_LABELS[language][displayStatus];
   const addressLines = businessAddressLines(settings);
-  const methods = visiblePaymentMethods(settings.payment_methods, language);
+  const methods = visiblePaymentMethods(settings.payment_methods, language, invoice.currency);
   const terms = splitInvoiceTerms(invoice.terms);
   const footerText = businessText(settings, "invoice_footer", language);
   const payTitle = businessText(settings, "payment_page_title", language);

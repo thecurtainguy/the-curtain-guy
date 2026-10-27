@@ -248,7 +248,7 @@ function StatementDocument({ customer, invoices, payments, settings, language, g
     { invoiced: 0, paid: 0, owing: 0, overdue: 0 }
   );
   const address = formatCustomerBillingAddress(customer);
-  const methods = visiblePaymentMethods(settings.payment_methods, language);
+  const methods = visiblePaymentMethods(settings.payment_methods, language, currency);
   const footer = (
     <View style={styles.footer} fixed>
       <Text style={styles.footerText}>

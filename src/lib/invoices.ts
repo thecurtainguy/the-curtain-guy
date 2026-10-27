@@ -35,7 +35,7 @@ import {
 } from "@/data/quotes";
 import type { EventJobRow } from "@/data/jobs";
 import { formatVenueAddress } from "@/data/customers";
-import { quotePaymentTermsFrom } from "@/data/quote-payment-terms";
+import { quotePaymentTermsFrom, resolveQuoteDueDate } from "@/data/quote-payment-terms";
 import { resolveProductCategoryLabelFr, type ProductCategoryRow } from "@/data/product-categories";
 import { listProductCategories } from "@/lib/product-categories";
 import { getBusinessSettings } from "@/lib/business-settings";
@@ -508,20 +508,30 @@ export async function createInvoiceFromJob(
   const quoteTerms = isFirstActive && quote ? quotePaymentTermsFrom(quote) : null;
   const acceptedTerms =
     quoteTerms?.payment_deposit_mode && quoteTerms.payment_balance_due_rule ? quoteTerms : null;
-  const dueDate = resolveBalanceDueDate({
-    rule:
-      acceptedTerms?.payment_balance_due_rule ??
-      defaults?.balance_due_rule ??
-      settings.default_balance_due_rule,
-    days:
-      acceptedTerms?.payment_balance_due_days ??
-      defaults?.balance_due_days ??
-      settings.default_due_days,
-    issueDate: today,
-    eventDate: job.event_date,
-  });
+  const dueDate = acceptedTerms
+    ? resolveQuoteDueDate({
+        rule: acceptedTerms.payment_balance_due_rule!,
+        days: acceptedTerms.payment_balance_due_days ?? 0,
+        date: acceptedTerms.payment_balance_due_date,
+        issueDate: today,
+        eventDate: job.event_date,
+        validUntil: quote?.valid_until,
+      })
+    : resolveBalanceDueDate({
+        rule: defaults?.balance_due_rule ?? settings.default_balance_due_rule,
+        days: defaults?.balance_due_days ?? settings.default_due_days,
+        issueDate: today,
+        eventDate: job.event_date,
+      });
   const depositDueDate = acceptedTerms
-    ? today
+    ? resolveQuoteDueDate({
+        rule: acceptedTerms.payment_deposit_due_rule ?? "on_acceptance",
+        days: 0,
+        date: acceptedTerms.payment_deposit_due_date,
+        issueDate: today,
+        eventDate: job.event_date,
+        validUntil: quote?.valid_until,
+      })
     : [addDaysIso(today, settings.default_deposit_due_days), dueDate].sort()[0];
   const depositMode: DepositMode = acceptedTerms
     ? acceptedTerms.payment_deposit_mode!
@@ -655,6 +665,7 @@ export async function createInvoiceFromJob(
         acceptedTerms?.payment_balance_due_rule ??
         defaults?.balance_due_rule ??
         settings.default_balance_due_rule,
+      deposit_due_rule: acceptedTerms ? acceptedTerms.payment_deposit_due_rule ?? "on_acceptance" : null,
       terms_from_quote: Boolean(acceptedTerms),
     },
   });

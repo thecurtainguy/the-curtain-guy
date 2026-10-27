@@ -2,7 +2,8 @@ import {
   customerLocaleTag,
   type CustomerLanguage,
 } from "@/data/customer-language";
-import type { BalanceDueRule, DepositMode } from "@/data/invoices";
+import type { DepositMode } from "@/data/invoices";
+import type { QuoteBalanceDueRule, QuoteDepositDueRule } from "@/data/quote-payment-terms";
 
 export const QUOTE_STATUSES = [
   "draft",
@@ -528,8 +529,11 @@ export type QuoteRow = {
   payment_deposit_mode?: DepositMode | null;
   payment_deposit_percent?: number | null;
   payment_deposit_fixed_cents?: number | null;
-  payment_balance_due_rule?: BalanceDueRule | null;
+  payment_deposit_due_rule?: QuoteDepositDueRule | null;
+  payment_deposit_due_date?: string | null;
+  payment_balance_due_rule?: QuoteBalanceDueRule | null;
   payment_balance_due_days?: number | null;
+  payment_balance_due_date?: string | null;
   status: QuoteStatus;
   /** Customer-facing language for proposal page, PDF, and emails. */
   language?: CustomerLanguage | null;
@@ -646,8 +650,11 @@ export type CustomerSafeQuote = {
   payment_deposit_mode: DepositMode | null;
   payment_deposit_percent: number | null;
   payment_deposit_fixed_cents: number | null;
-  payment_balance_due_rule: BalanceDueRule | null;
+  payment_deposit_due_rule: QuoteDepositDueRule | null;
+  payment_deposit_due_date: string | null;
+  payment_balance_due_rule: QuoteBalanceDueRule | null;
   payment_balance_due_days: number | null;
+  payment_balance_due_date: string | null;
   status: QuoteStatus;
   language: CustomerLanguage;
   currency: string;

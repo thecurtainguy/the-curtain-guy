@@ -10,6 +10,7 @@ import {
   Copy,
   Download,
   Eye,
+  FilePlus2,
   FileText,
   Loader2,
   Package,
@@ -86,6 +87,7 @@ import { DocumentTextPreviewButton } from "@/components/admin/document-text-prev
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { AdminQuotePreviewDialog } from "@/components/admin/admin-quote-preview-dialog";
 import { AdminQuoteSendDialog } from "@/components/admin/admin-quote-send-dialog";
+import { AdminQuoteDuplicateDialog } from "@/components/admin/admin-quote-duplicate-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
 import { QuoteCustomerCard } from "@/components/admin/quote-customer-card";
@@ -306,6 +308,7 @@ export function AdminQuoteBuilder({
   studioPanel = null,
   bookingActions = null,
   paymentDefaults = FALLBACK_PAYMENT_DEFAULTS,
+  hasStudioDesigns = false,
 }: {
   quote: QuoteWithRelations;
   initialGuestUrl?: string | null;
@@ -323,6 +326,8 @@ export function AdminQuoteBuilder({
   bookingActions?: ReactNode;
   /** Customer defaults, falling back to the business defaults, for new payment terms. */
   paymentDefaults?: QuotePaymentDefaults;
+  /** Offers copying studio designs in the duplicate dialog. */
+  hasStudioDesigns?: boolean;
 }) {
   const categoryOptions = useMemo(
     () => buildQuoteCategoryOptions(categories),
@@ -417,6 +422,8 @@ export function AdminQuoteBuilder({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sendDialogKey, setSendDialogKey] = useState(0);
   const [revising, setRevising] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateKey, setDuplicateKey] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [publicUrl, setPublicUrl] = useState<string | null>(initialGuestUrl);
@@ -1660,6 +1667,7 @@ export function AdminQuoteBuilder({
           defaults={paymentDefaults}
           totalCents={draftTotals.total_cents}
           eventDate={eventDate || null}
+          validUntil={validUntil || null}
           currency={currency}
           disabled={!isEditing}
         />
@@ -1998,13 +2006,28 @@ export function AdminQuoteBuilder({
             </Button>
             <Button
               type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (isEditing) {
+                  flash(undefined, "Save or cancel edits before duplicating.");
+                  return;
+                }
+                setDuplicateKey((key) => key + 1);
+                setDuplicateOpen(true);
+              }}
+            >
+              <Copy className="size-4" />
+              Duplicate
+            </Button>
+            <Button
+              type="button"
               variant="ghost"
               size="sm"
-              className="col-span-2"
               onClick={() => void createRevision()}
               disabled={revising}
             >
-              {revising ? <Loader2 className="size-4 animate-spin" /> : <Copy className="size-4" />}
+              {revising ? <Loader2 className="size-4 animate-spin" /> : <FilePlus2 className="size-4" />}
               Create revision
             </Button>
           </div>
@@ -2085,6 +2108,17 @@ export function AdminQuoteBuilder({
         hasUnsavedChanges={isEditing}
         onSend={() => void sendQuote()}
       />
+      {duplicateOpen ? (
+        <AdminQuoteDuplicateDialog
+          key={duplicateKey}
+          open={duplicateOpen}
+          onOpenChange={setDuplicateOpen}
+          quote={quote}
+          customer={customer}
+          opportunityFiles={opportunityFiles}
+          hasStudioDesigns={hasStudioDesigns}
+        />
+      ) : null}
       {sendDialogOpen ? (
         <AdminQuoteSendDialog
           key={sendDialogKey}

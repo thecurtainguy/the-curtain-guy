@@ -157,12 +157,15 @@ export function QuoteScheduleFields({
   draft,
   onChange,
   disabled,
+  idPrefix = "",
 }: {
   eventDate: string;
   onEventDateChange: (value: string) => void;
   draft: QuoteScheduleDraft;
   onChange: (patch: Partial<QuoteScheduleDraft>) => void;
   disabled: boolean;
+  /** Keeps input ids unique when a second copy renders on the same page. */
+  idPrefix?: string;
 }) {
   const installWarning =
     eventDate && draft.installDate && draft.installDate > eventDate
@@ -183,7 +186,7 @@ export function QuoteScheduleFields({
       <div className="@container mt-3">
         <div className="grid gap-3 @[46rem]:grid-cols-3">
           <ScheduleTile
-            id="install"
+            id={`${idPrefix}install`}
             icon={Hammer}
             title="Install"
             hint="Optional"
@@ -198,7 +201,7 @@ export function QuoteScheduleFields({
             warning={installWarning}
           />
           <ScheduleTile
-            id="event"
+            id={`${idPrefix}event`}
             icon={CalendarDays}
             title="Event"
             hint="Time window optional"
@@ -212,7 +215,7 @@ export function QuoteScheduleFields({
             highlight
           />
           <ScheduleTile
-            id="teardown"
+            id={`${idPrefix}teardown`}
             icon={PackageOpen}
             title="Teardown"
             hint="Optional"

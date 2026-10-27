@@ -5,39 +5,73 @@ import {
   Banknote,
   CalendarCheck,
   CalendarClock,
-  CircleSlash,
+  CalendarDays,
   FileClock,
+  Handshake,
+  Hourglass,
   Wallet,
 } from "lucide-react";
 import { OptionCard } from "@/components/estimate/option-card";
 import { ToggleTile } from "@/components/admin/customers/customer-panel";
+import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { BalanceDueRule, DepositMode } from "@/data/invoices";
+import { computeDepositCents, type DepositMode } from "@/data/invoices";
 import {
   defaultQuotePaymentTerms,
   hasQuotePaymentTerms,
   NO_QUOTE_PAYMENT_TERMS,
+  quoteDueRuleUsesDays,
   quotePaymentRows,
+  type QuoteBalanceDueRule,
+  type QuoteDepositDueRule,
   type QuotePaymentDefaults,
   type QuotePaymentTerms,
 } from "@/data/quote-payment-terms";
+import { formatQuoteDate } from "@/data/quote-copy";
 import { formatMoneyFromCents } from "@/data/quotes";
 import { cn } from "@/lib/utils";
 
-const DEPOSIT_OPTIONS: Array<{ id: DepositMode; label: string; description: string; icon: typeof Wallet }> = [
-  { id: "none", label: "No deposit", description: "Full amount on the balance date", icon: CircleSlash },
-  { id: "percent", label: "Percentage", description: "Share of the quote total", icon: BadgePercent },
-  { id: "fixed", label: "Fixed amount", description: "Same amount whatever the total", icon: Banknote },
+type Option<T extends string> = { id: T; label: string; description: string; icon: typeof Wallet };
+
+const DEPOSIT_OPTIONS: Array<Option<DepositMode>> = [
+  { id: "none", label: "Pay in full", description: "One payment, no deposit", icon: Wallet },
+  { id: "percent", label: "Percentage deposit", description: "Share of the quote total", icon: BadgePercent },
+  { id: "fixed", label: "Fixed deposit", description: "Same amount whatever the total", icon: Banknote },
 ];
 
-const BALANCE_OPTIONS: Array<{ id: BalanceDueRule; label: string; description: string; icon: typeof Wallet }> = [
-  { id: "event_date", label: "On the event date", description: "Balance due the day of the event", icon: CalendarCheck },
-  { id: "days_before_event", label: "Days before the event", description: "e.g. 7 days before", icon: CalendarClock },
-  { id: "days_after_issue", label: "Days after the invoice", description: "e.g. net 15", icon: FileClock },
-];
+function dueOptions(validUntil: string | null): Array<Option<QuoteBalanceDueRule>> {
+  return [
+    { id: "on_acceptance", label: "On acceptance", description: "As soon as the customer accepts", icon: Handshake },
+    { id: "fixed_date", label: "On a date I choose", description: "Pick any date", icon: CalendarDays },
+    {
+      id: "quote_expiry",
+      label: "When the quote expires",
+      description: validUntil ? `Valid-until date · ${formatQuoteDate(validUntil, "en", validUntil)}` : "Uses the valid-until date",
+      icon: Hourglass,
+    },
+    { id: "event_date", label: "On the event date", description: "The day of the event", icon: CalendarCheck },
+    { id: "days_before_event", label: "Days before the event", description: "e.g. 7 days before", icon: CalendarClock },
+    { id: "days_after_issue", label: "Days after the invoice", description: "e.g. net 15", icon: FileClock },
+  ];
+}
 
-const QUICK_PERCENTS = [25, 30, 50];
+const DEPOSIT_DUE_RULES: ReadonlyArray<QuoteDepositDueRule> = ["on_acceptance", "fixed_date", "quote_expiry"];
+
+const QUICK_PERCENTS = [25, 30, 50, 100];
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">{children}</p>;
+}
+
+function ExpiryHint({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <p className="text-xs text-amber-400/90">
+      Set a &quot;Valid until&quot; date on the quote so the customer sees the actual due date.
+    </p>
+  );
+}
 
 export function QuotePaymentTermsFields({
   value,
@@ -45,6 +79,7 @@ export function QuotePaymentTermsFields({
   defaults,
   totalCents,
   eventDate,
+  validUntil,
   currency,
   disabled,
 }: {
@@ -53,13 +88,49 @@ export function QuotePaymentTermsFields({
   defaults: QuotePaymentDefaults;
   totalCents: number;
   eventDate: string | null;
+  validUntil: string | null;
   currency: string;
   disabled?: boolean;
 }) {
   const enabled = hasQuotePaymentTerms(value);
-  const rows = quotePaymentRows({ ...value, total_cents: totalCents, event_date: eventDate }, "en");
   const money = (cents: number) => formatMoneyFromCents(cents, "en", currency);
   const patch = (next: Partial<QuotePaymentTerms>) => onChange({ ...value, ...next });
+  const hasDeposit = value.payment_deposit_mode != null && value.payment_deposit_mode !== "none";
+  const depositRule = value.payment_deposit_due_rule ?? "on_acceptance";
+  const missingDepositAmount =
+    (value.payment_deposit_mode === "fixed" && !((value.payment_deposit_fixed_cents ?? 0) > 0)) ||
+    (value.payment_deposit_mode === "percent" && !((value.payment_deposit_percent ?? 0) > 0));
+  const depositCents = hasDeposit
+    ? computeDepositCents({
+        mode: value.payment_deposit_mode!,
+        percent: value.payment_deposit_percent ?? 0,
+        fixedCents: value.payment_deposit_fixed_cents ?? 0,
+        totalCents,
+      })
+    : 0;
+  const depositCoversTotal = hasDeposit && !missingDepositAmount && totalCents > 0 && depositCents >= totalCents;
+  const rows = missingDepositAmount
+    ? []
+    : quotePaymentRows(
+        { ...value, total_cents: totalCents, event_date: eventDate, valid_until: validUntil },
+        "en"
+      );
+  const switchToPayInFull = () =>
+    patch({
+      payment_deposit_mode: "none",
+      payment_deposit_percent: null,
+      payment_deposit_fixed_cents: null,
+      payment_deposit_due_rule: null,
+      payment_deposit_due_date: null,
+      payment_balance_due_rule: depositRule,
+      payment_balance_due_days: 0,
+      payment_balance_due_date: depositRule === "fixed_date" ? value.payment_deposit_due_date : null,
+    });
+  const balanceRule = value.payment_balance_due_rule;
+  const options = dueOptions(validUntil);
+  const depositOptions = options.filter((option) =>
+    (DEPOSIT_DUE_RULES as readonly string[]).includes(option.id)
+  ) as Array<Option<QuoteDepositDueRule>>;
 
   return (
     <div className="mt-4 rounded-2xl border border-border/40 bg-background/30 p-4">
@@ -70,8 +141,7 @@ export function QuotePaymentTermsFields({
         <div className="min-w-0">
           <Label>Payment terms</Label>
           <p className="mt-1 text-xs text-muted-foreground">
-            Shown on the proposal and PDF. The deposit is due on acceptance, and the job&apos;s
-            first invoice uses these terms.
+            Shown on the proposal and PDF. The job&apos;s first invoice uses these amounts and due dates.
           </p>
         </div>
       </div>
@@ -88,9 +158,9 @@ export function QuotePaymentTermsFields({
       )}
 
       {enabled && !disabled ? (
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-5">
           <div className="space-y-2">
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">Deposit</p>
+            <SectionLabel>How is it paid?</SectionLabel>
             <div className="grid gap-2 sm:grid-cols-3">
               {DEPOSIT_OPTIONS.map((option) => (
                 <OptionCard
@@ -106,6 +176,9 @@ export function QuotePaymentTermsFields({
                           : null,
                       payment_deposit_fixed_cents:
                         option.id === "fixed" ? value.payment_deposit_fixed_cents ?? null : null,
+                      payment_deposit_due_rule:
+                        option.id === "none" ? null : value.payment_deposit_due_rule ?? "on_acceptance",
+                      payment_deposit_due_date: option.id === "none" ? null : value.payment_deposit_due_date,
                     })
                   }
                   className="p-3"
@@ -165,28 +238,79 @@ export function QuotePaymentTermsFields({
             ) : null}
           </div>
 
+          {hasDeposit ? (
+            <div className="space-y-2">
+              <SectionLabel>Deposit due</SectionLabel>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {depositOptions.map((option) => (
+                  <OptionCard
+                    key={option.id}
+                    option={option}
+                    selected={depositRule === option.id}
+                    onSelect={() =>
+                      patch({
+                        payment_deposit_due_rule: option.id,
+                        payment_deposit_due_date: option.id === "fixed_date" ? value.payment_deposit_due_date : null,
+                      })
+                    }
+                    className="p-3"
+                  />
+                ))}
+              </div>
+              {depositRule === "fixed_date" ? (
+                <div className="w-48 space-y-1.5">
+                  <Label htmlFor="payment-deposit-date">Deposit due date</Label>
+                  <DateInput
+                    id="payment-deposit-date"
+                    value={value.payment_deposit_due_date ?? ""}
+                    onChange={(next) => patch({ payment_deposit_due_date: next || null })}
+                  />
+                </div>
+              ) : null}
+              <ExpiryHint show={depositRule === "quote_expiry" && !validUntil} />
+            </div>
+          ) : null}
+
+          {depositCoversTotal ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/[0.05] p-4">
+              <div className="min-w-0">
+                <SectionLabel>No balance</SectionLabel>
+                <p className="mt-1 text-sm text-foreground">The deposit covers the full total.</p>
+                <p className="text-xs text-muted-foreground">
+                  Pay in full keeps the whole amount due if the total changes later.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={switchToPayInFull}
+                className="rounded-xl border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+              >
+                Switch to Pay in full
+              </button>
+            </div>
+          ) : (
           <div className="space-y-2">
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">Balance due</p>
+            <SectionLabel>{hasDeposit ? "Balance due" : "Payment due"}</SectionLabel>
             <div className="grid gap-2 sm:grid-cols-3">
-              {BALANCE_OPTIONS.map((option) => (
+              {options.map((option) => (
                 <OptionCard
                   key={option.id}
                   option={option}
-                  selected={value.payment_balance_due_rule === option.id}
+                  selected={balanceRule === option.id}
                   onSelect={() =>
                     patch({
                       payment_balance_due_rule: option.id,
-                      payment_balance_due_days:
-                        option.id === "event_date"
-                          ? 0
-                          : value.payment_balance_due_days || defaults.balance_due_days || 7,
+                      payment_balance_due_days: quoteDueRuleUsesDays(option.id)
+                        ? value.payment_balance_due_days || defaults.balance_due_days || 7
+                        : 0,
+                      payment_balance_due_date: option.id === "fixed_date" ? value.payment_balance_due_date : null,
                     })
                   }
                   className="p-3"
                 />
               ))}
             </div>
-            {value.payment_balance_due_rule && value.payment_balance_due_rule !== "event_date" ? (
+            {quoteDueRuleUsesDays(balanceRule) ? (
               <div className="w-32 space-y-1.5">
                 <Label htmlFor="payment-balance-days">Days</Label>
                 <Input
@@ -200,8 +324,26 @@ export function QuotePaymentTermsFields({
                 />
               </div>
             ) : null}
+            {balanceRule === "fixed_date" ? (
+              <div className="w-48 space-y-1.5">
+                <Label htmlFor="payment-balance-date">{hasDeposit ? "Balance due date" : "Payment due date"}</Label>
+                <DateInput
+                  id="payment-balance-date"
+                  value={value.payment_balance_due_date ?? ""}
+                  onChange={(next) => patch({ payment_balance_due_date: next || null })}
+                />
+              </div>
+            ) : null}
+            <ExpiryHint show={balanceRule === "quote_expiry" && !validUntil} />
           </div>
+          )}
         </div>
+      ) : null}
+
+      {enabled && !disabled && missingDepositAmount ? (
+        <p className="mt-4 rounded-xl border border-dashed border-border/60 p-3 text-xs text-muted-foreground">
+          Enter the deposit amount to see the payment schedule. Charging the whole amount? Choose Pay in full.
+        </p>
       ) : null}
 
       {rows.length ? (

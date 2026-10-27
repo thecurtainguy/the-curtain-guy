@@ -176,8 +176,11 @@ export async function POST(request: Request, context: RouteContext) {
           deposit_mode: quote.payment_deposit_mode,
           deposit_percent: quote.payment_deposit_percent,
           deposit_fixed_cents: quote.payment_deposit_fixed_cents,
+          deposit_due_rule: quote.payment_deposit_due_rule ?? null,
+          deposit_due_date: quote.payment_deposit_due_date ?? null,
           balance_due_rule: quote.payment_balance_due_rule,
           balance_due_days: quote.payment_balance_due_days,
+          balance_due_date: quote.payment_balance_due_date ?? null,
         },
       },
     });

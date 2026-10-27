@@ -72,6 +72,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
           defaultCc={customerLink?.quoteCc ?? []}
           customer={customerLink}
           paymentDefaults={paymentDefaults}
+          hasStudioDesigns={studioSummary?.kind === "studio_design"}
           bookingActions={
             <AdminQuoteJobActions
               quoteId={quote.id}

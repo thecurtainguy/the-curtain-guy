@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/admin-page";
 import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import { AdminInvoiceEditor } from "@/components/admin/admin-invoice-editor";
+import { DocumentEngagementCard } from "@/components/admin/document-engagement-card";
 import { OpportunityFilesPanel } from "@/components/estimates/opportunity-files-panel";
+import { getDocumentEngagement } from "@/lib/document-engagement";
 import { getBusinessSettings } from "@/lib/business-settings";
 import { getSiteUrl } from "@/lib/env";
 import { fetchInvoiceById, findActiveInvoiceUrl } from "@/lib/invoices";
@@ -22,10 +24,11 @@ type PageProps = {
 export default async function AdminInvoicePage({ params }: PageProps) {
   const owner = await requireAdminPage();
   const { id } = await params;
-  const [invoice, settings, publicUrl] = await Promise.all([
+  const [invoice, settings, publicUrl, engagement] = await Promise.all([
     fetchInvoiceById(id, { includeEvents: true }),
     getBusinessSettings(),
     findActiveInvoiceUrl(id, getSiteUrl()),
+    getDocumentEngagement({ invoiceId: id }),
   ]);
   if (!invoice) notFound();
   const customerLink = await getCustomerLinkSummary(invoice.customer_id, {
@@ -43,6 +46,11 @@ export default async function AdminInvoicePage({ params }: PageProps) {
         tradeName={settings.trade_name}
         initialPublicUrl={publicUrl}
         customerLink={customerLink}
+        engagementPanel={
+          invoice.status === "draft" && engagement.activity.length === 0 ? null : (
+            <DocumentEngagementCard engagement={engagement} documentLabel="invoice" />
+          )
+        }
       />
       {invoice.estimate_request_id && opportunityFiles ? (
         <OpportunityFilesPanel

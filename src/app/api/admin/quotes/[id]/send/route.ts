@@ -15,6 +15,7 @@ import {
 } from "@/lib/estimate-access";
 import { getOutboundEmailCopyTo, getResendApiKey, getSiteUrl } from "@/lib/env";
 import { logEstimateFileEvent } from "@/lib/estimate-file-events";
+import { ownerArchiveAddresses, splitOwnerCopy } from "@/lib/email-tracking";
 import {
   isValidEmailAddress,
   parseEmailList,
@@ -321,6 +322,10 @@ export async function POST(request: Request, context: RouteContext) {
     try {
       const fresh = await fetchQuoteById(id);
       if (fresh) {
+        const split = splitOwnerCopy(
+          bccList,
+          ownerArchiveAddresses([owner.profile.email])
+        );
         await sendQuoteReadyEmail({
           apiKey,
           quote: fresh,
@@ -328,7 +333,8 @@ export async function POST(request: Request, context: RouteContext) {
           compose: {
             to: toList,
             cc: ccList,
-            bcc: bccList,
+            bcc: split.bcc,
+            ownerCopyTo: split.ownerCopyTo,
             subject,
             bodyText,
             attachPdf: compose.attachPdf !== false,

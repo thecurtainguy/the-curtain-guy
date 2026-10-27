@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, FileText, Loader2, PenLine, Reply, Send, X } from "lucide-react";
+import { Eye, FileText, Loader2, PenLine, Reply, Send } from "lucide-react";
 import {
   computeAmountDue,
   getInvoiceCopy,
   type InvoiceWithRelations,
 } from "@/data/invoices";
 import { CUSTOMER_LANGUAGE_LABELS } from "@/data/customer-language";
+import type { CustomerContactOption } from "@/data/customers";
+import { RecipientInput, splitRecipientEmails } from "@/components/admin/recipient-input";
 import { formatMoneyFromCents } from "@/data/quotes";
 import { Dialog } from "@/components/ui/dialog";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
@@ -22,51 +24,11 @@ const DEFAULT_BCC = "admin@thecurtainguy.com";
 
 type Preview = { subject: string; html: string; from: string; replyTo: string; attachment: string | null };
 
-function splitEmails(raw: string): string[] {
-  return raw
-    .split(/[,;\n]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
-function looksLikeEmail(value: string): boolean {
-  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value);
-}
-
-function RecipientChips({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const emails = splitEmails(value);
-  if (emails.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-1.5 pt-1">
-      {emails.map((email, index) => (
-        <span
-          key={`${index}-${email}`}
-          className={cn(
-            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs",
-            looksLikeEmail(email)
-              ? "border-primary/30 bg-primary/10 text-foreground"
-              : "border-destructive/40 bg-destructive/10 text-destructive"
-          )}
-        >
-          {email}
-          <button
-            type="button"
-            aria-label={`Remove ${email}`}
-            className="text-muted-foreground hover:text-foreground"
-            onClick={() => onChange(emails.filter((_, i) => i !== index).join(", "))}
-          >
-            <X className="size-3" />
-          </button>
-        </span>
-      ))}
-    </div>
-  );
-}
-
 export function AdminInvoiceSendDialog({
   invoice,
   tradeName,
   defaultCc = [],
+  contacts = [],
   open,
   onOpenChange,
   onSent,
@@ -74,6 +36,7 @@ export function AdminInvoiceSendDialog({
   invoice: InvoiceWithRelations;
   tradeName: string;
   defaultCc?: string[];
+  contacts?: CustomerContactOption[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSent: (invoice: InvoiceWithRelations, publicUrl: string | null, message: string) => void;
@@ -161,9 +124,9 @@ export function AdminInvoiceSendDialog({
     }
   }
 
-  const toList = splitEmails(to);
-  const ccList = splitEmails(cc);
-  const bccList = splitEmails(bcc);
+  const toList = splitRecipientEmails(to);
+  const ccList = splitRecipientEmails(cc);
+  const bccList = splitRecipientEmails(bcc);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -247,25 +210,33 @@ export function AdminInvoiceSendDialog({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="inv-send-to">To</Label>
-                  <Input id="inv-send-to" value={to} onChange={(e) => setTo(e.target.value)} />
-                  <RecipientChips value={to} onChange={setTo} />
+                  <RecipientInput
+                    id="inv-send-to"
+                    value={to}
+                    onChange={setTo}
+                    contacts={contacts}
+                    usedElsewhere={{ Cc: cc }}
+                  />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="inv-send-cc">Cc — other contacts at the company</Label>
-                  <Input
+                  <RecipientInput
                     id="inv-send-cc"
                     value={cc}
-                    onChange={(e) => setCc(e.target.value)}
-                    placeholder="accounting@company.com, planner@company.com"
+                    onChange={setCc}
+                    contacts={contacts}
+                    usedElsewhere={{ To: to }}
+                    placeholder={
+                      contacts.length > 1 ? "Click to pick other contacts" : "accounting@company.com, planner@company.com"
+                    }
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Separate with commas. Everyone in To and Cc gets the same email and PDF and can see each other.
+                    Everyone in To and Cc gets the same email and PDF and can see each other.
                   </p>
-                  <RecipientChips value={cc} onChange={setCc} />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="inv-send-bcc">Bcc (hidden copy)</Label>
-                  <Input id="inv-send-bcc" value={bcc} onChange={(e) => setBcc(e.target.value)} />
+                  <RecipientInput id="inv-send-bcc" value={bcc} onChange={setBcc} contacts={[]} />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="inv-send-subject">Subject</Label>

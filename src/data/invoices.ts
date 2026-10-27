@@ -256,6 +256,9 @@ export type InvoiceRow = {
   public_token_expires_at: string | null;
   sent_at: string | null;
   viewed_at: string | null;
+  /** Confirmed customer reads (real browser, owner excluded). */
+  view_count: number;
+  last_viewed_at: string | null;
   paid_at: string | null;
   voided_at: string | null;
   created_by_user_id: string | null;
@@ -341,7 +344,7 @@ export type InvoiceWithRelations = InvoiceRow & {
 /** Customer payload — no internal notes, token hash, or activity log. */
 export type CustomerSafeInvoice = Omit<
   InvoiceRow,
-  "internal_notes" | "public_token_hash" | "created_by_user_id"
+  "internal_notes" | "public_token_hash" | "created_by_user_id" | "view_count" | "last_viewed_at"
 > & {
   line_items: InvoiceLineItemRow[];
   payments: Array<

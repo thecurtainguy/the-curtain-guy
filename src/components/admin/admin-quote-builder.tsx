@@ -306,6 +306,7 @@ export function AdminQuoteBuilder({
   defaultCc = [],
   customer = null,
   studioPanel = null,
+  engagementPanel = null,
   bookingActions = null,
   paymentDefaults = FALLBACK_PAYMENT_DEFAULTS,
   hasStudioDesigns = false,
@@ -322,6 +323,8 @@ export function AdminQuoteBuilder({
   customer?: CustomerLinkSummary | null;
   /** Studio card rendered in the right rail. */
   studioPanel?: ReactNode;
+  /** Views and email delivery card rendered under the quote summary. */
+  engagementPanel?: ReactNode;
   /** Mark accepted / job / invoice buttons for the Actions grid (2 columns). */
   bookingActions?: ReactNode;
   /** Customer defaults, falling back to the business defaults, for new payment terms. */
@@ -1979,6 +1982,8 @@ export function AdminQuoteBuilder({
           ) : null}
         </section>
 
+        {engagementPanel}
+
         <section className="rounded-2xl border border-border/40 bg-card/25 p-4">
           <h2 className="font-heading text-lg font-semibold">Actions</h2>
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -2128,6 +2133,7 @@ export function AdminQuoteBuilder({
           opportunityFiles={opportunityFiles}
           publicQuoteUrlPreview={publicUrl}
           defaultCc={defaultCc}
+          contacts={customer?.contactOptions ?? []}
           onSent={(result) => {
             if (result.publicUrl) setPublicUrl(result.publicUrl);
             flash(result.message ?? "Quote sent.");

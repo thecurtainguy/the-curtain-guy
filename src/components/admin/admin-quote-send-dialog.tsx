@@ -9,6 +9,8 @@ import {
   Upload,
 } from "lucide-react";
 import type { OpportunityFileItem } from "@/components/estimates/opportunity-files-panel";
+import { RecipientInput } from "@/components/admin/recipient-input";
+import type { CustomerContactOption } from "@/data/customers";
 import { Dialog } from "@/components/ui/dialog";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
@@ -76,6 +78,7 @@ export function AdminQuoteSendDialog({
   opportunityFiles,
   publicQuoteUrlPreview,
   defaultCc = [],
+  contacts = [],
   onSent,
 }: {
   open: boolean;
@@ -84,6 +87,7 @@ export function AdminQuoteSendDialog({
   opportunityFiles: OpportunityFileItem[];
   publicQuoteUrlPreview: string | null;
   defaultCc?: string[];
+  contacts?: CustomerContactOption[];
   onSent: (result: { publicUrl?: string; message?: string }) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -298,29 +302,33 @@ export function AdminQuoteSendDialog({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="quote-send-to">To</Label>
-                  <Input
+                  <RecipientInput
                     id="quote-send-to"
                     value={to}
-                    onChange={(e) => setTo(e.target.value)}
+                    onChange={setTo}
+                    contacts={contacts}
+                    usedElsewhere={{ Cc: cc }}
                     placeholder="customer@email.com"
-                    autoComplete="email"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="quote-send-cc">Cc</Label>
-                  <Input
+                  <RecipientInput
                     id="quote-send-cc"
                     value={cc}
-                    onChange={(e) => setCc(e.target.value)}
-                    placeholder="optional@email.com"
+                    onChange={setCc}
+                    contacts={contacts}
+                    usedElsewhere={{ To: to }}
+                    placeholder={contacts.length > 1 ? "Click to pick other contacts" : "optional@email.com"}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="quote-send-bcc">Bcc</Label>
-                  <Input
+                  <RecipientInput
                     id="quote-send-bcc"
                     value={bcc}
-                    onChange={(e) => setBcc(e.target.value)}
+                    onChange={setBcc}
+                    contacts={[]}
                     placeholder="admin@thecurtainguy.com"
                   />
                 </div>

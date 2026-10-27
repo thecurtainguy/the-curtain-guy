@@ -48,6 +48,8 @@ export default async function AdminInvoicesPage() {
     currency: inv.currency,
     amount_paid_cents: inv.amount_paid_cents,
     balance_due_cents: inv.balance_due_cents,
+    view_count: inv.view_count ?? 0,
+    last_viewed_at: inv.last_viewed_at ?? null,
   }));
 
   const tiles = [

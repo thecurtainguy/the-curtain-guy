@@ -38,7 +38,7 @@ function recipientsInclude(list: string[], email: string): boolean {
  */
 export async function sendResendEmail(
   payload: ResendEmailPayload
-): Promise<void> {
+): Promise<{ id: string | null }> {
   const copyOutbound = payload.copyOutbound !== false;
   const bcc = [...(payload.bcc ?? [])];
 
@@ -95,4 +95,6 @@ export async function sendResendEmail(
     console.error(`[${label}] Resend send failed:`, response.status, errorBody);
     throw new Error("Failed to send email via Resend");
   }
+  const result = (await response.json().catch(() => null)) as { id?: unknown } | null;
+  return { id: typeof result?.id === "string" ? result.id : null };
 }

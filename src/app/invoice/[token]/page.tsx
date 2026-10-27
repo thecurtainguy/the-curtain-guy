@@ -4,17 +4,20 @@ import { cache } from "react";
 import { PageLocale } from "@/components/i18n/page-locale";
 import { InvoiceDocumentView } from "@/components/invoices/invoice-document-view";
 import { getBusinessSettings } from "@/lib/business-settings";
+import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
 import {
-  fetchInvoiceByPublicToken,
-  logInvoiceClientAccess,
-  markInvoiceViewed,
-  toCustomerSafeInvoice,
-} from "@/lib/invoices";
+  isOwnerCopySource,
+  OWNER_COPY_PARAM,
+  OWNER_COPY_VALUE,
+  recordDocumentOpen,
+} from "@/lib/document-views";
+import { fetchInvoiceByPublicToken, toCustomerSafeInvoice } from "@/lib/invoices";
 
 const getInvoiceForToken = cache(fetchInvoiceByPublicToken);
 
 type PageProps = {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ src?: string | string[] }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -28,19 +31,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function PublicInvoicePage({ params }: PageProps) {
+export default async function PublicInvoicePage({ params, searchParams }: PageProps) {
   const { token } = await params;
   const invoice = await getInvoiceForToken(token);
   if (!invoice) notFound();
 
-  if (!invoice.viewed_at) await markInvoiceViewed(invoice.id);
-  await logInvoiceClientAccess({
-    invoiceId: invoice.id,
-    actorType: "public_link",
-    eventType: "invoice_viewed",
-    summary: invoice.viewed_at
-      ? "Client opened the invoice again (secure link)"
-      : "Client opened the invoice for the first time (secure link)",
+  const ownerCopy = isOwnerCopySource((await searchParams).src);
+  const { viewId } = await recordDocumentOpen({
+    target: { invoiceId: invoice.id },
+    source: "public_link",
+    ownerCopy,
   });
   const settings = await getBusinessSettings();
 
@@ -55,8 +55,9 @@ export default async function PublicInvoicePage({ params }: PageProps) {
         <InvoiceDocumentView
           invoice={toCustomerSafeInvoice(invoice)}
           settings={settings}
-          pdfUrl={`/api/invoice/${token}/pdf`}
+          pdfUrl={`/api/invoice/${token}/pdf${ownerCopy ? `?${OWNER_COPY_PARAM}=${OWNER_COPY_VALUE}` : ""}`}
         />
+        <DocumentViewBeacon viewId={viewId} />
       </div>
     </div>
   );

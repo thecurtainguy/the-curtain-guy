@@ -7,6 +7,7 @@ import {
   logInvoiceClientAccess,
   toCustomerSafeInvoice,
 } from "@/lib/invoices";
+import { recordDocumentOpen } from "@/lib/document-views";
 
 export const runtime = "nodejs";
 
@@ -26,13 +27,20 @@ export async function GET(_request: Request, context: RouteContext) {
     invoice: toCustomerSafeInvoice(invoice),
     settings: await getBusinessSettings(),
   });
-  await logInvoiceClientAccess({
-    invoiceId: invoice.id,
-    actorType: "customer",
-    actorUserId: user.id,
-    eventType: "pdf_downloaded",
-    summary: "Client downloaded the PDF (portal)",
+  const { owner } = await recordDocumentOpen({
+    target: { invoiceId: invoice.id },
+    source: "account",
+    pdf: true,
   });
+  if (!owner) {
+    await logInvoiceClientAccess({
+      invoiceId: invoice.id,
+      actorType: "customer",
+      actorUserId: user.id,
+      eventType: "pdf_downloaded",
+      summary: "Client downloaded the PDF (portal)",
+    });
+  }
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",

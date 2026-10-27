@@ -13,18 +13,21 @@ import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
 import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
+import { fetchQuoteByPublicToken, toCustomerSafeQuote } from "@/lib/quotes";
+import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
 import {
-  fetchQuoteByPublicToken,
-  markQuoteViewed,
-  toCustomerSafeQuote,
-} from "@/lib/quotes";
+  isOwnerCopySource,
+  OWNER_COPY_PARAM,
+  OWNER_COPY_VALUE,
+  recordDocumentOpen,
+} from "@/lib/document-views";
 import { fetchStudioDesignSummaryForQuote } from "@/lib/studio-quote-converter";
 
 const getQuoteForToken = cache(fetchQuoteByPublicToken);
 
 type PageProps = {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ lang?: string | string[] }>;
+  searchParams: Promise<{ lang?: string | string[]; src?: string | string[] }>;
 };
 
 /** `?lang=` lets a visitor read the quote in the other language. */
@@ -55,11 +58,16 @@ export default async function PublicQuotePage({
   searchParams,
 }: PageProps) {
   const { token } = await params;
-  const { lang } = await searchParams;
+  const { lang, src } = await searchParams;
   const quote = await getQuoteForToken(token);
   if (!quote) notFound();
 
-  await markQuoteViewed(quote.id);
+  const ownerCopy = isOwnerCopySource(src);
+  const { viewId } = await recordDocumentOpen({
+    target: { quoteId: quote.id },
+    source: "public_link",
+    ownerCopy,
+  });
   const studioSummary = await fetchStudioDesignSummaryForQuote(quote);
 
   const quoteLanguage = normalizeCustomerLanguage(quote.language);
@@ -78,6 +86,11 @@ export default async function PublicQuotePage({
     },
     { shareUrl }
   );
+
+  const pdfParams = new URLSearchParams();
+  if (language !== quoteLanguage) pdfParams.set("lang", language);
+  if (ownerCopy) pdfParams.set(OWNER_COPY_PARAM, OWNER_COPY_VALUE);
+  const pdfUrl = `/api/quote/${token}/pdf${pdfParams.size ? `?${pdfParams}` : ""}`;
 
   const attachments = await listAttachmentViewItems(
     safe.estimate_request_id,
@@ -104,12 +117,11 @@ export default async function PublicQuotePage({
           attachments={attachments}
           mode="public"
           actionEndpoint={`/api/quote/${token}/customer-action`}
-          pdfUrl={`/api/quote/${token}/pdf${
-            language === quoteLanguage ? "" : `?lang=${language}`
-          }`}
+          pdfUrl={pdfUrl}
           shareUrl={shareUrl}
           heroImageSrc={heroImage.image}
         />
+        <DocumentViewBeacon viewId={viewId} />
       </div>
     </div>
   );

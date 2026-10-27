@@ -8,6 +8,7 @@ import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { getSiteUrl } from "@/lib/env";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
+import { isOwnerCopySource, OWNER_COPY_PARAM, recordDocumentOpen } from "@/lib/document-views";
 import {
   fetchQuoteByPublicToken,
   logQuoteEvent,
@@ -54,13 +55,21 @@ export async function GET(request: Request, context: RouteContext) {
     siteUrl: getSiteUrl(),
   });
 
-  await logQuoteEvent({
-    quoteId: quote.id,
-    actorType: "public_link",
-    actorEmail: quote.customer_email,
-    eventType: "pdf_downloaded",
-    summary: "PDF opened via public link",
+  const { owner } = await recordDocumentOpen({
+    target: { quoteId: quote.id },
+    source: "public_link",
+    ownerCopy: isOwnerCopySource(new URL(request.url).searchParams.get(OWNER_COPY_PARAM)),
+    pdf: true,
   });
+  if (!owner) {
+    await logQuoteEvent({
+      quoteId: quote.id,
+      actorType: "public_link",
+      actorEmail: quote.customer_email,
+      eventType: "pdf_downloaded",
+      summary: "PDF opened via public link",
+    });
+  }
 
   const filename = `${formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number)}.pdf`;
   return new NextResponse(new Uint8Array(buffer), {

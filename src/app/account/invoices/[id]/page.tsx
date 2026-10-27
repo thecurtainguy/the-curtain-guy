@@ -5,12 +5,9 @@ import { AccountPageFrame } from "@/components/account/account-page-frame";
 import { InvoiceDocumentView } from "@/components/invoices/invoice-document-view";
 import { PortalBackLink } from "@/components/portal/portal-back-link";
 import { getBusinessSettings } from "@/lib/business-settings";
-import {
-  getCustomerInvoice,
-  logInvoiceClientAccess,
-  markInvoiceViewed,
-  toCustomerSafeInvoice,
-} from "@/lib/invoices";
+import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
+import { recordDocumentOpen } from "@/lib/document-views";
+import { getCustomerInvoice, toCustomerSafeInvoice } from "@/lib/invoices";
 
 export const metadata: Metadata = {
   title: "Invoice",
@@ -26,13 +23,9 @@ export default async function AccountInvoicePage({ params }: PageProps) {
   const { id } = await params;
   const invoice = await getCustomerInvoice(id, current.user);
   if (!invoice) notFound();
-  if (!invoice.viewed_at) await markInvoiceViewed(invoice.id);
-  await logInvoiceClientAccess({
-    invoiceId: invoice.id,
-    actorType: "customer",
-    actorUserId: current.user.id,
-    eventType: "invoice_viewed",
-    summary: "Client opened the invoice (portal)",
+  const { viewId } = await recordDocumentOpen({
+    target: { invoiceId: invoice.id },
+    source: "account",
   });
   const settings = await getBusinessSettings();
 
@@ -53,6 +46,7 @@ export default async function AccountInvoicePage({ params }: PageProps) {
           settings={settings}
           pdfUrl={`/api/invoices/${invoice.id}/pdf`}
         />
+        <DocumentViewBeacon viewId={viewId} />
       </div>
     </AccountPageFrame>
   );

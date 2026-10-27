@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
+import { ViewCountCell } from "@/components/admin/lists/view-count-cell";
 import {
   PortalListSuspense,
   PortalListView,
@@ -33,6 +34,8 @@ export type AdminInvoiceListRow = Pick<
   | "currency"
   | "amount_paid_cents"
   | "balance_due_cents"
+  | "view_count"
+  | "last_viewed_at"
 >;
 
 const STATUS_OPTIONS: PortalStatusOption[] = INVOICE_STATUSES.map((status) => ({
@@ -113,6 +116,15 @@ const columns: PortalListColumn<AdminInvoiceListRow>[] = [
         {row.status === "void" ? "—" : formatMoneyFromCents(row.balance_due_cents, "en", row.currency)}
       </span>
     ),
+  },
+  {
+    id: "views",
+    label: "Views",
+    sortable: true,
+    sortType: "number",
+    sortValue: (row) => row.view_count,
+    align: "right",
+    render: (row) => <ViewCountCell count={row.view_count} lastViewedAt={row.last_viewed_at} />,
   },
   {
     id: "actions",

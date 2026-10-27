@@ -6,6 +6,7 @@ import {
 import { formatQuoteFilenameStem } from "@/data/quotes";
 import { getCurrentUser, requireOwner } from "@/lib/auth";
 import { resolveQuoteTermsForView } from "@/lib/document-texts";
+import { recordDocumentOpen } from "@/lib/document-views";
 import { getSiteUrl } from "@/lib/env";
 import { fetchEstimateById } from "@/lib/estimate-access";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
@@ -90,6 +91,9 @@ export async function GET(request: Request, context: RouteContext) {
     siteUrl,
   });
 
+  if (!owner) {
+    await recordDocumentOpen({ target: { quoteId: id }, source: "account", pdf: true });
+  }
   if (!isOwnerPreview) {
     await logQuoteEvent({
       quoteId: id,

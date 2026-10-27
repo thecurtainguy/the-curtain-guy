@@ -10,6 +10,8 @@ import { formatMoneyFromCents } from "@/data/quotes";
 import { formatQuoteDate } from "@/data/quote-copy";
 import { getEstimateNotifyTo, getQuoteFrom } from "@/lib/env";
 import { getLocalizedDocumentText } from "@/lib/document-texts";
+import { withOwnerCopySource } from "@/lib/document-views";
+import { recordEmailMessage } from "@/lib/email-tracking";
 import { invoicePdfFilename, renderInvoicePdfBuffer } from "@/lib/invoice-pdf";
 import { toCustomerSafeInvoice } from "@/lib/invoices";
 import {
@@ -156,6 +158,8 @@ export async function sendInvoiceEmail(input: {
   subject?: string;
   bodyText?: string;
   attachPdf?: boolean;
+  /** Archive inboxes that get their own copy, so their clicks are not counted as customer views. */
+  ownerCopyTo?: string[];
 }): Promise<void> {
   const { invoice, settings } = input;
   const footer = await getLocalizedDocumentText("quote.email_footer", invoice.language);
@@ -184,26 +188,64 @@ export async function sendInvoiceEmail(input: {
     }
   }
 
-  const { text, html } = buildInvoiceEmailParts({
-    invoice,
-    publicUrl: input.publicUrl,
-    bodyText,
-    footer,
-    pdfFilename: attachedName,
-  });
+  const buildParts = (url: string) => {
+    const { text, html } = buildInvoiceEmailParts({
+      invoice,
+      publicUrl: url,
+      bodyText,
+      footer,
+      pdfFilename: attachedName,
+    });
+    return { text, html };
+  };
+  const cc = input.cc?.filter(Boolean) ?? [];
+  const bcc = input.bcc?.filter(Boolean) ?? [];
 
-  await sendResendEmail({
+  const sent = await sendResendEmail({
     apiKey: input.apiKey,
     from: invoiceEmailFrom(),
     to: input.to,
-    cc: input.cc?.filter(Boolean),
-    bcc: input.bcc?.filter(Boolean),
+    cc,
+    bcc,
     replyTo: invoiceReplyTo(settings),
     subject,
-    text,
-    html,
+    ...buildParts(input.publicUrl),
     attachments: attachments.length ? attachments : undefined,
-    copyOutbound: input.bcc && input.bcc.length > 0 ? false : undefined,
+    copyOutbound: false,
     logLabel: "invoices",
   });
+  await recordEmailMessage({
+    resendId: sent.id,
+    target: { invoiceId: invoice.id },
+    audience: "customer",
+    to: input.to,
+    cc,
+    bcc,
+    subject,
+  });
+
+  const ownerCopyTo = input.ownerCopyTo?.filter(Boolean) ?? [];
+  if (ownerCopyTo.length === 0) return;
+  try {
+    const copy = await sendResendEmail({
+      apiKey: input.apiKey,
+      from: invoiceEmailFrom(),
+      to: ownerCopyTo,
+      replyTo: invoiceReplyTo(settings),
+      subject,
+      ...buildParts(withOwnerCopySource(input.publicUrl)),
+      attachments: attachments.length ? attachments : undefined,
+      copyOutbound: false,
+      logLabel: "invoices",
+    });
+    await recordEmailMessage({
+      resendId: copy.id,
+      target: { invoiceId: invoice.id },
+      audience: "owner_copy",
+      to: ownerCopyTo,
+      subject,
+    });
+  } catch (error) {
+    console.error("[invoices] owner archive copy failed", error);
+  }
 }

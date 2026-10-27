@@ -1567,6 +1567,8 @@ export function toCustomerSafeInvoice(
     public_token_hash: _hash,
     created_by_user_id: _creator,
     events: _events,
+    view_count: _views,
+    last_viewed_at: _lastViewed,
     payments,
     ...rest
   } = invoice;
@@ -1574,6 +1576,8 @@ export function toCustomerSafeInvoice(
   void _hash;
   void _creator;
   void _events;
+  void _views;
+  void _lastViewed;
   return {
     ...rest,
     payments: payments.map((p) => ({

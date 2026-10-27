@@ -391,12 +391,15 @@ export function AdminInvoiceEditor({
   tradeName,
   initialPublicUrl,
   customerLink = null,
+  engagementPanel = null,
 }: {
   invoice: InvoiceWithRelations;
   paymentMethods: PaymentMethod[];
   tradeName: string;
   initialPublicUrl: string | null;
   customerLink?: CustomerLinkSummary | null;
+  /** Views and email delivery card rendered in the right rail. */
+  engagementPanel?: React.ReactNode;
 }) {
   const router = useRouter();
   const [confirm, confirmDialog] = useBrandConfirm();
@@ -1362,6 +1365,8 @@ export function AdminInvoiceEditor({
             )}
           </Panel>
 
+          {engagementPanel}
+
           <Panel icon={Link2} eyebrow="Status" title="Invoice controls">
             <div className="grid gap-2">
               {invoice.status === "draft" ? (
@@ -1448,6 +1453,7 @@ export function AdminInvoiceEditor({
           invoice={invoice}
           tradeName={tradeName}
           defaultCc={customerLink?.invoiceCc ?? []}
+          contacts={customerLink?.contactOptions ?? []}
           open={sendOpen}
           onOpenChange={setSendOpen}
           onSent={(next, url, msg) => {

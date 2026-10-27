@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
+import { ViewCountCell } from "@/components/admin/lists/view-count-cell";
 import {
   PortalListSuspense,
   PortalListView,
@@ -29,6 +30,8 @@ export type AdminQuoteListRow = {
   revision_number: number;
   sent_at: string | null;
   viewed_at: string | null;
+  view_count: number;
+  last_viewed_at: string | null;
   accepted_at: string | null;
   created_at: string;
   linked_job_id: string | null;
@@ -147,6 +150,15 @@ const columns: PortalListColumn<AdminQuoteListRow>[] = [
         <div>A {formatStamp(row.accepted_at)}</div>
       </div>
     ),
+  },
+  {
+    id: "views",
+    label: "Views",
+    sortable: true,
+    sortType: "number",
+    sortValue: (row) => row.view_count,
+    align: "right",
+    render: (row) => <ViewCountCell count={row.view_count} lastViewedAt={row.last_viewed_at} />,
   },
   {
     id: "created",

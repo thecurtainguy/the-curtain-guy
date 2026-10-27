@@ -8,12 +8,13 @@ import {
   logInvoiceClientAccess,
   toCustomerSafeInvoice,
 } from "@/lib/invoices";
+import { isOwnerCopySource, OWNER_COPY_PARAM, recordDocumentOpen } from "@/lib/document-views";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { token } = await context.params;
   const invoice = await fetchInvoiceByPublicToken(token);
   if (!invoice) {
@@ -24,12 +25,20 @@ export async function GET(_request: Request, context: RouteContext) {
     settings: await getBusinessSettings(),
     publicUrl: buildPublicInvoiceUrl(getSiteUrl(), token),
   });
-  await logInvoiceClientAccess({
-    invoiceId: invoice.id,
-    actorType: "public_link",
-    eventType: "pdf_downloaded",
-    summary: "Client downloaded the PDF (secure link)",
+  const { owner } = await recordDocumentOpen({
+    target: { invoiceId: invoice.id },
+    source: "public_link",
+    ownerCopy: isOwnerCopySource(new URL(request.url).searchParams.get(OWNER_COPY_PARAM)),
+    pdf: true,
   });
+  if (!owner) {
+    await logInvoiceClientAccess({
+      invoiceId: invoice.id,
+      actorType: "public_link",
+      eventType: "pdf_downloaded",
+      summary: "Client downloaded the PDF (secure link)",
+    });
+  }
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",

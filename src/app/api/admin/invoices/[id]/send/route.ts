@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { getBusinessSettings } from "@/lib/business-settings";
-import { getResendApiKey, getSiteUrl } from "@/lib/env";
+import { ownerArchiveAddresses, splitOwnerCopy } from "@/lib/email-tracking";
+import { getOutboundEmailCopyTo, getResendApiKey, getSiteUrl } from "@/lib/env";
 import { invoiceReplyTo, sendInvoiceEmail } from "@/lib/invoice-email";
 import {
   ensureInvoicePublicUrl,
@@ -67,6 +68,9 @@ export async function POST(request: Request, context: RouteContext) {
   const siteUrl = getSiteUrl();
   const publicUrl = await ensureInvoicePublicUrl(id, siteUrl, owner.user.id);
   const settings = await getBusinessSettings();
+  const split = splitOwnerCopy(bcc, ownerArchiveAddresses([owner.profile.email]));
+  const ownerCopyTo =
+    bcc.length === 0 ? parseEmailList(getOutboundEmailCopyTo()) : split.ownerCopyTo;
 
   try {
     await sendInvoiceEmail({
@@ -76,7 +80,8 @@ export async function POST(request: Request, context: RouteContext) {
       publicUrl,
       to,
       cc,
-      bcc,
+      bcc: split.bcc,
+      ownerCopyTo,
       subject: body.subject,
       bodyText: body.bodyText,
       attachPdf: body.attachPdf,

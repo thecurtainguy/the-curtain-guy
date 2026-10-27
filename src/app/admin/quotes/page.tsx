@@ -47,6 +47,8 @@ export default async function AdminQuotesPage() {
     revision_number: row.revision_number,
     sent_at: row.sent_at,
     viewed_at: row.viewed_at,
+    view_count: row.view_count ?? 0,
+    last_viewed_at: row.last_viewed_at ?? null,
     accepted_at: row.accepted_at,
     created_at: row.created_at,
     linked_job_id: jobByQuoteId.get(row.id) ?? null,

@@ -5,6 +5,8 @@ import { AdminPageFrame } from "@/components/admin/admin-page-frame";
 import { AdminQuoteBuilder } from "@/components/admin/admin-quote-builder";
 import { AdminQuoteJobActions } from "@/components/admin/admin-quote-job-actions";
 import { AdminQuoteStudioCard } from "@/components/admin/studio-quote/admin-quote-studio-card";
+import { DocumentEngagementCard } from "@/components/admin/document-engagement-card";
+import { getDocumentEngagement } from "@/lib/document-engagement";
 import { getSiteUrl } from "@/lib/env";
 import { loadAdminOpportunityFiles } from "@/lib/estimate-file-events";
 import { fetchEventPlanByEstimateId } from "@/lib/event-plan-access";
@@ -40,10 +42,11 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
     : null;
   const categories = await listProductCategories();
   const studioSummary = await fetchStudioDesignSummaryForQuote(quote);
-  const [customerLink, customerRow, settings] = await Promise.all([
+  const [customerLink, customerRow, settings, engagement] = await Promise.all([
     getCustomerLinkSummary(quote.customer_id, { excludeEmails: [quote.customer_email] }),
     quote.customer_id ? fetchCustomerById(quote.customer_id) : Promise.resolve(null),
     getBusinessSettings(),
+    getDocumentEngagement({ quoteId: quote.id }),
   ]);
   const paymentDefaults = {
     deposit_percent: customerRow?.default_deposit_percent ?? settings.default_deposit_percent,
@@ -80,6 +83,11 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
               existingJobId={linkedJob?.id}
               customerName={quote.customer_name}
             />
+          }
+          engagementPanel={
+            quote.status === "draft" && engagement.activity.length === 0 ? null : (
+              <DocumentEngagementCard engagement={engagement} documentLabel="quote" />
+            )
           }
           studioPanel={
             <AdminQuoteStudioCard

@@ -31,6 +31,8 @@ import {
   escapeEmailHtml,
   quotePdfAttachmentName,
 } from "@/lib/quote-email-compose";
+import { withOwnerCopySource } from "@/lib/document-views";
+import { recordEmailMessage } from "@/lib/email-tracking";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import {
   toCustomerSafeQuote,
@@ -51,6 +53,8 @@ export type QuoteReadyComposeOptions = {
   extraAttachments?: ResendEmailAttachment[];
   /** When false, do not auto-BCC admin (compose Bcc field is source of truth). */
   copyOutbound?: boolean;
+  /** Archive inboxes that get their own copy, so their clicks are not counted as customer views. */
+  ownerCopyTo?: string[];
 };
 
 export async function sendQuoteReadyEmail(input: {
@@ -105,30 +109,68 @@ export async function sendQuoteReadyEmail(input: {
     }
   }
 
-  const { text, html } = buildQuoteReadyEmailParts({
-    quote,
-    publicQuoteUrl,
-    bodyText,
-    emailFooter,
-    pdfFilename: resolvedPdfName,
-    lineItems: quote.line_items,
-    assetBaseUrl: siteUrl,
-  });
+  const buildParts = (url: string) => {
+    const { text, html } = buildQuoteReadyEmailParts({
+      quote,
+      publicQuoteUrl: url,
+      bodyText,
+      emailFooter,
+      pdfFilename: resolvedPdfName,
+      lineItems: quote.line_items,
+      assetBaseUrl: siteUrl,
+    });
+    return { text, html };
+  };
+  const cc = compose?.cc?.filter(Boolean) ?? [];
+  const bcc = compose?.bcc?.filter(Boolean) ?? [];
 
-  await sendResendEmail({
+  const sent = await sendResendEmail({
     apiKey,
     from: getQuoteFrom(),
     to,
-    cc: compose?.cc?.filter(Boolean),
-    bcc: compose?.bcc?.filter(Boolean),
+    cc,
+    bcc,
     replyTo: getEstimateNotifyTo(),
     subject,
-    text,
-    html,
+    ...buildParts(publicQuoteUrl),
     attachments: attachments.length > 0 ? attachments : undefined,
     copyOutbound: compose?.copyOutbound,
     logLabel: "quotes",
   });
+  await recordEmailMessage({
+    resendId: sent.id,
+    target: { quoteId: quote.id },
+    audience: "customer",
+    to,
+    cc,
+    bcc,
+    subject,
+  });
+
+  const ownerCopyTo = compose?.ownerCopyTo?.filter(Boolean) ?? [];
+  if (ownerCopyTo.length === 0) return;
+  try {
+    const copy = await sendResendEmail({
+      apiKey,
+      from: getQuoteFrom(),
+      to: ownerCopyTo,
+      replyTo: getEstimateNotifyTo(),
+      subject,
+      ...buildParts(withOwnerCopySource(publicQuoteUrl)),
+      attachments: attachments.length > 0 ? attachments : undefined,
+      copyOutbound: false,
+      logLabel: "quotes",
+    });
+    await recordEmailMessage({
+      resendId: copy.id,
+      target: { quoteId: quote.id },
+      audience: "owner_copy",
+      to: ownerCopyTo,
+      subject,
+    });
+  } catch (err) {
+    console.error("[quotes] owner archive copy failed", err);
+  }
 }
 
 const QUOTE_ACCEPTED_COPY = {

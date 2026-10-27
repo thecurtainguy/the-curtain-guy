@@ -27,9 +27,10 @@ import {
   customerCanAccessQuote,
   fetchQuoteById,
   findActivePublicQuoteUrl,
-  markQuoteViewed,
   toCustomerSafeQuote,
 } from "@/lib/quotes";
+import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
+import { recordDocumentOpen } from "@/lib/document-views";
 import { Button } from "@/components/ui/button";
 import { StudioDesignSummaryCard } from "@/components/admin/studio-quote/studio-design-summary-card";
 import { fetchStudioDesignSummaryForQuote } from "@/lib/studio-quote-converter";
@@ -73,7 +74,10 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  await markQuoteViewed(quote.id);
+  const { viewId } = await recordDocumentOpen({
+    target: { quoteId: quote.id },
+    source: "account",
+  });
 
   const language = normalizeCustomerLanguage(quote.language);
   const studio = STUDIO_COPY[language];
@@ -188,6 +192,7 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
           />
         </aside>
       </div>
+      <DocumentViewBeacon viewId={viewId} />
     </AccountPageFrame>
   );
 }

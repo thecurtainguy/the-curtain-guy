@@ -393,7 +393,15 @@
     "guestCta": "Create an account to track your estimate",
     "customerCta": "View your estimate",
     "ownerCta": "View in admin",
-    "newEstimate": "Submit another estimate"
+    "newEstimate": "Submit another estimate",
+    "uploadDone": "{count, plural, one {# file uploaded and added to your request.} other {# files uploaded and added to your request.}}",
+    "responseTime": "Usually within one business day",
+    "serviceArea": "Montreal and surrounding areas",
+    "createAccount": "Create an account",
+    "signIn": "Sign in",
+    "viewInAccount": "View estimate in account",
+    "accountDashboard": "Account dashboard",
+    "adminDashboard": "Admin dashboard"
   },
   "filePicker": {
     "label": "Floor plans & inspiration (optional)",

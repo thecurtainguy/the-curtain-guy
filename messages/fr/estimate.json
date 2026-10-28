@@ -393,7 +393,15 @@
     "guestCta": "Créer un compte pour suivre votre estimation",
     "customerCta": "Voir votre estimation",
     "ownerCta": "Voir dans l'admin",
-    "newEstimate": "Soumettre une autre estimation"
+    "newEstimate": "Soumettre une autre estimation",
+    "uploadDone": "{count, plural, one {# fichier téléversé et joint à votre demande.} other {# fichiers téléversés et joints à votre demande.}}",
+    "responseTime": "Habituellement en un jour ouvrable",
+    "serviceArea": "Montréal et les environs",
+    "createAccount": "Créer un compte",
+    "signIn": "Se connecter",
+    "viewInAccount": "Voir l’estimation dans votre compte",
+    "accountDashboard": "Tableau de bord du compte",
+    "adminDashboard": "Tableau de bord admin"
   },
   "filePicker": {
     "label": "Plans de salle et inspiration (facultatif)",

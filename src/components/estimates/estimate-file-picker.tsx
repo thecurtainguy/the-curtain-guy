@@ -2,7 +2,7 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { CheckCircle2, FileUp, Loader2, Trash2, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   ESTIMATE_MAX_FILE_BYTES,
@@ -65,6 +65,7 @@ export function EstimateFilePicker({
   uploadProgress,
 }: Props) {
   const t = useTranslations("estimate.filePicker");
+  const locale = useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -180,7 +181,7 @@ export function EstimateFilePicker({
                 {item.file.name}
               </p>
               <p className="text-[11px] text-muted-foreground">
-                {formatFileSize(item.file.size)}
+                {formatFileSize(item.file.size, locale)}
               </p>
             </div>
             <button
@@ -210,8 +211,8 @@ export function EstimateFilePicker({
                 {item.name}
               </p>
               <p className="text-[11px] text-muted-foreground">
-                {formatFileSize(item.size)}
-                {item.message ? ` · ${item.message}` : ""}
+                {formatFileSize(item.size, locale)}
+                {item.message && locale === "en" ? ` · ${item.message}` : ""}
               </p>
             </div>
             <span className="inline-flex shrink-0 items-center gap-1 text-[11px] capitalize text-muted-foreground">
@@ -461,7 +462,7 @@ export async function uploadEstimateFiles(input: {
       }
 
       uploaded += 1;
-      progress[i] = { ...progress[i], status: "uploaded", message: "Ready" };
+      progress[i] = { ...progress[i], status: "uploaded", message: undefined };
       input.onProgress?.([...progress]);
     } catch {
       failed += 1;

@@ -97,8 +97,10 @@ export function buildEstimateObjectPath(input: {
   return `estimates/${input.estimateId}/${input.fileId}-${safe}`;
 }
 
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+export function formatFileSize(bytes: number, locale: string = "en"): string {
+  const fr = locale === "fr";
+  const num = (value: number) => (fr ? value.toFixed(1).replace(".", ",") : value.toFixed(1));
+  if (bytes < 1024) return `${bytes} ${fr ? "o" : "B"}`;
+  if (bytes < 1024 * 1024) return `${num(bytes / 1024)} ${fr ? "Ko" : "KB"}`;
+  return `${num(bytes / (1024 * 1024))} ${fr ? "Mo" : "MB"}`;
 }

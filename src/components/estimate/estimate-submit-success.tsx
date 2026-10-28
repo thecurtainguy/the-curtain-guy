@@ -11,7 +11,6 @@ import {
   Shield,
   UserPlus,
 } from "lucide-react";
-import { siteConfig } from "@/data/site";
 import { Link } from "@/i18n/navigation";
 import { GuardedLink } from "@/components/ui/guarded-link";
 import { Button } from "@/components/ui/button";
@@ -109,21 +108,18 @@ export function EstimateSubmitSuccess({
         <div className="flex flex-wrap items-center justify-center gap-2">
           <span className="surface-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
             <Clock3 className="size-3.5 text-primary" aria-hidden />
-            Usually within one business day
+            {t("responseTime")}
           </span>
           <span className="surface-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
             <MapPin className="size-3.5 text-primary" aria-hidden />
-            {siteConfig.location}
+            {t("serviceArea")}
           </span>
         </div>
 
         <div className="mx-auto w-full max-w-lg space-y-2 text-sm leading-relaxed text-muted-foreground">
-          {typeof uploadUploaded === "number" && uploadUploaded > 0 ? (
+          {uploadUploaded && uploadUploaded > 0 && !(uploadFailed && uploadFailed > 0) ? (
             <p className="text-emerald-700 dark:text-emerald-300">
-              {t("uploadPartial", {
-                uploaded: uploadUploaded,
-                failed: 0,
-              })}
+              {t("uploadDone", { count: uploadUploaded })}
             </p>
           ) : null}
           {uploadFailed && uploadFailed > 0 ? (
@@ -157,11 +153,11 @@ export function EstimateSubmitSuccess({
                   href={`/account/signup?email=${encodeURIComponent(email.trim())}`}
                 >
                   <UserPlus className="size-4" />
-                  Create an account
+                  {t("createAccount")}
                 </GuardedLink>
               </Button>
               <Button asChild variant="atelier-outline" size="atelier">
-                <GuardedLink href="/account/login">Sign in</GuardedLink>
+                <GuardedLink href="/account/login">{t("signIn")}</GuardedLink>
               </Button>
             </div>
           </div>
@@ -172,12 +168,12 @@ export function EstimateSubmitSuccess({
             <p className="text-sm font-medium text-foreground">{t("customerCta")}</p>
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               <Button variant="atelier" size="atelier" asChild>
-                <Link href={accountHref}>View estimate in account</Link>
+                <Link href={accountHref}>{t("viewInAccount")}</Link>
               </Button>
               <Button asChild variant="atelier-outline" size="atelier">
                 <Link href="/account">
                   <LayoutDashboard className="size-4" />
-                  Account dashboard
+                  {t("accountDashboard")}
                 </Link>
               </Button>
               {onSubmitAnother ? (
@@ -208,7 +204,7 @@ export function EstimateSubmitSuccess({
               <Button asChild variant="atelier-outline" size="atelier">
                 <Link href="/admin">
                   <LayoutDashboard className="size-4" />
-                  Admin dashboard
+                  {t("adminDashboard")}
                 </Link>
               </Button>
               {onSubmitAnother ? (

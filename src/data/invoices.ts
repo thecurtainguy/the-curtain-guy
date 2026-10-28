@@ -270,6 +270,8 @@ export type InvoiceLineItemRow = {
   id: string;
   invoice_id: string;
   description: string;
+  /** description in the language other than the invoice's language. */
+  description_translated?: string | null;
   quantity: number;
   unit_label: string | null;
   unit_price_cents: number;

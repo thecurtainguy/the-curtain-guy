@@ -12,6 +12,7 @@ import {
   Eye,
   FilePlus2,
   FileText,
+  Languages,
   Loader2,
   Package,
   Pencil,
@@ -139,6 +140,8 @@ type DraftLine = {
   category: string;
   categoryLabel: string | null;
   description: string;
+  /** The description in the other customer language. */
+  descriptionTranslated: string;
   quantity: number;
   unitLabel: string;
   unitPriceDollars: string;
@@ -170,6 +173,7 @@ function linesFromQuote(quote: QuoteWithRelations): DraftLine[] {
     category: item.category,
     categoryLabel: item.category_label ?? null,
     description: item.description,
+    descriptionTranslated: item.description_translated ?? "",
     quantity: item.quantity,
     unitLabel: item.unit_label?.trim() || "each",
     unitPriceDollars: unitPriceCentsToDollarInput(item.unit_price_cents),
@@ -236,6 +240,7 @@ function emptyLine(first: QuoteCategoryOption | undefined): DraftLine {
     category,
     categoryLabel: first?.label ?? null,
     description: getQuoteCategoryDefaultDescription(category),
+    descriptionTranslated: "",
     quantity: 1,
     unitLabel: "each",
     unitPriceDollars: "0.00",
@@ -253,6 +258,7 @@ function lineFromInventory(item: InventoryPickResult): DraftLine {
     category: item.category,
     categoryLabel: item.categoryLabel,
     description: item.description,
+    descriptionTranslated: "",
     quantity: 1,
     unitLabel: item.unitLabel,
     unitPriceDollars: unitPriceCentsToDollarInput(item.unitPriceCents),
@@ -274,6 +280,7 @@ function lineFromLogistics(item: LogisticsServicePick): DraftLine {
     category: item.category,
     categoryLabel: item.categoryLabel,
     description: item.description,
+    descriptionTranslated: "",
     quantity: 1,
     unitLabel: item.unitLabel,
     unitPriceDollars: unitPriceCentsToDollarInput(item.unitPriceCents),
@@ -405,8 +412,13 @@ export function AdminQuoteBuilder({
   const [cityArea, setCityArea] = useState(quote.city_area ?? "");
   const [validUntil, setValidUntil] = useState(toDateInput(quote.valid_until));
   const [customerNotes, setCustomerNotes] = useState(quote.customer_notes ?? "");
+  const [customerNotesTranslated, setCustomerNotesTranslated] = useState(
+    quote.customer_notes_translated ?? ""
+  );
   const [ownerNotes, setOwnerNotes] = useState(quote.owner_notes ?? "");
   const [terms, setTerms] = useState(quote.terms ?? "");
+  const [termsTranslated, setTermsTranslated] = useState(quote.terms_translated ?? "");
+  const [translating, setTranslating] = useState(false);
   const [language, setLanguage] = useState<CustomerLanguage>(
     normalizeCustomerLanguage(quote.language)
   );
@@ -454,8 +466,10 @@ export function AdminQuoteBuilder({
     setCityArea(source.city_area ?? "");
     setValidUntil(toDateInput(source.valid_until));
     setCustomerNotes(source.customer_notes ?? "");
+    setCustomerNotesTranslated(source.customer_notes_translated ?? "");
     setOwnerNotes(source.owner_notes ?? "");
     setTerms(source.terms ?? "");
+    setTermsTranslated(source.terms_translated ?? "");
     setLanguage(normalizeCustomerLanguage(source.language));
     setCurrency(quoteCurrency(source.currency));
     setLines(linesFromQuote(source));
@@ -552,8 +566,10 @@ export function AdminQuoteBuilder({
       city_area: cityArea,
       valid_until: validUntil || null,
       customer_notes: customerNotes,
+      customer_notes_translated: customerNotesTranslated,
       owner_notes: ownerNotes,
       terms,
+      terms_translated: termsTranslated,
       language,
       currency,
     };
@@ -573,6 +589,10 @@ export function AdminQuoteBuilder({
   }
 
   const money = (cents: number) => formatMoneyFromCents(cents, "en", currency);
+  const otherLanguageLabel = language === "fr" ? "English" : "French";
+  const missingTranslationCount =
+    lines.filter((line) => line.description.trim() && !line.descriptionTranslated.trim()).length +
+    (customerNotes.trim() && !customerNotesTranslated.trim() ? 1 : 0);
 
   async function fetchDefaultTerms(): Promise<Record<
     CustomerLanguage,
@@ -606,6 +626,7 @@ export function AdminQuoteBuilder({
         return;
       }
       setTerms(defaults[language]);
+      setTermsTranslated("");
     } catch {
       setError("Could not load default terms.");
     } finally {
@@ -617,18 +638,77 @@ export function AdminQuoteBuilder({
     if (next === language) return;
     const previous = language;
     setLanguage(next);
+    // Text written in the new language moves into the main fields.
+    setLines((prev) =>
+      prev.map((line) =>
+        line.descriptionTranslated.trim()
+          ? { ...line, description: line.descriptionTranslated, descriptionTranslated: line.description }
+          : line
+      )
+    );
+    if (customerNotesTranslated.trim()) {
+      setCustomerNotes(customerNotesTranslated);
+      setCustomerNotesTranslated(customerNotes);
+    }
     try {
       const defaults = await fetchDefaultTerms();
-      if (!defaults?.[next]) return;
       const same = (a: string, b: string) =>
         splitQuoteTerms(a).join("\n") === splitQuoteTerms(b).join("\n");
-      setTerms((current) =>
-        !current.trim() || same(current, defaults[previous])
-          ? defaults[next]
-          : current
-      );
+      const isDefault = Boolean(defaults && (!terms.trim() || same(terms, defaults[previous])));
+      if (isDefault && defaults?.[next]) {
+        setTerms(defaults[next]);
+        setTermsTranslated("");
+      } else if (termsTranslated.trim()) {
+        setTerms(termsTranslated);
+        setTermsTranslated(terms);
+      }
     } catch {
       // Keep current terms; owner can use "Use default terms".
+    }
+  }
+
+  async function translateMissing() {
+    setTranslating(true);
+    flash();
+    try {
+      const response = await fetch("/api/admin/quotes/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: language,
+          lines: lines
+            .filter((line) => line.description.trim() && !line.descriptionTranslated.trim())
+            .map((line) => ({ key: line.key, text: line.description })),
+          notes: customerNotes.trim() && !customerNotesTranslated.trim() ? customerNotes : null,
+          terms: terms.trim() && !termsTranslated.trim() ? terms : null,
+        }),
+      });
+      const json = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        lines?: Array<{ key: string; text: string }>;
+        notes?: string | null;
+        terms?: string | null;
+      };
+      if (!response.ok || !json.ok) {
+        flash(undefined, json.message || "Could not translate.");
+        return;
+      }
+      const byKey = new Map((json.lines ?? []).map((line) => [line.key, line.text]));
+      setLines((prev) =>
+        prev.map((line) =>
+          !line.descriptionTranslated.trim() && byKey.get(line.key)
+            ? { ...line, descriptionTranslated: byKey.get(line.key)! }
+            : line
+        )
+      );
+      if (json.notes) setCustomerNotesTranslated((current) => current.trim() || json.notes!);
+      if (json.terms) setTermsTranslated((current) => current.trim() || json.terms!);
+      flash(`Draft ${otherLanguageLabel} added — review it before saving.`);
+    } catch {
+      flash(undefined, "Could not translate.");
+    } finally {
+      setTranslating(false);
     }
   }
 
@@ -639,6 +719,7 @@ export function AdminQuoteBuilder({
         category: line.category,
         category_label: line.categoryLabel,
         description: line.description,
+        description_translated: line.descriptionTranslated,
         quantity: line.quantity,
         unit_label: line.unitLabel,
         unit_price_cents: unitPriceDollarsToCents(line.unitPriceDollars),
@@ -886,7 +967,7 @@ export function AdminQuoteBuilder({
                 </>
               ) : null;
             })()}
-            <QuoteStatusBadge status={quote.status} />
+            <QuoteStatusBadge status={quote.status} validUntil={quote.valid_until} />
             <CustomerLanguageBadge language={quote.language} />
             {sourceEventPlan && eventPlanRef ? (
               <span>
@@ -1206,6 +1287,43 @@ export function AdminQuoteBuilder({
               </div>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Languages className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">
+                  {otherLanguageLabel} version
+                  {missingTranslationCount > 0 ? (
+                    <span className="ml-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                      {missingTranslationCount} missing
+                    </span>
+                  ) : (
+                    <span className="ml-2 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      Ready
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Both versions go out together. Standard terms translate
+                  automatically; custom text needs a translation.
+                </p>
+              </div>
+            </div>
+            {isEditing ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void translateMissing()}
+                disabled={translating}
+              >
+                {translating ? <Loader2 className="size-4 animate-spin" /> : <Languages className="size-4" />}
+                {translating ? "Translating…" : "Translate missing"}
+              </Button>
+            ) : null}
+          </div>
           {customer && customer.currency !== currency ? (
             <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
               {customer.display_name} is billed in {customer.currency} by default.
@@ -1348,6 +1466,21 @@ export function AdminQuoteBuilder({
                         updateLine(line.key, { description: e.target.value })
                       }
                       placeholder="What is included"
+                    />
+                    <Input
+                      value={line.descriptionTranslated}
+                      disabled={!isEditing}
+                      onChange={(e) =>
+                        updateLine(line.key, { descriptionTranslated: e.target.value })
+                      }
+                      aria-label={`${otherLanguageLabel} description`}
+                      placeholder={language === "fr" ? "English version" : "Version française"}
+                      className={cn(
+                        "h-8 text-xs",
+                        line.description.trim() && !line.descriptionTranslated.trim()
+                          ? "border-amber-500/50"
+                          : "border-border/40"
+                      )}
                     />
                   </div>
                   <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
@@ -1855,6 +1988,23 @@ export function AdminQuoteBuilder({
               onChange={(e) => setCustomerNotes(e.target.value)}
               disabled={!isEditing}
             />
+            {customerNotes.trim() || customerNotesTranslated.trim() ? (
+              <>
+                <Label htmlFor="customer_notes_translated" className="text-xs text-muted-foreground">
+                  Customer notes · {otherLanguageLabel}
+                </Label>
+                <Textarea
+                  id="customer_notes_translated"
+                  rows={3}
+                  value={customerNotesTranslated}
+                  onChange={(e) => setCustomerNotesTranslated(e.target.value)}
+                  disabled={!isEditing}
+                  className={cn(
+                    customerNotes.trim() && !customerNotesTranslated.trim() ? "border-amber-500/50" : undefined
+                  )}
+                />
+              </>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="owner_notes">Owner notes</Label>
@@ -1911,6 +2061,22 @@ export function AdminQuoteBuilder({
             />
           ) : null}
           <QuoteTermsList terms={terms} />
+          {isEditing || termsTranslated.trim() ? (
+            <div className="space-y-2 border-t border-border/40 pt-3">
+              <Label htmlFor="terms_translated" className="text-xs text-muted-foreground">
+                Custom terms · {otherLanguageLabel} — leave empty when using the
+                default terms
+              </Label>
+              <Textarea
+                id="terms_translated"
+                rows={5}
+                value={termsTranslated}
+                onChange={(e) => setTermsTranslated(e.target.value)}
+                disabled={!isEditing}
+                className="min-h-24 resize-y"
+              />
+            </div>
+          ) : null}
         </div>
       </section>
       </div>
@@ -1935,7 +2101,7 @@ export function AdminQuoteBuilder({
         <section className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-heading text-lg font-semibold">Quote summary</h2>
-            <QuoteStatusBadge status={quote.status} />
+            <QuoteStatusBadge status={quote.status} validUntil={quote.valid_until} />
           </div>
           <div className="mt-3 rounded-2xl border border-border/40 bg-background/40 p-3">
             <QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" currency={currency} />

@@ -1,11 +1,17 @@
 import path from "node:path";
-import { Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { customerLocaleTag, type CustomerLanguage } from "@/data/customer-language";
 import { formatQuoteFilenameStem } from "@/data/quotes";
 import { siteConfig } from "@/data/site";
-import { getSiteUrl } from "@/lib/env";
-import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import {
+  appendPdfAttachments,
+  appendedPageCount,
+  loadDocumentAttachments,
+  renderAttachmentPages,
+} from "@/lib/pdf-attachments";
+import { SignedContractPages, contractCopy, contractNumber } from "@/lib/quote-contract-pdf";
+import {
+  currentContractProvider,
   describeSignerDevice,
   toAgreementAudit,
   type QuoteSignatureRow,
@@ -56,10 +62,17 @@ const COPY = {
     channel: "Signed from",
     channelPublic: "Secure proposal link",
     channelAccount: "Customer account",
+    languageChoice: "Language chosen",
+    frenchProvided: "French version provided",
+    frenchVia: {
+      email_attachment: "Attached to the quote email",
+      pdf_opened: "French PDF opened by the client",
+      owner_sent: "Sent by The Curtain Guy",
+    },
     fingerprint: "Document fingerprint (SHA-256)",
     envelope: "Agreement ID",
     footnote:
-      "This certificate forms part of the agreement. The fingerprint is computed over the exact proposal, key clauses, consent statement, and signer identity shown in this document at the moment of signing; any change to that content produces a different fingerprint.",
+      "This certificate forms part of the agreement. The fingerprint is computed over the exact proposal, key clauses, consent statement, language choice, and signer identity shown in this document at the moment of signing; any change to that content produces a different fingerprint.",
     page: "Certificate",
   },
   fr: {
@@ -88,10 +101,17 @@ const COPY = {
     channel: "Signée depuis",
     channelPublic: "Lien sécurisé de la soumission",
     channelAccount: "Compte client",
+    languageChoice: "Langue choisie",
+    frenchProvided: "Version française transmise",
+    frenchVia: {
+      email_attachment: "Jointe au courriel de la soumission",
+      pdf_opened: "PDF français ouvert par le client",
+      owner_sent: "Transmise par The Curtain Guy",
+    },
     fingerprint: "Empreinte du document (SHA-256)",
     envelope: "No d’entente",
     footnote:
-      "Ce certificat fait partie de l’entente. L’empreinte est calculée sur la soumission exacte, les clauses clés, la déclaration de consentement et l’identité du signataire figurant dans ce document au moment de la signature; toute modification de ce contenu produit une empreinte différente.",
+      "Ce certificat fait partie de l’entente. L’empreinte est calculée sur la soumission exacte, les clauses clés, la déclaration de consentement, le choix de langue et l’identité du signataire figurant dans ce document au moment de la signature; toute modification de ce contenu produit une empreinte différente.",
     page: "Certificat",
   },
 } satisfies Record<CustomerLanguage, unknown>;
@@ -275,6 +295,17 @@ export function AgreementCertificatePage({
     [c.device, describeSignerDevice(audit.signerUserAgent) || "—"],
     [c.location, audit.signerLocation || "—"],
     [c.channel, audit.channel === "account" ? c.channelAccount : c.channelPublic],
+    ...(audit.languageChoiceText
+      ? ([[c.languageChoice, audit.languageChoiceText]] as Array<[string, string]>)
+      : []),
+    ...(audit.frenchVersionProvidedVia
+      ? ([
+          [
+            c.frenchProvided,
+            `${c.frenchVia[audit.frenchVersionProvidedVia]} · ${stamp(audit.frenchVersionProvidedAt, language)}`,
+          ],
+        ] as Array<[string, string]>)
+      : []),
     [c.countersignedAt, executed ? `${audit.countersignerName} · ${stamp(audit.countersignedAt, language)}` : c.pending],
     [c.fingerprint, audit.documentHash, true],
   ];
@@ -389,25 +420,40 @@ export function signedAgreementFilename(
   return `${stem}-${language === "fr" ? "entente-signee" : "signed-agreement"}.pdf`;
 }
 
-/** The frozen proposal exactly as signed, followed by the signature & audit certificate. */
+/** The frozen proposal laid out as a formal contract, followed by the signature & audit certificate. */
 export async function renderSignedAgreementPdf(
-  row: QuoteSignatureRow,
-  options?: { publicUrl?: string | null }
+  row: QuoteSignatureRow
 ): Promise<{ buffer: Buffer; filename: string }> {
   const snapshot = row.document_snapshot;
   if (!snapshot) throw new Error("Signature has no document snapshot.");
   const audit = toAgreementAudit(row);
-  const buffer = await renderQuotePdfBuffer({
-    quote: snapshot,
-    publicUrl: options?.publicUrl ?? null,
-    siteUrl: getSiteUrl(),
-    certificatePages: (
-      <AgreementCertificatePage
+  const language = audit.language;
+  const c = contractCopy(language);
+  const number = contractNumber(snapshot);
+  const [provider, attachments] = await Promise.all([
+    snapshot.contract_provider ?? currentContractProvider(),
+    loadDocumentAttachments(snapshot.estimate_request_id, "quote"),
+  ]);
+  const appendedPages = appendedPageCount(attachments.pdfs);
+  const documentRef = `${c.agreementNo} ${number}`;
+  const rendered = await renderToBuffer(
+    <Document
+      title={`${c.title} · ${number}`}
+      author={provider.legal_name || siteConfig.name}
+      subject={snapshot.quote_display_ref}
+      language={customerLocaleTag(language)}
+    >
+      <SignedContractPages
+        snapshot={snapshot}
         audit={audit}
-        documentRef={snapshot.quote_display_ref}
+        provider={provider}
         initialsImage={row.initials_image}
+        appendedPages={appendedPages}
       />
-    ),
-  });
-  return { buffer, filename: signedAgreementFilename(snapshot, audit.language) };
+      <AgreementCertificatePage audit={audit} documentRef={documentRef} initialsImage={row.initials_image} />
+      {renderAttachmentPages({ attachments, language, documentRef, appendedPages })}
+    </Document>
+  );
+  const buffer = await appendPdfAttachments(Buffer.from(rendered), attachments.pdfs, language);
+  return { buffer, filename: signedAgreementFilename(snapshot, language) };
 }

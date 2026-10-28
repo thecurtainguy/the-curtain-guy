@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { isCustomerLanguage } from "@/data/customer-language";
 import { getCurrentUser } from "@/lib/auth";
 import { getBusinessSettings } from "@/lib/business-settings";
 import { invoicePdfFilename, renderInvoicePdfBuffer } from "@/lib/invoice-pdf";
 import {
   getCustomerInvoice,
+  localizeInvoice,
   logInvoiceClientAccess,
   toCustomerSafeInvoice,
 } from "@/lib/invoices";
@@ -13,7 +15,7 @@ export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ ok: false, message: "Sign in required." }, { status: 401 });
@@ -23,8 +25,10 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!invoice) {
     return NextResponse.json({ ok: false, message: "Invoice not found." }, { status: 404 });
   }
+  const lang = new URL(request.url).searchParams.get("lang");
+  const language = isCustomerLanguage(lang) ? lang : invoice.language;
   const buffer = await renderInvoicePdfBuffer({
-    invoice: toCustomerSafeInvoice(invoice),
+    invoice: await localizeInvoice(toCustomerSafeInvoice(invoice), language),
     settings: await getBusinessSettings(),
   });
   const { owner } = await recordDocumentOpen({
@@ -38,13 +42,17 @@ export async function GET(_request: Request, context: RouteContext) {
       actorType: "customer",
       actorUserId: user.id,
       eventType: "pdf_downloaded",
-      summary: "Client downloaded the PDF (portal)",
+      summary: `Client downloaded the PDF (portal, ${language === "fr" ? "French" : "English"})`,
     });
   }
+  const filename =
+    language === invoice.language
+      ? invoicePdfFilename(invoice.invoice_number)
+      : invoicePdfFilename(invoice.invoice_number, language);
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${invoicePdfFilename(invoice.invoice_number)}"`,
+      "Content-Disposition": `inline; filename="${filename}"`,
       "Cache-Control": "no-store",
     },
   });

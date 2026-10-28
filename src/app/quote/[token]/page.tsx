@@ -11,10 +11,18 @@ import {
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
-import { resolveQuoteTermsForView } from "@/lib/document-texts";
-import { fetchExecutedSignature, toAgreementSummary } from "@/lib/quote-signing";
+import {
+  fetchExecutedSignature,
+  findFrenchVersionEvidence,
+  toAgreementSummary,
+} from "@/lib/quote-signing";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
-import { fetchQuoteByPublicToken, toCustomerSafeQuote } from "@/lib/quotes";
+import {
+  fetchQuoteByPublicToken,
+  localizeQuote,
+  toCustomerQuoteVersions,
+  toCustomerSafeQuote,
+} from "@/lib/quotes";
 import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
 import {
   isOwnerCopySource,
@@ -75,18 +83,13 @@ export default async function PublicQuotePage({
   const language = viewLanguage(quote.language, lang);
   const siteUrl = getSiteUrl();
   const shareUrl = buildPublicQuoteUrl(siteUrl, token);
-  const safe = toCustomerSafeQuote(
-    {
-      ...quote,
-      language,
-      terms: await resolveQuoteTermsForView(
-        quote.terms,
-        quoteLanguage,
-        language
-      ),
-    },
-    { shareUrl }
-  );
+  const [safe, signingQuotes, frenchEvidence] = await Promise.all([
+    localizeQuote(quote, language).then((localized) =>
+      toCustomerSafeQuote(localized, { shareUrl })
+    ),
+    toCustomerQuoteVersions(quote, {}, { shareUrl }),
+    findFrenchVersionEvidence(quote.id),
+  ]);
 
   const pdfParams = new URLSearchParams();
   if (language !== quoteLanguage) pdfParams.set("lang", language);
@@ -116,6 +119,8 @@ export default async function PublicQuotePage({
         ) : null}
         <QuoteProposalView
           quote={safe}
+          signingQuotes={signingQuotes}
+          frenchVersionProvided={Boolean(frenchEvidence)}
           attachments={attachments}
           mode="public"
           actionEndpoint={`/api/quote/${token}/customer-action`}

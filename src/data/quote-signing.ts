@@ -61,13 +61,54 @@ export type QuoteAgreementAudit = QuoteAgreementSummary & {
   acknowledgements: SigningAcknowledgement[];
   consentText: string | null;
   signatureMethod: SignatureMethod | null;
+  /** Exact wording of the language option the signer selected; null on older signatures. */
+  languageChoiceText: string | null;
+  frenchVersionProvidedVia: "email_attachment" | "pdf_opened" | "owner_sent" | null;
+  frenchVersionProvidedAt: string | null;
 };
 
 export function signingConsentText(language: CustomerLanguage, signerName: string, displayRef: string): string {
   const quoteRef = displayRef.replace(/^(Quote|Soumission)\s+/i, "");
   return language === "fr"
-    ? `En sélectionnant « Signer et accepter », moi, ${signerName}, reconnais que ma signature et mes initiales électroniques ont la même valeur juridique que ma signature manuscrite, que je suis autorisé(e) à signer au nom du client indiqué, et que j’accepte la soumission ${quoteRef}, son horaire, ses prix, son calendrier de paiement ainsi que l’ensemble des conditions. Je consens à recevoir cette entente et les avis connexes par voie électronique.`
-    : `By selecting “Sign & accept”, I, ${signerName}, agree that my electronic signature and initials are the legal equivalent of my handwritten signature, that I am authorized to sign on behalf of the client named in this agreement, and that I accept proposal ${quoteRef}, its schedule, pricing, payment schedule, and all terms and conditions. I consent to receive this agreement and related notices electronically.`;
+    ? `En sélectionnant « Signer et accepter », moi, ${signerName}, reconnais que ma signature et mes initiales électroniques ont la même valeur juridique que ma signature manuscrite, que je suis autorisé(e) à signer au nom du client indiqué, et que j’accepte la soumission ${quoteRef} dans la version qui m’est présentée, y compris son horaire, sa portée, ses quantités, ses prix et son calendrier de paiement, ainsi que l’ensemble des conditions. Je consens à recevoir cette entente et les avis connexes par voie électronique.`
+    : `By selecting “Sign & accept”, I, ${signerName}, agree that my electronic signature and initials are the legal equivalent of my handwritten signature, that I am authorized to sign on behalf of the client named in this agreement, and that I accept quote ${quoteRef} in the version displayed to me, including its schedule, scope, quantities, pricing and payment schedule, and all terms and conditions. The French version of this agreement was provided to me before signing, and I expressly wish to be bound by its English version. I consent to receive this agreement and related notices electronically.`;
+}
+
+/**
+ * The signing-language choice, shown bilingually so each option reads in its
+ * own language. Selecting English is the customer's express choice; the
+ * selected option's exact wording is stored with the signature.
+ */
+export const SIGNING_LANGUAGE_CHOICE = {
+  heading: "Langue du contrat · Contract language",
+  body: "Les versions française et anglaise vous ont été transmises. Choisissez la version qui vous liera. · The French and English versions were provided to you. Choose the version that will bind you.",
+  options: {
+    fr: {
+      label: "Français",
+      description: "Je signe et suis lié(e) par la version française du contrat.",
+    },
+    en: {
+      label: "English",
+      description:
+        "The French version was provided to me first. I expressly choose to sign and be bound by the English version.",
+    },
+  },
+  frenchFirst: {
+    title: "Consultez d’abord la version française · Open the French version first",
+    body: "Pour signer en anglais, ouvrez la version française du contrat. · To sign in English, open the French version of the agreement.",
+    open: "Ouvrir la version française (PDF)",
+    opened: "Version française consultée · French version opened",
+  },
+  errors: {
+    frenchFirst:
+      "Ouvrez la version française avant de choisir l’anglais. · Please open the French version before choosing English.",
+  },
+} as const;
+
+/** Exact wording recorded as the signer's language choice. */
+export function signingLanguageChoiceText(language: CustomerLanguage): string {
+  const option = SIGNING_LANGUAGE_CHOICE.options[language];
+  return `${option.label} — ${option.description}`;
 }
 
 /** "Marie-Ève Tremblay" → "MÈT". */
@@ -139,32 +180,32 @@ export function buildSigningClauses(quote: ClauseSource, language: CustomerLangu
       title: fr ? "Dates, horaire et lieu" : "Dates, schedule & venue",
       facts: scheduleFacts,
       statement: fr
-        ? "Je confirme que ces dates, heures et ce lieu sont exacts, et que l’accès sera disponible pour l’installation et le démontage aux heures convenues."
-        : "I confirm these dates, times, and venue are correct, and that access will be available for installation and teardown at the agreed times.",
+        ? "Je confirme que ces dates, heures et ce lieu sont exacts. J’obtiendrai les autorisations requises du lieu et j’assurerai un accès sécuritaire et dégagé à une aire d’installation prête pendant toutes les plages d’installation et de démontage."
+        : "I confirm these dates, times, and venue are correct. I will obtain any permissions the venue requires and ensure safe, clear access to a prepared installation area for the full installation and teardown windows.",
     },
     {
       key: "payment",
       title: fr ? "Calendrier de paiement" : "Payment schedule",
       facts: paymentFacts,
       statement: fr
-        ? "J’accepte de payer les montants ci-dessus selon ce calendrier. La date est réservée lorsque The Curtain Guy confirme la réservation et reçoit tout dépôt exigé."
-        : "I agree to pay the amounts above on this schedule. The date is reserved once The Curtain Guy confirms the booking and receives any required deposit.",
+        ? "J’accepte de payer les montants ci-dessus selon ce calendrier. La réservation est confirmée lorsque The Curtain Guy contresigne, et la date, l’inventaire et l’équipe sont réservés à la réception du dépôt. Toute somme en retard porte intérêt à 2 % par mois (26,82 % par année)."
+        : "I agree to pay the amounts above on this schedule. The booking is confirmed when The Curtain Guy countersigns, and the date, inventory, and crew are reserved once the deposit is received. Overdue amounts bear interest at 2% per month (26.82% per year).",
     },
     {
       key: "cancellation",
       title: fr ? "Annulation et report" : "Cancellation & rescheduling",
       facts: [],
       statement: fr
-        ? "En cas d’annulation ou de report, je demeure responsable des travaux déjà effectués, des articles commandés spécialement et des frais de tiers non annulables. Toute nouvelle date dépend de la disponibilité et peut entraîner une révision des prix."
-        : "If I cancel or reschedule, I remain responsible for work already performed, specially ordered items, and non-cancellable third-party costs. A new date depends on availability and may change the pricing.",
+        ? "Je peux annuler par avis écrit. Je paierai alors la valeur des travaux déjà exécutés, les matériaux commandés spécialement, l’équipe engagée qui ne peut être réaffectée et les frais de tiers non récupérables; les sommes versées y sont imputées et tout excédent m’est remboursé. Toute nouvelle date dépend de la disponibilité et peut entraîner une révision des prix."
+        : "I may cancel by written notice. I will then pay the value of work already performed, specially ordered materials, committed crew that cannot be reassigned, and non-recoverable third-party costs; amounts I have paid are applied to these and any surplus is refunded. A new date depends on availability and may change the pricing.",
     },
     {
       key: "care",
       title: fr ? "Articles loués et dommages" : "Rental items & damage",
       facts: [],
       statement: fr
-        ? "Les drapés et articles loués demeurent la propriété de The Curtain Guy. Je suis responsable de leur perte ou de leurs dommages causés par moi, mes invités, mes fournisseurs ou le personnel du lieu (hors usure normale), et je m’assure qu’ils restent accessibles pour le démontage."
-        : "Drapes and rental items remain the property of The Curtain Guy. I am responsible for loss or damage caused by me, my guests, vendors, or venue staff (excluding ordinary wear), and will keep them accessible for teardown.",
+        ? "Les drapés et articles loués demeurent la propriété de The Curtain Guy. Je ne les déplacerai ni ne les modifierai, je suis responsable de leur perte ou de leurs dommages entre la livraison et le démontage, y compris par mes invités, mes fournisseurs ou le personnel du lieu (hors usure normale et dommages causés par The Curtain Guy), et je m’assure qu’ils restent accessibles pour le démontage."
+        : "Drapes and rental items remain the property of The Curtain Guy. I will not move or alter them, I am responsible for loss or damage between delivery and teardown, including by my guests, vendors, or venue staff (excluding ordinary wear and damage caused by The Curtain Guy), and I will keep them accessible for teardown.",
     },
   ];
 }

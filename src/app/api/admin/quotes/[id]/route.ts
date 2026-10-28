@@ -91,8 +91,10 @@ export async function PUT(request: Request, context: RouteContext) {
     "venue_address",
     "city_area",
     "customer_notes",
+    "customer_notes_translated",
     "owner_notes",
     "terms",
+    "terms_translated",
   ] as const;
 
   for (const field of stringFields) {

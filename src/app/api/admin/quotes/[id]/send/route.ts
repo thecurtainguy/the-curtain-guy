@@ -26,6 +26,8 @@ import {
   fetchQuoteById,
   issuePublicQuoteToken,
   logQuoteEvent,
+  missingQuoteTranslations,
+  otherLanguageName,
 } from "@/lib/quotes";
 import type { ResendEmailAttachment } from "@/lib/resend";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -213,6 +215,17 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  const missing = await missingQuoteTranslations(quote);
+  if (missing.length > 0) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: `Add the ${otherLanguageName(quote.language)} version before sending — both versions go out together. Missing: ${missing.join(", ")}.`,
+      },
+      { status: 400 }
+    );
+  }
+
   const issued = await issuePublicQuoteToken(id);
   if (!issued) {
     return NextResponse.json(
@@ -296,6 +309,40 @@ export async function POST(request: Request, context: RouteContext) {
     attachmentNames.push(upload.filename);
   }
 
+  const apiKey = getResendApiKey();
+  let emailSent = false;
+  let pdfLanguages: string[] = [];
+  if (apiKey) {
+    try {
+      const fresh = await fetchQuoteById(id);
+      if (fresh) {
+        const split = splitOwnerCopy(
+          bccList,
+          ownerArchiveAddresses([owner.profile.email])
+        );
+        ({ pdfLanguages } = await sendQuoteReadyEmail({
+          apiKey,
+          quote: fresh,
+          publicQuoteUrl: publicUrl,
+          compose: {
+            to: toList,
+            cc: ccList,
+            bcc: split.bcc,
+            ownerCopyTo: split.ownerCopyTo,
+            subject,
+            bodyText,
+            attachPdf: compose.attachPdf !== false,
+            extraAttachments,
+            copyOutbound: false,
+          },
+        }));
+        emailSent = true;
+      }
+    } catch (err) {
+      console.error("[quotes] send email failed", err);
+    }
+  }
+
   await logQuoteEvent({
     quoteId: id,
     actorType: "owner",
@@ -313,41 +360,11 @@ export async function POST(request: Request, context: RouteContext) {
       subject,
       attachment_names: attachmentNames,
       attach_pdf: compose.attachPdf !== false,
+      email_sent: emailSent,
+      // Proof the French version was provided (Charter s.55) — read by the signing step.
+      pdf_languages: emailSent ? pdfLanguages : [],
     },
   });
-
-  const apiKey = getResendApiKey();
-  let emailSent = false;
-  if (apiKey) {
-    try {
-      const fresh = await fetchQuoteById(id);
-      if (fresh) {
-        const split = splitOwnerCopy(
-          bccList,
-          ownerArchiveAddresses([owner.profile.email])
-        );
-        await sendQuoteReadyEmail({
-          apiKey,
-          quote: fresh,
-          publicQuoteUrl: publicUrl,
-          compose: {
-            to: toList,
-            cc: ccList,
-            bcc: split.bcc,
-            ownerCopyTo: split.ownerCopyTo,
-            subject,
-            bodyText,
-            attachPdf: compose.attachPdf !== false,
-            extraAttachments,
-            copyOutbound: false,
-          },
-        });
-        emailSent = true;
-      }
-    } catch (err) {
-      console.error("[quotes] send email failed", err);
-    }
-  }
 
   return NextResponse.json({
     ok: true,

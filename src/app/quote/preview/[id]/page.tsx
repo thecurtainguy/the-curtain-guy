@@ -8,13 +8,14 @@ import {
 } from "@/data/customer-language";
 import { heroImage } from "@/data/site";
 import { requireOwner } from "@/lib/auth";
-import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
 import { fetchExecutedSignature, toAgreementSummary } from "@/lib/quote-signing";
 import {
   fetchQuoteById,
   findActivePublicQuoteUrl,
+  localizeQuote,
+  toCustomerQuoteVersions,
   toCustomerSafeQuote,
 } from "@/lib/quotes";
 
@@ -48,20 +49,14 @@ export default async function QuoteCustomerPreviewPage({
   const language = isCustomerLanguage(lang) ? lang : quoteLanguage;
   const siteUrl = getSiteUrl();
   const shareUrl = (await findActivePublicQuoteUrl(id, siteUrl)) ?? siteUrl;
-  const safe = toCustomerSafeQuote(
-    {
-      ...quote,
-      // Customers only ever see a quote once it has been sent.
-      status: quote.status === "draft" ? "sent" : quote.status,
-      language,
-      terms: await resolveQuoteTermsForView(
-        quote.terms,
-        quoteLanguage,
-        language
-      ),
-    },
-    { shareUrl }
-  );
+  // Customers only ever see a quote once it has been sent.
+  const sentView = { ...quote, status: quote.status === "draft" ? "sent" as const : quote.status };
+  const [safe, signingQuotes] = await Promise.all([
+    localizeQuote(sentView, language).then((localized) =>
+      toCustomerSafeQuote(localized, { shareUrl })
+    ),
+    toCustomerQuoteVersions(sentView, {}, { shareUrl }),
+  ]);
 
   const attachments = await listAttachmentViewItems(
     safe.estimate_request_id,
@@ -78,6 +73,8 @@ export default async function QuoteCustomerPreviewPage({
       <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-10">
         <QuoteProposalView
           quote={safe}
+          signingQuotes={signingQuotes}
+          frenchVersionProvided={false}
           attachments={attachments}
           mode="public"
           preview

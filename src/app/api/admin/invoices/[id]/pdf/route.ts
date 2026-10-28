@@ -6,8 +6,10 @@ import { invoicePdfFilename, renderInvoicePdfBuffer } from "@/lib/invoice-pdf";
 import {
   fetchInvoiceById,
   findActiveInvoiceUrl,
+  localizeInvoice,
   toCustomerSafeInvoice,
 } from "@/lib/invoices";
+import { isCustomerLanguage } from "@/data/customer-language";
 
 export const runtime = "nodejs";
 
@@ -29,16 +31,23 @@ export async function GET(request: Request, context: RouteContext) {
     getBusinessSettings(),
     findActiveInvoiceUrl(id, getSiteUrl()),
   ]);
+  const searchParams = new URL(request.url).searchParams;
+  const lang = searchParams.get("lang");
+  const language = isCustomerLanguage(lang) ? lang : invoice.language;
   const buffer = await renderInvoicePdfBuffer({
-    invoice: toCustomerSafeInvoice(invoice),
+    invoice: await localizeInvoice(toCustomerSafeInvoice(invoice), language),
     settings,
     publicUrl,
   });
-  const download = new URL(request.url).searchParams.get("download") === "1";
+  const download = searchParams.get("download") === "1";
+  const filename =
+    language === invoice.language
+      ? invoicePdfFilename(invoice.invoice_number)
+      : invoicePdfFilename(invoice.invoice_number, language);
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${invoicePdfFilename(invoice.invoice_number)}"`,
+      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${filename}"`,
       "Cache-Control": "no-store",
     },
   });

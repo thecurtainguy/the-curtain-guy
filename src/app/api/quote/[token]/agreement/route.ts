@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getSiteUrl } from "@/lib/env";
 import { renderSignedAgreementPdf } from "@/lib/quote-agreement-pdf";
 import { fetchExecutedSignature } from "@/lib/quote-signing";
-import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
 import { fetchQuoteByPublicToken } from "@/lib/quotes";
 
 export const runtime = "nodejs";
@@ -16,9 +14,7 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!quote || !signature) {
     return NextResponse.json({ ok: false, message: "Agreement not found." }, { status: 404 });
   }
-  const { buffer, filename } = await renderSignedAgreementPdf(signature, {
-    publicUrl: buildPublicQuoteUrl(getSiteUrl(), token),
-  });
+  const { buffer, filename } = await renderSignedAgreementPdf(signature);
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {

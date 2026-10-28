@@ -13,22 +13,50 @@ import { getLocalizedDocumentText } from "@/lib/document-texts";
 import { withOwnerCopySource } from "@/lib/document-views";
 import { recordEmailMessage } from "@/lib/email-tracking";
 import { invoicePdfFilename, renderInvoicePdfBuffer } from "@/lib/invoice-pdf";
-import { toCustomerSafeInvoice } from "@/lib/invoices";
+import { localizeInvoice, toCustomerSafeInvoice } from "@/lib/invoices";
 import {
   bodyTextToEmailHtml,
   brandQuoteEmailShell,
   escapeEmailHtml,
+  quoteUrlInLanguage,
 } from "@/lib/quote-email-compose";
+import type { CustomerLanguage } from "@/data/customer-language";
 import { sendResendEmail } from "@/lib/resend";
 
 export function buildDefaultInvoiceEmailSubject(
   invoice: Pick<InvoiceRow, "invoice_number" | "language">,
   settings: Pick<BusinessSettings, "trade_name">
 ): string {
+  if (invoice.language === "en") {
+    return `Facture / Invoice ${invoice.invoice_number} · ${settings.trade_name}`;
+  }
   return getInvoiceCopy(invoice.language).emailSubject(
     invoice.invoice_number,
     settings.trade_name
   );
+}
+
+/** English invoices also go out with the French version, offered first. */
+function frenchVersionFor(invoice: Pick<InvoiceRow, "language">): boolean {
+  return invoice.language === "en";
+}
+
+function frenchVersionBlock(input: { customerName: string | null; url: string }): { text: string; html: string } {
+  const fr = getInvoiceCopy("fr");
+  const greeting = fr.emailGreeting(input.customerName);
+  const text = [greeting, "", fr.emailBody, "", `Version française : ${input.url}`, "", "———", ""].join("\n");
+  const html = `
+    <div lang="fr" style="margin:0 0 20px;padding:16px;border-radius:14px;border:1px solid rgba(212,175,55,0.35);background:rgba(212,175,55,0.06);">
+      <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#b8860b;">Version française</p>
+      <p style="margin:0 0 8px;color:#f8f5ec;">${escapeEmailHtml(greeting)}</p>
+      <p style="margin:0 0 12px;color:#cfc8b8;font-size:14px;">${escapeEmailHtml(fr.emailBody)}</p>
+      <a href="${escapeEmailHtml(input.url)}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;font-weight:600;">
+        ${escapeEmailHtml(fr.emailButton)}
+      </a>
+    </div>
+    <p lang="en" style="margin:0 0 8px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#8b909a;">English version</p>
+  `;
+  return { text, html };
 }
 
 export function buildDefaultInvoiceEmailBody(
@@ -46,6 +74,12 @@ export function buildInvoiceEmailParts(input: {
   pdfFilename?: string | null;
 }): { text: string; html: string } {
   const { invoice } = input;
+  const french = frenchVersionFor(invoice)
+    ? frenchVersionBlock({
+        customerName: invoice.customer_name?.trim() || null,
+        url: quoteUrlInLanguage(input.publicUrl, "fr"),
+      })
+    : null;
   const language = invoice.language;
   const t = getInvoiceCopy(language);
   const money = (cents: number) => formatMoneyFromCents(cents, language, invoice.currency);
@@ -69,6 +103,7 @@ export function buildInvoiceEmailParts(input: {
       : null;
 
   const text = [
+    french?.text ?? "",
     input.bodyText.trim(),
     "",
     `${t.invoice} ${invoice.invoice_number}`,
@@ -81,8 +116,9 @@ export function buildInvoiceEmailParts(input: {
   ].join("\n");
 
   const html = brandQuoteEmailShell(
-    t.emailHeadline,
+    french ? `${getInvoiceCopy("fr").emailHeadline} · ${t.emailHeadline}` : t.emailHeadline,
     `
+    ${french?.html ?? ""}
     ${bodyTextToEmailHtml(input.bodyText)}
     <div style="margin:0 0 18px;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.2);">
       <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#b8860b;">${escapeEmailHtml(t.invoice)}</p>
@@ -105,7 +141,7 @@ export function buildInvoiceEmailParts(input: {
     }
   `,
     input.footer,
-    language
+    french ? "fr" : language
   );
 
   return { text, html };
@@ -120,6 +156,28 @@ export function invoiceEmailFrom(): string {
   return getQuoteFrom();
 }
 
+async function invoiceEmailFooter(invoice: Pick<InvoiceRow, "language">): Promise<string> {
+  if (!frenchVersionFor(invoice)) return getLocalizedDocumentText("quote.email_footer", invoice.language);
+  const [fr, en] = await Promise.all([
+    getLocalizedDocumentText("quote.email_footer", "fr"),
+    getLocalizedDocumentText("quote.email_footer", "en"),
+  ]);
+  return fr === en ? fr : `${fr} · ${en}`;
+}
+
+/** French first when the invoice is in English; one PDF otherwise. */
+function invoicePdfNames(
+  invoice: Pick<InvoiceRow, "invoice_number" | "language">
+): Array<{ language: CustomerLanguage; filename: string }> {
+  if (!frenchVersionFor(invoice)) {
+    return [{ language: invoice.language, filename: invoicePdfFilename(invoice.invoice_number) }];
+  }
+  return (["fr", "en"] as const).map((language) => ({
+    language,
+    filename: invoicePdfFilename(invoice.invoice_number, language),
+  }));
+}
+
 export async function buildInvoiceEmailPreview(input: {
   invoice: InvoiceWithRelations;
   settings: BusinessSettings;
@@ -129,8 +187,9 @@ export async function buildInvoiceEmailPreview(input: {
   attachPdf?: boolean;
 }): Promise<{ subject: string; html: string; from: string; replyTo: string; attachment: string | null }> {
   const { invoice, settings } = input;
-  const footer = await getLocalizedDocumentText("quote.email_footer", invoice.language);
-  const attachment = input.attachPdf !== false ? invoicePdfFilename(invoice.invoice_number) : null;
+  const footer = await invoiceEmailFooter(invoice);
+  const attachment =
+    input.attachPdf !== false ? invoicePdfNames(invoice).map((pdf) => pdf.filename).join(" + ") : null;
   const { html } = buildInvoiceEmailParts({
     invoice,
     publicUrl: input.publicUrl,
@@ -162,31 +221,33 @@ export async function sendInvoiceEmail(input: {
   ownerCopyTo?: string[];
 }): Promise<void> {
   const { invoice, settings } = input;
-  const footer = await getLocalizedDocumentText("quote.email_footer", invoice.language);
+  const footer = await invoiceEmailFooter(invoice);
   const bodyText = input.bodyText?.trim() || buildDefaultInvoiceEmailBody(invoice);
   const subject =
     input.subject?.trim() || buildDefaultInvoiceEmailSubject(invoice, settings);
-  const filename = invoicePdfFilename(invoice.invoice_number);
 
   const attachments = [];
-  let attachedName: string | null = null;
+  const attachedNames: string[] = [];
   if (input.attachPdf !== false) {
-    try {
-      const buffer = await renderInvoicePdfBuffer({
-        invoice: toCustomerSafeInvoice(invoice),
-        settings,
-        publicUrl: input.publicUrl,
-      });
-      attachments.push({
-        filename,
-        content: buffer.toString("base64"),
-        contentType: "application/pdf",
-      });
-      attachedName = filename;
-    } catch (error) {
-      console.error("[invoices] PDF attach failed; sending without PDF", error);
+    for (const pdf of invoicePdfNames(invoice)) {
+      try {
+        const buffer = await renderInvoicePdfBuffer({
+          invoice: await localizeInvoice(toCustomerSafeInvoice(invoice), pdf.language),
+          settings,
+          publicUrl: input.publicUrl,
+        });
+        attachments.push({
+          filename: pdf.filename,
+          content: buffer.toString("base64"),
+          contentType: "application/pdf",
+        });
+        attachedNames.push(pdf.filename);
+      } catch (error) {
+        console.error("[invoices] PDF attach failed; sending without it", pdf.filename, error);
+      }
     }
   }
+  const attachedName = attachedNames.length ? attachedNames.join(" + ") : null;
 
   const buildParts = (url: string) => {
     const { text, html } = buildInvoiceEmailParts({

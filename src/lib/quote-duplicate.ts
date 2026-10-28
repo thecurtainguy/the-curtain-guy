@@ -154,9 +154,22 @@ export async function duplicateQuote(input: {
   }
 
   const sourceLanguage = normalizeCustomerLanguage(source.language);
+  const sameLanguage = sourceLanguage === details.language;
+  /** Text and its translation, swapped when the duplicate changes language. */
+  const pair = (base: string | null | undefined, translated: string | null | undefined) =>
+    sameLanguage || !translated?.trim()
+      ? { text: base ?? null, translated: sameLanguage ? translated ?? null : null }
+      : { text: translated, translated: base ?? null };
   const terms = copy.terms
-    ? await resolveQuoteTermsForView(source.terms, sourceLanguage, details.language)
+    ? await resolveQuoteTermsForView(
+        source.terms,
+        sourceLanguage,
+        details.language,
+        source.terms_translated
+      )
     : await getLocalizedDocumentText("quote.terms", details.language);
+  const termsTranslated = copy.terms ? pair(source.terms, source.terms_translated).translated : null;
+  const notes = pair(source.customer_notes, source.customer_notes_translated);
   const displayRef = buildQuoteDisplayRef(opportunityRef, 1);
 
   const { data: inserted, error: quoteError } = await admin
@@ -188,9 +201,11 @@ export async function duplicateQuote(input: {
       manual_tax_label: source.manual_tax_label,
       manual_tax_cents: source.manual_tax_cents || 0,
       manual_tax_lines: normalizeManualTaxLines(source.manual_tax_lines),
-      customer_notes: copy.customerNotes ? source.customer_notes : null,
+      customer_notes: copy.customerNotes ? notes.text : null,
+      customer_notes_translated: copy.customerNotes ? notes.translated : null,
       owner_notes: copy.ownerNotes ? source.owner_notes : null,
       terms,
+      terms_translated: termsTranslated,
       created_by_user_id: actor.userId,
     })
     .select("*")
@@ -210,13 +225,15 @@ export async function duplicateQuote(input: {
     const unitPrice = choice
       ? normalizeUnitPriceCents(choice.unitPriceCents)
       : Number(item.unit_price_cents);
+    const description = pair(item.description, item.description_translated);
     return [
       {
         quote_id: quote.id,
         category: item.category,
         category_label: item.category_label ?? null,
         category_label_fr: item.category_label_fr ?? null,
-        description: item.description,
+        description: description.text ?? item.description,
+        description_translated: description.translated,
         quantity,
         unit_label: item.unit_label ?? null,
         unit_price_cents: unitPrice,

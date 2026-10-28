@@ -19,11 +19,7 @@ import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  CUSTOMER_LANGUAGE_LABELS,
-  normalizeCustomerLanguage,
-} from "@/data/customer-language";
-import {
-  defaultQuoteDocumentText,
+  defaultQuoteEmailTexts,
   fetchQuoteEmailTexts,
 } from "@/lib/quote-email-defaults";
 import {
@@ -35,9 +31,9 @@ import {
   buildDefaultQuoteEmailBodyText,
   buildDefaultQuoteEmailSubject,
   buildQuoteReadyEmailParts,
+  bilingualQuotePdfNames,
   isValidEmailAddress,
   parseEmailList,
-  quotePdfAttachmentName,
 } from "@/lib/quote-email-compose";
 import type { QuoteWithRelations } from "@/lib/quotes";
 import { cn } from "@/lib/utils";
@@ -91,20 +87,15 @@ export function AdminQuoteSendDialog({
   onSent: (result: { publicUrl?: string; message?: string }) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const language = normalizeCustomerLanguage(quote.language);
-  const defaultEmailNote = defaultQuoteDocumentText("quote.email_note", language);
-  const defaultEmailFooter = defaultQuoteDocumentText(
-    "quote.email_footer",
-    language
-  );
+  const defaultTexts = defaultQuoteEmailTexts();
   const [to, setTo] = useState(quote.customer_email || "");
   const [cc, setCc] = useState(defaultCc.join(", "));
   const [bcc, setBcc] = useState(DEFAULT_BCC);
   const [subject, setSubject] = useState(buildDefaultQuoteEmailSubject(quote));
   const [bodyText, setBodyText] = useState(
-    buildDefaultQuoteEmailBodyText({ quote, emailNote: defaultEmailNote })
+    buildDefaultQuoteEmailBodyText({ quote, emailNotes: defaultTexts.notes })
   );
-  const [emailFooter, setEmailFooter] = useState(defaultEmailFooter);
+  const [emailFooter, setEmailFooter] = useState(defaultTexts.footer);
   const [attachPdf, setAttachPdf] = useState(true);
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   const [uploads, setUploads] = useState<ExtraUpload[]>([]);
@@ -122,10 +113,10 @@ export function AdminQuoteSendDialog({
 
   useEffect(() => {
     let cancelled = false;
-    void fetchQuoteEmailTexts(language).then(({ note, footer }) => {
+    void fetchQuoteEmailTexts().then(({ notes, footer }) => {
       if (cancelled) return;
       setEmailFooter(footer);
-      setBodyText(buildDefaultQuoteEmailBodyText({ quote, emailNote: note }));
+      setBodyText(buildDefaultQuoteEmailBodyText({ quote, emailNotes: notes }));
     });
     return () => {
       cancelled = true;
@@ -138,18 +129,18 @@ export function AdminQuoteSendDialog({
     publicQuoteUrlPreview ||
     `https://www.thecurtainguy.com/quote/preview-${quote.opportunity_ref}`;
 
-  const pdfName = quotePdfAttachmentName(quote);
+  const pdfNames = useMemo(() => bilingualQuotePdfNames(quote), [quote]);
   const previewHtml = useMemo(() => {
     return buildQuoteReadyEmailParts({
       quote,
       publicQuoteUrl: previewUrl,
       bodyText,
       emailFooter,
-      pdfFilename: attachPdf ? pdfName : null,
+      pdfFilenames: attachPdf ? pdfNames : [],
       lineItems: quote.line_items,
       assetBaseUrl: typeof window === "undefined" ? null : window.location.origin,
     }).html;
-  }, [attachPdf, bodyText, emailFooter, pdfName, previewUrl, quote]);
+  }, [attachPdf, bodyText, emailFooter, pdfNames, previewUrl, quote]);
 
   function toggleOpportunityFile(id: string) {
     setSelectedFileIds((prev) =>
@@ -268,11 +259,9 @@ export function AdminQuoteSendDialog({
         description={
           <>
             Compose the customer email, preview the HTML, and choose attachments
-            before sending {quote.opportunity_ref}. Email and PDF are in{" "}
-            <span className="font-medium text-primary">
-              {CUSTOMER_LANGUAGE_LABELS[language]}
-            </span>
-            .
+            before sending {quote.opportunity_ref}. The email goes out{" "}
+            <span className="font-medium text-primary">French first, then English</span>
+            , with both proposal PDFs.
           </>
         }
         footer={
@@ -380,12 +369,16 @@ export function AdminQuoteSendDialog({
                     onChange={(e) => setAttachPdf(e.target.checked)}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <FileText className="size-3.5 text-primary" />
-                      {pdfName}
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-foreground">
+                      {pdfNames.map((name) => (
+                        <span key={name} className="flex items-center gap-1.5">
+                          <FileText className="size-3.5 text-primary" />
+                          {name}
+                        </span>
+                      ))}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
-                      Generated proposal PDF · always recommended
+                      French and English proposal PDFs · attaching the French PDF records that the French version was provided
                     </span>
                   </span>
                   <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">

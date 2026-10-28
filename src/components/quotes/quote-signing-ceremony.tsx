@@ -11,8 +11,10 @@ import {
   ClipboardList,
   Download,
   FileSignature,
+  ExternalLink,
   Fingerprint,
   Hammer,
+  Languages,
   Lock,
   Mail,
   MapPin,
@@ -45,10 +47,12 @@ import {
   quoteScheduleRows,
   type QuoteScheduleKey,
 } from "@/data/quote-schedule";
+import { OptionCard } from "@/components/estimate/option-card";
 import {
   QUOTE_SIGNING_COPY,
   SIGNING_CLAUSE_KEYS,
   SIGNING_CODE_LENGTH,
+  SIGNING_LANGUAGE_CHOICE,
   SIGNING_RESEND_COOLDOWN_SECONDS,
   buildSigningClauses,
   initialsFromName,
@@ -67,7 +71,7 @@ import {
   getQuoteTaxBreakdownRows,
   type CustomerSafeQuote,
 } from "@/data/quotes";
-import { customerLocaleTag } from "@/data/customer-language";
+import { customerLocaleTag, type CustomerLanguage } from "@/data/customer-language";
 import { siteConfig } from "@/data/site";
 import { cn } from "@/lib/utils";
 
@@ -320,21 +324,32 @@ function ClauseCard({
 export function QuoteSigningCeremony({
   open,
   onOpenChange,
-  quote,
+  quotes,
+  frenchVersionProvided,
   actionEndpoint,
   agreementPdfUrl,
+  frenchPdfUrl,
   preview = false,
   onSigned,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  quote: CustomerSafeQuote;
+  /** The same quote in French and English; the signer picks which one binds them. */
+  quotes: Record<CustomerLanguage, CustomerSafeQuote>;
+  /** The French version already reached the customer (emailed PDF or opened PDF). */
+  frenchVersionProvided: boolean;
   actionEndpoint: string;
   agreementPdfUrl: string | null;
+  /** French PDF of the proposal; opening it provides the French version before choosing English. */
+  frenchPdfUrl: string;
   preview?: boolean;
   onSigned: (agreement: QuoteAgreementSummary) => void;
 }) {
-  const language = quote.language;
+  const [language, setLanguage] = useState<CustomerLanguage>("fr");
+  const [frenchOpened, setFrenchOpened] = useState(frenchVersionProvided);
+  const quote = quotes[language];
+  const englishNeedsFrench = language === "en" && !frenchOpened;
+  const L = SIGNING_LANGUAGE_CHOICE;
   const s = QUOTE_SIGNING_COPY[language];
   const t = getQuoteCopy(language);
   const locale = customerLocaleTag(language);
@@ -411,7 +426,16 @@ export function QuoteSigningCeremony({
     }
   }
 
+  function chooseLanguage(next: CustomerLanguage) {
+    setError(null);
+    setLanguage(next);
+  }
+
   function sendCode() {
+    if (englishNeedsFrench) {
+      setError(L.errors.frenchFirst);
+      return;
+    }
     if (signerName.trim().length < 2) {
       setError(s.errors.name);
       return;
@@ -519,7 +543,7 @@ export function QuoteSigningCeremony({
             className="h-11 flex-1 rounded-full sm:flex-none sm:px-8"
             isLoading={busy}
             loadingText={s.sendCode}
-            disabled={signerName.trim().length < 2}
+            disabled={signerName.trim().length < 2 || englishNeedsFrench}
             icon={<Mail className="size-4" />}
             onClick={sendCode}
           >
@@ -678,6 +702,61 @@ export function QuoteSigningCeremony({
                     title={s.verifyTitle}
                     body={s.verifyBody(maskedEmail ?? maskEmail(quote.customer_email))}
                   />
+                  <div className={cn(cardClass, "space-y-4 p-4 sm:p-5")}>
+                    <div
+                      className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.16),transparent_70%)]"
+                      aria-hidden
+                    />
+                    <div className="flex items-start gap-3">
+                      <IconBadge icon={Languages} />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="font-heading text-base font-semibold text-foreground">{L.heading}</p>
+                        <p className="text-xs leading-relaxed text-muted-foreground">{L.body}</p>
+                      </div>
+                    </div>
+                    <div role="radiogroup" aria-label={L.heading} className="grid gap-3 sm:grid-cols-2">
+                      {(["fr", "en"] as const).map((lang) => (
+                        <OptionCard
+                          key={lang}
+                          option={{
+                            id: lang,
+                            label: L.options[lang].label,
+                            description: L.options[lang].description,
+                            icon: Languages,
+                          }}
+                          selected={language === lang}
+                          onSelect={() => chooseLanguage(lang)}
+                        />
+                      ))}
+                    </div>
+                    {language === "en" ? (
+                      frenchOpened ? (
+                        <p className="flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                          <BadgeCheck className="size-3.5" aria-hidden />
+                          {L.frenchFirst.opened}
+                        </p>
+                      ) : (
+                        <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:flex-row sm:items-center">
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <p className="text-sm font-medium text-foreground">{L.frenchFirst.title}</p>
+                            <p className="text-xs leading-relaxed text-muted-foreground">{L.frenchFirst.body}</p>
+                          </div>
+                          <Button asChild variant="outline" className="h-10 shrink-0 rounded-full">
+                            <a
+                              href={frenchPdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              lang="fr"
+                              onClick={() => setFrenchOpened(true)}
+                            >
+                              <ExternalLink className="size-4" aria-hidden />
+                              {L.frenchFirst.open}
+                            </a>
+                          </Button>
+                        </div>
+                      )
+                    ) : null}
+                  </div>
                   <div className={cn(cardClass, "space-y-4 p-5")}>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">

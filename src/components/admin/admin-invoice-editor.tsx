@@ -83,6 +83,8 @@ import { cn } from "@/lib/utils";
 type LineDraft = {
   key: string;
   description: string;
+  /** Description in the other language, carried over from the quote. */
+  description_translated?: string | null;
   quantity: string;
   unit_label: string;
   unit_price: string;
@@ -210,6 +212,7 @@ function toForm(invoice: InvoiceWithRelations): FormState {
     lines: invoice.line_items.map((line) => ({
       key: line.id,
       description: line.description,
+      description_translated: line.description_translated ?? null,
       quantity: String(line.quantity),
       unit_label: line.unit_label ?? "",
       unit_price: unitPriceCentsToDollarInput(line.unit_price_cents),
@@ -263,6 +266,7 @@ function toPayload(form: FormState) {
     internal_notes: form.internal_notes,
     line_items: form.lines.map((line) => ({
       description: line.description,
+      description_translated: line.description_translated ?? null,
       quantity: parseQty(line.quantity),
       unit_label: line.unit_label || null,
       unit_price_cents: unitPriceDollarsToCents(line.unit_price || "0"),
@@ -491,6 +495,22 @@ export function AdminInvoiceEditor({
     { label: "In 7 days", date: addDaysIso(shortcutIssueDate, 7) },
     ...(form.event_date ? [{ label: "30 days before event", date: beforeEvent(30) }] : []),
   ];
+
+  function changeLanguage(language: CustomerLanguage) {
+    setForm((prev) =>
+      prev.language === language
+        ? prev
+        : {
+            ...prev,
+            language,
+            lines: prev.lines.map((line) =>
+              line.description_translated?.trim()
+                ? { ...line, description: line.description_translated, description_translated: line.description }
+                : line
+            ),
+          }
+    );
+  }
 
   function updateLine(key: string, patch: Partial<LineDraft>) {
     setForm((prev) => ({
@@ -1002,7 +1022,7 @@ export function AdminInvoiceEditor({
                       key={lang}
                       option={{ id: lang, label: lang === "en" ? "English" : "Français" }}
                       selected={form.language === lang}
-                      onSelect={() => set("language", lang)}
+                      onSelect={() => changeLanguage(lang)}
                       className="p-3"
                     />
                   ))}
@@ -1100,6 +1120,19 @@ export function AdminInvoiceEditor({
                           className="min-h-9 resize-y text-sm"
                           aria-label="Description"
                           placeholder="Description"
+                        />
+                        <Textarea
+                          rows={1}
+                          value={line.description_translated ?? ""}
+                          onChange={(e) => updateLine(line.key, { description_translated: e.target.value })}
+                          className={cn(
+                            "min-h-8 resize-y text-xs",
+                            line.description.trim() && !line.description_translated?.trim()
+                              ? "border-amber-500/50"
+                              : "border-border/40"
+                          )}
+                          aria-label={form.language === "fr" ? "English description" : "French description"}
+                          placeholder={form.language === "fr" ? "English version" : "Version française"}
                         />
                         {line.category || line.product_id ? (
                           <div className="flex flex-wrap items-center gap-1.5">

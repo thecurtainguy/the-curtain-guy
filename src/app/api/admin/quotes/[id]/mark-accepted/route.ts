@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
-import { normalizeCustomerLanguage } from "@/data/customer-language";
+import {
+  isCustomerLanguage,
+  normalizeCustomerLanguage,
+  type CustomerLanguage,
+} from "@/data/customer-language";
 import { canMarkQuoteAccepted } from "@/data/quotes";
 import { getResendApiKey } from "@/lib/env";
 import { sendJobConfirmedEmail } from "@/lib/job-email";
@@ -37,9 +41,18 @@ export async function POST(request: Request, context: RouteContext) {
     acceptedOn?: string;
     channel?: string;
     note?: string;
+    language?: string;
+    frenchVersionSent?: boolean;
     createJob?: boolean;
     sendConfirmation?: boolean;
   };
+  const agreedLanguage: CustomerLanguage = isCustomerLanguage(body.language) ? body.language : "fr";
+  if (agreedLanguage === "en" && body.frenchVersionSent !== true) {
+    return NextResponse.json(
+      { ok: false, message: "Confirm the French version was sent before recording English." },
+      { status: 400 }
+    );
+  }
 
   const quote = await fetchQuoteById(quoteId);
   if (!quote) {
@@ -83,6 +96,7 @@ export async function POST(request: Request, context: RouteContext) {
         status: "accepted",
         accepted_at: acceptedAt,
         accepted_by_name: acceptedByName,
+        agreed_language: agreedLanguage,
       })
       .eq("id", quoteId);
     if (error) {
@@ -99,8 +113,20 @@ export async function POST(request: Request, context: RouteContext) {
       actorEmail: owner.profile.email,
       eventType: "customer_accepted",
       summary: `Accepted ${CHANNEL_LABELS[channel]} by ${acceptedByName} (recorded by owner)${note ? ` — ${note}` : ""}`,
-      metadata: { channel, recorded_by_owner: true, note: note || null },
+      metadata: {
+        channel,
+        recorded_by_owner: true,
+        note: note || null,
+        agreed_language: agreedLanguage,
+        french_version_provided_via: agreedLanguage === "en" ? "owner_sent" : null,
+      },
     });
+    if (quote.customer_id) {
+      await admin
+        .from("customers")
+        .update({ preferred_language: agreedLanguage })
+        .eq("id", quote.customer_id);
+    }
   }
 
   let jobId: string | null = null;
@@ -117,7 +143,7 @@ export async function POST(request: Request, context: RouteContext) {
             await sendJobConfirmedEmail({
               apiKey,
               job,
-              language: normalizeCustomerLanguage(quote.language),
+              language: normalizeCustomerLanguage(quote.agreed_language ?? agreedLanguage),
             });
             emailSent = true;
           } catch (err) {

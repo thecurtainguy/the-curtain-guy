@@ -67,7 +67,7 @@ export function AdminEventPlanQuotesSection({
           {latest ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>Latest</span>
-              <QuoteStatusBadge status={latest.status} />
+              <QuoteStatusBadge status={latest.status} validUntil={latest.valid_until} />
               <span className="tabular-nums text-foreground">
                 {formatMoneyFromCents(latest.total_cents, "en", latest.currency)}
               </span>
@@ -127,7 +127,7 @@ export function AdminEventPlanQuotesSection({
                   {resolveQuoteDisplayRef(quote)}
                 </Link>
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <QuoteStatusBadge status={quote.status} />
+                  <QuoteStatusBadge status={quote.status} validUntil={quote.valid_until} />
                   {(() => {
                     const revLabel = formatQuoteRevisionLabel(
                       quote.revision_number,

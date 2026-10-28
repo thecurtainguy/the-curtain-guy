@@ -17,9 +17,12 @@ import { PortalBackLink } from "@/components/portal/portal-back-link";
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
-import { fetchExecutedSignature, toAgreementSummary } from "@/lib/quote-signing";
+import {
+  fetchExecutedSignature,
+  findFrenchVersionEvidence,
+  toAgreementSummary,
+} from "@/lib/quote-signing";
 import { normalizeCustomerLanguage } from "@/data/customer-language";
-import { resolveQuoteTerms } from "@/lib/document-texts";
 import {
   fetchEstimateById,
   fetchEstimateFiles,
@@ -28,6 +31,8 @@ import {
   customerCanAccessQuote,
   fetchQuoteById,
   findActivePublicQuoteUrl,
+  localizeQuote,
+  toCustomerQuoteVersions,
   toCustomerSafeQuote,
 } from "@/lib/quotes";
 import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
@@ -84,16 +89,13 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
   const studio = STUDIO_COPY[language];
   const siteUrl = getSiteUrl().replace(/\/$/, "");
   const shareUrl = `${siteUrl}/account/quotes/${id}`;
-  const safe = toCustomerSafeQuote(
-    {
-      ...quote,
-      terms: await resolveQuoteTerms(
-        quote.terms,
-        language
-      ),
-    },
-    { shareUrl }
-  );
+  const [safe, signingQuotes, frenchEvidence] = await Promise.all([
+    localizeQuote(quote, language).then((localized) =>
+      toCustomerSafeQuote(localized, { shareUrl })
+    ),
+    toCustomerQuoteVersions(quote, {}, { shareUrl }),
+    findFrenchVersionEvidence(quote.id),
+  ]);
   const initialGuestUrl = await findActivePublicQuoteUrl(id, siteUrl);
   const studioSummary = await fetchStudioDesignSummaryForQuote(quote);
 
@@ -155,6 +157,8 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
           </section>
           <QuoteProposalView
             quote={safe}
+            signingQuotes={signingQuotes}
+            frenchVersionProvided={Boolean(frenchEvidence)}
             attachments={attachments}
             mode="account"
             actionEndpoint={`/api/quotes/${id}/customer-action`}

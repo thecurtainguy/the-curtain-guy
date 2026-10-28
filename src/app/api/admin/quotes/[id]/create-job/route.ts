@@ -34,7 +34,7 @@ export async function POST(_request: Request, context: RouteContext) {
           await sendJobConfirmedEmail({
             apiKey,
             job,
-            language: normalizeCustomerLanguage(quote?.language),
+            language: normalizeCustomerLanguage(quote?.agreed_language ?? quote?.language),
           });
           emailSent = true;
         } catch (err) {

@@ -4,6 +4,7 @@ import {
   type BaseDocumentTextSlug,
 } from "@/data/document-texts";
 import type { CustomerLanguage } from "@/data/customer-language";
+import { joinBilingual } from "@/lib/quote-email-compose";
 
 export function defaultQuoteDocumentText(
   slug: BaseDocumentTextSlug,
@@ -15,33 +16,49 @@ export function defaultQuoteDocumentText(
   );
 }
 
-/**
- * Email note + footer as edited under Admin → Documents, falling back to the
- * built-in copy for the quote language.
- */
-export async function fetchQuoteEmailTexts(
-  language: CustomerLanguage
-): Promise<{ note: string; footer: string }> {
-  const fallback = {
-    note: defaultQuoteDocumentText("quote.email_note", language),
-    footer: defaultQuoteDocumentText("quote.email_footer", language),
+export type QuoteEmailTexts = {
+  notes: Record<CustomerLanguage, string>;
+  /** French then English footer. */
+  footer: string;
+};
+
+function quoteEmailTexts(
+  bodyFor: (slug: BaseDocumentTextSlug, language: CustomerLanguage) => string | undefined
+): QuoteEmailTexts {
+  const text = (slug: BaseDocumentTextSlug, language: CustomerLanguage) =>
+    bodyFor(slug, language) || defaultQuoteDocumentText(slug, language);
+  return {
+    notes: { fr: text("quote.email_note", "fr"), en: text("quote.email_note", "en") },
+    footer: joinBilingual({
+      fr: text("quote.email_footer", "fr"),
+      en: text("quote.email_footer", "en"),
+    }),
   };
+}
+
+export function defaultQuoteEmailTexts(): QuoteEmailTexts {
+  return quoteEmailTexts(() => undefined);
+}
+
+/**
+ * Email notes + footer in both languages as edited under Admin → Documents,
+ * falling back to the built-in copy.
+ */
+export async function fetchQuoteEmailTexts(): Promise<QuoteEmailTexts> {
   try {
     const response = await fetch("/api/admin/document-texts");
     const json = (await response.json()) as {
       ok?: boolean;
       texts?: Array<{ slug: string; body: string }>;
     };
-    if (!response.ok || !json.ok) return fallback;
-    const bodyFor = (slug: BaseDocumentTextSlug) =>
-      json.texts?.find(
-        (item) => item.slug === localizedDocumentTextSlug(slug, language)
-      )?.body;
-    return {
-      note: bodyFor("quote.email_note") || fallback.note,
-      footer: bodyFor("quote.email_footer") || fallback.footer,
-    };
+    if (!response.ok || !json.ok) return defaultQuoteEmailTexts();
+    return quoteEmailTexts(
+      (slug, language) =>
+        json.texts?.find(
+          (item) => item.slug === localizedDocumentTextSlug(slug, language)
+        )?.body
+    );
   } catch {
-    return fallback;
+    return defaultQuoteEmailTexts();
   }
 }

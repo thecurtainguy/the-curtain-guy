@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import type { CustomerLanguage } from "@/data/customer-language";
-import type { QuoteRequestType } from "@/data/quotes";
+import {
+  QUOTE_EXPIRED_MESSAGE,
+  isQuoteValidityLapsed,
+  type QuoteRequestType,
+} from "@/data/quotes";
 import { getQuoteUpsellByKey } from "@/data/quote-upsells";
 import { getCurrentUser } from "@/lib/auth";
 import { getResendApiKey, getSiteUrl } from "@/lib/env";
@@ -12,6 +16,7 @@ import {
   customerCanAccessQuote,
   fetchQuoteById,
   logQuoteEvent,
+  requestQuoteRenewal,
 } from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -85,8 +90,7 @@ export async function POST(request: Request, context: RouteContext) {
     quote.status === "draft" ||
     quote.status === "accepted" ||
     quote.status === "declined" ||
-    quote.status === "cancelled" ||
-    quote.status === "expired"
+    quote.status === "cancelled"
   ) {
     return NextResponse.json(
       { ok: false, message: "This quote is not available for customer action." },
@@ -107,6 +111,46 @@ export async function POST(request: Request, context: RouteContext) {
   const action = body.action?.trim();
   const admin = createAdminSupabaseClient();
   const email = user.email || quote.customer_email;
+  const expired = quote.status === "expired" || isQuoteValidityLapsed(quote.valid_until);
+
+  if (action === "request_renewal") {
+    if (!expired) {
+      return NextResponse.json(
+        { ok: false, message: "This proposal is still valid." },
+        { status: 400 }
+      );
+    }
+    const result = await requestQuoteRenewal({
+      quote,
+      message: body.message?.trim() || null,
+      createdByEmail: email,
+      createdByUserId: user.id,
+      actorType: "customer",
+    });
+    if (!result.ok) {
+      return NextResponse.json(
+        { ok: false, message: "Could not save request." },
+        { status: 500 }
+      );
+    }
+    if (!result.alreadyRequested) {
+      await notifyOwner(
+        quote.id,
+        "Customer requested a renewed quote",
+        [`Proposal expired (valid until ${quote.valid_until ?? "—"})`, body.message?.trim() || null]
+          .filter(Boolean)
+          .join(" — ")
+      );
+    }
+    return NextResponse.json({ ok: true, alreadyRequested: result.alreadyRequested });
+  }
+
+  if (expired && action !== "ask_question") {
+    return NextResponse.json(
+      { ok: false, message: QUOTE_EXPIRED_MESSAGE },
+      { status: 409 }
+    );
+  }
 
   if (action && isSigningAction(action)) {
     return handleSigningAction({

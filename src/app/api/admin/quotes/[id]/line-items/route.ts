@@ -81,6 +81,10 @@ export async function POST(request: Request, context: RouteContext) {
           ? row.category_label.trim().slice(0, 80) || null
           : null,
       description,
+      description_translated:
+        typeof row.description_translated === "string"
+          ? row.description_translated.trim() || null
+          : undefined,
       quantity: Number(row.quantity) || 1,
       unit_label:
         typeof row.unit_label === "string" ? row.unit_label : null,

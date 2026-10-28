@@ -41,7 +41,7 @@ async function sendSignedFollowUps(input: {
   const { signature } = input;
   let pdf: { buffer: Buffer; filename: string } | null = null;
   try {
-    pdf = await renderSignedAgreementPdf(signature, { publicUrl: input.proposalUrl });
+    pdf = await renderSignedAgreementPdf(signature);
   } catch (err) {
     console.error("[signing] agreement PDF failed", err);
   }
@@ -123,7 +123,7 @@ export async function handleSigningAction(input: {
       quote,
       signatureId,
       signingToken: typeof body.signingToken === "string" ? body.signingToken : "",
-      language,
+      language: body.language,
       signerName: body.signerName,
       signerTitle: body.signerTitle,
       method: body.method,

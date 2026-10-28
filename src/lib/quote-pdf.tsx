@@ -930,8 +930,6 @@ export async function renderQuotePdfBuffer(input: {
   quote: CustomerSafeQuote;
   publicUrl?: string | null;
   siteUrl?: string | null;
-  /** Pages rendered after the terms and before any attachments (e.g. the signature certificate). */
-  certificatePages?: ReactNode;
 }): Promise<Buffer> {
   const language = input.quote.language;
   const generatedAt = new Date().toLocaleString(customerLocaleTag(language), {
@@ -964,17 +962,12 @@ export async function renderQuotePdfBuffer(input: {
       generatedAt={generatedAt}
       siteUrl={siteUrl}
       pdfFooter={copy["quote.pdf_footer"]}
-      extraPages={
-        <>
-          {input.certificatePages}
-          {renderAttachmentPages({
-            attachments,
-            language,
-            documentRef: input.quote.quote_display_ref,
-            appendedPages,
-          })}
-        </>
-      }
+      extraPages={renderAttachmentPages({
+        attachments,
+        language,
+        documentRef: input.quote.quote_display_ref,
+        appendedPages,
+      })}
       appendedPages={appendedPages}
     />
   );

@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Check,
   Handshake,
+  Languages,
   Loader2,
   Mail,
   MessageSquare,
@@ -36,6 +37,11 @@ const ACCEPT_CHANNELS = [
   { id: "phone", label: "Phone", icon: Phone },
   { id: "in_person", label: "In person", icon: Users },
   { id: "other", label: "Other", icon: MessageSquare },
+] as const satisfies readonly ChannelOption[];
+
+const AGREEMENT_LANGUAGES = [
+  { id: "fr", label: "Français", icon: Languages },
+  { id: "en", label: "English", icon: Languages },
 ] as const satisfies readonly ChannelOption[];
 
 const SENT_CHANNELS = [
@@ -231,12 +237,18 @@ function MarkAcceptedDialog({
   const [acceptedOn, setAcceptedOn] = useState(todayIsoDate());
   const [channel, setChannel] = useState<string>("email");
   const [note, setNote] = useState("");
+  const [language, setLanguage] = useState<string>("fr");
+  const [frenchVersionSent, setFrenchVersionSent] = useState(false);
   const [createJob, setCreateJob] = useState(true);
   const [sendConfirmation, setSendConfirmation] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function submit() {
+    if (language === "en" && !frenchVersionSent) {
+      setError("Confirm the French version was sent before recording English.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -248,6 +260,8 @@ function MarkAcceptedDialog({
           acceptedOn,
           channel,
           note,
+          language,
+          frenchVersionSent: language === "en" ? frenchVersionSent : undefined,
           createJob,
           sendConfirmation,
         }),
@@ -297,6 +311,31 @@ function MarkAcceptedDialog({
         <div className="space-y-5">
           <BrandDialogSection label="How did they accept?">
             <ChannelPicker options={ACCEPT_CHANNELS} value={channel} onChange={setChannel} />
+          </BrandDialogSection>
+
+          <BrandDialogSection label="Agreement language">
+            <ChannelPicker
+              options={AGREEMENT_LANGUAGES}
+              value={language}
+              onChange={setLanguage}
+              className="sm:grid-cols-2"
+            />
+            {language === "en" ? (
+              <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-4 accent-primary"
+                  checked={frenchVersionSent}
+                  onChange={(e) => setFrenchVersionSent(e.target.checked)}
+                />
+                <span className="text-sm">
+                  <span className="font-medium">The French version was sent first</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Both versions reached the client, and they expressly chose English.
+                  </span>
+                </span>
+              </label>
+            ) : null}
           </BrandDialogSection>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -373,13 +412,15 @@ function ChannelPicker({
   options,
   value,
   onChange,
+  className,
 }: {
   options: readonly ChannelOption[];
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className={cn("grid grid-cols-2 gap-2 sm:grid-cols-4", className)}>
       {options.map((option) => {
         const Icon = option.icon;
         const selected = value === option.id;

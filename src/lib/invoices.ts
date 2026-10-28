@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { normalizeCustomerLanguage } from "@/data/customer-language";
+import { normalizeCustomerLanguage, type CustomerLanguage } from "@/data/customer-language";
 import {
   addDaysIso,
   resolveBalanceDueDate,
@@ -31,6 +31,8 @@ import {
   isQuoteTaxMode,
   normalizeManualTaxLines,
   normalizeUnitPriceCents,
+  otherCustomerLanguage,
+  textInLanguage,
   type QuoteTaxMode,
 } from "@/data/quotes";
 import type { EventJobRow } from "@/data/jobs";
@@ -499,8 +501,10 @@ export async function createInvoiceFromJob(
   const customerId = job.customer_id ?? quote?.customer_id ?? null;
   const customer = customerId ? await fetchCustomerById(customerId) : null;
   const defaults = customer ? customerInvoiceDefaults(customer) : null;
+  const quoteLanguage = quote ? normalizeCustomerLanguage(quote.language) : null;
+  // The language the customer agreed to carries over to related documents.
   const language = quote
-    ? normalizeCustomerLanguage(quote.language)
+    ? normalizeCustomerLanguage(quote.agreed_language ?? quote.language)
     : defaults?.language ?? "en";
   const isFirstActive = !existing.some((inv) => inv.status !== "void");
   const today = todayIsoDate();
@@ -554,8 +558,18 @@ export async function createInvoiceFromJob(
         .sort((a, b) => a.sort_order - b.sort_order)
         .map((item, index) => {
           const unit = item.status === "included" ? 0 : normalizeUnitPriceCents(item.unit_price_cents);
+          const baseLanguage = quoteLanguage ?? language;
           return {
-            description: item.description,
+            description: textInLanguage(
+              item.description,
+              item.description_translated,
+              baseLanguage,
+              language
+            ),
+            description_translated:
+              otherCustomerLanguage(language) === baseLanguage
+                ? item.description
+                : item.description_translated ?? null,
             quantity: Number(item.quantity) || 0,
             unit_label: item.unit_label ?? null,
             unit_price_cents: unit,
@@ -1014,6 +1028,7 @@ export type InvoiceSaveInput = {
   line_items?: Array<
     {
       description?: string;
+      description_translated?: string | null;
       quantity?: number;
       unit_label?: string | null;
       unit_price_cents?: number;
@@ -1089,6 +1104,22 @@ export async function saveInvoice(
   if (input.language !== undefined) {
     update.language = normalizeCustomerLanguage(input.language);
   }
+  const nextLanguage = (update.language as CustomerLanguage | undefined) ?? current.language;
+  const languageChanged = nextLanguage !== current.language;
+  if (languageChanged) {
+    // Default notes and terms follow the language; custom text stays as written.
+    const settings = await getBusinessSettings();
+    const keys = [
+      ["notes", "invoice_notes"],
+      ["terms", "invoice_terms"],
+    ] as const;
+    for (const [field, settingKey] of keys) {
+      const value = (field in update ? update[field] : current[field]) as string | null;
+      if ((value ?? "") === (businessText(settings, settingKey, current.language) ?? "")) {
+        update[field] = businessText(settings, settingKey, nextLanguage) || null;
+      }
+    }
+  }
   if (input.currency === "CAD" || input.currency === "USD") {
     update.currency = input.currency;
   }
@@ -1133,16 +1164,25 @@ export async function saveInvoice(
     }
   }
 
+  // Incoming lines are already in the new language (the editor swaps them).
   if (Array.isArray(input.line_items)) {
     const incoming = input.line_items.slice(0, 200);
     const known = await resolveKnownLinks(incoming);
+    const previousTranslation = new Map(
+      current.line_items.map((line) => [line.description.trim(), line.description_translated ?? null])
+    );
     const rows = incoming.map((line, index) => {
       const quantity = Number(line.quantity);
       const qty = Number.isFinite(quantity) ? Math.max(0, quantity) : 0;
       const unit = normalizeUnitPriceCents(line.unit_price_cents);
+      const description = (line.description || "").trim().slice(0, 2000);
       return {
         invoice_id: invoiceId,
-        description: (line.description || "").trim().slice(0, 2000),
+        description,
+        description_translated:
+          line.description_translated !== undefined
+            ? cleanText(line.description_translated, 2000)
+            : previousTranslation.get(description) ?? null,
         quantity: qty,
         unit_label: cleanText(line.unit_label, 40),
         unit_price_cents: unit,
@@ -1166,6 +1206,14 @@ export async function saveInvoice(
         console.error("[invoices] insert lines", error);
         return { error: "Could not save line items." };
       }
+    }
+  } else if (languageChanged) {
+    for (const line of current.line_items) {
+      if (!line.description_translated?.trim()) continue;
+      await admin
+        .from("invoice_line_items")
+        .update({ description: line.description_translated, description_translated: line.description })
+        .eq("id", line.id);
     }
   }
 
@@ -1588,6 +1636,34 @@ export function toCustomerSafeInvoice(
       amount_cents: p.amount_cents,
       paid_on: p.paid_on,
       method: p.method,
+    })),
+  };
+}
+
+/**
+ * The invoice in another language with identical amounts, dates and terms of
+ * payment. Line descriptions use their stored translation; default notes and
+ * terms switch to the settings text for that language. Custom notes/terms stay
+ * as written.
+ */
+export async function localizeInvoice<T extends CustomerSafeInvoice | InvoiceWithRelations>(
+  invoice: T,
+  viewLanguage: CustomerLanguage
+): Promise<T> {
+  if (viewLanguage === invoice.language) return invoice;
+  const settings = await getBusinessSettings();
+  const swapDefault = (value: string | null, key: "invoice_notes" | "invoice_terms") =>
+    (value ?? "") === (businessText(settings, key, invoice.language) ?? "")
+      ? businessText(settings, key, viewLanguage) || null
+      : value;
+  return {
+    ...invoice,
+    language: viewLanguage,
+    notes: swapDefault(invoice.notes, "invoice_notes"),
+    terms: swapDefault(invoice.terms, "invoice_terms"),
+    line_items: invoice.line_items.map((line) => ({
+      ...line,
+      description: textInLanguage(line.description, line.description_translated, invoice.language, viewLanguage),
     })),
   };
 }

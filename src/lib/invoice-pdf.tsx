@@ -759,8 +759,9 @@ function InvoicePdfDocument({
   );
 }
 
-export function invoicePdfFilename(invoiceNumber: string): string {
-  return `${invoiceNumber}.pdf`;
+/** Pass a language when both versions are offered, so the files are told apart. */
+export function invoicePdfFilename(invoiceNumber: string, language?: "en" | "fr"): string {
+  return language ? `${invoiceNumber}-${language.toUpperCase()}.pdf` : `${invoiceNumber}.pdf`;
 }
 
 export async function renderInvoicePdfBuffer(input: {

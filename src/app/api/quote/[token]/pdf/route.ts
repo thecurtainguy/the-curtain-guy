@@ -4,13 +4,13 @@ import {
   normalizeCustomerLanguage,
 } from "@/data/customer-language";
 import { formatQuoteFilenameStem } from "@/data/quotes";
-import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { getSiteUrl } from "@/lib/env";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
 import { isOwnerCopySource, OWNER_COPY_PARAM, recordDocumentOpen } from "@/lib/document-views";
 import {
   fetchQuoteByPublicToken,
+  localizeQuote,
   logQuoteEvent,
   toCustomerSafeQuote,
 } from "@/lib/quotes";
@@ -35,20 +35,9 @@ export async function GET(request: Request, context: RouteContext) {
   const lang = new URL(request.url).searchParams.get("lang");
   const quoteLanguage = normalizeCustomerLanguage(quote.language);
   const language = isCustomerLanguage(lang) ? lang : quoteLanguage;
-  const safe = toCustomerSafeQuote(
-    language === quoteLanguage
-      ? quote
-      : {
-          ...quote,
-          language,
-          terms: await resolveQuoteTermsForView(
-            quote.terms,
-            quoteLanguage,
-            language
-          ),
-        },
-    { shareUrl: publicUrl }
-  );
+  const safe = toCustomerSafeQuote(await localizeQuote(quote, language), {
+    shareUrl: publicUrl,
+  });
   const buffer = await renderQuotePdfBuffer({
     quote: safe,
     publicUrl,
@@ -67,7 +56,8 @@ export async function GET(request: Request, context: RouteContext) {
       actorType: "public_link",
       actorEmail: quote.customer_email,
       eventType: "pdf_downloaded",
-      summary: "PDF opened via public link",
+      summary: `PDF opened via public link (${language === "fr" ? "French" : "English"})`,
+      metadata: { language },
     });
   }
 

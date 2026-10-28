@@ -1,5 +1,6 @@
 import type { CustomerLanguage } from "@/data/customer-language";
 import {
+  effectiveQuoteStatus,
   quoteLineStatusLabel,
   quoteRequestStatusLabel,
   quoteStatusLabel,
@@ -53,20 +54,24 @@ const pillBase =
 
 export function QuoteStatusBadge({
   status,
+  validUntil,
   language = "en",
 }: {
   status: QuoteStatus;
+  /** When given, an open quote past this date shows as expired. */
+  validUntil?: string | null;
   language?: CustomerLanguage;
 }) {
+  const shown = validUntil === undefined ? status : effectiveQuoteStatus(status, validUntil);
   return (
     <span
       className={cn(
         pillBase,
         "px-2.5 py-1 text-[11px]",
-        STATUS_STYLES[status]
+        STATUS_STYLES[shown]
       )}
     >
-      {quoteStatusLabel(status, language)}
+      {quoteStatusLabel(shown, language)}
     </span>
   );
 }

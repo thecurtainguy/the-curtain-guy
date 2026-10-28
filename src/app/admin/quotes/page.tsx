@@ -9,6 +9,7 @@ import {
 } from "@/components/admin/lists/admin-quotes-list";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { Button } from "@/components/ui/button";
+import { effectiveQuoteStatus } from "@/data/quotes";
 import { listQuotes } from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -36,7 +37,7 @@ export default async function AdminQuotesPage() {
 
   const listRows: AdminQuoteListRow[] = quotes.map((row) => ({
     id: row.id,
-    status: row.status,
+    status: effectiveQuoteStatus(row.status, row.valid_until),
     quote_display_ref: row.quote_display_ref,
     opportunity_ref: row.opportunity_ref,
     customer_name: row.customer_name,

@@ -21,20 +21,23 @@ import { listCustomerContacts } from "@/lib/customers";
 import {
   getDocumentTextsMap,
   getLocalizedDocumentTexts,
-  resolveQuoteTermsForView,
 } from "@/lib/document-texts";
 import {
+  QUOTE_EMAIL_LANGUAGES,
   brandQuoteEmailShell,
   buildDefaultQuoteEmailBodyText,
   buildDefaultQuoteEmailSubject,
   buildQuoteReadyEmailParts,
   escapeEmailHtml,
+  joinBilingual,
   quotePdfAttachmentName,
+  quoteUrlInLanguage,
 } from "@/lib/quote-email-compose";
 import { withOwnerCopySource } from "@/lib/document-views";
 import { recordEmailMessage } from "@/lib/email-tracking";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import {
+  localizeQuote,
   toCustomerSafeQuote,
   type QuoteWithRelations,
 } from "@/lib/quotes";
@@ -62,20 +65,24 @@ export async function sendQuoteReadyEmail(input: {
   quote: QuoteWithRelations;
   publicQuoteUrl: string;
   compose?: QuoteReadyComposeOptions;
-}): Promise<void> {
+}): Promise<{ pdfLanguages: CustomerLanguage[] }> {
   const { quote, publicQuoteUrl, apiKey, compose } = input;
-  const copy = await getLocalizedDocumentTexts(
-    normalizeCustomerLanguage(quote.language)
+  const [frTexts, enTexts] = await Promise.all(
+    QUOTE_EMAIL_LANGUAGES.map((lang) => getLocalizedDocumentTexts(lang))
   );
-  const emailNote = copy["quote.email_note"];
-  const emailFooter = copy["quote.email_footer"];
+  const emailFooter = joinBilingual({
+    fr: frTexts["quote.email_footer"],
+    en: enTexts["quote.email_footer"],
+  });
   const siteUrl = getSiteUrl().replace(/\/$/, "");
-  const pdfFilename = quotePdfAttachmentName(quote);
   const attachPdf = compose?.attachPdf !== false;
 
   const bodyText =
     compose?.bodyText?.trim() ||
-    buildDefaultQuoteEmailBodyText({ quote, emailNote });
+    buildDefaultQuoteEmailBodyText({
+      quote,
+      emailNotes: { fr: frTexts["quote.email_note"], en: enTexts["quote.email_note"] },
+    });
   const subject =
     compose?.subject?.trim() || buildDefaultQuoteEmailSubject(quote);
   const to = (compose?.to?.length ? compose.to : [quote.customer_email]).filter(
@@ -89,24 +96,33 @@ export async function sendQuoteReadyEmail(input: {
     ...(compose?.extraAttachments ?? []),
   ];
 
-  let resolvedPdfName: string | null = null;
+  const pdfLanguages: CustomerLanguage[] = [];
+  const pdfNames: string[] = [];
   if (attachPdf) {
-    try {
-      const safe = toCustomerSafeQuote(quote, { shareUrl: publicQuoteUrl });
-      const pdfBuffer = await renderQuotePdfBuffer({
-        quote: safe,
-        publicUrl: publicQuoteUrl,
-        siteUrl,
-      });
-      attachments.unshift({
-        filename: pdfFilename,
-        content: pdfBuffer.toString("base64"),
-        contentType: "application/pdf",
-      });
-      resolvedPdfName = pdfFilename;
-    } catch (err) {
-      console.error("[quotes] PDF attach failed; sending email without PDF", err);
+    const pdfs: ResendEmailAttachment[] = [];
+    for (const lang of QUOTE_EMAIL_LANGUAGES) {
+      try {
+        const safe = toCustomerSafeQuote(await localizeQuote(quote, lang), {
+          shareUrl: quoteUrlInLanguage(publicQuoteUrl, lang),
+        });
+        const pdfBuffer = await renderQuotePdfBuffer({
+          quote: safe,
+          publicUrl: quoteUrlInLanguage(publicQuoteUrl, lang),
+          siteUrl,
+        });
+        const filename = quotePdfAttachmentName(quote, lang);
+        pdfs.push({
+          filename,
+          content: pdfBuffer.toString("base64"),
+          contentType: "application/pdf",
+        });
+        pdfLanguages.push(lang);
+        pdfNames.push(filename);
+      } catch (err) {
+        console.error(`[quotes] ${lang} PDF attach failed`, err);
+      }
     }
+    attachments.unshift(...pdfs);
   }
 
   const buildParts = (url: string) => {
@@ -115,7 +131,7 @@ export async function sendQuoteReadyEmail(input: {
       publicQuoteUrl: url,
       bodyText,
       emailFooter,
-      pdfFilename: resolvedPdfName,
+      pdfFilenames: pdfNames,
       lineItems: quote.line_items,
       assetBaseUrl: siteUrl,
     });
@@ -148,7 +164,7 @@ export async function sendQuoteReadyEmail(input: {
   });
 
   const ownerCopyTo = compose?.ownerCopyTo?.filter(Boolean) ?? [];
-  if (ownerCopyTo.length === 0) return;
+  if (ownerCopyTo.length === 0) return { pdfLanguages };
   try {
     const copy = await sendResendEmail({
       apiKey,
@@ -171,6 +187,7 @@ export async function sendQuoteReadyEmail(input: {
   } catch (err) {
     console.error("[quotes] owner archive copy failed", err);
   }
+  return { pdfLanguages };
 }
 
 const QUOTE_ACCEPTED_COPY = {
@@ -245,7 +262,7 @@ type QuoteAcceptedEmailInput = {
   acceptedByName: string;
   /** Extra recipient, e.g. the signed-in portal user when it differs from the quote email. */
   alsoTo?: string | null;
-  /** Language the customer accepted in; defaults to the quote language. */
+  /** Language the customer accepted in; defaults to the agreed, then the quote language. */
   language?: CustomerLanguage;
   /** E-signed agreement PDF; replaces the plain proposal attachment and switches to signed wording. */
   signedAgreement?: { buffer: Buffer; filename: string; documentHash: string } | null;
@@ -275,16 +292,9 @@ export async function buildQuoteAcceptedCustomerEmail(input: QuoteAcceptedEmailI
   attachments?: ResendEmailAttachment[];
 } | null> {
   const { proposalUrl, acceptedByName } = input;
-  const quoteLanguage = normalizeCustomerLanguage(input.quote.language);
-  const language = input.language ?? quoteLanguage;
-  const quote: QuoteWithRelations =
-    language === quoteLanguage
-      ? input.quote
-      : {
-          ...input.quote,
-          language,
-          terms: await resolveQuoteTermsForView(input.quote.terms, quoteLanguage, language),
-        };
+  const language =
+    input.language ?? normalizeCustomerLanguage(input.quote.agreed_language ?? input.quote.language);
+  const quote = await localizeQuote(input.quote, language);
   const to = [quote.customer_email, input.alsoTo]
     .map((email) => (email || "").trim().toLowerCase())
     .filter((email, index, list) => email && list.indexOf(email) === index);

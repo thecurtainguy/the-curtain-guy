@@ -5,7 +5,6 @@ import {
 } from "@/data/customer-language";
 import { formatQuoteFilenameStem } from "@/data/quotes";
 import { getCurrentUser, requireOwner } from "@/lib/auth";
-import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { recordDocumentOpen } from "@/lib/document-views";
 import { getSiteUrl } from "@/lib/env";
 import { fetchEstimateById } from "@/lib/estimate-access";
@@ -14,6 +13,7 @@ import {
   customerCanAccessQuote,
   fetchQuoteById,
   findActivePublicQuoteUrl,
+  localizeQuote,
   logQuoteEvent,
   toCustomerSafeQuote,
 } from "@/lib/quotes";
@@ -71,20 +71,9 @@ export async function GET(request: Request, context: RouteContext) {
       ? // The emailed PDF is rendered after the quote flips to sent.
         { ...quote, status: "sent" as const }
       : quote;
-  const safe = toCustomerSafeQuote(
-    language === quoteLanguage
-      ? viewQuote
-      : {
-          ...viewQuote,
-          language,
-          terms: await resolveQuoteTermsForView(
-            quote.terms,
-            quoteLanguage,
-            language
-          ),
-        },
-    { shareUrl: publicUrl }
-  );
+  const safe = toCustomerSafeQuote(await localizeQuote(viewQuote, language), {
+    shareUrl: publicUrl,
+  });
   const buffer = await renderQuotePdfBuffer({
     quote: safe,
     publicUrl,
@@ -101,7 +90,8 @@ export async function GET(request: Request, context: RouteContext) {
       actorUserId: owner?.user.id ?? null,
       actorEmail: owner?.profile.email ?? null,
       eventType: "pdf_downloaded",
-      summary: "PDF opened",
+      summary: `PDF opened (${language === "fr" ? "French" : "English"})`,
+      metadata: { language },
     });
   }
 

@@ -20,12 +20,15 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { CustomerLanguageBadge } from "@/components/quotes/customer-language-badge";
 import { normalizeCustomerLanguage } from "@/data/customer-language";
-import { fetchQuoteEmailTexts } from "@/lib/quote-email-defaults";
 import {
+  fetchQuoteEmailTexts,
+  type QuoteEmailTexts,
+} from "@/lib/quote-email-defaults";
+import {
+  bilingualQuotePdfNames,
   buildDefaultQuoteEmailBodyText,
   buildDefaultQuoteEmailSubject,
   buildQuoteReadyEmailParts,
-  quotePdfAttachmentName,
 } from "@/lib/quote-email-compose";
 import type { QuoteWithRelations } from "@/lib/quotes";
 import { cn } from "@/lib/utils";
@@ -135,23 +138,20 @@ export function AdminQuotePreviewDialog({
   const language = normalizeCustomerLanguage(quote.language);
   const [tab, setTab] = useState<PreviewTab>("page");
   const [device, setDevice] = useState<Device>("desktop");
-  const [emailTexts, setEmailTexts] = useState<{
-    note: string;
-    footer: string;
-  } | null>(null);
+  const [emailTexts, setEmailTexts] = useState<QuoteEmailTexts | null>(null);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void fetchQuoteEmailTexts(language).then((texts) => {
+    void fetchQuoteEmailTexts().then((texts) => {
       if (!cancelled) setEmailTexts(texts);
     });
     return () => {
       cancelled = true;
     };
-  }, [open, language]);
+  }, [open]);
 
-  const pdfName = quotePdfAttachmentName(quote);
+  const pdfNames = useMemo(() => bilingualQuotePdfNames(quote), [quote]);
   const subject = buildDefaultQuoteEmailSubject(quote);
   const emailHtml = useMemo(() => {
     if (!emailTexts) return null;
@@ -162,14 +162,14 @@ export function AdminQuotePreviewDialog({
         `https://www.thecurtainguy.com/quote/preview-${quote.opportunity_ref}`,
       bodyText: buildDefaultQuoteEmailBodyText({
         quote,
-        emailNote: emailTexts.note,
+        emailNotes: emailTexts.notes,
       }),
       emailFooter: emailTexts.footer,
-      pdfFilename: pdfName,
+      pdfFilenames: pdfNames,
       lineItems: quote.line_items,
       assetBaseUrl: typeof window === "undefined" ? null : window.location.origin,
     }).html;
-  }, [emailTexts, pdfName, publicUrl, quote]);
+  }, [emailTexts, pdfNames, publicUrl, quote]);
 
   const version = encodeURIComponent(quote.updated_at ?? "");
   const pageSrc = `/quote/preview/${quote.id}?v=${version}`;
@@ -319,11 +319,16 @@ export function AdminQuotePreviewDialog({
                 <dt className="text-xs font-medium text-muted-foreground">
                   Attached
                 </dt>
-                <dd>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                    <Paperclip className="size-3" aria-hidden />
-                    {pdfName}
-                  </span>
+                <dd className="flex flex-wrap gap-1.5">
+                  {pdfNames.map((name) => (
+                    <span
+                      key={name}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
+                    >
+                      <Paperclip className="size-3" aria-hidden />
+                      {name}
+                    </span>
+                  ))}
                 </dd>
               </dl>
               {emailHtml ? (

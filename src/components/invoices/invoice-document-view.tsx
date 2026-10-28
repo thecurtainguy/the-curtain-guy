@@ -7,6 +7,7 @@ import {
   FileCheck2,
   FileSignature,
   Landmark,
+  Languages,
   Mail,
   Receipt,
   UserRound,
@@ -34,6 +35,7 @@ import {
   quoteLineCategoryLabel,
 } from "@/data/quotes";
 import { formatQuoteDate, quoteEventTypeLabel } from "@/data/quote-copy";
+import type { CustomerLanguage } from "@/data/customer-language";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { UnitPriceCell } from "@/components/quotes/unit-price-cell";
 import { LineItemThumb } from "@/components/quotes/line-item-thumb";
@@ -76,10 +78,13 @@ export function InvoiceDocumentView({
   invoice,
   settings,
   pdfUrl,
+  otherLanguage,
 }: {
   invoice: CustomerSafeInvoice;
   settings: BusinessSettings;
   pdfUrl: string;
+  /** Link to the same invoice in the other language (equal terms). */
+  otherLanguage?: { href: string; label: string; lang: CustomerLanguage };
 }) {
   const language = invoice.language;
   const t = getInvoiceCopy(language);
@@ -160,6 +165,14 @@ export function InvoiceDocumentView({
                 {t.downloadPdf}
               </a>
             </Button>
+            {otherLanguage ? (
+              <Button asChild variant="outline" className="mt-2 w-full border-primary/40">
+                <a href={otherLanguage.href} hrefLang={otherLanguage.lang} lang={otherLanguage.lang}>
+                  <Languages className="size-4" />
+                  {otherLanguage.label}
+                </a>
+              </Button>
+            ) : null}
           </div>
         </div>
       </section>

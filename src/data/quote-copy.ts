@@ -3,6 +3,7 @@ import {
   type CustomerLanguage,
 } from "@/data/customer-language";
 import { getEnglishOptionLabel } from "@/data/estimate";
+import { QUOTE_EXPIRED_MESSAGE } from "@/data/quotes";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
 import frEstimate from "../../messages/fr/estimate.json";
 
@@ -20,6 +21,16 @@ export type QuoteCopy = {
   declinedRecorded: string;
   declinedBy: string;
   declinedNext: string;
+  expiredEyebrow: string;
+  expiredTitle: string;
+  expiredBody: (date: string) => string;
+  expiredBodyNoDate: string;
+  expiredPricing: string;
+  expiredAvailability: string;
+  expiredNotePlaceholder: string;
+  expiredCta: string;
+  expiredRequestedTitle: string;
+  expiredRequestedBody: string;
 
   confirmAccepted: string;
   confirmDeclined: string;
@@ -151,6 +162,10 @@ export type QuoteCopy = {
 
   mail: {
     subject: (ref: string) => string;
+    subjectLead: string;
+    pdfVersionsAttached: string;
+    /** Button that opens the proposal in this language from the bilingual email. */
+    viewInLanguage: string;
     ready: (name: string | null) => string;
     instructions: string;
     headline: string;
@@ -182,6 +197,18 @@ const en: QuoteCopy = {
   declinedRecorded: "We’ve recorded your response",
   declinedBy: "declined by",
   declinedNext: ". Reach out anytime if you’d like to revisit the plan.",
+  expiredEyebrow: "Proposal expired",
+  expiredTitle: "This proposal needs a quick refresh",
+  expiredBody: (date) =>
+    `It was valid until ${date}. Pricing and availability must be reconfirmed before it can be signed.`,
+  expiredBodyNoDate:
+    "Pricing and availability must be reconfirmed before it can be signed.",
+  expiredPricing: "Pricing reconfirmed",
+  expiredAvailability: "Date & crew rechecked",
+  expiredNotePlaceholder: "Anything that changed? New date, guest count, venue… (optional)",
+  expiredCta: "Request a renewed quote",
+  expiredRequestedTitle: "Renewal requested",
+  expiredRequestedBody: "We’re on it — you’ll receive an updated proposal to review and sign.",
 
   confirmAccepted: "Thank you — we’ve noted your acceptance.",
   confirmDeclined: "We’ve recorded your response.",
@@ -316,6 +343,9 @@ const en: QuoteCopy = {
 
   mail: {
     subject: (ref) => `Your Curtain Guy quote is ready — ${ref}`,
+    subjectLead: "Your Curtain Guy quote is ready",
+    pdfVersionsAttached: "French and English versions attached",
+    viewInLanguage: "View in English",
     ready: (name) =>
       `${name || "Hello"}, your Curtain Guy quote is ready to review.`,
     instructions:
@@ -352,6 +382,18 @@ const fr: QuoteCopy = {
   declinedBy: "refusée par",
   declinedNext:
     ". Écrivez-nous en tout temps si vous souhaitez revoir le projet.",
+  expiredEyebrow: "Soumission expirée",
+  expiredTitle: "Cette soumission doit être actualisée",
+  expiredBody: (date) =>
+    `Elle était valide jusqu’au ${date}. Les prix et la disponibilité doivent être reconfirmés avant la signature.`,
+  expiredBodyNoDate:
+    "Les prix et la disponibilité doivent être reconfirmés avant la signature.",
+  expiredPricing: "Prix reconfirmés",
+  expiredAvailability: "Date et équipe revérifiées",
+  expiredNotePlaceholder: "Quelque chose a changé? Nouvelle date, nombre d’invités, lieu… (facultatif)",
+  expiredCta: "Demander une soumission renouvelée",
+  expiredRequestedTitle: "Renouvellement demandé",
+  expiredRequestedBody: "Nous nous en occupons — vous recevrez une soumission à jour à réviser et signer.",
 
   confirmAccepted: "Merci — nous avons bien noté votre acceptation.",
   confirmDeclined: "Nous avons enregistré votre réponse.",
@@ -489,6 +531,9 @@ const fr: QuoteCopy = {
 
   mail: {
     subject: (ref) => `Votre soumission The Curtain Guy est prête — ${ref}`,
+    subjectLead: "Votre soumission The Curtain Guy est prête",
+    pdfVersionsAttached: "Versions française et anglaise jointes",
+    viewInLanguage: "Voir en français",
     ready: (name) =>
       name
         ? `Bonjour ${name}, votre soumission The Curtain Guy est prête.`
@@ -568,6 +613,9 @@ const API_ERRORS_FR: Record<string, string> = {
   "Could not record your signature. Please try again.":
     "Impossible d’enregistrer votre signature. Veuillez réessayer.",
   "Something went wrong. Please try again.": "Une erreur est survenue. Veuillez réessayer.",
+  [QUOTE_EXPIRED_MESSAGE]: "Cette soumission est expirée. Demandez une soumission renouvelée pour continuer.",
+  "This proposal is still valid.": "Cette soumission est toujours valide.",
+  "Could not save request.": "Impossible d’enregistrer la demande.",
 };
 
 export function localizeQuoteApiError(

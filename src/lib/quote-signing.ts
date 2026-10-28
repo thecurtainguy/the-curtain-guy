@@ -1,27 +1,40 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { headers } from "next/headers";
 import type { CustomerLanguage } from "@/data/customer-language";
-import { isCustomerLanguage, normalizeCustomerLanguage } from "@/data/customer-language";
+import { isCustomerLanguage } from "@/data/customer-language";
 import {
   SIGNATURE_IMAGE_MAX_CHARS,
   SIGNING_CLAUSE_KEYS,
   SIGNING_CODE_LENGTH,
   SIGNING_CODE_TTL_MINUTES,
+  SIGNING_LANGUAGE_CHOICE,
   SIGNING_MAX_CODE_ATTEMPTS,
   SIGNING_MAX_CODE_SENDS,
   SIGNING_RESEND_COOLDOWN_SECONDS,
   SIGNING_SESSION_TTL_MINUTES,
   buildSigningClauses,
   signingConsentText,
+  signingLanguageChoiceText,
   type QuoteAgreementAudit,
   type QuoteAgreementSummary,
   type SignatureMethod,
   type SigningAcknowledgement,
 } from "@/data/quote-signing";
-import type { CustomerSafeQuote } from "@/data/quotes";
-import { getLocalizedDocumentTexts, resolveQuoteTermsForView } from "@/lib/document-texts";
+import {
+  QUOTE_EXPIRED_MESSAGE,
+  isQuoteValidityLapsed,
+  type CustomerSafeQuote,
+  type QuoteContractProvider,
+} from "@/data/quotes";
+import { getBusinessSettings } from "@/lib/business-settings";
+import { getLocalizedDocumentTexts } from "@/lib/document-texts";
 import { describeUserAgent } from "@/lib/document-views";
-import { logQuoteEvent, toCustomerSafeQuote, type QuoteWithRelations } from "@/lib/quotes";
+import {
+  localizeQuote,
+  logQuoteEvent,
+  toCustomerSafeQuote,
+  type QuoteWithRelations,
+} from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export type SigningChannel = "public_link" | "account";
@@ -49,6 +62,9 @@ export type QuoteSignatureRow = {
   initials_image: string | null;
   acknowledgements: SigningAcknowledgement[];
   consent_text: string | null;
+  language_choice_text: string | null;
+  french_version_provided_via: "email_attachment" | "pdf_opened" | "owner_sent" | null;
+  french_version_provided_at: string | null;
   document_snapshot: CustomerSafeQuote | null;
   document_hash: string | null;
   signed_at: string | null;
@@ -138,6 +154,50 @@ export function assertQuoteSignable(quote: QuoteWithRelations) {
   if (!SIGNABLE_STATUSES.has(quote.status)) {
     throw new SigningError("This quote is not available for signing.", 409);
   }
+  if (isQuoteValidityLapsed(quote.valid_until)) {
+    throw new SigningError(QUOTE_EXPIRED_MESSAGE, 409);
+  }
+}
+
+export type FrenchVersionEvidence = {
+  via: "email_attachment" | "pdf_opened";
+  at: string;
+};
+
+/**
+ * First proof that the French version reached the customer: a sent email that
+ * carried the French PDF, or the customer opening the French PDF.
+ */
+export async function findFrenchVersionEvidence(
+  quoteId: string
+): Promise<FrenchVersionEvidence | null> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
+    .from("quote_events")
+    .select("event_type, actor_type, metadata, created_at")
+    .eq("quote_id", quoteId)
+    .in("event_type", ["quote_sent", "pdf_downloaded"])
+    .order("created_at", { ascending: true });
+  if (error) console.error("[signing] french evidence", error);
+  for (const event of data ?? []) {
+    const metadata = (event.metadata ?? {}) as Record<string, unknown>;
+    if (
+      event.event_type === "quote_sent" &&
+      metadata.email_sent === true &&
+      Array.isArray(metadata.pdf_languages) &&
+      metadata.pdf_languages.includes("fr")
+    ) {
+      return { via: "email_attachment", at: event.created_at as string };
+    }
+    if (
+      event.event_type === "pdf_downloaded" &&
+      metadata.language === "fr" &&
+      (event.actor_type === "customer" || event.actor_type === "public_link")
+    ) {
+      return { via: "pdf_opened", at: event.created_at as string };
+    }
+  }
+  return null;
 }
 
 /** The exact customer-facing document being signed, frozen in the signing language. */
@@ -145,19 +205,40 @@ export async function buildSigningSnapshot(
   quote: QuoteWithRelations,
   language: CustomerLanguage
 ): Promise<CustomerSafeQuote> {
-  const quoteLanguage = normalizeCustomerLanguage(quote.language);
-  const terms =
-    language === quoteLanguage
-      ? quote.terms
-      : await resolveQuoteTermsForView(quote.terms, quoteLanguage, language);
-  const safe = toCustomerSafeQuote({ ...quote, language, terms });
-  const texts = await getLocalizedDocumentTexts(language);
+  const safe = toCustomerSafeQuote(await localizeQuote(quote, language));
+  const [texts, provider] = await Promise.all([
+    getLocalizedDocumentTexts(language),
+    currentContractProvider(),
+  ]);
   return {
     ...safe,
     terms: safe.terms?.trim() || texts["quote.terms"],
     status: "accepted",
     requests: [],
     share_url: null,
+    contract_provider: provider,
+  };
+}
+
+/** The provider party as it currently stands in Billing settings. */
+export async function currentContractProvider(): Promise<QuoteContractProvider> {
+  const s = await getBusinessSettings();
+  const cityLine = [[s.city, s.province].filter(Boolean).join(", "), s.postal_code]
+    .filter(Boolean)
+    .join("  ");
+  return {
+    legal_name: s.legal_name.trim(),
+    trade_name: s.trade_name.trim(),
+    address: [s.address_line1, s.address_line2, cityLine, s.country]
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join("\n"),
+    phone: s.phone.trim(),
+    email: s.email.trim(),
+    website: s.website.trim(),
+    neq: s.neq.trim(),
+    gst_number: s.gst_number.trim(),
+    qst_number: s.qst_number.trim(),
   };
 }
 
@@ -343,9 +424,16 @@ export async function signQuote(input: SignQuoteInput): Promise<QuoteSignatureRo
     throw new SigningError("Initial each key clause to continue.");
   }
 
-  const language: CustomerLanguage = isCustomerLanguage(input.language)
-    ? input.language
-    : normalizeCustomerLanguage(quote.language);
+  if (!isCustomerLanguage(input.language)) {
+    throw new SigningError("Please choose the language of your agreement.");
+  }
+  const language: CustomerLanguage = input.language;
+  // Charter of the French Language s.55: English binds only once the French version was provided.
+  const frenchEvidence = language === "en" ? await findFrenchVersionEvidence(quote.id) : null;
+  if (language === "en" && !frenchEvidence) {
+    throw new SigningError(SIGNING_LANGUAGE_CHOICE.errors.frenchFirst);
+  }
+  const languageChoiceText = signingLanguageChoiceText(language);
   const snapshot = await buildSigningSnapshot(quote, language);
   const signedAt = new Date().toISOString();
   const acknowledgements: SigningAcknowledgement[] = buildSigningClauses(snapshot, language).map(
@@ -368,6 +456,7 @@ export async function signQuote(input: SignQuoteInput): Promise<QuoteSignatureRo
       document: snapshot,
       clauses: acknowledgements.map(({ key, title, statement }) => ({ key, title, statement })),
       consent: consentText,
+      language_choice: languageChoiceText,
       signer: { name: signerName, email: row.signer_email },
     })
   );
@@ -388,6 +477,9 @@ export async function signQuote(input: SignQuoteInput): Promise<QuoteSignatureRo
       initials_image: initialsImage,
       acknowledgements,
       consent_text: consentText,
+      language_choice_text: languageChoiceText,
+      french_version_provided_via: frenchEvidence?.via ?? null,
+      french_version_provided_at: frenchEvidence?.at ?? null,
       document_snapshot: snapshot,
       document_hash: documentHash,
       signed_at: signedAt,
@@ -413,9 +505,21 @@ export async function signQuote(input: SignQuoteInput): Promise<QuoteSignatureRo
 
   const { error: quoteError } = await admin
     .from("quotes")
-    .update({ status: "accepted", accepted_at: signedAt, accepted_by_name: signerName })
+    .update({
+      status: "accepted",
+      accepted_at: signedAt,
+      accepted_by_name: signerName,
+      agreed_language: language,
+    })
     .eq("id", quote.id);
   if (quoteError) console.error("[signing] accept quote", quoteError);
+  if (quote.customer_id) {
+    const { error: customerError } = await admin
+      .from("customers")
+      .update({ preferred_language: language })
+      .eq("id", quote.customer_id);
+    if (customerError) console.error("[signing] customer language", customerError);
+  }
 
   await logQuoteEvent({
     quoteId: quote.id,
@@ -432,6 +536,9 @@ export async function signQuote(input: SignQuoteInput): Promise<QuoteSignatureRo
       document_hash: documentHash,
       terms_acknowledged: true,
       terms_language: language,
+      language_choice_text: languageChoiceText,
+      french_version_provided_via: frenchEvidence?.via ?? null,
+      french_version_provided_at: frenchEvidence?.at ?? null,
       terms_snapshot: snapshot.terms,
       quote_display_ref: quote.quote_display_ref,
       quote_revision: quote.revision_number,
@@ -486,6 +593,9 @@ export function toAgreementAudit(row: QuoteSignatureRow): QuoteAgreementAudit {
     acknowledgements: row.acknowledgements ?? [],
     consentText: row.consent_text,
     signatureMethod: row.signature_method,
+    languageChoiceText: row.language_choice_text ?? null,
+    frenchVersionProvidedVia: row.french_version_provided_via ?? null,
+    frenchVersionProvidedAt: row.french_version_provided_at ?? null,
   };
 }
 

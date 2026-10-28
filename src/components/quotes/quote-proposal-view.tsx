@@ -8,6 +8,7 @@ import {
   Building2,
   Calendar,
   CalendarCheck,
+  CalendarClock,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -24,6 +25,7 @@ import {
   PartyPopper,
   PencilLine,
   Plus,
+  RefreshCw,
   Send,
   Sparkles,
   Wallet,
@@ -49,6 +51,8 @@ import {
   formatQuoteQuantity,
   formatQuoteUnitPrice,
   getCustomerRevisionNumber,
+  hasPendingRenewalRequest,
+  QUOTE_RENEWAL_REQUEST_TITLE,
   quoteLineCategoryLabel,
   type CustomerSafeQuote,
 } from "@/data/quotes";
@@ -86,6 +90,10 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   quote: CustomerSafeQuote;
+  /** French and English versions offered in the signing step. */
+  signingQuotes: Record<CustomerLanguage, CustomerSafeQuote>;
+  /** The quote email carried the French PDF, or the customer already opened it. */
+  frenchVersionProvided: boolean;
   mode: "account" | "public";
   actionEndpoint: string;
   pdfUrl: string;
@@ -117,6 +125,14 @@ type ActionPayload = {
 };
 
 const FEATURED_UPSELL_COUNT = 3;
+
+/** Same proposal PDF route, rendered in another language. */
+function withPdfLanguage(pdfUrl: string, language: "en" | "fr"): string {
+  const [path, query = ""] = pdfUrl.split("?");
+  const params = new URLSearchParams(query);
+  params.set("lang", language);
+  return `${path}?${params}`;
+}
 
 const SCHEDULE_ICONS: Record<QuoteScheduleKey, LucideIcon> = {
   install: Hammer,
@@ -260,6 +276,8 @@ function SectionHeader({
 
 export function QuoteProposalView({
   quote,
+  signingQuotes,
+  frenchVersionProvided,
   mode,
   actionEndpoint,
   pdfUrl,
@@ -290,6 +308,8 @@ export function QuoteProposalView({
   const [confirmNote, setConfirmNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [requestingKey, setRequestingKey] = useState<string | null>(null);
+  const [renewalRequested, setRenewalRequested] = useState(() => hasPendingRenewalRequest(quote));
+  const [renewalNote, setRenewalNote] = useState("");
   const status = optimisticStatus ?? quote.status;
   const pendingKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -380,6 +400,9 @@ export function QuoteProposalView({
         setConfirmNote(t.confirmCustom);
       } else if (payload.action === "ask_question") {
         setConfirmNote(t.confirmQuestion);
+      } else if (payload.action === "request_renewal") {
+        setRenewalRequested(true);
+        setRenewalNote("");
       } else {
         setConfirmNote(t.confirmGeneric);
       }
@@ -426,6 +449,19 @@ export function QuoteProposalView({
         setSigningOpen(true);
       }}
       onAction={(payload) => void postAction(payload)}
+    />
+  ) : status === "expired" ? (
+    <ExpiredCard
+      validUntil={quote.valid_until}
+      language={language}
+      t={t}
+      busy={busy}
+      requested={renewalRequested}
+      note={renewalNote}
+      onNoteChange={setRenewalNote}
+      onRequest={() =>
+        void postAction({ action: "request_renewal", message: renewalNote.trim() || undefined })
+      }
     />
   ) : null;
 
@@ -541,9 +577,11 @@ export function QuoteProposalView({
             setSigningOpen(open);
             if (!open && signedAgreement) router.refresh();
           }}
-          quote={quote}
+          quotes={signingQuotes}
+          frenchVersionProvided={frenchVersionProvided}
           actionEndpoint={actionEndpoint}
           agreementPdfUrl={agreementPdfUrl}
+          frenchPdfUrl={withPdfLanguage(pdfUrl, "fr")}
           preview={preview}
           onSigned={(next) => {
             setSignedAgreement(next);
@@ -920,7 +958,7 @@ export function QuoteProposalView({
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-medium text-foreground">
-                          {req.title}
+                          {req.title === QUOTE_RENEWAL_REQUEST_TITLE ? t.expiredRequestedTitle : req.title}
                         </p>
                         {req.message ? (
                           <p className="mt-1 text-sm text-muted-foreground">
@@ -1364,6 +1402,97 @@ function RespondCard({
             </LoadingButton>
           </div>
         ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ExpiredCard({
+  validUntil,
+  language,
+  t,
+  busy,
+  requested,
+  note,
+  onNoteChange,
+  onRequest,
+}: {
+  validUntil: string | null;
+  language: CustomerLanguage;
+  t: QuoteCopy;
+  busy: boolean;
+  requested: boolean;
+  note: string;
+  onNoteChange: (value: string) => void;
+  onRequest: () => void;
+}) {
+  const expiredOn = validUntil ? formatQuoteDate(validUntil, language, "") : "";
+  return (
+    <section className={cn(glassCardClass, "p-4 sm:p-5")}>
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_12%_0%,rgba(212,175,55,0.14),transparent_55%)]"
+        aria-hidden
+      />
+      <div className="relative space-y-4">
+        <div className="flex items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
+            {requested ? <CheckCircle2 className="size-5" /> : <CalendarClock className="size-5" />}
+          </span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">
+              {t.expiredEyebrow}
+            </p>
+            <h2 className="mt-1 font-heading text-lg font-semibold leading-snug text-foreground">
+              {requested ? t.expiredRequestedTitle : t.expiredTitle}
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {requested
+                ? t.expiredRequestedBody
+                : expiredOn
+                  ? t.expiredBody(expiredOn)
+                  : t.expiredBodyNoDate}
+            </p>
+          </div>
+        </div>
+
+        {requested ? null : (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { icon: Wallet, label: t.expiredPricing },
+                { icon: CalendarCheck, label: t.expiredAvailability },
+              ].map(({ icon: Icon, label }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/[0.04] p-2.5"
+                >
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon className="size-3.5" aria-hidden />
+                  </span>
+                  <span className="text-[11px] font-medium leading-tight text-foreground">{label}</span>
+                </div>
+              ))}
+            </div>
+            <Textarea
+              aria-label={t.expiredNotePlaceholder}
+              value={note}
+              onChange={(e) => onNoteChange(e.target.value)}
+              rows={2}
+              placeholder={t.expiredNotePlaceholder}
+              disabled={busy}
+            />
+            <LoadingButton
+              type="button"
+              className={cn(railBtnPrimary, "w-full")}
+              isLoading={busy}
+              loadingText={t.sending}
+              icon={<RefreshCw className="size-4" />}
+              onClick={onRequest}
+            >
+              {t.expiredCta}
+            </LoadingButton>
+          </>
+        )}
       </div>
     </section>
   );

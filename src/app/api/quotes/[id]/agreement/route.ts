@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getSiteUrl } from "@/lib/env";
 import { fetchEstimateById } from "@/lib/estimate-access";
 import { renderSignedAgreementPdf } from "@/lib/quote-agreement-pdf";
 import { fetchExecutedSignature } from "@/lib/quote-signing";
@@ -28,9 +27,7 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!signature) {
     return NextResponse.json({ ok: false, message: "Agreement not found." }, { status: 404 });
   }
-  const { buffer, filename } = await renderSignedAgreementPdf(signature, {
-    publicUrl: `${getSiteUrl().replace(/\/$/, "")}/account/quotes/${id}`,
-  });
+  const { buffer, filename } = await renderSignedAgreementPdf(signature);
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {

@@ -19,9 +19,14 @@ import {
   customerQuoteDisplayRef,
   customerQuoteLineStatus,
   customerQuoteStatus,
+  effectiveQuoteStatus,
   formatQuoteDisplayRef,
+  hasPendingRenewalRequest,
+  QUOTE_RENEWAL_REQUEST_TITLE,
   normalizeManualTaxLines,
   normalizeUnitPriceCents,
+  linesMissingTranslation,
+  textInLanguage,
 } from "@/data/quotes";
 import { quotePaymentTermsFrom } from "@/data/quote-payment-terms";
 import {
@@ -48,7 +53,9 @@ import {
 } from "@/lib/event-builder/map-brief-to-estimate";
 import {
   getLocalizedDocumentText,
+  quoteTermsNeedTranslation,
   resolveQuoteTerms,
+  resolveQuoteTermsForView,
 } from "@/lib/document-texts";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import {
@@ -134,7 +141,7 @@ export function toCustomerSafeQuote(
     venue_address: quote.venue_address ?? null,
     city_area: quote.city_area,
     ...quotePaymentTermsFrom(quote),
-    status: customerQuoteStatus(quote.status),
+    status: customerQuoteStatus(effectiveQuoteStatus(quote.status, quote.valid_until)),
     language: normalizeCustomerLanguage(quote.language),
     currency: quote.currency,
     subtotal_cents: quote.subtotal_cents,
@@ -168,6 +175,90 @@ export function toCustomerSafeQuote(
     requests: quote.requests || [],
     share_url: options?.shareUrl ?? null,
     bill_to: quote.bill_to ?? null,
+  };
+}
+
+/**
+ * The quote's customer-facing content in one language — line descriptions,
+ * customer notes and terms — with `language` set to that language. Amounts
+ * and every other field are unchanged, so both versions stay equivalent.
+ */
+export async function localizeQuote(
+  quote: QuoteWithRelations,
+  viewLanguage: CustomerLanguage
+): Promise<QuoteWithRelations> {
+  const baseLanguage = normalizeCustomerLanguage(quote.language);
+  return {
+    ...quote,
+    language: viewLanguage,
+    customer_notes:
+      textInLanguage(
+        quote.customer_notes,
+        quote.customer_notes_translated,
+        baseLanguage,
+        viewLanguage
+      ) || null,
+    terms: await resolveQuoteTermsForView(
+      quote.terms,
+      baseLanguage,
+      viewLanguage,
+      quote.terms_translated
+    ),
+    line_items: (quote.line_items || []).map((item) => ({
+      ...item,
+      description: textInLanguage(
+        item.description,
+        item.description_translated,
+        baseLanguage,
+        viewLanguage
+      ),
+    })),
+  };
+}
+
+export function otherLanguageName(language: string | null | undefined): string {
+  return normalizeCustomerLanguage(language) === "fr" ? "English" : "French";
+}
+
+/**
+ * Customer-facing text that has no translation yet: visible line items,
+ * customer notes and custom terms. Both versions must be complete to send.
+ */
+export async function missingQuoteTranslations(
+  quote: QuoteWithRelations
+): Promise<string[]> {
+  const missing: string[] = [];
+  const lines = linesMissingTranslation(quote.line_items || []);
+  if (lines.length > 0) {
+    missing.push(`${lines.length} line item${lines.length === 1 ? "" : "s"}`);
+  }
+  if (quote.customer_notes?.trim() && !quote.customer_notes_translated?.trim()) {
+    missing.push("customer notes");
+  }
+  if (
+    await quoteTermsNeedTranslation(
+      quote.terms,
+      quote.terms_translated,
+      normalizeCustomerLanguage(quote.language)
+    )
+  ) {
+    missing.push("custom terms");
+  }
+  return missing;
+}
+
+/** Customer-safe French and English versions, for the bilingual signing step. */
+export async function toCustomerQuoteVersions(
+  quote: QuoteWithRelations,
+  patch: Partial<QuoteWithRelations> = {},
+  options?: { shareUrl?: string | null }
+): Promise<Record<CustomerLanguage, CustomerSafeQuote>> {
+  const [fr, en] = await Promise.all(
+    (["fr", "en"] as const).map((lang) => localizeQuote({ ...quote, ...patch }, lang))
+  );
+  return {
+    fr: toCustomerSafeQuote(fr, options),
+    en: toCustomerSafeQuote(en, options),
   };
 }
 
@@ -831,11 +922,13 @@ export async function createQuoteRevision(input: {
       manual_tax_cents: source.manual_tax_cents || 0,
       manual_tax_lines: normalizeManualTaxLines(source.manual_tax_lines),
       customer_notes: source.customer_notes,
+      customer_notes_translated: source.customer_notes_translated ?? null,
       owner_notes: source.owner_notes,
       terms: await resolveQuoteTerms(
         source.terms,
         normalizeCustomerLanguage(source.language)
       ),
+      terms_translated: source.terms_translated ?? null,
       created_by_user_id: input.createdByUserId,
     })
     .select("*")
@@ -853,6 +946,7 @@ export async function createQuoteRevision(input: {
       category_label: item.category_label ?? null,
       category_label_fr: item.category_label_fr ?? null,
       description: item.description,
+      description_translated: item.description_translated ?? null,
       quantity: item.quantity,
       unit_label: item.unit_label ?? null,
       unit_price_cents: item.unit_price_cents,
@@ -1014,6 +1108,8 @@ export type LineItemInput = {
   category: string;
   category_label?: string | null;
   description: string;
+  /** Omit to keep the saved translation while the description is unchanged. */
+  description_translated?: string | null;
   quantity: number;
   unit_label?: string | null;
   unit_price_cents: number;
@@ -1086,6 +1182,12 @@ export async function upsertLineItems(input: {
       category_label: categoryLabel,
       category_label_fr: categoryLabelFr,
       description: item.description.trim(),
+      description_translated:
+        item.description_translated !== undefined
+          ? item.description_translated?.trim() || null
+          : previous?.description === item.description.trim()
+            ? previous.description_translated ?? null
+            : null,
       quantity,
       unit_label: item.unit_label?.trim().slice(0, 40) || null,
       unit_price_cents: unitPrice,
@@ -1207,6 +1309,27 @@ export async function createCustomerRequest(input: {
   }
 
   return data as QuoteCustomerRequestRow;
+}
+
+/** Files a renewal request for an expired proposal; repeats while one is pending are no-ops. */
+export async function requestQuoteRenewal(input: {
+  quote: QuoteWithRelations;
+  message?: string | null;
+  createdByEmail?: string | null;
+  createdByUserId?: string | null;
+  actorType: QuoteEventRow["actor_type"];
+}): Promise<{ ok: boolean; alreadyRequested: boolean }> {
+  if (hasPendingRenewalRequest(input.quote)) return { ok: true, alreadyRequested: true };
+  const created = await createCustomerRequest({
+    quote: input.quote,
+    requestType: "revision",
+    title: QUOTE_RENEWAL_REQUEST_TITLE,
+    message: input.message,
+    createdByEmail: input.createdByEmail,
+    createdByUserId: input.createdByUserId,
+    actorType: input.actorType,
+  });
+  return { ok: Boolean(created), alreadyRequested: false };
 }
 
 export async function reviewCustomerRequest(input: {

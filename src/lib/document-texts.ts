@@ -10,11 +10,7 @@ import {
   type BaseDocumentTextSlug,
   type DocumentTextSlug,
 } from "@/data/document-texts";
-import {
-  DEFAULT_QUOTE_TERMS,
-  DEFAULT_QUOTE_TERMS_FR,
-  splitQuoteTerms,
-} from "@/data/quotes";
+import { standardQuoteTermsIn } from "@/data/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export type DocumentTextRow = {
@@ -130,29 +126,48 @@ export async function resolveQuoteTerms(
   return getLocalizedDocumentText("quote.terms", language);
 }
 
+async function configuredQuoteTerms(): Promise<Record<CustomerLanguage, string>> {
+  const map = await getDocumentTextsMap();
+  return {
+    en: map[localizedDocumentTextSlug("quote.terms", "en")],
+    fr: map[localizedDocumentTextSlug("quote.terms", "fr")],
+  };
+}
+
 /**
  * Terms for viewing a quote in another language: default terms follow the
- * view language; custom terms stay as written.
+ * view language; custom terms use the owner's translation when present.
  */
 export async function resolveQuoteTermsForView(
   stored: string | null | undefined,
   quoteLanguage: CustomerLanguage,
-  viewLanguage: CustomerLanguage
+  viewLanguage: CustomerLanguage,
+  translated?: string | null
 ): Promise<string> {
   if (viewLanguage === quoteLanguage || !stored?.trim()) {
     return resolveQuoteTerms(stored, viewLanguage);
   }
-  const normalize = (value: string) =>
-    splitQuoteTerms(value).join("\n").trim();
-  const storedTerms = normalize(stored);
-  const quoteDefaults = [
-    await getLocalizedDocumentText("quote.terms", quoteLanguage),
-    quoteLanguage === "fr" ? DEFAULT_QUOTE_TERMS_FR : DEFAULT_QUOTE_TERMS,
-  ].map(normalize);
-  if (quoteDefaults.includes(storedTerms)) {
-    return getLocalizedDocumentText("quote.terms", viewLanguage);
-  }
-  return stored.trim();
+  const standard = standardQuoteTermsIn(
+    stored,
+    quoteLanguage,
+    viewLanguage,
+    await configuredQuoteTerms()
+  );
+  return standard ?? (translated?.trim() || stored.trim());
+}
+
+/** True when the quote carries custom terms that have no translation yet. */
+export async function quoteTermsNeedTranslation(
+  stored: string | null | undefined,
+  translated: string | null | undefined,
+  quoteLanguage: CustomerLanguage
+): Promise<boolean> {
+  if (!stored?.trim() || translated?.trim()) return false;
+  const other: CustomerLanguage = quoteLanguage === "fr" ? "en" : "fr";
+  return (
+    standardQuoteTermsIn(stored, quoteLanguage, other, await configuredQuoteTerms()) ===
+    null
+  );
 }
 
 export async function upsertDocumentText(input: {

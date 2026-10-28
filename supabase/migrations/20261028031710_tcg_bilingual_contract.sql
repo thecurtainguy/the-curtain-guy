@@ -1,0 +1,17 @@
+alter table public.quote_line_items add column if not exists description_translated text;
+alter table public.invoice_line_items add column if not exists description_translated text;
+alter table public.quotes add column if not exists terms_translated text;
+alter table public.quotes add column if not exists agreed_language text;
+alter table public.quotes drop constraint if exists quotes_agreed_language_check;
+alter table public.quotes add constraint quotes_agreed_language_check check (agreed_language is null or agreed_language in ('en','fr'));
+alter table public.quote_signatures add column if not exists language_choice_text text;
+alter table public.quote_signatures add column if not exists french_version_provided_via text;
+alter table public.quote_signatures add column if not exists french_version_provided_at timestamptz;
+alter table public.quote_signatures drop constraint if exists quote_signatures_french_version_provided_via_check;
+alter table public.quote_signatures add constraint quote_signatures_french_version_provided_via_check check (french_version_provided_via is null or french_version_provided_via in ('email_attachment','pdf_opened','owner_sent'));
+comment on column public.quote_line_items.description_translated is 'Description in the language other than quotes.language.';
+comment on column public.invoice_line_items.description_translated is 'Description in the language other than invoices.language.';
+comment on column public.quotes.terms_translated is 'Custom terms in the language other than quotes.language.';
+comment on column public.quotes.agreed_language is 'Language the customer chose to be bound by (signing or owner-recorded acceptance).';
+comment on column public.quote_signatures.language_choice_text is 'Exact wording of the language option the signer selected.';
+comment on column public.quote_signatures.french_version_provided_via is 'Evidence that the French version was provided before an English signature.';

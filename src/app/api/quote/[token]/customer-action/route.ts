@@ -1,24 +1,16 @@
-import { after, NextResponse } from "next/server";
-import {
-  isCustomerLanguage,
-  normalizeCustomerLanguage,
-  type CustomerLanguage,
-} from "@/data/customer-language";
+import { NextResponse } from "next/server";
+import type { CustomerLanguage } from "@/data/customer-language";
 import type { QuoteRequestType } from "@/data/quotes";
 import { getQuoteUpsellByKey } from "@/data/quote-upsells";
 import { getResendApiKey, getSiteUrl } from "@/lib/env";
-import {
-  sendQuoteAcceptedCustomerEmail,
-  sendQuoteOwnerActionNotification,
-} from "@/lib/quote-email";
+import { sendQuoteOwnerActionNotification } from "@/lib/quote-email";
+import { handleSigningAction, isSigningAction } from "@/lib/quote-signing-actions";
 import {
   createCustomerRequest,
   fetchQuoteById,
   fetchQuoteByPublicToken,
   logQuoteEvent,
 } from "@/lib/quotes";
-import { ensureDraftJobAfterQuoteAccepted } from "@/lib/jobs";
-import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -58,23 +50,6 @@ async function notifyOwner(
     });
   } catch (err) {
     console.error("[quotes] owner notify failed", err);
-  }
-}
-
-async function sendAcceptedConfirmation(
-  quoteId: string,
-  proposalUrl: string,
-  acceptedByName: string,
-  language: CustomerLanguage
-) {
-  const apiKey = getResendApiKey();
-  if (!apiKey) return;
-  const quote = await fetchQuoteById(quoteId);
-  if (!quote) return;
-  try {
-    await sendQuoteAcceptedCustomerEmail({ apiKey, quote, proposalUrl, acceptedByName, language });
-  } catch (err) {
-    console.error("[quotes] customer acceptance email failed", err);
   }
 }
 
@@ -125,87 +100,21 @@ export async function POST(request: Request, context: RouteContext) {
   const admin = createAdminSupabaseClient();
   const email = quote.customer_email;
 
+  if (action && isSigningAction(action)) {
+    return handleSigningAction({
+      quote,
+      action,
+      body: body as Record<string, unknown>,
+      channel: "public_link",
+      proposalUrl: `${getSiteUrl().replace(/\/$/, "")}/quote/${token}`,
+    });
+  }
+
   if (action === "accept") {
-    const acceptedByName = body.acceptedByName?.trim();
-    if (!acceptedByName || acceptedByName.length < 2) {
-      return NextResponse.json(
-        { ok: false, message: "Please enter your full name to accept." },
-        { status: 400 }
-      );
-    }
-    if (body.acceptedTerms !== true) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Please confirm that you agree to the proposal and its terms.",
-        },
-        { status: 400 }
-      );
-    }
-    const quoteLanguage = normalizeCustomerLanguage(quote.language);
-    const acceptedTermsLanguage = isCustomerLanguage(body.acceptedTermsLanguage)
-      ? body.acceptedTermsLanguage
-      : quoteLanguage;
-    const termsSnapshot = await resolveQuoteTermsForView(
-      quote.terms,
-      quoteLanguage,
-      acceptedTermsLanguage
+    return NextResponse.json(
+      { ok: false, message: "Please review and sign the agreement to accept." },
+      { status: 400 }
     );
-    await admin
-      .from("quotes")
-      .update({
-        status: "accepted",
-        accepted_at: new Date().toISOString(),
-        accepted_by_name: acceptedByName,
-      })
-      .eq("id", quote.id);
-    await logQuoteEvent({
-      quoteId: quote.id,
-      actorType: "public_link",
-      actorEmail: email,
-      eventType: "customer_accepted",
-      summary: `Customer accepted quote via public link (${acceptedByName})`,
-      metadata: {
-        accepted_by_name: acceptedByName,
-        terms_acknowledged: true,
-        terms_language: acceptedTermsLanguage,
-        terms_snapshot: termsSnapshot,
-        quote_display_ref: quote.quote_display_ref,
-        quote_revision: quote.revision_number,
-        payment_schedule: {
-          deposit_mode: quote.payment_deposit_mode,
-          deposit_percent: quote.payment_deposit_percent,
-          deposit_fixed_cents: quote.payment_deposit_fixed_cents,
-          deposit_due_rule: quote.payment_deposit_due_rule ?? null,
-          deposit_due_date: quote.payment_deposit_due_date ?? null,
-          balance_due_rule: quote.payment_balance_due_rule,
-          balance_due_days: quote.payment_balance_due_days,
-          balance_due_date: quote.payment_balance_due_date ?? null,
-        },
-      },
-    });
-    await notifyOwner(
-      quote.id,
-      "Customer accepted quote",
-      `Accepted by ${acceptedByName}`
-    );
-    const jobResult = await ensureDraftJobAfterQuoteAccepted({
-      quoteId: quote.id,
-    });
-    after(() =>
-      sendAcceptedConfirmation(
-        quote.id,
-        `${getSiteUrl().replace(/\/$/, "")}/quote/${token}`,
-        acceptedByName,
-        acceptedTermsLanguage
-      )
-    );
-    return NextResponse.json({
-      ok: true,
-      status: "accepted",
-      jobId: jobResult.jobId,
-      jobCreated: jobResult.created,
-    });
   }
 
   if (action === "decline") {

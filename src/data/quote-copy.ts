@@ -534,6 +534,40 @@ const API_ERRORS_FR: Record<string, string> = {
   "Please enter your question.": "Veuillez entrer votre question.",
   "Please describe your request.": "Veuillez décrire votre demande.",
   "Unknown option.": "Option inconnue.",
+  "Please review and sign the agreement to accept.":
+    "Veuillez réviser et signer l’entente pour accepter.",
+  "This quote is not available for signing.": "Cette soumission n’est pas disponible pour la signature.",
+  "This quote has no email address on file.": "Aucune adresse courriel n’est associée à cette soumission.",
+  "Email is not configured. Please contact us to sign.":
+    "Le courriel n’est pas configuré. Veuillez nous contacter pour signer.",
+  "Please wait a moment before requesting another code.":
+    "Veuillez patienter un instant avant de demander un autre code.",
+  "Too many codes requested. Please start again later.":
+    "Trop de codes demandés. Veuillez réessayer plus tard.",
+  "Could not start signing. Please try again.": "Impossible de démarrer la signature. Veuillez réessayer.",
+  "Could not send a code. Please try again.": "Impossible d’envoyer un code. Veuillez réessayer.",
+  "Signing session not found. Please start again.":
+    "Session de signature introuvable. Veuillez recommencer.",
+  "This signing session is closed.": "Cette session de signature est terminée.",
+  "This code has expired. Request a new one.": "Ce code a expiré. Demandez-en un nouveau.",
+  "Too many incorrect attempts. Request a new code.":
+    "Trop de tentatives incorrectes. Demandez un nouveau code.",
+  "That code is incorrect. Please check your email and try again.":
+    "Ce code est incorrect. Vérifiez votre courriel et réessayez.",
+  "Could not verify the code. Please try again.": "Impossible de vérifier le code. Veuillez réessayer.",
+  "Please verify your email before signing.": "Veuillez vérifier votre courriel avant de signer.",
+  "Your signing session expired. Please verify your email again.":
+    "Votre session de signature a expiré. Veuillez vérifier votre courriel de nouveau.",
+  "Please enter your full legal name.": "Veuillez entrer votre nom légal complet.",
+  "Please type or draw your signature.": "Veuillez taper ou dessiner votre signature.",
+  "Initial each key clause to continue.": "Paraphez chaque clause clé pour continuer.",
+  "Please confirm you agree to all terms.": "Veuillez confirmer que vous acceptez toutes les conditions.",
+  "Please accept the electronic signature consent.":
+    "Veuillez accepter le consentement à la signature électronique.",
+  "This quote has already been signed.": "Cette soumission a déjà été signée.",
+  "Could not record your signature. Please try again.":
+    "Impossible d’enregistrer votre signature. Veuillez réessayer.",
+  "Something went wrong. Please try again.": "Une erreur est survenue. Veuillez réessayer.",
 };
 
 export function localizeQuoteApiError(

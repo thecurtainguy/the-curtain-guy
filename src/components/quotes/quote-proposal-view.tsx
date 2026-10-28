@@ -12,10 +12,12 @@ import {
   ChevronDown,
   Clock,
   Download,
+  FileSignature,
   FileText,
   Hammer,
   HelpCircle,
   Image as ImageIcon,
+  Lock,
   MapPin,
   MessageSquarePlus,
   PackageOpen,
@@ -36,7 +38,8 @@ import {
 import { QuoteShareBar } from "@/components/quotes/quote-share-bar";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
-import { CelebrationConfetti } from "@/components/ui/celebration-confetti";
+import { QuoteAgreementCard } from "@/components/quotes/quote-agreement-card";
+import { QuoteSigningCeremony } from "@/components/quotes/quote-signing-ceremony";
 import { Reveal } from "@/components/animation/reveal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +68,7 @@ import {
   type QuoteUpsellItem,
 } from "@/data/quote-upsells";
 import type { CustomerLanguage } from "@/data/customer-language";
+import { QUOTE_SIGNING_COPY, type QuoteAgreementSummary } from "@/data/quote-signing";
 import {
   formatQuoteDate,
   getQuoteCopy,
@@ -91,10 +95,13 @@ type Props = {
   preview?: boolean;
   /** Shared files the owner attached to this quote. */
   attachments?: AttachmentViewItem[];
+  /** E-signed agreement, once the customer has signed. */
+  agreement?: QuoteAgreementSummary | null;
+  /** Signed agreement PDF (with audit certificate). */
+  agreementPdfUrl?: string | null;
 };
 
 type ActionPanel =
-  | "accept"
   | "decline"
   | "request_changes"
   | "ask_question"
@@ -106,9 +113,6 @@ type ActionPayload = {
   reason?: string;
   sourceKey?: string;
   title?: string;
-  acceptedByName?: string;
-  acceptedTerms?: boolean;
-  acceptedTermsLanguage?: CustomerLanguage;
   declinedByName?: string;
 };
 
@@ -263,6 +267,8 @@ export function QuoteProposalView({
   heroImageSrc,
   preview = false,
   attachments = [],
+  agreement = null,
+  agreementPdfUrl = null,
 }: Props) {
   const router = useRouter();
   const language = quote.language;
@@ -277,14 +283,13 @@ export function QuoteProposalView({
   const [panel, setPanel] = useState<ActionPanel>(null);
   const [message, setMessage] = useState("");
   const [acceptName, setAcceptName] = useState(quote.customer_name || "");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [signingOpen, setSigningOpen] = useState(false);
+  const [signedAgreement, setSignedAgreement] = useState<QuoteAgreementSummary | null>(null);
   const [customMessage, setCustomMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmNote, setConfirmNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [requestingKey, setRequestingKey] = useState<string | null>(null);
-  const [celebrateAccept, setCelebrateAccept] = useState(false);
-
   const status = optimisticStatus ?? quote.status;
   const pendingKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -358,11 +363,7 @@ export function QuoteProposalView({
         return false;
       }
 
-      if (data.status === "accepted" || payload.action === "accept") {
-        setOptimisticStatus("accepted");
-        setConfirmNote(t.confirmAccepted);
-        setCelebrateAccept(true);
-      } else if (data.status === "declined" || payload.action === "decline") {
+      if (data.status === "declined" || payload.action === "decline") {
         setOptimisticStatus("declined");
         setConfirmNote(t.confirmDeclined);
       } else if (payload.action === "request_changes") {
@@ -386,7 +387,6 @@ export function QuoteProposalView({
       setPanel(null);
       setMessage("");
       setAcceptName(quote.customer_name || "");
-      setAcceptedTerms(false);
       router.refresh();
       return true;
     } catch {
@@ -418,20 +418,18 @@ export function QuoteProposalView({
       setMessage={setMessage}
       acceptName={acceptName}
       setAcceptName={setAcceptName}
-      acceptedTerms={acceptedTerms}
-      setAcceptedTerms={setAcceptedTerms}
       busy={busy}
       t={t}
-      onAction={(payload) =>
-        void postAction({
-          ...payload,
-          ...(payload.action === "accept"
-            ? { acceptedTermsLanguage: language }
-            : {}),
-        })
-      }
+      language={language}
+      onSign={() => {
+        setPanel(null);
+        setSigningOpen(true);
+      }}
+      onAction={(payload) => void postAction(payload)}
     />
   ) : null;
+
+  const agreementView = signedAgreement ?? agreement;
 
   const customCard = canAct ? (
     <CustomRequestCard
@@ -536,9 +534,33 @@ export function QuoteProposalView({
         </div>
       </header>
 
-      {celebrateAccept ? <CelebrationConfetti /> : null}
+      {canAct || signedAgreement ? (
+        <QuoteSigningCeremony
+          open={signingOpen}
+          onOpenChange={(open) => {
+            setSigningOpen(open);
+            if (!open && signedAgreement) router.refresh();
+          }}
+          quote={quote}
+          actionEndpoint={actionEndpoint}
+          agreementPdfUrl={agreementPdfUrl}
+          preview={preview}
+          onSigned={(next) => {
+            setSignedAgreement(next);
+            setOptimisticStatus("accepted");
+          }}
+        />
+      ) : null}
 
-      {status === "accepted" ? (
+      {status === "accepted" && agreementView ? (
+        <QuoteAgreementCard
+          agreement={agreementView}
+          language={language}
+          pdfUrl={agreementPdfUrl}
+        />
+      ) : null}
+
+      {status === "accepted" && !agreementView ? (
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-300" />
@@ -1135,10 +1157,10 @@ function RespondCard({
   setMessage,
   acceptName,
   setAcceptName,
-  acceptedTerms,
-  setAcceptedTerms,
   busy,
   t,
+  language,
+  onSign,
   onAction,
 }: {
   panel: ActionPanel;
@@ -1147,12 +1169,13 @@ function RespondCard({
   setMessage: (value: string) => void;
   acceptName: string;
   setAcceptName: (value: string) => void;
-  acceptedTerms: boolean;
-  setAcceptedTerms: (value: boolean) => void;
   busy: boolean;
   t: QuoteCopy;
+  language: CustomerLanguage;
+  onSign: () => void;
   onAction: (payload: ActionPayload) => void;
 }) {
+  const signing = QUOTE_SIGNING_COPY[language];
   return (
     <section className={cn(glassCardClass, "p-4 sm:p-5")}>
       <div
@@ -1168,16 +1191,22 @@ function RespondCard({
           embedded
         />
         <div className="grid grid-cols-2 gap-2.5">
-          <Button
-            type="button"
-            className={cn(railBtnPrimary, "col-span-2")}
-            disabled={busy}
-            aria-expanded={panel === "accept"}
-            onClick={() => setPanel(panel === "accept" ? null : "accept")}
-          >
-            <CheckCircle2 className="size-4" />
-            {t.accept}
-          </Button>
+          <div className="col-span-2 space-y-1.5">
+            <Button
+              type="button"
+              className={cn(railBtnPrimary, "w-full")}
+              disabled={busy}
+              aria-haspopup="dialog"
+              onClick={onSign}
+            >
+              <FileSignature className="size-4" />
+              {signing.launch}
+            </Button>
+            <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+              <Lock className="size-3 text-primary" aria-hidden />
+              {signing.launchHint}
+            </p>
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -1229,59 +1258,6 @@ function RespondCard({
             {t.decline}
           </Button>
         </div>
-
-        {panel === "accept" ? (
-          <div className="mt-3 space-y-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-3.5">
-            <p className="text-xs text-muted-foreground">
-              {t.acceptConfirmHint}
-            </p>
-            <div className="space-y-2">
-              <Label htmlFor="quote-accept-name">{t.fullName}</Label>
-              <Input
-                id="quote-accept-name"
-                value={acceptName}
-                onChange={(e) => setAcceptName(e.target.value)}
-                autoComplete="name"
-                placeholder={t.fullNamePlaceholder}
-                disabled={busy}
-              />
-              <p className="text-[11px] text-muted-foreground">
-                {t.acceptRecordHint}
-              </p>
-            </div>
-            <label
-              htmlFor="quote-accept-terms"
-              className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/45 bg-background/45 p-3 text-xs leading-relaxed text-muted-foreground transition-colors hover:border-primary/35 hover:bg-primary/5"
-            >
-              <input
-                id="quote-accept-terms"
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(event) => setAcceptedTerms(event.target.checked)}
-                disabled={busy}
-                className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary"
-              />
-              <span>{t.acceptTermsAcknowledgement}</span>
-            </label>
-            <LoadingButton
-              type="button"
-              className={cn(railBtnPrimary, "w-full")}
-              disabled={acceptName.trim().length < 2 || !acceptedTerms}
-              isLoading={busy}
-              loadingText={t.sending}
-              icon={<CheckCircle2 className="size-4" />}
-              onClick={() =>
-                onAction({
-                  action: "accept",
-                  acceptedByName: acceptName.trim(),
-                  acceptedTerms,
-                })
-              }
-            >
-              {t.confirmAcceptance}
-            </LoadingButton>
-          </div>
-        ) : null}
 
         {panel === "request_changes" ? (
           <div className="mt-3 space-y-3 rounded-2xl border border-border/40 bg-background/40 p-3.5">

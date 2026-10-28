@@ -216,6 +216,29 @@ const QUOTE_ACCEPTED_COPY = {
   },
 } as const;
 
+const QUOTE_SIGNED_COPY = {
+  en: {
+    subject: (ref: string) => `Agreement signed — ${ref}`,
+    title: "Your agreement is signed",
+    intro: (name: string, ref: string) =>
+      `Hi ${name}, thank you for signing proposal ${ref}. Your signed agreement and its audit certificate are attached for your records. The Curtain Guy will countersign shortly to fully execute it.`,
+    acceptedBy: "Signed by",
+    acceptedOn: "Signed on",
+    fingerprint: "Fingerprint",
+    pdfNote: (file: string) => `Signed agreement with audit certificate attached (${file}).`,
+  },
+  fr: {
+    subject: (ref: string) => `Entente signée — ${ref}`,
+    title: "Votre entente est signée",
+    intro: (name: string, ref: string) =>
+      `Bonjour ${name}, merci d’avoir signé la soumission ${ref}. Votre entente signée et son certificat d’audit sont joints pour vos dossiers. The Curtain Guy la contresignera sous peu pour la rendre pleinement exécutée.`,
+    acceptedBy: "Signée par",
+    acceptedOn: "Signée le",
+    fingerprint: "Empreinte",
+    pdfNote: (file: string) => `Entente signée avec certificat d’audit jointe (${file}).`,
+  },
+} as const;
+
 type QuoteAcceptedEmailInput = {
   quote: QuoteWithRelations;
   proposalUrl: string;
@@ -224,6 +247,8 @@ type QuoteAcceptedEmailInput = {
   alsoTo?: string | null;
   /** Language the customer accepted in; defaults to the quote language. */
   language?: CustomerLanguage;
+  /** E-signed agreement PDF; replaces the plain proposal attachment and switches to signed wording. */
+  signedAgreement?: { buffer: Buffer; filename: string; documentHash: string } | null;
 };
 
 /** Customer-facing receipt after they accept a quote on the public link or in the portal. */
@@ -265,7 +290,10 @@ export async function buildQuoteAcceptedCustomerEmail(input: QuoteAcceptedEmailI
     .filter((email, index, list) => email && list.indexOf(email) === index);
   if (to.length === 0) return null;
 
-  const c = QUOTE_ACCEPTED_COPY[language];
+  const signed = input.signedAgreement ?? null;
+  const c = signed
+    ? { ...QUOTE_ACCEPTED_COPY[language], ...QUOTE_SIGNED_COPY[language] }
+    : QUOTE_ACCEPTED_COPY[language];
   const colon = (label: string) => labelWithColon(label, language);
   const siteUrl = getSiteUrl().replace(/\/$/, "");
   // "TCG-10007" / "TCG-10007-R1" without the "Quote" / "Soumission" word; the copy supplies it.
@@ -298,23 +326,36 @@ export async function buildQuoteAcceptedCustomerEmail(input: QuoteAcceptedEmailI
     ...(eventDate ? ([[c.eventDate, eventDate]] as Array<[string, string]>) : []),
     ...(venue ? ([[c.venue, venue]] as Array<[string, string]>) : []),
     [c.total, total],
+    ...(signed
+      ? ([[QUOTE_SIGNED_COPY[language].fingerprint, `${signed.documentHash.slice(0, 16)}…`]] as Array<
+          [string, string]
+        >)
+      : []),
   ];
   const nextStep = paymentRows.some((row) => row.key === "deposit")
     ? c.nextWithDeposit
     : c.nextNoDeposit;
 
   const attachments: ResendEmailAttachment[] = [];
-  const pdfFilename = quotePdfAttachmentName(quote);
-  try {
-    const safe = toCustomerSafeQuote(quote, { shareUrl: proposalUrl });
-    const pdfBuffer = await renderQuotePdfBuffer({ quote: safe, publicUrl: proposalUrl, siteUrl });
+  const pdfFilename = signed?.filename ?? quotePdfAttachmentName(quote);
+  if (signed) {
     attachments.push({
-      filename: pdfFilename,
-      content: pdfBuffer.toString("base64"),
+      filename: signed.filename,
+      content: signed.buffer.toString("base64"),
       contentType: "application/pdf",
     });
-  } catch (err) {
-    console.error("[quotes] accepted PDF attach failed; sending without PDF", err);
+  } else {
+    try {
+      const safe = toCustomerSafeQuote(quote, { shareUrl: proposalUrl });
+      const pdfBuffer = await renderQuotePdfBuffer({ quote: safe, publicUrl: proposalUrl, siteUrl });
+      attachments.push({
+        filename: pdfFilename,
+        content: pdfBuffer.toString("base64"),
+        contentType: "application/pdf",
+      });
+    } catch (err) {
+      console.error("[quotes] accepted PDF attach failed; sending without PDF", err);
+    }
   }
 
   const text = [

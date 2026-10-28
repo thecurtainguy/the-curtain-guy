@@ -17,6 +17,7 @@ import { PortalBackLink } from "@/components/portal/portal-back-link";
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
+import { fetchExecutedSignature, toAgreementSummary } from "@/lib/quote-signing";
 import { normalizeCustomerLanguage } from "@/data/customer-language";
 import { resolveQuoteTerms } from "@/lib/document-texts";
 import {
@@ -110,6 +111,7 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
     safe.estimate_request_id,
     "quote"
   );
+  const signature = await fetchExecutedSignature(quote.id);
   return (
     <AccountPageFrame email={current.profile.email}>
       <EmailVerificationBanner verified={verified} />
@@ -159,6 +161,8 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
             pdfUrl={`/api/quotes/${id}/pdf`}
             shareUrl={shareUrl}
             heroImageSrc={heroImage.image}
+            agreement={signature ? toAgreementSummary(signature) : null}
+            agreementPdfUrl={`/api/quotes/${id}/agreement`}
           />
           {quote.estimate_request_id ? (
             <OpportunityFilesPanel

@@ -12,6 +12,7 @@ import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
 import { resolveQuoteTermsForView } from "@/lib/document-texts";
+import { fetchExecutedSignature, toAgreementSummary } from "@/lib/quote-signing";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
 import { fetchQuoteByPublicToken, toCustomerSafeQuote } from "@/lib/quotes";
 import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
@@ -96,6 +97,7 @@ export default async function PublicQuotePage({
     safe.estimate_request_id,
     "quote"
   );
+  const signature = await fetchExecutedSignature(quote.id);
   return (
     <div className="relative min-h-[70vh] py-10 sm:py-14">
       <PageLocale locale={language} />
@@ -120,6 +122,8 @@ export default async function PublicQuotePage({
           pdfUrl={pdfUrl}
           shareUrl={shareUrl}
           heroImageSrc={heroImage.image}
+          agreement={signature ? toAgreementSummary(signature) : null}
+          agreementPdfUrl={`/api/quote/${token}/agreement`}
         />
         <DocumentViewBeacon viewId={viewId} />
       </div>

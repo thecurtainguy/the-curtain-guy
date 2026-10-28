@@ -11,6 +11,7 @@ import { requireOwner } from "@/lib/auth";
 import { resolveQuoteTermsForView } from "@/lib/document-texts";
 import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
+import { fetchExecutedSignature, toAgreementSummary } from "@/lib/quote-signing";
 import {
   fetchQuoteById,
   findActivePublicQuoteUrl,
@@ -66,6 +67,7 @@ export default async function QuoteCustomerPreviewPage({
     safe.estimate_request_id,
     "quote"
   );
+  const signature = await fetchExecutedSignature(quote.id);
   return (
     <div className="relative min-h-[70vh] py-10 sm:py-14">
       <PageLocale locale={language} />
@@ -85,6 +87,8 @@ export default async function QuoteCustomerPreviewPage({
           }`}
           shareUrl={shareUrl}
           heroImageSrc={heroImage.image}
+          agreement={signature ? toAgreementSummary(signature) : null}
+          agreementPdfUrl={`/api/admin/quotes/${id}/agreement`}
         />
       </div>
     </div>

@@ -45,15 +45,12 @@ export function NavigationProgress() {
   const [active, setActive] = useState(false);
   const [visible, setVisible] = useState(false);
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationKey = `${pathname}?${searchParams?.toString() ?? ""}`;
 
   useEffect(() => {
     function clearTimers() {
       if (safetyTimer.current) clearTimeout(safetyTimer.current);
-      if (hideTimer.current) clearTimeout(hideTimer.current);
       safetyTimer.current = null;
-      hideTimer.current = null;
     }
 
     function start() {
@@ -64,12 +61,6 @@ export function NavigationProgress() {
         setActive(false);
         setVisible(false);
       }, SAFETY_MS);
-    }
-
-    function stop() {
-      clearTimers();
-      setActive(false);
-      hideTimer.current = setTimeout(() => setVisible(false), 220);
     }
 
     function onClick(event: MouseEvent) {

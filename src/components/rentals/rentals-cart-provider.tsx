@@ -276,7 +276,7 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
       lines: [...filtered, ...cleaned],
     });
     setSheetOpen(true);
-  }, []);
+  }, [setSheetOpen]);
 
   const removeByParentKey = useCallback((parentKey: string) => {
     const prev = getClientSnapshot();
@@ -392,6 +392,7 @@ export function RentalsCartProvider({ children }: { children: ReactNode }) {
     deliveryZones,
     hydrated,
     sheetOpen,
+    setSheetOpen,
     addLines,
     removeByParentKey,
     setMainQuantity,

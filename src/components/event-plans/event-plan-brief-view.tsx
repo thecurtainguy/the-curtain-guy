@@ -3,8 +3,6 @@
 import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
 import {
-  CalendarDays,
-  Layers,
   MessageSquare,
   Palette,
   PanelsTopLeft,

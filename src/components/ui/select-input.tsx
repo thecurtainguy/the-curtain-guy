@@ -204,6 +204,7 @@ const SelectInput = React.forwardRef<HTMLButtonElement, SelectInputProps>(
               <button
                 type="button"
                 role="option"
+                aria-selected={false}
                 className="mb-1 flex w-full items-center rounded-xl px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
                 onClick={() => selectValue("")}
               >

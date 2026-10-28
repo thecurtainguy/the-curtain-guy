@@ -58,9 +58,6 @@ const showcaseGoldIcon =
 const showcaseGoldIconBadge =
   "bg-[oklch(0.76_0.15_88/0.24)] text-[oklch(0.9_0.11_88)] ring-1 ring-[oklch(0.76_0.15_88/0.5)] shadow-[0_0_18px_rgba(212,175,55,0.3)]";
 
-const showcaseGoldChip =
-  "border-[oklch(0.76_0.15_88/0.38)] bg-[oklch(0.76_0.15_88/0.14)]";
-
 const showcaseGoldChipActive =
   "border-[oklch(0.76_0.15_88/0.48)] bg-[oklch(0.76_0.15_88/0.22)]";
 

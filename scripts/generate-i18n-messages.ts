@@ -20,34 +20,7 @@ import {
   estimateSteps,
   siteConfig,
 } from "../src/data/site";
-import {
-  estimateBuilderSteps,
-  eventTypes,
-  venueSettings,
-  drapeGoals,
-  runLayouts,
-  floorPlanOptions,
-  measurementsKnownOptions,
-  heightOptions,
-  fabricDirections,
-  fullnessOptions,
-  addOnOptions,
-} from "../src/data/estimate";
 import enEstimate from "../messages/en/estimate.json";
-
-function estimateOptions(
-  arr: Array<{ id: string; label: string; description?: string }>
-) {
-  return Object.fromEntries(
-    arr.map((o) => [
-      o.id,
-      {
-        label: o.label,
-        ...(o.description ? { description: o.description } : {}),
-      },
-    ])
-  );
-}
 
 const servicesMsg: Record<string, unknown> = {};
 for (const s of services) {

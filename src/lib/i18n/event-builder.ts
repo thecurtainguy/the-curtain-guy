@@ -9,7 +9,7 @@ import {
   type EventCatalogCategory,
   type EventCatalogItem,
 } from "@/data/event-builder/catalog";
-import { DRAPE_COLORS, type DrapeColor } from "@/data/studio";
+import { DRAPE_COLORS } from "@/data/studio";
 
 export type LocalizedCatalogItem = EventCatalogItem & {
   label: string;

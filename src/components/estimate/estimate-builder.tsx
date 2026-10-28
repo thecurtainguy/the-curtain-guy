@@ -80,7 +80,7 @@ type EstimateBuilderProps = {
 
 export function EstimateBuilder({
   embedded = false,
-  portal: _portal = "customer",
+  portal = "customer",
   defaultContact,
   onSubmitSaved,
   onCancel,
@@ -150,7 +150,8 @@ export function EstimateBuilder({
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === estimateBuilderSteps.length - 1;
   const progress = ((currentStep + 1) / estimateBuilderSteps.length) * 100;
-  const canSubmit = canSubmitEstimate(formData);
+  const validationOptions = { phoneOptional: portal === "admin" };
+  const canSubmit = canSubmitEstimate(formData, validationOptions);
 
   const mailtoHref = useMemo(
     () => buildEstimateMailto(formData, labelSource),
@@ -281,7 +282,7 @@ export function EstimateBuilder({
   function handleRequestClick() {
     if (isSubmitting || submitSuccess) return;
 
-    const result = validateEstimateStep("contact-summary", formData);
+    const result = validateEstimateStep("contact-summary", formData, validationOptions);
     if (!result.valid) {
       setShowContactHint(true);
       setStepError(
@@ -803,6 +804,7 @@ export function EstimateBuilder({
               onFieldChange={updateField}
               showValidationHint={showContactHint}
               canSubmit={canSubmit}
+              phoneRequired={!validationOptions.phoneOptional}
             />
 
             <EstimateSummary data={formData} />

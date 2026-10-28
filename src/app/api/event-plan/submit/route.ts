@@ -13,6 +13,7 @@ import {
 } from "@/lib/event-builder/event-plan-server";
 import { normalizeStudioDesign } from "@/data/studio";
 import { getResendApiKey, getSupabaseServerConfig } from "@/lib/env";
+import { checkEmailDeliverability } from "@/lib/email-deliverability";
 import {
   detectRequestLanguage,
   rememberPreferredLanguage,
@@ -77,7 +78,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const validation = validateEventPlanSubmission(parsed);
+  const [user, profile] = await Promise.all([
+    getCurrentUser(),
+    getCurrentProfile(),
+  ]);
+  const language = detectRequestLanguage(request);
+
+  const validation = validateEventPlanSubmission(parsed, {
+    phoneOptional: profile?.profile.role === "owner",
+  });
   if (!validation.valid) {
     return NextResponse.json(
       {
@@ -85,6 +94,14 @@ export async function POST(request: NextRequest) {
         message: validation.message ?? "Validation failed.",
         fieldErrors: validation.fieldErrors,
       },
+      { status: 400 }
+    );
+  }
+
+  const deliverable = await checkEmailDeliverability(parsed.contact.email, language);
+  if (!deliverable.ok) {
+    return NextResponse.json(
+      { ok: false, message: deliverable.message, fieldErrors: { email: deliverable.message } },
       { status: 400 }
     );
   }
@@ -104,14 +121,8 @@ export async function POST(request: NextRequest) {
     design: normalizedDesign,
   };
 
-  const [user, profile] = await Promise.all([
-    getCurrentUser(),
-    getCurrentProfile(),
-  ]);
   const userId =
     user && profile?.profile.role === "customer" ? user.id : user?.id ?? null;
-
-  const language = detectRequestLanguage(request);
 
   const studioDesignId = (await canAttachStudioDesign(parsed.studioDesignId, {
     visitorId: readStudioVisitorId(request.cookies),

@@ -1,7 +1,9 @@
 import {
   buildEstimateBrief,
   type EstimateFormData,
+  type EstimateValidationOptions,
   isValidEmail,
+  isValidPhone,
 } from "@/data/estimate";
 import type { CustomerLanguage } from "@/data/customer-language";
 
@@ -88,7 +90,8 @@ export function parseEstimateFormPayload(
 }
 
 export function validateEstimateSubmission(
-  data: EstimateFormData
+  data: EstimateFormData,
+  options: EstimateValidationOptions = {}
 ): EstimateSubmissionValidation {
   const fieldErrors: Record<string, string> = {};
 
@@ -101,6 +104,10 @@ export function validateEstimateSubmission(
     fieldErrors.email = "Email is required.";
   } else if (!isValidEmail(email)) {
     fieldErrors.email = "Enter a valid email address.";
+  }
+
+  if (!options.phoneOptional && !isValidPhone(data.phone)) {
+    fieldErrors.phone = "Enter a phone number with area code so we can reach you.";
   }
 
   if (!data.eventType) {

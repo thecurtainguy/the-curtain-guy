@@ -1,4 +1,4 @@
-import { isValidEmail } from "@/data/estimate";
+import { isValidEmail, isValidPhone } from "@/data/estimate";
 import type { ReviewCategory } from "@/data/reviews";
 
 export type ReviewSubmissionData = {
@@ -100,9 +100,10 @@ export function validateReviewSubmission(
   if (!email) fieldErrors.email = "Email is required.";
   else if (!isValidEmail(email)) fieldErrors.email = "Enter a valid email.";
 
-  if (data.phone.trim().length > 30) {
-    fieldErrors.phone = "Phone is too long.";
-  }
+  const phone = data.phone.trim();
+  if (!phone) fieldErrors.phone = "Phone is required.";
+  else if (phone.length > 30) fieldErrors.phone = "Phone is too long.";
+  else if (!isValidPhone(phone)) fieldErrors.phone = "Enter a valid phone number, including area code.";
 
   if (data.role.trim().length > 120) {
     fieldErrors.role = "Role is too long.";

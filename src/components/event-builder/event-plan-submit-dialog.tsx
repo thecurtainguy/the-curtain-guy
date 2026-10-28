@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Mail } from "lucide-react";
 import type { EventBuilderBrief } from "@/data/event-builder/brief";
+import { isValidPhone } from "@/data/estimate";
 import type { StudioDesignJson } from "@/data/studio";
 import { clearEventBuilderBrief } from "@/data/event-builder/brief";
 import { postEventPlanSubmission } from "@/lib/event-builder/event-plan-client";
@@ -76,6 +77,10 @@ function EventPlanSubmitDialogBody({
     }
     if (!email.trim()) {
       setError(t("emailRequired"));
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      setError(t("phoneRequired"));
       return;
     }
 
@@ -184,8 +189,11 @@ function EventPlanSubmitDialogBody({
           <Input
             id="event-plan-phone"
             type="tel"
+            autoComplete="tel"
+            placeholder="514-555-0123"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
+            required
           />
         </div>
         <div className="space-y-2">

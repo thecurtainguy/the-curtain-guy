@@ -75,7 +75,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
   }
 
-  const validation = validateEventPlanSubmission(parsed);
+  const validation = validateEventPlanSubmission(parsed, {
+    phoneOptional: profile?.profile.role === "owner",
+  });
   if (!validation.valid) {
     return NextResponse.json(
       {

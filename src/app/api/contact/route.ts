@@ -6,7 +6,9 @@ import {
   parseContactFormPayload,
   validateContactSubmission,
 } from "@/lib/contact-schema";
+import { checkEmailDeliverability } from "@/lib/email-deliverability";
 import { getResendApiKey } from "@/lib/env";
+import { detectRequestLanguage } from "@/lib/request-language";
 
 export async function POST(request: NextRequest) {
   const contentLength = request.headers.get("content-length");
@@ -76,6 +78,14 @@ export async function POST(request: NextRequest) {
         message: validation.message ?? "Validation failed.",
         fieldErrors: validation.fieldErrors,
       },
+      { status: 400 }
+    );
+  }
+
+  const deliverable = await checkEmailDeliverability(data.email, detectRequestLanguage(request));
+  if (!deliverable.ok) {
+    return NextResponse.json(
+      { ok: false, message: deliverable.message, fieldErrors: { email: deliverable.message } },
       { status: 400 }
     );
   }

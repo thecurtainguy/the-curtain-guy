@@ -665,7 +665,8 @@ export function normalizeManualTaxLines(
 export function percentInputToRate(value: string): number {
   const n = Number.parseFloat(value.replace("%", "").trim());
   if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.min(n / 100, 5);
+  // 9.975 / 100 is 0.09974999999999999 in floating point, which rounds a cent of QST down.
+  return Math.min(Number((n / 100).toFixed(6)), 5);
 }
 
 /** Format decimal rate for percent inputs. */

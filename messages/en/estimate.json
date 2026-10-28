@@ -336,7 +336,7 @@
     "submit": "Submit estimate request",
     "submitting": "Submitting...",
     "requiredFields": "Please complete the required fields.",
-    "contactRequired": "Please add your name and email.",
+    "contactRequired": "Please add your name, email and phone number.",
     "submitError": "Something went wrong. Please try again or email us directly.",
     "submitErrorNetwork": "Network error. Please check your connection and try again.",
     "emailFallback": "Email your brief instead",
@@ -382,7 +382,8 @@
     "floorPlanRequired": "Please indicate if you have a floor plan.",
     "fabricRequired": "Please select at least one fabric direction.",
     "nameRequired": "Please enter your name.",
-    "emailRequired": "Please enter a valid email address."
+    "emailRequired": "Please enter a valid email address.",
+    "phoneRequired": "Please enter a phone number with area code so we can reach you."
   },
   "success": {
     "title": "Estimate request received",

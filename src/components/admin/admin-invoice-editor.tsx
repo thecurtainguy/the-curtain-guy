@@ -89,7 +89,7 @@ import {
 import { AdminInvoiceSendDialog } from "@/components/admin/admin-invoice-send-dialog";
 import { AdminInvoiceReminderDialog } from "@/components/admin/admin-invoice-reminder-dialog";
 import { AdminInvoiceReminderSettingsDialog } from "@/components/admin/admin-invoice-reminder-settings-dialog";
-import { AdminRecordPaymentDialog } from "@/components/admin/admin-record-payment-dialog";
+import { AdminRecordPaymentDialog, type PaymentPreset } from "@/components/admin/admin-record-payment-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { useBrandConfirm } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
@@ -458,6 +458,7 @@ export function AdminInvoiceEditor({
   const [error, setError] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentPreset, setPaymentPreset] = useState<PaymentPreset | null>(null);
   const [remindOpen, setRemindOpen] = useState(false);
   const [reminderSettingsOpen, setReminderSettingsOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -677,21 +678,10 @@ export function AdminInvoiceEditor({
     }
   }
 
-  async function quickPayment(kind: "deposit" | "full") {
+  async function openPayment(preset: PaymentPreset | null) {
     if (!(await ensureSaved())) return;
-    const method = paymentMethods.find((m) => m.enabled)?.id ?? "";
-    await runAction(
-      kind,
-      () =>
-        fetch(`/api/admin/invoices/${invoice.id}/payments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quick: kind, method }),
-        }),
-      `${kind === "deposit" ? "Deposit marked as received." : "Invoice marked paid in full."}${
-        invoice.customer_email ? ` Receipt emailed to ${invoice.customer_email}.` : ""
-      }`
-    );
+    setPaymentPreset(preset);
+    setPaymentOpen(true);
   }
 
   async function markUnpaid() {
@@ -1635,33 +1625,29 @@ export function AdminInvoiceEditor({
             }
           >
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-              <LoadingButton
+              <Button
                 type="button"
                 variant="outline"
                 disabled={isVoid || liveDue.dueNowKind !== "deposit"}
-                isLoading={busyAction === "deposit"}
-                icon={<BadgePercent className="size-4" />}
-                onClick={() => void quickPayment("deposit")}
+                onClick={() => void openPayment("deposit")}
               >
+                <BadgePercent className="size-4" />
                 Deposit received
-              </LoadingButton>
-              <LoadingButton
+              </Button>
+              <Button
                 type="button"
                 variant="outline"
                 disabled={isVoid || liveBalance <= 0}
-                isLoading={busyAction === "full"}
-                icon={<Check className="size-4" />}
-                onClick={() => void quickPayment("full")}
+                onClick={() => void openPayment("full")}
               >
+                <Check className="size-4" />
                 Paid in full
-              </LoadingButton>
+              </Button>
               <Button
                 type="button"
                 className="sm:col-span-2 xl:col-span-1 2xl:col-span-2"
                 disabled={isVoid}
-                onClick={async () => {
-                  if (await ensureSaved()) setPaymentOpen(true);
-                }}
+                onClick={() => void openPayment(null)}
               >
                 <Banknote className="size-4" />
                 Record a payment
@@ -1887,12 +1873,16 @@ export function AdminInvoiceEditor({
           paymentMethods={paymentMethods}
           suggestedCents={liveDue.dueNowCents}
           suggestedKind={liveDue.dueNowKind === "deposit" ? "deposit" : "payment"}
+          preset={paymentPreset}
+          presetCents={paymentPreset === "deposit" ? liveDue.depositOutstandingCents : Math.max(0, liveBalance)}
+          balanceCents={Math.max(0, liveBalance)}
           preferredMethodId={customerLink?.preferred_payment_method ?? null}
           open={paymentOpen}
           onOpenChange={setPaymentOpen}
           onRecorded={(next, receiptTo) => {
             applyInvoice(next, true);
-            flash(receiptTo ? `Payment recorded. Receipt emailed to ${receiptTo}.` : "Payment recorded.");
+            const done = next.status === "paid" ? "Invoice marked paid in full." : "Payment recorded.";
+            flash(receiptTo ? `${done} Receipt emailed to ${receiptTo}.` : done);
             router.refresh();
           }}
         />

@@ -183,7 +183,8 @@
     "errors": {
       "generic": "Une erreur s’est produite. Veuillez réessayer.",
       "zoneRequired": "Sélectionnez une zone de livraison pour continuer.",
-      "venueRequired": "Le nom du lieu est requis."
+      "venueRequired": "Le nom du lieu est requis.",
+      "phoneRequired": "Entrez un numéro de téléphone avec l’indicatif régional pour que nous puissions vous joindre."
     },
     "success": {
       "eyebrow": "Demande reçue",

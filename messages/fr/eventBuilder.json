@@ -77,7 +77,7 @@
     "description": "Nous envoyons une confirmation et vous contactons sous 24–48 h.",
     "name": "Nom complet",
     "email": "Courriel",
-    "phone": "Téléphone (recommandé)",
+    "phone": "Téléphone",
     "notes": "Notes (optionnel)",
     "noPricing": "Aucun prix sur ce formulaire.",
     "cancel": "Annuler",
@@ -87,6 +87,7 @@
     "updateSubmit": "Enregistrer",
     "nameRequired": "Le nom est requis.",
     "emailRequired": "Le courriel est requis.",
+    "phoneRequired": "Entrez un numéro de téléphone avec l’indicatif régional pour que nous puissions vous joindre.",
     "errorGeneric": "Échec de la soumission. Réessayez."
   },
   "success": {

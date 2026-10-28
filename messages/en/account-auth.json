@@ -106,7 +106,8 @@
     "errors": {
       "rateLimit": "Too many signup emails were requested. Please wait a few minutes and try again.",
       "generic": "Could not create account.",
-      "retry": "Could not create account. Please try again in a moment."
+      "retry": "Could not create account. Please try again in a moment.",
+      "phoneRequired": "Enter a phone number with area code so we can reach you."
     }
   }
 }

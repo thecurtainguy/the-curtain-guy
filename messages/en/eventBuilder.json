@@ -77,7 +77,7 @@
     "description": "We will email a confirmation and follow up within 24–48 hours.",
     "name": "Full name",
     "email": "Email",
-    "phone": "Phone (recommended)",
+    "phone": "Phone",
     "notes": "Notes (optional)",
     "noPricing": "No pricing on this form — our team prepares your rental estimate after review.",
     "cancel": "Cancel",
@@ -87,6 +87,7 @@
     "updateSubmit": "Save changes",
     "nameRequired": "Name is required.",
     "emailRequired": "Email is required.",
+    "phoneRequired": "Enter a phone number with area code so we can reach you.",
     "errorGeneric": "We could not submit your plan. Please try again."
   },
   "success": {

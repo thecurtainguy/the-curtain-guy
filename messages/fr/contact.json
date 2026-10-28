@@ -16,7 +16,7 @@
     "namePlaceholder": "Votre nom",
     "email": "Courriel",
     "emailPlaceholder": "vous@exemple.com",
-    "phone": "Téléphone (facultatif)",
+    "phone": "Téléphone",
     "eventType": "Type d'événement (facultatif)",
     "eventTypePlaceholder": "Sélectionner le type d'événement",
     "eventDate": "Date de l'événement (facultatif)",

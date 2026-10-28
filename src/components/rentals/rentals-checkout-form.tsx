@@ -9,7 +9,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { eventTypes } from "@/data/estimate";
+import { eventTypes, isValidPhone } from "@/data/estimate";
 import {
   formatLogisticsEstimateLabel,
   getRentalDeliveryZone,
@@ -119,6 +119,11 @@ export function RentalsCheckoutForm({
         deliveryZoneId: t("errors.zoneRequired"),
       }));
       setSubmitError(t("errors.zoneRequired"));
+      return;
+    }
+    if (!isValidPhone(form.phone)) {
+      setFieldErrors((prev) => ({ ...prev, phone: t("errors.phoneRequired") }));
+      setSubmitError(t("errors.phoneRequired"));
       return;
     }
     if (!form.venueName.trim()) {
@@ -321,13 +326,22 @@ export function RentalsCheckoutForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="rentals-phone">{t("fields.phone")}</Label>
+                <Label htmlFor="rentals-phone">
+                  {t("fields.phone")} <span className="text-primary">*</span>
+                </Label>
                 <Input
                   id="rentals-phone"
                   type="tel"
+                  autoComplete="tel"
+                  placeholder="514-555-0123"
                   value={form.phone}
                   onChange={(e) => updateField("phone", e.target.value)}
+                  aria-invalid={fieldErrors.phone ? true : undefined}
+                  required
                 />
+                {fieldErrors.phone ? (
+                  <p className="text-xs text-destructive">{fieldErrors.phone}</p>
+                ) : null}
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

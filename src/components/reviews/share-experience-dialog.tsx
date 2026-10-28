@@ -16,7 +16,6 @@ import {
   reviewCategories,
   type ReviewCategory,
 } from "@/data/reviews";
-import { siteConfig } from "@/data/site";
 import { StarRatingInput } from "@/components/reviews/star-rating-input";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
@@ -290,14 +289,22 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="review-phone">{t("phoneOptional")}</Label>
+                  <Label htmlFor="review-phone">
+                    {t("phone")} <span className="text-primary">*</span>
+                  </Label>
                   <Input
                     id="review-phone"
                     type="tel"
+                    autoComplete="tel"
                     value={formData.phone}
                     onChange={(e) => updateField("phone", e.target.value)}
                     disabled={isSubmitting}
-                    placeholder={siteConfig.phone}
+                    placeholder="514-555-0123"
+                  />
+                  <FieldError
+                    show={showValidation}
+                    message={fieldErrors.phone}
+                    id="review-phone-error"
                   />
                 </div>
                 <div className="space-y-2">

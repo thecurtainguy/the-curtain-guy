@@ -110,7 +110,8 @@
     "errors": {
       "rateLimit": "Trop de courriels d'inscription ont été demandés. Veuillez attendre quelques minutes et réessayer.",
       "generic": "Impossible de créer le compte.",
-      "retry": "Impossible de créer le compte. Veuillez réessayer dans un moment."
+      "retry": "Impossible de créer le compte. Veuillez réessayer dans un moment.",
+      "phoneRequired": "Entrez un numéro de téléphone avec l’indicatif régional pour que nous puissions vous joindre."
     }
   }
 }

@@ -183,7 +183,8 @@
     "errors": {
       "generic": "Something went wrong. Please try again.",
       "zoneRequired": "Select a delivery area to continue.",
-      "venueRequired": "Venue name is required."
+      "venueRequired": "Venue name is required.",
+      "phoneRequired": "Enter a phone number with area code so we can reach you."
     },
     "success": {
       "eyebrow": "Request received",

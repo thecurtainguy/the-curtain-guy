@@ -1,5 +1,6 @@
 import {
   isValidEmail,
+  isValidPhone,
   type EstimateFormData,
 } from "@/data/estimate";
 import type { CustomerLanguage } from "@/data/customer-language";
@@ -120,7 +121,8 @@ function resolveGuestCount(payload: EventPlanSubmitPayload): number | null {
 }
 
 export function validateEventPlanSubmission(
-  payload: EventPlanSubmitPayload
+  payload: EventPlanSubmitPayload,
+  options: { phoneOptional?: boolean } = {}
 ): EventPlanValidation {
   const fieldErrors: Record<string, string> = {};
   const name = payload.contact.name.trim();
@@ -129,6 +131,9 @@ export function validateEventPlanSubmission(
   if (!name) fieldErrors.name = "Name is required.";
   if (!email) fieldErrors.email = "Email is required.";
   else if (!isValidEmail(email)) fieldErrors.email = "Enter a valid email address.";
+  if (!options.phoneOptional && !isValidPhone(payload.contact.phone ?? "")) {
+    fieldErrors.phone = "Enter a phone number with area code so we can reach you.";
+  }
 
   if (!payload.brief.eventType) {
     fieldErrors.eventType = "Event type is required.";
@@ -146,10 +151,12 @@ export function validateEventPlanSubmission(
     };
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
+  const errors = Object.values(fieldErrors);
+  if (errors.length > 0) {
     return {
       valid: false,
-      message: "Please complete the required fields before submitting.",
+      message:
+        errors.length === 1 ? errors[0] : "Please complete the required fields before submitting.",
       fieldErrors,
     };
   }

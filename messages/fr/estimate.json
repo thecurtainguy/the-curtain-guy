@@ -336,7 +336,7 @@
     "submit": "Soumettre la demande d'estimation",
     "submitting": "Soumission en cours...",
     "requiredFields": "Veuillez compléter les champs requis.",
-    "contactRequired": "Veuillez ajouter votre nom et courriel.",
+    "contactRequired": "Veuillez ajouter votre nom, courriel et numéro de téléphone.",
     "submitError": "Une erreur s'est produite. Veuillez réessayer ou nous envoyer un courriel directement.",
     "submitErrorNetwork": "Erreur réseau. Vérifiez votre connexion et réessayez.",
     "emailFallback": "Envoyer votre dossier par courriel",
@@ -382,7 +382,8 @@
     "floorPlanRequired": "Veuillez indiquer si vous avez un plan de salle.",
     "fabricRequired": "Veuillez sélectionner au moins une direction de tissu.",
     "nameRequired": "Veuillez entrer votre nom.",
-    "emailRequired": "Veuillez entrer une adresse courriel valide."
+    "emailRequired": "Veuillez entrer une adresse courriel valide.",
+    "phoneRequired": "Veuillez entrer un numéro de téléphone avec l’indicatif régional pour que nous puissions vous joindre."
   },
   "success": {
     "title": "Demande d'estimation reçue",

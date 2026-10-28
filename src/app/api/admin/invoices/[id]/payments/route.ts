@@ -40,6 +40,10 @@ export async function POST(request: Request, context: RouteContext) {
     send_receipt?: boolean;
   };
 
+  if (!body.method?.trim()) {
+    return NextResponse.json({ ok: false, message: "Choose how the client paid." }, { status: 400 });
+  }
+
   const invoice = await fetchInvoiceById(id);
   if (!invoice) {
     return NextResponse.json({ ok: false, message: "Invoice not found." }, { status: 404 });

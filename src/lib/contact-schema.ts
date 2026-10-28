@@ -1,4 +1,4 @@
-import { isValidEmail } from "@/data/estimate";
+import { isValidEmail, isValidPhone } from "@/data/estimate";
 
 export type ContactFormData = {
   name: string;
@@ -80,8 +80,12 @@ export function validateContactSubmission(
   }
 
   const phone = data.phone.trim();
-  if (phone.length > CONTACT_MAX_PHONE_LENGTH) {
+  if (!phone) {
+    fieldErrors.phone = "Phone is required so we can reach you.";
+  } else if (phone.length > CONTACT_MAX_PHONE_LENGTH) {
     fieldErrors.phone = `Phone must be ${CONTACT_MAX_PHONE_LENGTH} characters or fewer.`;
+  } else if (!isValidPhone(phone)) {
+    fieldErrors.phone = "Enter a valid phone number, including area code.";
   }
 
   const eventType = data.eventType.trim();

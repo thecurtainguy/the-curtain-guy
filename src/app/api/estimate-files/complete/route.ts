@@ -1,5 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { formatEstimateReference } from "@/data/estimate";
 import { getCurrentProfile, isOwnerProfile } from "@/lib/auth";
+import { sendEstimateLateFileEmail } from "@/lib/email";
+import {
+  buildTeamEmailFiles,
+  linkOnlyTeamEmailFiles,
+  submissionUploadDeadline,
+} from "@/lib/estimate-team-files";
 import { logEstimateFileEvent } from "@/lib/estimate-file-events";
 import {
   canManageEstimateUploads,
@@ -8,7 +15,7 @@ import {
 } from "@/lib/estimate-access";
 import { ESTIMATE_FILES_BUCKET } from "@/lib/estimate-files";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
-import { getSupabaseServerConfig } from "@/lib/env";
+import { getResendApiKey, getSupabaseServerConfig } from "@/lib/env";
 
 type CompleteBody = {
   estimateFileId?: string;
@@ -105,11 +112,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const uploadedAt = new Date().toISOString();
   const { error: updateError } = await admin
     .from("estimate_files")
     .update({
       upload_status: "uploaded",
-      uploaded_at: new Date().toISOString(),
+      uploaded_at: uploadedAt,
     })
     .eq("id", file.id);
 
@@ -138,6 +146,33 @@ export async function POST(request: NextRequest) {
         : "Uploaded by the customer",
     metadata: { customer_visible: shared, via_upload_link: Boolean(uploadToken && !current) },
   });
+
+  // Submission uploads inside the wait window ride on the team email; anything else is sent now.
+  const coveredBySubmissionEmail =
+    Boolean(uploadToken) &&
+    new Date(uploadedAt).getTime() <= submissionUploadDeadline(estimate.created_at);
+  const apiKey = getResendApiKey();
+  if (!isOwner && !coveredBySubmissionEmail && apiKey) {
+    const row = { ...file, upload_status: "uploaded", uploaded_at: uploadedAt };
+    const email = {
+      apiKey,
+      requestId: estimate.id,
+      reference: formatEstimateReference(estimate.id, estimate.opportunity_ref),
+      customerName: estimate.customer_name,
+      customerEmail: estimate.customer_email,
+    };
+    after(async () => {
+      try {
+        await sendEstimateLateFileEmail({ ...email, files: await buildTeamEmailFiles([row]) });
+      } catch {
+        try {
+          await sendEstimateLateFileEmail({ ...email, files: await linkOnlyTeamEmailFiles([row]) });
+        } catch (error) {
+          console.warn("[estimate-files] Team file email failed:", file.id, error);
+        }
+      }
+    });
+  }
 
   return NextResponse.json({ ok: true, estimateFileId: file.id });
 }

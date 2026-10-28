@@ -16,7 +16,7 @@
     "namePlaceholder": "Your name",
     "email": "Email",
     "emailPlaceholder": "you@example.com",
-    "phone": "Phone (optional)",
+    "phone": "Phone",
     "eventType": "Event type (optional)",
     "eventTypePlaceholder": "Select event type",
     "eventDate": "Event date (optional)",

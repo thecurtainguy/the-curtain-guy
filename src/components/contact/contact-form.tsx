@@ -8,7 +8,6 @@ import {
   Send,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { siteConfig } from "@/data/site";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { DateInput } from "@/components/ui/date-input";
 import { EventTypeInput } from "@/components/ui/event-type-input";
@@ -165,11 +164,14 @@ export function ContactForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="contact-phone">{t("phone")}</Label>
+        <Label htmlFor="contact-phone">
+          {t("phone")} <span className="text-primary">*</span>
+        </Label>
         <Input
           id="contact-phone"
           type="tel"
-          placeholder={siteConfig.phone}
+          autoComplete="tel"
+          placeholder="514-555-0123"
           value={formData.phone}
           onChange={(e) => updateField("phone", e.target.value)}
           disabled={isSubmitting}

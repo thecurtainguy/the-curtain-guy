@@ -1,8 +1,8 @@
 "use client";
 
-import { Mail, UserRound } from "lucide-react";
+import { Mail, Phone, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { EstimateFormData } from "@/data/estimate";
+import { isValidPhone, type EstimateFormData } from "@/data/estimate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ type EstimateContactCardProps = {
   ) => void;
   showValidationHint?: boolean;
   canSubmit?: boolean;
+  phoneRequired?: boolean;
   className?: string;
 };
 
@@ -25,6 +26,7 @@ export function EstimateContactCard({
   onFieldChange,
   showValidationHint = false,
   canSubmit = false,
+  phoneRequired = true,
   className,
 }: EstimateContactCardProps) {
   const t = useTranslations("estimate");
@@ -95,12 +97,22 @@ export function EstimateContactCard({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="contact-phone">{tSummary("labels.phone")}</Label>
+          <Label htmlFor="contact-phone" className="flex items-center gap-1.5">
+            <Phone className="size-3.5 text-primary/80" />
+            {tSummary("labels.phone")}
+            {phoneRequired ? <span className="text-primary">*</span> : null}
+          </Label>
           <Input
             id="contact-phone"
             type="tel"
+            autoComplete="tel"
+            required={phoneRequired}
+            placeholder="514-555-0123"
             value={data.phone}
             onChange={(e) => onFieldChange("phone", e.target.value)}
+            aria-invalid={
+              showValidationHint && phoneRequired && !isValidPhone(data.phone) ? true : undefined
+            }
           />
         </div>
 

@@ -14,6 +14,7 @@ import {
   getEstimateFrom,
   getEstimateNotifyTo,
   getEventPlanNotifyTo,
+  getSiteUrl,
   shouldSendCustomerConfirmation,
 } from "@/lib/env";
 import type { EventBuilderBrief } from "@/data/event-builder/brief";
@@ -30,6 +31,7 @@ import {
 import type { EventPlanContact } from "@/lib/event-builder/event-plan-server";
 import { emailBannerBrandHeaderHtml } from "@/lib/email-brand";
 import { sendResendEmail } from "@/lib/resend";
+import { formatFileSize, type TeamEmailFiles } from "@/lib/estimate-team-files";
 
 export type SendEstimateNotificationInput = {
   requestId: string;
@@ -37,6 +39,8 @@ export type SendEstimateNotificationInput = {
   data: EstimateFormData;
   apiKey: string;
   fileCount?: number;
+  /** Uploaded files to attach (or link) on the team email. */
+  files?: TeamEmailFiles | null;
 };
 
 export type SendEstimateCustomerConfirmationInput = {
@@ -122,7 +126,56 @@ type EstimateEmailContext = {
   reference: string;
   data: EstimateFormData;
   fileCount: number;
+  teamFiles?: TeamEmailFiles | null;
 };
+
+function adminEstimateUrl(requestId: string): string {
+  return `${getSiteUrl()}/admin/estimates/${requestId}`;
+}
+
+function teamFilesText(files: TeamEmailFiles, requestId: string): string[] {
+  const lines = [`--- FILES (${files.files.length}) ---`];
+  for (const file of files.files) {
+    lines.push(
+      `${file.name} (${formatFileSize(file.sizeBytes)}) — ${
+        file.url ? `download: ${file.url}` : "attached"
+      }`
+    );
+  }
+  if (files.missing > 0) {
+    lines.push(
+      `${files.missing} more file${files.missing === 1 ? "" : "s"} did not finish uploading. Any that arrive later are emailed separately.`
+    );
+  }
+  lines.push(`Admin: ${adminEstimateUrl(requestId)}`, "");
+  return lines;
+}
+
+function teamFilesHtml(files: TeamEmailFiles, requestId: string): string {
+  const rows = files.files
+    .map(
+      (file) => `
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #e5e7eb;font-size:14px;color:#111827;">${escapeHtml(file.name)}<br><span style="font-size:12px;color:#6b7280;">${formatFileSize(file.sizeBytes)}</span></td>
+          <td style="padding:8px 0 8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;white-space:nowrap;font-size:13px;">${
+            file.url
+              ? `<a href="${escapeHtml(file.url)}" style="color:#b8860b;font-weight:600;">Download</a><br><span style="font-size:11px;color:#6b7280;">link valid 7 days</span>`
+              : `<span style="color:#166534;font-weight:600;">Attached</span>`
+          }</td>
+        </tr>`
+    )
+    .join("");
+  const missing =
+    files.missing > 0
+      ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.6;color:#92400e;">${files.missing} more file${files.missing === 1 ? "" : "s"} did not finish uploading. Any that arrive later are emailed separately.</p>`
+      : "";
+  return `<div style="margin-bottom:24px;padding:16px;border-radius:12px;background:#f0fdf4;border:1px solid #bbf7d0;">
+          <h2 style="margin:0 0 8px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#166534;">Customer files (${files.files.length})</h2>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;"><tbody>${rows}</tbody></table>
+          ${missing}
+          <p style="margin:12px 0 0;font-size:13px;"><a href="${escapeHtml(adminEstimateUrl(requestId))}" style="color:#b8860b;font-weight:600;">Open in admin →</a></p>
+        </div>`;
+}
 
 type EmailSection = {
   title: string;
@@ -255,7 +308,7 @@ function buildNotificationSubject(data: EstimateFormData, reference: string): st
 }
 
 function buildNotificationText(ctx: EstimateEmailContext, disclaimer: string): string {
-  const { requestId, reference, data, fileCount } = ctx;
+  const { requestId, reference, data, fileCount, teamFiles } = ctx;
   const sections = buildAdminEmailSections(data);
 
   const lines = [
@@ -268,7 +321,9 @@ function buildNotificationText(ctx: EstimateEmailContext, disclaimer: string): s
     "",
   ];
 
-  if (fileCount > 0) {
+  if (teamFiles && (teamFiles.files.length > 0 || teamFiles.missing > 0)) {
+    lines.push(...teamFilesText(teamFiles, requestId));
+  } else if (fileCount > 0) {
     lines.push(
       `Files selected: ${fileCount}`,
       "Uploaded files are available in the admin dashboard once transfer completes.",
@@ -319,13 +374,15 @@ function disclaimerBannerHtml(disclaimer: string): string {
 }
 
 function buildNotificationHtml(ctx: EstimateEmailContext, disclaimer: string): string {
-  const { reference, data, fileCount } = ctx;
+  const { requestId, reference, data, fileCount, teamFiles } = ctx;
   const sections = buildAdminEmailSections(data)
     .map(renderEmailSectionHtml)
     .join("");
   const brief = escapeHtml(buildEstimateBrief(data)).replace(/\n/g, "<br>");
   const filesBlock =
-    fileCount > 0
+    teamFiles && (teamFiles.files.length > 0 || teamFiles.missing > 0)
+      ? teamFilesHtml(teamFiles, requestId)
+      : fileCount > 0
       ? `<div style="margin-bottom:24px;padding:14px 16px;border-radius:12px;background:#f0fdf4;border:1px solid #bbf7d0;">
           <p style="margin:0;font-size:13px;line-height:1.6;color:#166534;"><strong>${fileCount} file${fileCount === 1 ? "" : "s"} selected.</strong> View and download uploads from the admin dashboard once transfer completes.</p>
         </div>`
@@ -437,13 +494,11 @@ function buildCustomerConfirmationHtml(
 export async function sendEstimateNotificationEmail(
   input: SendEstimateNotificationInput
 ): Promise<void> {
-  const { requestId, opportunityRef, data, apiKey, fileCount = 0 } = input;
-  const ctx = buildEstimateEmailContext(
-    requestId,
-    data,
-    fileCount,
-    opportunityRef
-  );
+  const { requestId, opportunityRef, data, apiKey, fileCount = 0, files = null } = input;
+  const ctx = {
+    ...buildEstimateEmailContext(requestId, data, fileCount, opportunityRef),
+    teamFiles: files,
+  };
   const disclaimer = await getDocumentText("estimate.email_disclaimer");
   const customerEmail = data.email.trim();
 
@@ -455,6 +510,51 @@ export async function sendEstimateNotificationEmail(
     subject: buildNotificationSubject(data, ctx.reference),
     text: buildNotificationText(ctx, disclaimer),
     html: buildNotificationHtml(ctx, disclaimer),
+    attachments: files?.attachments,
+    logLabel: "estimate",
+  });
+}
+
+/** A customer file that arrived after the submission email went out. */
+export async function sendEstimateLateFileEmail(input: {
+  apiKey: string;
+  requestId: string;
+  reference: string;
+  customerName: string | null;
+  customerEmail: string | null;
+  files: TeamEmailFiles;
+}): Promise<void> {
+  const { requestId, reference, files } = input;
+  const who = input.customerName?.trim() || input.customerEmail?.trim() || "The customer";
+  const count = files.files.length;
+  const subject = `New customer file${count === 1 ? "" : "s"} — ${reference}`;
+  const intro = `${who} uploaded ${count === 1 ? "a file" : `${count} files`} to ${reference}.`;
+
+  await sendResendEmail({
+    apiKey: input.apiKey,
+    from: getEstimateFrom(),
+    to: [getEstimateNotifyTo()],
+    replyTo: input.customerEmail?.trim() || undefined,
+    subject,
+    text: [intro, "", ...teamFilesText(files, requestId)].join("\n"),
+    html: `<!DOCTYPE html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f4f4f5;font-family:Georgia,'Times New Roman',serif;color:#111827;">
+    <div style="max-width:640px;margin:0 auto;padding:24px 16px;">
+      <div style="background:#111827;border-radius:16px 16px 0 0;padding:28px 24px;">
+        ${emailBannerBrandHeaderHtml()}
+        <h1 style="margin:0 0 8px;font-size:24px;line-height:1.3;color:#ffffff;">New customer file${count === 1 ? "" : "s"}</h1>
+        <p style="margin:0;font-size:14px;color:#d1d5db;">Reference <strong style="color:#ffffff;">${escapeHtml(reference)}</strong></p>
+      </div>
+      <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#374151;">${escapeHtml(intro)}</p>
+        ${teamFilesHtml(files, requestId)}
+      </div>
+      <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#6b7280;">Reply to this email to reach the customer directly.</p>
+    </div>
+  </body>
+</html>`,
+    attachments: files.attachments,
     logLabel: "estimate",
   });
 }

@@ -1,5 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import type { EstimateFormData } from "@/data/estimate";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
+import { checkEmailDeliverability } from "@/lib/email-deliverability";
+import { fetchEstimateById, type EstimateFileRow } from "@/lib/estimate-access";
+import {
+  buildTeamEmailFiles,
+  linkOnlyTeamEmailFiles,
+  waitForSubmissionUploads,
+} from "@/lib/estimate-team-files";
 import {
   sendEstimateCustomerConfirmationEmail,
   sendEstimateNotificationEmail,
@@ -30,6 +38,60 @@ function resolveViewerRole(
   if (!authenticated) return "guest";
   if (role === "owner") return "owner";
   return "customer";
+}
+
+/** Covers the upload wait plus downloading and sending the attachments. */
+export const maxDuration = 60;
+
+/**
+ * The browser uploads files only after this route responds, so the team email
+ * waits for them and attaches what arrived. Falls back to links, then to a
+ * plain email, so the lead is never lost.
+ */
+async function notifyTeamWithUploads(input: {
+  requestId: string;
+  opportunityRef: string | null;
+  data: EstimateFormData;
+  apiKey: string;
+  expectedFileCount: number;
+}): Promise<void> {
+  const base = {
+    requestId: input.requestId,
+    opportunityRef: input.opportunityRef,
+    data: input.data,
+    apiKey: input.apiKey,
+    fileCount: input.expectedFileCount,
+  };
+  let rows: EstimateFileRow[] = [];
+  try {
+    const estimate = await fetchEstimateById(input.requestId);
+    rows = await waitForSubmissionUploads({
+      estimateRequestId: input.requestId,
+      estimateCreatedAt: estimate?.created_at ?? new Date().toISOString(),
+      expectedCount: input.expectedFileCount,
+    });
+    await sendEstimateNotificationEmail({
+      ...base,
+      files: await buildTeamEmailFiles(rows, input.expectedFileCount),
+    });
+    return;
+  } catch (error) {
+    console.warn("[estimate] Team email with attachments failed:", input.requestId, error);
+  }
+  try {
+    await sendEstimateNotificationEmail({
+      ...base,
+      files: await linkOnlyTeamEmailFiles(rows, input.expectedFileCount),
+    });
+    return;
+  } catch (error) {
+    console.warn("[estimate] Team email with file links failed:", input.requestId, error);
+  }
+  try {
+    await sendEstimateNotificationEmail(base);
+  } catch {
+    console.warn("[estimate] Request saved but admin notification email failed:", input.requestId);
+  }
 }
 
 function parseExpectedFileCount(payload: unknown): number {
@@ -98,15 +160,37 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const validation = validateEstimateSubmission(data);
+  // Server-side session only — never trust a client-provided user_id.
+  const authUser = await getCurrentUser();
+  const currentProfile = authUser ? await getCurrentProfile() : null;
+  const viewerRole = resolveViewerRole(
+    Boolean(authUser),
+    currentProfile?.profile.role
+  );
+  const language = detectRequestLanguage(request);
+
+  const validation = validateEstimateSubmission(data, {
+    phoneOptional: viewerRole === "owner",
+  });
 
   if (!validation.valid) {
     return NextResponse.json(
       {
         ok: false,
-        message: validation.message ?? "Validation failed.",
+        message:
+          validation.fieldErrors?.phone && Object.keys(validation.fieldErrors).length === 1
+            ? validation.fieldErrors.phone
+            : (validation.message ?? "Validation failed."),
         fieldErrors: validation.fieldErrors,
       },
+      { status: 400 }
+    );
+  }
+
+  const deliverable = await checkEmailDeliverability(data.email, language);
+  if (!deliverable.ok) {
+    return NextResponse.json(
+      { ok: false, message: deliverable.message, fieldErrors: { email: deliverable.message } },
       { status: 400 }
     );
   }
@@ -127,16 +211,6 @@ export async function POST(request: NextRequest) {
   const expectedFileCount = parseExpectedFileCount(payload);
   const uploadBundle =
     expectedFileCount > 0 ? createUploadToken() : null;
-
-  // Server-side session only — never trust a client-provided user_id.
-  const authUser = await getCurrentUser();
-  const currentProfile = authUser ? await getCurrentProfile() : null;
-  const viewerRole = resolveViewerRole(
-    Boolean(authUser),
-    currentProfile?.profile.role
-  );
-
-  const language = detectRequestLanguage(request);
 
   const insertResult = await insertEstimateRequest(
     supabaseConfig,
@@ -170,14 +244,25 @@ export async function POST(request: NextRequest) {
   let adminEmailFailed = false;
   let customerEmailFailed = false;
 
-  if (resendApiKey) {
+  if (resendApiKey && expectedFileCount > 0) {
+    const savedId = insertResult.id;
+    const opportunityRef = insertResult.opportunity_ref;
+    after(() =>
+      notifyTeamWithUploads({
+        requestId: savedId,
+        opportunityRef,
+        data,
+        apiKey: resendApiKey,
+        expectedFileCount,
+      })
+    );
+  } else if (resendApiKey) {
     try {
       await sendEstimateNotificationEmail({
         requestId: insertResult.id,
         opportunityRef: insertResult.opportunity_ref,
         data,
         apiKey: resendApiKey,
-        fileCount: expectedFileCount,
       });
     } catch {
       adminEmailFailed = true;
@@ -186,7 +271,9 @@ export async function POST(request: NextRequest) {
         insertResult.id
       );
     }
+  }
 
+  if (resendApiKey) {
     try {
       await sendEstimateCustomerConfirmationEmail({
         requestId: insertResult.id,

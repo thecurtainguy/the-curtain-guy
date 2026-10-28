@@ -1,9 +1,11 @@
 import {
   initialEstimateFormData,
   isValidEmail,
+  isValidPhone,
   type EstimateFormData,
 } from "@/data/estimate";
 import type { CustomerLanguage } from "@/data/customer-language";
+import { checkEmailDeliverability } from "@/lib/email-deliverability";
 import { formatCadFromCents, type RentalCartLine } from "@/data/rentals";
 import { cartLineLogisticsService } from "@/data/rentals-logistics";
 import {
@@ -162,6 +164,9 @@ export async function submitRentalsCheckout(
   const email = input.email.trim();
   if (!email) fieldErrors.email = "Email is required.";
   else if (!isValidEmail(email)) fieldErrors.email = "Enter a valid email.";
+  if (!isValidPhone(input.phone ?? "")) {
+    fieldErrors.phone = "Enter a phone number with area code so we can reach you.";
+  }
   if (!input.venueName?.trim()) fieldErrors.venueName = "Venue name is required.";
   if (!input.deliveryZoneId?.trim()) {
     fieldErrors.deliveryZoneId = "Select a delivery area.";
@@ -177,6 +182,11 @@ export async function submitRentalsCheckout(
       message: "Please complete the required fields.",
       fieldErrors,
     };
+  }
+
+  const deliverable = await checkEmailDeliverability(email, input.language ?? "en");
+  if (!deliverable.ok) {
+    return { ok: false, message: deliverable.message, fieldErrors: { email: deliverable.message } };
   }
 
   const config = getSupabaseServerConfig();

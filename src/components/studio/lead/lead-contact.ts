@@ -1,11 +1,9 @@
-import { isValidEmail } from "@/data/estimate";
+import { isValidEmail, isValidPhone } from "@/data/estimate";
 import type { StudioLeadContact } from "@/data/studio-leads";
 
 export type StudioLeadContactErrors = Partial<
   Record<keyof StudioLeadContact, string>
 >;
-
-const PHONE_CHARS = /^[0-9+().\-\s/x#ext]+$/i;
 
 /** Shared client + server rules: name, email and phone are all required. */
 export function validateStudioLeadContact(contact: {
@@ -35,14 +33,8 @@ export function validateStudioLeadContact(contact: {
     errors.email = "Enter a valid email address.";
   }
 
-  const digits = phone.replace(/\D/g, "");
   if (!phone) errors.phone = "Enter a phone number so we can reach you.";
-  else if (
-    phone.length > 40 ||
-    !PHONE_CHARS.test(phone) ||
-    digits.length < 10 ||
-    digits.length > 15
-  ) {
+  else if (!isValidPhone(phone)) {
     errors.phone = "Enter a valid phone number, including area code.";
   }
 

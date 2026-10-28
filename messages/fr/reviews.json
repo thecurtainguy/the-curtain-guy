@@ -298,7 +298,7 @@
     "namePlaceholder": "Votre nom",
     "email": "Courriel",
     "emailPlaceholder": "vous@exemple.com",
-    "phoneOptional": "Téléphone (facultatif)",
+    "phone": "Téléphone",
     "roleTitle": "Rôle / titre",
     "rolePlaceholder": "Mariée, planificateur, gérant de salle…",
     "organization": "Entreprise / organisation",

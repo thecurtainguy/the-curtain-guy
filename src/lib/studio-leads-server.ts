@@ -17,6 +17,7 @@ import type {
   StudioLeadContact,
 } from "@/data/studio-leads";
 import { validateStudioLeadContact } from "@/components/studio/lead/lead-contact";
+import { checkEmailDeliverability } from "@/lib/email-deliverability";
 import { createQuoteToken, hashQuoteToken } from "@/lib/quote-tokens";
 import {
   parseStudioEventDetails,
@@ -448,6 +449,13 @@ export async function saveVisitorLead(
     };
   }
   const contact = contactResult.contact;
+  const deliverable = await checkEmailDeliverability(contact.email);
+  if (!deliverable.ok) {
+    return {
+      ...failure("validation", deliverable.message),
+      fieldErrors: { email: deliverable.message },
+    };
+  }
   const token = createQuoteToken();
   const now = new Date().toISOString();
 

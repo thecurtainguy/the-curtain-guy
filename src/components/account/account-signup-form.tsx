@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { isValidPhone } from "@/data/estimate";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { postLoginPath, safeNextPath } from "@/lib/auth-redirect";
 import {
@@ -52,6 +53,10 @@ export function AccountSignupForm() {
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    if (!isValidPhone(phone)) {
+      setError(t("errors.phoneRequired"));
+      return;
+    }
     setLoading(true);
 
     try {
@@ -65,7 +70,7 @@ export function AccountSignupForm() {
           emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(safeRequestedNext)}`,
           data: {
             full_name: fullName.trim() || undefined,
-            phone: phone.trim() || undefined,
+            phone: phone.trim(),
           },
         },
       });
@@ -142,8 +147,10 @@ export function AccountSignupForm() {
           id="signup-phone"
           type="tel"
           autoComplete="tel"
+          placeholder="514-555-0123"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
+          required
         />
       </div>
       <div className="space-y-2">

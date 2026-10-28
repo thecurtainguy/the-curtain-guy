@@ -298,7 +298,7 @@
     "namePlaceholder": "Your name",
     "email": "Email",
     "emailPlaceholder": "you@example.com",
-    "phoneOptional": "Phone (optional)",
+    "phone": "Phone",
     "roleTitle": "Role / title",
     "rolePlaceholder": "Bride, planner, venue manager…",
     "organization": "Company / organization",

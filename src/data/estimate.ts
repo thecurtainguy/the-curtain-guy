@@ -153,7 +153,8 @@ export type EstimateValidationKey =
   | "floorPlanRequired"
   | "fabricRequired"
   | "nameRequired"
-  | "emailRequired";
+  | "emailRequired"
+  | "phoneRequired";
 
 export type StepValidationResult = {
   valid: boolean;
@@ -166,9 +167,27 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+const PHONE_CHARS = /^[0-9+().\-\s/x#ext]+$/i;
+
+/** Area code required: 10–15 digits (E.164 max), extensions allowed. */
+export function isValidPhone(phone: string): boolean {
+  const value = phone.trim();
+  const digits = value.replace(/\D/g, "");
+  return (
+    value.length <= 40 &&
+    PHONE_CHARS.test(value) &&
+    digits.length >= 10 &&
+    digits.length <= 15
+  );
+}
+
+/** Owners creating an estimate for a client may not have the phone yet. */
+export type EstimateValidationOptions = { phoneOptional?: boolean };
+
 export function validateEstimateStep(
   stepId: string,
-  data: EstimateFormData
+  data: EstimateFormData,
+  options: EstimateValidationOptions = {}
 ): StepValidationResult {
   switch (stepId) {
     case "event-basics": {
@@ -210,6 +229,9 @@ export function validateEstimateStep(
       if (!data.email.trim() || !isValidEmail(data.email)) {
         return { valid: false, messageKey: "emailRequired" };
       }
+      if (!options.phoneOptional && !isValidPhone(data.phone)) {
+        return { valid: false, messageKey: "phoneRequired" };
+      }
       return { valid: true };
     }
     default:
@@ -217,8 +239,11 @@ export function validateEstimateStep(
   }
 }
 
-export function canSubmitEstimate(data: EstimateFormData): boolean {
-  return validateEstimateStep("contact-summary", data).valid;
+export function canSubmitEstimate(
+  data: EstimateFormData,
+  options: EstimateValidationOptions = {}
+): boolean {
+  return validateEstimateStep("contact-summary", data, options).valid;
 }
 
 export type EstimateFormData = {

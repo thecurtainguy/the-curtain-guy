@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkEmailDeliverability } from "@/lib/email-deliverability";
 import { getResendApiKey } from "@/lib/env";
+import { detectRequestLanguage } from "@/lib/request-language";
 import { insertReviewSubmission } from "@/lib/review-submissions";
 import { sendReviewSubmissionEmail } from "@/lib/review-submission-email";
 import {
@@ -76,6 +78,14 @@ export async function POST(request: NextRequest) {
         message: validation.message ?? "Validation failed.",
         fieldErrors: validation.fieldErrors,
       },
+      { status: 400 }
+    );
+  }
+
+  const deliverable = await checkEmailDeliverability(data.email, detectRequestLanguage(request));
+  if (!deliverable.ok) {
+    return NextResponse.json(
+      { ok: false, message: deliverable.message, fieldErrors: { email: deliverable.message } },
       { status: 400 }
     );
   }

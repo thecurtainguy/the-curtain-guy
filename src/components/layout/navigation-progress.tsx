@@ -89,8 +89,13 @@ export function NavigationProgress() {
     };
   }, []);
 
-  useEffect(() => {
+  const [settledKey, setSettledKey] = useState(locationKey);
+  if (settledKey !== locationKey) {
+    setSettledKey(locationKey);
     setActive(false);
+  }
+
+  useEffect(() => {
     const t = setTimeout(() => setVisible(false), 220);
     return () => clearTimeout(t);
   }, [locationKey]);

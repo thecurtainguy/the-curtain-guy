@@ -56,6 +56,10 @@ export function AdminProductGallery({
 
   async function load(id: string) {
     setLoading(true);
+    await fetchImages(id);
+  }
+
+  async function fetchImages(id: string) {
     try {
       const params = new URLSearchParams();
       if (colorVariantId) params.set("colorVariantId", colorVariantId);
@@ -81,12 +85,17 @@ export function AdminProductGallery({
     }
   }
 
+  const scopeKey = productId ? `${productId}|${colorVariantId ?? ""}` : "";
+  const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
+  if (loadedScopeKey !== scopeKey) {
+    setLoadedScopeKey(scopeKey);
+    if (productId) setLoading(true);
+    else if (images.length > 0) setImages([]);
+  }
+
   useEffect(() => {
-    if (!productId) {
-      setImages([]);
-      return;
-    }
-    void load(productId);
+    if (!productId) return;
+    void fetchImages(productId);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when gallery scope changes
   }, [productId, colorVariantId]);
 

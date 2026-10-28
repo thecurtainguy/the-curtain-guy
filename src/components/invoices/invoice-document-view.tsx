@@ -10,6 +10,7 @@ import {
   Languages,
   Mail,
   Receipt,
+  RefreshCw,
   UserRound,
   Wallet,
 } from "lucide-react";
@@ -119,6 +120,14 @@ export function InvoiceDocumentView({
 
   return (
     <div className="space-y-6">
+      {invoice.replaces_invoice_number && invoice.status !== "void" ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/[0.08] px-4 py-3 text-sm">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <RefreshCw className="size-4" />
+          </span>
+          <p>{t.replacesNotice(invoice.replaces_invoice_number)}</p>
+        </div>
+      ) : null}
       <section className="relative overflow-hidden rounded-[min(var(--radius-4xl),28px)] border border-primary/25 bg-card/40">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_10%_0%,rgba(212,175,55,0.16),transparent_55%)]"

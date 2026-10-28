@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import {
   DEFAULT_GST_RATE,
   DEFAULT_QST_RATE,
+  isQuoteLocked,
   isQuoteStatus,
   isQuoteTaxMode,
+  QUOTE_LOCKED_MESSAGE,
   type QuoteRow,
   type QuoteStatus,
   type QuoteTaxMode,
@@ -80,6 +82,16 @@ export async function PUT(request: Request, context: RouteContext) {
       { ok: false, message: "Invalid JSON body." },
       { status: 400 }
     );
+  }
+
+  if (isQuoteLocked(existing.status)) {
+    // Only internal notes stay editable; owner_notes never reach the customer.
+    for (const key of Object.keys(body)) {
+      if (key !== "owner_notes") delete body[key];
+    }
+    if (Object.keys(body).length === 0) {
+      return NextResponse.json({ ok: false, message: QUOTE_LOCKED_MESSAGE }, { status: 409 });
+    }
   }
 
   const updates: Record<string, unknown> = {};

@@ -26,6 +26,8 @@ const STATUS_STYLES: Record<QuoteStatus, string> = {
     "bg-stone-100 text-stone-700 ring-stone-400/40 dark:bg-muted/40 dark:text-muted-foreground dark:ring-transparent",
   cancelled:
     "bg-stone-100 text-stone-700 ring-stone-400/40 dark:bg-muted/40 dark:text-muted-foreground dark:ring-transparent",
+  superseded:
+    "bg-stone-100 text-stone-700 ring-stone-400/40 dark:bg-muted/40 dark:text-muted-foreground dark:ring-transparent",
 };
 
 const LINE_STYLES: Record<QuoteLineStatus, string> = {

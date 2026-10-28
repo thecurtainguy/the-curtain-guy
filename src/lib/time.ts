@@ -20,7 +20,7 @@ export function parseDisplayTime(value: string | undefined): TimeParts | undefin
 
   const display = trimmed.match(DISPLAY_TIME);
   if (display) {
-    let hour = Number(display[1]);
+    const hour = Number(display[1]);
     const minute = Number(display[2] ?? "0");
     const period = display[3].toUpperCase() as "AM" | "PM";
     if (hour < 1 || hour > 12 || minute > 59) return undefined;

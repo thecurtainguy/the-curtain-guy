@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
 import { todayIsoDate } from "@/data/invoices";
+import { QUOTE_INVOICE_READY_EVENT, type QuoteInvoiceReady } from "@/lib/quote-invoice-events";
 import { cn } from "@/lib/utils";
 
 type ChannelOption = { id: string; label: string; icon: LucideIcon };
@@ -55,16 +56,29 @@ export function AdminQuoteJobActions({
   quoteId,
   quoteStatus,
   existingJobId,
+  existingInvoice,
   customerName,
 }: {
   quoteId: string;
   quoteStatus: QuoteStatus;
   existingJobId?: string | null;
+  existingInvoice?: { id: string; invoiceNumber: string } | null;
   customerName?: string | null;
 }) {
   const router = useRouter();
+  const [announcedInvoice, setAnnouncedInvoice] = useState<QuoteInvoiceReady | null>(null);
+  const invoice = existingInvoice ?? announcedInvoice;
   const [creating, setCreating] = useState(false);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
+
+  useEffect(() => {
+    function onReady(event: Event) {
+      const detail = (event as CustomEvent<QuoteInvoiceReady>).detail;
+      if (detail?.quoteId === quoteId) setAnnouncedInvoice(detail);
+    }
+    window.addEventListener(QUOTE_INVOICE_READY_EVENT, onReady);
+    return () => window.removeEventListener(QUOTE_INVOICE_READY_EVENT, onReady);
+  }, [quoteId]);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sentDialogOpen, setSentDialogOpen] = useState(false);
@@ -104,6 +118,8 @@ export function AdminQuoteJobActions({
     try {
       const response = await fetch(`/api/admin/jobs/${existingJobId}/invoices`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reuseActive: true }),
       });
       const payload = (await response.json()) as {
         ok?: boolean;
@@ -134,17 +150,26 @@ export function AdminQuoteJobActions({
               Open job
             </Link>
           </Button>
-          <LoadingButton
-            type="button"
-            variant="outline"
-            size="sm"
-            isLoading={creatingInvoice}
-            loadingText="Creating"
-            icon={<Receipt className="size-4" />}
-            onClick={() => void createInvoice()}
-          >
-            Invoice
-          </LoadingButton>
+          {invoice ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/admin/invoices/${invoice.id}`}>
+                <Receipt className="size-4" />
+                <span className="truncate">{invoice.invoiceNumber}</span>
+              </Link>
+            </Button>
+          ) : (
+            <LoadingButton
+              type="button"
+              variant="outline"
+              size="sm"
+              isLoading={creatingInvoice}
+              loadingText="Creating"
+              icon={<Receipt className="size-4" />}
+              onClick={() => void createInvoice()}
+            >
+              Invoice
+            </LoadingButton>
+          )}
         </>
       ) : accepted ? (
         <Button
@@ -211,9 +236,10 @@ export function AdminQuoteJobActions({
           quoteId={quoteId}
           defaultName={customerName ?? ""}
           onOpenChange={setDialogOpen}
-          onDone={(jobId) => {
+          onDone={(jobId, invoiceId) => {
             setDialogOpen(false);
-            if (jobId) router.push(`/admin/jobs/${jobId}`);
+            if (invoiceId) router.push(`/admin/invoices/${invoiceId}`);
+            else if (jobId) router.push(`/admin/jobs/${jobId}`);
             else router.refresh();
           }}
         />
@@ -231,7 +257,7 @@ function MarkAcceptedDialog({
   quoteId: string;
   defaultName: string;
   onOpenChange: (open: boolean) => void;
-  onDone: (jobId: string | null) => void;
+  onDone: (jobId: string | null, invoiceId: string | null) => void;
 }) {
   const [name, setName] = useState(defaultName);
   const [acceptedOn, setAcceptedOn] = useState(todayIsoDate());
@@ -270,12 +296,13 @@ function MarkAcceptedDialog({
         ok?: boolean;
         message?: string;
         jobId?: string | null;
+        invoice?: { invoiceId: string; created: boolean } | null;
       };
       if (!response.ok || !payload.ok) {
         setError(payload.message ?? "Could not mark accepted.");
         return;
       }
-      onDone(payload.jobId ?? null);
+      onDone(payload.jobId ?? null, payload.invoice?.created ? payload.invoice.invoiceId : null);
     } catch {
       setError("Could not mark accepted.");
     } finally {

@@ -10,9 +10,15 @@ import {
   computeInvoiceTotals,
   deriveInvoiceStatus,
   formatInvoiceNumber,
+  formatInvoiceRevisionNumber,
   isDepositMode,
+  isInvoiceLocked,
+  INVOICE_CLERICAL_FIELDS,
+  INVOICE_LOCKED_MESSAGE,
+  LEGACY_INVOICE_TERMS,
   sumPaymentsCents,
   todayIsoDate,
+  type BusinessSettings,
   type CustomerSafeInvoice,
   type DepositMode,
   INVOICE_STATUS_LABELS,
@@ -47,10 +53,10 @@ import {
   fetchCustomerById,
   logCustomerEvent,
 } from "@/lib/customers";
-import { getCustomerJob, listCustomerJobs } from "@/lib/jobs";
+import { createJobFromQuote, getCustomerJob, listCustomerJobs } from "@/lib/jobs";
 import { recordJobEvent } from "@/lib/job-events";
 import { createQuoteToken, hashQuoteToken } from "@/lib/quote-tokens";
-import { fetchQuoteById } from "@/lib/quotes";
+import { fetchQuoteById, type QuoteWithRelations } from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const INVOICE_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 365;
@@ -375,8 +381,21 @@ export async function fetchInvoiceById(
       : Promise.resolve({ data: [] as unknown[] }),
   ]);
 
+  const linkedIds = [data.replaces_invoice_id, data.replaced_by_invoice_id].filter(
+    (value): value is string => typeof value === "string"
+  );
+  const linkedNumbers = new Map<string, string>();
+  if (linkedIds.length > 0) {
+    const { data: linked } = await admin.from("invoices").select("id, invoice_number").in("id", linkedIds);
+    for (const row of (linked ?? []) as Array<{ id: string; invoice_number: string }>) {
+      linkedNumbers.set(row.id, row.invoice_number);
+    }
+  }
+
   return {
     ...normalizeInvoiceRow(data),
+    replaces_invoice_number: linkedNumbers.get(data.replaces_invoice_id as string) ?? null,
+    replaced_by_invoice_number: linkedNumbers.get(data.replaced_by_invoice_id as string) ?? null,
     line_items: (lines.data ?? []).map((row) => normalizeLine(row)),
     payments: (payments.data ?? []) as InvoicePaymentRow[],
     events: options?.includeEvents
@@ -479,6 +498,101 @@ async function nextInvoiceSequence(opportunityRef: string): Promise<number> {
   return data ? Number(data.sequence) + 1 : 0;
 }
 
+/** Billable quote lines as invoice lines, in the invoice language. */
+export function invoiceLinesFromQuote(quote: QuoteWithRelations, language: CustomerLanguage) {
+  const baseLanguage = normalizeCustomerLanguage(quote.language);
+  return quote.line_items
+    .filter(
+      (item) =>
+        item.customer_visible &&
+        (item.status === "priced" || item.status === "included")
+    )
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((item, index) => {
+      const unit = item.status === "included" ? 0 : normalizeUnitPriceCents(item.unit_price_cents);
+      return {
+        description: textInLanguage(item.description, item.description_translated, baseLanguage, language),
+        description_translated:
+          otherCustomerLanguage(language) === baseLanguage
+            ? item.description
+            : item.description_translated ?? null,
+        quantity: Number(item.quantity) || 0,
+        unit_label: item.unit_label ?? null,
+        unit_price_cents: unit,
+        line_total_cents: computeLineTotalCents(Number(item.quantity) || 0, unit),
+        is_taxable: item.is_taxable !== false,
+        sort_order: index,
+        product_id: item.product_id ?? null,
+        category: item.category ?? null,
+        category_label: item.category_label ?? null,
+        category_label_fr: item.category_label_fr ?? null,
+        image_url: item.image_url ?? null,
+        image_alt: item.image_alt ?? null,
+        source_quote_line_id: item.id,
+      };
+    });
+}
+
+/**
+ * Re-bases a draft invoice on a newer accepted revision: same invoice number,
+ * lines and quote link replaced. Issued invoices are never rewritten.
+ */
+export async function refreshDraftInvoiceFromQuote(input: {
+  invoice: InvoiceRow;
+  quote: QuoteWithRelations;
+  actorUserId: string | null;
+}): Promise<boolean> {
+  const { invoice, quote } = input;
+  if (invoice.status !== "draft") return false;
+  const admin = createAdminSupabaseClient();
+  const lines = invoiceLinesFromQuote(quote, invoice.language);
+  const { error: deleteError } = await admin.from("invoice_line_items").delete().eq("invoice_id", invoice.id);
+  if (deleteError) {
+    console.error("[invoices] refresh draft clear lines", deleteError);
+    return false;
+  }
+  if (lines.length > 0) {
+    const { error } = await admin
+      .from("invoice_line_items")
+      .insert(lines.map((line) => ({ ...line, invoice_id: invoice.id })));
+    if (error) console.error("[invoices] refresh draft lines", error);
+  }
+  await admin.from("invoices").update({ quote_id: quote.id }).eq("id", invoice.id);
+  await recalculateInvoice(invoice.id, input.actorUserId);
+  await logInvoiceEvent({
+    invoiceId: invoice.id,
+    actorType: input.actorUserId ? "owner" : "system",
+    actorUserId: input.actorUserId,
+    eventType: "invoice_rebased",
+    summary: `Lines replaced from ${quote.quote_display_ref} (revised agreement)`,
+    metadata: { quote_id: quote.id, line_count: lines.length },
+  });
+  return true;
+}
+
+/**
+ * Once an agreement is fully executed, prepares its first invoice as a draft for
+ * the owner to review and send. Reuses an existing active invoice; never sends,
+ * never throws (execution must succeed even if invoicing fails).
+ */
+export async function ensureDraftInvoiceAfterExecution(input: {
+  quoteId: string;
+  ownerUserId: string;
+}): Promise<{ invoiceId: string; invoiceNumber: string; created: boolean } | null> {
+  try {
+    const { jobId } = await createJobFromQuote(input.quoteId, input.ownerUserId);
+    const active = (await listInvoicesForJob(jobId)).find((inv) => inv.status !== "void");
+    if (active) {
+      return { invoiceId: active.id, invoiceNumber: active.invoice_number, created: false };
+    }
+    const created = await createInvoiceFromJob(jobId, input.ownerUserId);
+    return { ...created, created: true };
+  } catch (err) {
+    console.error("[invoices] draft after execution failed", err);
+    return null;
+  }
+}
+
 export async function createInvoiceFromJob(
   jobId: string,
   ownerUserId: string
@@ -501,7 +615,6 @@ export async function createInvoiceFromJob(
   const customerId = job.customer_id ?? quote?.customer_id ?? null;
   const customer = customerId ? await fetchCustomerById(customerId) : null;
   const defaults = customer ? customerInvoiceDefaults(customer) : null;
-  const quoteLanguage = quote ? normalizeCustomerLanguage(quote.language) : null;
   // The language the customer agreed to carries over to related documents.
   const language = quote
     ? normalizeCustomerLanguage(quote.agreed_language ?? quote.language)
@@ -548,44 +661,7 @@ export async function createInvoiceFromJob(
       ? quote.tax_mode
       : "quebec_gst_qst";
 
-  const lines = isFirstActive && quote
-    ? quote.line_items
-        .filter(
-          (item) =>
-            item.customer_visible &&
-            (item.status === "priced" || item.status === "included")
-        )
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map((item, index) => {
-          const unit = item.status === "included" ? 0 : normalizeUnitPriceCents(item.unit_price_cents);
-          const baseLanguage = quoteLanguage ?? language;
-          return {
-            description: textInLanguage(
-              item.description,
-              item.description_translated,
-              baseLanguage,
-              language
-            ),
-            description_translated:
-              otherCustomerLanguage(language) === baseLanguage
-                ? item.description
-                : item.description_translated ?? null,
-            quantity: Number(item.quantity) || 0,
-            unit_label: item.unit_label ?? null,
-            unit_price_cents: unit,
-            line_total_cents: computeLineTotalCents(Number(item.quantity) || 0, unit),
-            is_taxable: item.is_taxable !== false,
-            sort_order: index,
-            product_id: item.product_id ?? null,
-            category: item.category ?? null,
-            category_label: item.category_label ?? null,
-            category_label_fr: item.category_label_fr ?? null,
-            image_url: item.image_url ?? null,
-            image_alt: item.image_alt ?? null,
-            source_quote_line_id: item.id,
-          };
-        })
-    : [];
+  const lines = isFirstActive && quote ? invoiceLinesFromQuote(quote, language) : [];
 
   let attempt = 0;
   let inserted: { id: string; invoice_number: string } | null = null;
@@ -940,6 +1016,18 @@ export async function syncInvoicesFromJob(input: {
 
   for (const invoice of invoices) {
     const current = invoice as unknown as Record<string, string | null>;
+    if (isInvoiceLocked(invoice.status)) {
+      const differs = changed.filter((f) => (current[f] ?? null) !== (after[f] ?? null));
+      if (differs.length === 0) continue;
+      await logInvoiceEvent({
+        invoiceId: invoice.id,
+        actorUserId: input.actorUserId,
+        eventType: "job_changed_locked",
+        summary: `Job ${differs.map((f) => (AUDIT_FIELD_LABELS[f] ?? f).toLowerCase()).join(", ")} changed — issued invoice left as sent. Revise it if the customer needs an updated copy.`,
+        metadata: { job_id: input.after.id, fields: differs, invoice_status: invoice.status },
+      });
+      continue;
+    }
     const update: Record<string, string | null> = {};
     const kept: InvoiceFieldChange[] = [];
     for (const field of changed) {
@@ -1024,7 +1112,10 @@ export type InvoiceSaveInput = {
   deposit_due_date?: string | null;
   notes?: string | null;
   terms?: string | null;
+  notes_translated?: string | null;
+  terms_translated?: string | null;
   internal_notes?: string | null;
+  reminders_enabled?: boolean | null;
   line_items?: Array<
     {
       description?: string;
@@ -1054,6 +1145,69 @@ function cleanRate(value: unknown, fallback: number): number {
   return Number.isFinite(n) && n >= 0 && n <= 1 ? n : fallback;
 }
 
+/**
+ * Keeps only clerical edits on an issued invoice. Unchanged values the editor
+ * echoes back are ignored; a real change to anything else is refused.
+ */
+function lockedInvoiceInput(
+  current: InvoiceWithRelations,
+  input: InvoiceSaveInput
+): { input: InvoiceSaveInput } | { error: string } {
+  const allowed = new Set<string>(INVOICE_CLERICAL_FIELDS);
+  const kept: Record<string, unknown> = {};
+  const record = current as unknown as Record<string, unknown>;
+  const same = (a: unknown, b: unknown) =>
+    (a === "" || a === undefined ? null : a) === (b === "" || b === undefined ? null : b);
+  for (const [key, value] of Object.entries(input)) {
+    if (allowed.has(key)) {
+      kept[key] = value;
+      continue;
+    }
+    if (key === "line_items") {
+      const lines = Array.isArray(value) ? (value as NonNullable<InvoiceSaveInput["line_items"]>) : [];
+      const fingerprint = (rows: Array<{ description?: string; quantity?: number; unit_price_cents?: number }>) =>
+        rows
+          .map((l) => `${(l.description ?? "").trim()}|${Number(l.quantity) || 0}|${normalizeUnitPriceCents(l.unit_price_cents)}`)
+          .join("\n");
+      if (fingerprint(lines) !== fingerprint(current.line_items)) return { error: INVOICE_LOCKED_MESSAGE };
+      continue;
+    }
+    if (key === "deposit_fixed_cents") {
+      if (current.deposit_mode === "fixed" && Number(value) !== current.deposit_cents) {
+        return { error: INVOICE_LOCKED_MESSAGE };
+      }
+      continue;
+    }
+    if (typeof value === "string" ? !same(value.trim(), record[key]) : !same(value, record[key])) {
+      if (typeof value === "number" && Number(record[key]) === value) continue;
+      return { error: INVOICE_LOCKED_MESSAGE };
+    }
+  }
+  return { input: kept as InvoiceSaveInput };
+}
+
+/**
+ * Default notes/terms (current or a legacy default) in another language;
+ * undefined when the text is custom and must stay as written.
+ */
+function defaultTextIn(
+  settings: BusinessSettings,
+  key: "invoice_notes" | "invoice_terms",
+  value: string | null,
+  from: CustomerLanguage,
+  to: CustomerLanguage
+): string | null | undefined {
+  const text = (value ?? "").trim();
+  if (text === (businessText(settings, key, from) ?? "").trim()) {
+    return businessText(settings, key, to) || null;
+  }
+  if (key === "invoice_terms" && text) {
+    const legacy = LEGACY_INVOICE_TERMS.find((pair) => pair[from] === text);
+    if (legacy) return legacy[to];
+  }
+  return undefined;
+}
+
 export async function saveInvoice(
   invoiceId: string,
   input: InvoiceSaveInput,
@@ -1061,8 +1215,14 @@ export async function saveInvoice(
 ): Promise<InvoiceWithRelations | { error: string }> {
   const current = await fetchInvoiceById(invoiceId);
   if (!current) return { error: "Invoice not found." };
+  if (isInvoiceLocked(current.status)) {
+    const locked = lockedInvoiceInput(current, input);
+    if ("error" in locked) return locked;
+    input = locked.input;
+  }
 
   const update: Record<string, unknown> = {};
+  if (typeof input.reminders_enabled === "boolean") update.reminders_enabled = input.reminders_enabled;
   const textKeys = [
     "customer_name",
     "customer_email",
@@ -1075,6 +1235,8 @@ export async function saveInvoice(
     "venue_address",
     "notes",
     "terms",
+    "notes_translated",
+    "terms_translated",
     "internal_notes",
   ] as const;
   for (const key of textKeys) {
@@ -1107,16 +1269,25 @@ export async function saveInvoice(
   const nextLanguage = (update.language as CustomerLanguage | undefined) ?? current.language;
   const languageChanged = nextLanguage !== current.language;
   if (languageChanged) {
-    // Default notes and terms follow the language; custom text stays as written.
+    // Default notes and terms follow the language; custom text swaps with its stored translation.
     const settings = await getBusinessSettings();
     const keys = [
-      ["notes", "invoice_notes"],
-      ["terms", "invoice_terms"],
+      ["notes", "notes_translated", "invoice_notes"],
+      ["terms", "terms_translated", "invoice_terms"],
     ] as const;
-    for (const [field, settingKey] of keys) {
+    for (const [field, translatedField, settingKey] of keys) {
       const value = (field in update ? update[field] : current[field]) as string | null;
-      if ((value ?? "") === (businessText(settings, settingKey, current.language) ?? "")) {
-        update[field] = businessText(settings, settingKey, nextLanguage) || null;
+      const translated = (translatedField in update ? update[translatedField] : current[translatedField]) as
+        | string
+        | null
+        | undefined;
+      const swapped = defaultTextIn(settings, settingKey, value, current.language, nextLanguage);
+      if (swapped !== undefined) {
+        update[field] = swapped;
+        update[translatedField] = null;
+      } else if (translated?.trim()) {
+        update[field] = translated;
+        update[translatedField] = value;
       }
     }
   }
@@ -1279,7 +1450,7 @@ export async function addInvoicePayment(
     note?: string | null;
   },
   ownerUserId: string
-): Promise<{ ok: true } | { error: string }> {
+): Promise<{ ok: true; paymentId: string } | { error: string }> {
   const amount = Math.round(Number(input.amountCents) || 0);
   if (amount <= 0) return { error: "Payment amount must be more than $0." };
 
@@ -1336,7 +1507,7 @@ export async function addInvoicePayment(
       metadata: { invoice_id: invoiceId },
     });
   }
-  return { ok: true };
+  return { ok: true, paymentId: (payment as InvoicePaymentRow).id };
 }
 
 /** Amount for the "deposit received" / "paid in full" shortcuts. */
@@ -1407,6 +1578,186 @@ export async function clearInvoicePayments(
   return { ok: true };
 }
 
+/** Columns a revision does not inherit from the invoice it corrects. */
+const REVISION_RESET_COLUMNS = [
+  "id",
+  "invoice_number",
+  "status",
+  "revision_number",
+  "replaces_invoice_id",
+  "replaced_by_invoice_id",
+  "replaced_at",
+  "public_token_hash",
+  "public_token_expires_at",
+  "sent_at",
+  "viewed_at",
+  "view_count",
+  "last_viewed_at",
+  "paid_at",
+  "voided_at",
+  "amount_paid_cents",
+  "created_by_user_id",
+  "created_at",
+  "updated_at",
+] as const;
+
+/**
+ * Starts a correction of an issued invoice: a draft "INV-…-Rn" copy that
+ * replaces the original once it is sent. Reuses an open draft revision.
+ */
+export async function createInvoiceRevision(
+  invoiceId: string,
+  ownerUserId: string
+): Promise<{ invoiceId: string; invoiceNumber: string; created: boolean } | { error: string }> {
+  const admin = createAdminSupabaseClient();
+  const { data: originalRow } = await admin.from("invoices").select("*").eq("id", invoiceId).maybeSingle();
+  const original = originalRow as (InvoiceRow & Record<string, unknown>) | null;
+  if (!original) return { error: "Invoice not found." };
+  if (original.status === "draft") return { error: "Drafts can be edited directly." };
+  if (original.status === "void") return { error: "Void invoices can't be revised." };
+
+  const { data: siblings } = await admin
+    .from("invoices")
+    .select("id, invoice_number, status, revision_number, replaces_invoice_id")
+    .eq("opportunity_ref", original.opportunity_ref)
+    .eq("sequence", original.sequence);
+  const rows = (siblings ?? []) as Array<
+    Pick<InvoiceRow, "id" | "invoice_number" | "status" | "revision_number" | "replaces_invoice_id">
+  >;
+  const open = rows.find((row) => row.replaces_invoice_id === original.id && row.status === "draft");
+  if (open) return { invoiceId: open.id, invoiceNumber: open.invoice_number, created: false };
+
+  const revision = Math.max(0, ...rows.map((row) => row.revision_number ?? 0)) + 1;
+  const invoiceNumber = formatInvoiceRevisionNumber(original.invoice_number, revision);
+  const copy: Record<string, unknown> = { ...original };
+  for (const column of REVISION_RESET_COLUMNS) delete copy[column];
+  const { data: inserted, error } = await admin
+    .from("invoices")
+    .insert({
+      ...copy,
+      invoice_number: invoiceNumber,
+      status: "draft",
+      revision_number: revision,
+      replaces_invoice_id: original.id,
+      issue_date: todayIsoDate(),
+      created_by_user_id: ownerUserId,
+    })
+    .select("id")
+    .single();
+  if (error || !inserted) {
+    console.error("[invoices] create revision", error);
+    return { error: "Could not start a revision." };
+  }
+  const revisionId = (inserted as { id: string }).id;
+
+  const { data: lines } = await admin
+    .from("invoice_line_items")
+    .select("*")
+    .eq("invoice_id", original.id)
+    .order("sort_order", { ascending: true });
+  const lineCopies = ((lines ?? []) as Array<Record<string, unknown>>).map((line) => {
+    const rest = { ...line };
+    delete rest.id;
+    delete rest.created_at;
+    delete rest.updated_at;
+    return { ...rest, invoice_id: revisionId };
+  });
+  if (lineCopies.length > 0) {
+    const { error: lineError } = await admin.from("invoice_line_items").insert(lineCopies);
+    if (lineError) console.error("[invoices] copy revision lines", lineError);
+  }
+  await recalculateInvoice(revisionId, ownerUserId);
+
+  await logInvoiceEvent({
+    invoiceId: revisionId,
+    actorUserId: ownerUserId,
+    eventType: "revision_created",
+    summary: `Revision of ${original.invoice_number} started — replaces it when sent`,
+    metadata: { replaces_invoice_id: original.id, replaces_invoice_number: original.invoice_number },
+  });
+  await logInvoiceEvent({
+    invoiceId: original.id,
+    actorUserId: ownerUserId,
+    eventType: "revision_started",
+    summary: `Revision ${invoiceNumber} started (draft)`,
+    metadata: { revision_invoice_id: revisionId },
+  });
+  return { invoiceId: revisionId, invoiceNumber, created: true };
+}
+
+/**
+ * Once a revision is issued, the original is closed: voided, linked to the
+ * revision, and its recorded payments move over so nothing is paid twice.
+ */
+export async function replaceInvoiceWithRevision(
+  revisionId: string,
+  ownerUserId: string
+): Promise<{ replacedNumber: string } | null> {
+  const admin = createAdminSupabaseClient();
+  const revision = await fetchInvoiceById(revisionId);
+  if (!revision?.replaces_invoice_id) return null;
+  const original = await fetchInvoiceById(revision.replaces_invoice_id);
+  if (!original || original.replaced_by_invoice_id) return null;
+
+  const movedCents = sumPaymentsCents(original.payments);
+  if (original.payments.length > 0) {
+    const { error } = await admin
+      .from("invoice_payments")
+      .update({ invoice_id: revision.id })
+      .eq("invoice_id", original.id);
+    if (error) {
+      console.error("[invoices] move payments to revision", error);
+      return null;
+    }
+  }
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from("invoices")
+    .update({ status: "void", voided_at: now, replaced_by_invoice_id: revision.id, replaced_at: now })
+    .eq("id", original.id);
+  if (error) {
+    console.error("[invoices] close replaced invoice", error);
+    return null;
+  }
+  await recalculateInvoice(original.id, ownerUserId);
+  await recalculateInvoice(revision.id, ownerUserId);
+
+  const totals = `total ${formatCadFromCents(original.total_cents)} → ${formatCadFromCents(revision.total_cents)}`;
+  const moved = movedCents ? ` · ${formatCadFromCents(movedCents)} in payments moved over` : "";
+  await logInvoiceEvent({
+    invoiceId: original.id,
+    actorUserId: ownerUserId,
+    eventType: "invoice_replaced",
+    summary: `Replaced by ${revision.invoice_number} · ${totals}${moved}`,
+    metadata: {
+      replaced_by_invoice_id: revision.id,
+      from_total_cents: original.total_cents,
+      to_total_cents: revision.total_cents,
+      payments_moved_cents: movedCents,
+    },
+  });
+  await logInvoiceEvent({
+    invoiceId: revision.id,
+    actorUserId: ownerUserId,
+    eventType: "replaces_invoice",
+    summary: `Issued as the replacement for ${original.invoice_number} · ${totals}${moved}`,
+    metadata: { replaces_invoice_id: original.id, payments_moved_cents: movedCents },
+  });
+  if (revision.job_id) {
+    await recordJobEvent({
+      jobId: revision.job_id,
+      actorUserId: ownerUserId,
+      actorRole: "owner",
+      eventType: "invoice_sent",
+      title: `Invoice ${revision.invoice_number} replaces ${original.invoice_number}`,
+      body: totals,
+      customerVisible: true,
+      metadata: { invoice_id: revision.id, replaced_invoice_id: original.id },
+    });
+  }
+  return { replacedNumber: original.invoice_number };
+}
+
 export type InvoiceStatusAction = "mark_sent" | "revert_draft" | "void" | "unvoid";
 
 export async function setInvoiceStatus(
@@ -1424,6 +1775,15 @@ export async function setInvoiceStatus(
     if (invoice.status === "draft") update.status = "sent";
     summary = "Marked as sent";
   } else if (action === "revert_draft") {
+    if (invoice.replaces_invoice_id) {
+      return { error: "This revision already replaced the original invoice. Revise it again instead." };
+    }
+    if (invoice.view_count > 0 || invoice.viewed_at || invoice.payments.length > 0) {
+      return {
+        error:
+          "The customer has already opened or paid this invoice, so it can't go back to draft. Use “Revise invoice” instead.",
+      };
+    }
     update.sent_at = null;
     if (invoice.status === "sent") update.status = "draft";
     summary = "Reverted to draft";
@@ -1432,6 +1792,9 @@ export async function setInvoiceStatus(
     update.voided_at = new Date().toISOString();
     summary = "Invoice voided";
   } else {
+    if (invoice.replaced_by_invoice_id) {
+      return { error: "This invoice was replaced by a revision and can't be restored." };
+    }
     update.status = invoice.sent_at ? "sent" : "draft";
     update.voided_at = null;
     summary = "Invoice restored from void";
@@ -1451,6 +1814,9 @@ export async function setInvoiceStatus(
     metadata: { from: invoice.status, action },
   });
   await recalculateInvoice(invoiceId, ownerUserId);
+  if (action === "mark_sent" && invoice.replaces_invoice_id) {
+    await replaceInvoiceWithRevision(invoiceId, ownerUserId);
+  }
   return { ok: true };
 }
 
@@ -1594,7 +1960,18 @@ export async function fetchInvoiceByPublicToken(
   ) {
     return null;
   }
-  return fetchInvoiceById(data.id as string);
+  return fetchCurrentInvoice(data.id as string);
+}
+
+/** An earlier link opens the revision that replaced it, so customers never see a stale invoice. */
+async function fetchCurrentInvoice(invoiceId: string): Promise<InvoiceWithRelations | null> {
+  let invoice = await fetchInvoiceById(invoiceId);
+  for (let hop = 0; hop < 10 && invoice?.replaced_by_invoice_id; hop += 1) {
+    const next = await fetchInvoiceById(invoice.replaced_by_invoice_id);
+    if (!next || next.status === "draft") break;
+    invoice = next;
+  }
+  return invoice;
 }
 
 export async function markInvoiceViewed(invoiceId: string): Promise<void> {
@@ -1618,9 +1995,19 @@ export function toCustomerSafeInvoice(
     view_count: _views,
     viewed_at: _viewed,
     last_viewed_at: _lastViewed,
+    reminders_enabled: _reminders,
+    reminder_to: _reminderTo,
+    reminder_cc: _reminderCc,
+    reminder_stages: _reminderStages,
+    reminder_repeat_weekly: _reminderWeekly,
     payments,
     ...rest
   } = invoice;
+  void _reminders;
+  void _reminderTo;
+  void _reminderCc;
+  void _reminderStages;
+  void _reminderWeekly;
   void _internal;
   void _hash;
   void _creator;
@@ -1652,15 +2039,23 @@ export async function localizeInvoice<T extends CustomerSafeInvoice | InvoiceWit
 ): Promise<T> {
   if (viewLanguage === invoice.language) return invoice;
   const settings = await getBusinessSettings();
-  const swapDefault = (value: string | null, key: "invoice_notes" | "invoice_terms") =>
-    (value ?? "") === (businessText(settings, key, invoice.language) ?? "")
-      ? businessText(settings, key, viewLanguage) || null
-      : value;
+  /** Business defaults follow settings; custom text uses its stored translation. */
+  const inView = (
+    value: string | null,
+    translated: string | null | undefined,
+    key: "invoice_notes" | "invoice_terms"
+  ) => {
+    const swapped = defaultTextIn(settings, key, value, invoice.language, viewLanguage);
+    if (swapped !== undefined) return swapped;
+    return textInLanguage(value ?? "", translated ?? null, invoice.language, viewLanguage) || value;
+  };
   return {
     ...invoice,
     language: viewLanguage,
-    notes: swapDefault(invoice.notes, "invoice_notes"),
-    terms: swapDefault(invoice.terms, "invoice_terms"),
+    notes: inView(invoice.notes, invoice.notes_translated, "invoice_notes"),
+    terms: inView(invoice.terms, invoice.terms_translated, "invoice_terms"),
+    notes_translated: invoice.notes,
+    terms_translated: invoice.terms,
     line_items: invoice.line_items.map((line) => ({
       ...line,
       description: textInLanguage(line.description, line.description_translated, invoice.language, viewLanguage),
@@ -1672,7 +2067,7 @@ export async function listCustomerInvoicesForJob(
   jobId: string
 ): Promise<InvoiceRow[]> {
   const invoices = await listInvoicesForJob(jobId);
-  return invoices.filter((inv) => inv.status !== "draft");
+  return invoices.filter((inv) => inv.status !== "draft" && !inv.replaced_by_invoice_id);
 }
 
 async function customerIdsForUser(user: User): Promise<string[]> {

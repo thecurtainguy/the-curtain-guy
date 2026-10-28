@@ -1,6 +1,8 @@
 import { after, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { getResendApiKey } from "@/lib/env";
+import { notifyDraftInvoiceReady } from "@/lib/invoice-email";
+import { ensureDraftInvoiceAfterExecution } from "@/lib/invoices";
 import { renderSignedAgreementPdf } from "@/lib/quote-agreement-pdf";
 import {
   SigningError,
@@ -54,7 +56,17 @@ export async function POST(request: Request, context: RouteContext) {
       signatureImage: body.signatureImage,
     });
     if (body.sendCopy !== false) after(() => sendExecutedCopy(signature));
-    return NextResponse.json({ ok: true, agreement: toAgreementAudit(signature) });
+    const invoice = await ensureDraftInvoiceAfterExecution({
+      quoteId: id,
+      ownerUserId: owner.user.id,
+    });
+    if (invoice?.created) {
+      const quoteRef = (await fetchQuoteById(id))?.quote_display_ref ?? "";
+      after(() =>
+        notifyDraftInvoiceReady({ invoiceId: invoice.invoiceId, quoteRef, trigger: "countersigned" })
+      );
+    }
+    return NextResponse.json({ ok: true, agreement: toAgreementAudit(signature), invoice });
   } catch (err) {
     if (err instanceof SigningError) {
       return NextResponse.json({ ok: false, message: err.message }, { status: err.status });

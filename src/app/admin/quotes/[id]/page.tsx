@@ -12,6 +12,7 @@ import { getDocumentEngagement } from "@/lib/document-engagement";
 import { getSiteUrl } from "@/lib/env";
 import { loadAdminOpportunityFiles } from "@/lib/estimate-file-events";
 import { fetchEventPlanByEstimateId } from "@/lib/event-plan-access";
+import { listInvoicesForJob } from "@/lib/invoices";
 import { fetchJobByQuoteId } from "@/lib/jobs";
 import { listProductCategories } from "@/lib/product-categories";
 import { fetchQuoteById, findActivePublicQuoteUrl } from "@/lib/quotes";
@@ -35,6 +36,16 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
   if (!quote) notFound();
 
   const linkedJob = await fetchJobByQuoteId(id);
+  const activeInvoice = linkedJob
+    ? (await listInvoicesForJob(linkedJob.id)).find((inv) => inv.status !== "void")
+    : undefined;
+  const linkedInvoice = activeInvoice
+    ? {
+        id: activeInvoice.id,
+        invoiceNumber: activeInvoice.invoice_number,
+        status: activeInvoice.status,
+      }
+    : null;
   const initialGuestUrl = await findActivePublicQuoteUrl(id, getSiteUrl());
   const opportunityFiles = quote.estimate_request_id
     ? await loadAdminOpportunityFiles(quote.estimate_request_id)
@@ -84,6 +95,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
               quoteId={quote.id}
               quoteStatus={quote.status}
               existingJobId={linkedJob?.id}
+              existingInvoice={linkedInvoice}
               customerName={quote.customer_name}
             />
           }
@@ -94,6 +106,7 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
                   quoteId={quote.id}
                   audit={toAgreementAudit(signature)}
                   defaultCountersignerName={owner.profile.full_name || "The Curtain Guy"}
+                  linkedInvoice={linkedInvoice}
                 />
               ) : null}
               {quote.status === "draft" && engagement.activity.length === 0 ? null : (

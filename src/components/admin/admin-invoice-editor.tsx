@@ -5,25 +5,31 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArrowRight,
   Ban,
   Banknote,
   BadgePercent,
+  BellOff,
+  BellRing,
   Building2,
   CalendarDays,
   Check,
   CircleDollarSign,
   ClipboardCheck,
   Copy,
+  FilePenLine,
   FileText,
   History,
   Languages,
   Link2,
   ListOrdered,
+  Lock,
   Package,
   Plus,
   Receipt,
   RotateCcw,
   Send,
+  Sparkles,
   Trash2,
   Truck,
   Undo2,
@@ -38,6 +44,8 @@ import {
   computeDepositCents,
   computeInvoiceTotals,
   getInvoiceTaxRows,
+  INVOICE_CLERICAL_FIELDS,
+  isInvoiceLocked,
   paymentMethodLabel,
   todayIsoDate,
   visiblePaymentMethods,
@@ -56,6 +64,16 @@ import {
 } from "@/data/quotes";
 import type { CustomerLanguage } from "@/data/customer-language";
 import { formatCustomerNumber, formatVenueAddress, type CustomerLinkSummary } from "@/data/customers";
+import {
+  lastInvoiceEmailRecipients,
+  matchReminderPreset,
+  REMINDER_PRESETS,
+  reminderDueFor,
+  reminderScheduleOf,
+  reminderTimeline,
+  resolveReminderRecipients,
+  sentReminderStages,
+} from "@/data/invoice-reminders";
 import { AdminInvoiceAuditLog } from "@/components/admin/admin-invoice-audit-log";
 import { OptionCard } from "@/components/estimate/option-card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
@@ -69,6 +87,8 @@ import {
   type LogisticsServicePick,
 } from "@/components/admin/admin-logistics-service-dialog";
 import { AdminInvoiceSendDialog } from "@/components/admin/admin-invoice-send-dialog";
+import { AdminInvoiceReminderDialog } from "@/components/admin/admin-invoice-reminder-dialog";
+import { AdminInvoiceReminderSettingsDialog } from "@/components/admin/admin-invoice-reminder-settings-dialog";
 import { AdminRecordPaymentDialog } from "@/components/admin/admin-record-payment-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { useBrandConfirm } from "@/components/ui/brand-dialog";
@@ -173,6 +193,8 @@ type FormState = {
   deposit_due_date: string;
   notes: string;
   terms: string;
+  notes_translated: string;
+  terms_translated: string;
   internal_notes: string;
   lines: LineDraft[];
 };
@@ -208,6 +230,8 @@ function toForm(invoice: InvoiceWithRelations): FormState {
     deposit_due_date: invoice.deposit_due_date ?? "",
     notes: invoice.notes ?? "",
     terms: invoice.terms ?? "",
+    notes_translated: invoice.notes_translated ?? "",
+    terms_translated: invoice.terms_translated ?? "",
     internal_notes: invoice.internal_notes ?? "",
     lines: invoice.line_items.map((line) => ({
       key: line.id,
@@ -263,6 +287,8 @@ function toPayload(form: FormState) {
     deposit_due_date: form.deposit_due_date || null,
     notes: form.notes,
     terms: form.terms,
+    notes_translated: form.notes_translated,
+    terms_translated: form.terms_translated,
     internal_notes: form.internal_notes,
     line_items: form.lines.map((line) => ({
       description: line.description,
@@ -280,6 +306,13 @@ function toPayload(form: FormState) {
       source_quote_line_id: line.source_quote_line_id,
     })),
   };
+}
+
+/** What a save may send once the invoice is issued (the server enforces the same list). */
+function lockedPayload(payload: ReturnType<typeof toPayload>) {
+  return Object.fromEntries(
+    INVOICE_CLERICAL_FIELDS.map((key) => [key, payload[key]])
+  ) as Partial<ReturnType<typeof toPayload>>;
 }
 
 const DEPOSIT_OPTIONS = [
@@ -326,6 +359,15 @@ function Panel({
       </div>
       <div className="p-5">{children}</div>
     </section>
+  );
+}
+
+/** Disables every control inside once the invoice is issued. */
+function Lockable({ locked, children, className }: { locked: boolean; children: React.ReactNode; className?: string }) {
+  return (
+    <fieldset disabled={locked} className={cn("m-0 min-w-0 border-0 p-0", locked && "opacity-75", className)}>
+      {children}
+    </fieldset>
   );
 }
 
@@ -416,6 +458,8 @@ export function AdminInvoiceEditor({
   const [error, setError] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [remindOpen, setRemindOpen] = useState(false);
+  const [reminderSettingsOpen, setReminderSettingsOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [logisticsOpen, setLogisticsOpen] = useState(false);
   const [publicUrl, setPublicUrl] = useState(initialPublicUrl);
@@ -425,6 +469,15 @@ export function AdminInvoiceEditor({
   const payload = useMemo(() => toPayload(form), [form]);
   const isDirty = JSON.stringify(payload) !== baseline;
   const isVoid = invoice.status === "void";
+  const locked = isInvoiceLocked(invoice.status);
+  const canRevertDraft =
+    invoice.status === "sent" &&
+    Boolean(invoice.sent_at) &&
+    invoice.view_count === 0 &&
+    !invoice.viewed_at &&
+    invoice.payments.length === 0 &&
+    !invoice.replaces_invoice_id;
+  const otherLanguageName = form.language === "fr" ? "English" : "Français";
 
   const liveTotals = useMemo(
     () =>
@@ -469,6 +522,31 @@ export function AdminInvoiceEditor({
     },
     { variant: "admin" }
   );
+
+  const remindersOn = invoice.reminders_enabled !== false;
+  const reminderSchedule = reminderScheduleOf(invoice);
+  const reminderPresetId = matchReminderPreset(reminderSchedule.steps, reminderSchedule.repeatWeekly);
+  const reminderPresetLabel = REMINDER_PRESETS.find((p) => p.id === reminderPresetId)?.label ?? "Custom schedule";
+  const reminderRecipients = resolveReminderRecipients(invoice, lastInvoiceEmailRecipients(invoice.events ?? []));
+  const reminderPeople = reminderRecipients.to.length + reminderRecipients.cc.length;
+  const reminderDue = reminderDueFor(invoice);
+  const nextReminderEntry =
+    reminderDue && remindersOn && invoice.status !== "draft"
+      ? reminderTimeline({
+          due: reminderDue,
+          schedule: reminderSchedule,
+          sentStages: sentReminderStages(invoice.events ?? [], reminderDue),
+          today: todayIsoDate(),
+          enabled: true,
+        }).find((entry) => !entry.adminOnly && (entry.status === "next" || entry.status === "planned"))
+      : null;
+  const nextReminder = nextReminderEntry
+    ? nextReminderEntry.status === "next"
+      ? "at the next morning run"
+      : new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" }).format(
+          new Date(`${nextReminderEntry.date}T00:00:00Z`)
+        )
+    : null;
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -550,7 +628,7 @@ export function AdminInvoiceEditor({
       const response = await fetch(`/api/admin/invoices/${invoice.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(locked ? lockedPayload(payload) : payload),
       });
       const json = (await response.json()) as { ok?: boolean; message?: string; invoice?: InvoiceWithRelations };
       if (!response.ok || !json.ok || !json.invoice) {
@@ -610,7 +688,9 @@ export function AdminInvoiceEditor({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ quick: kind, method }),
         }),
-      kind === "deposit" ? "Deposit marked as received." : "Invoice marked paid in full."
+      `${kind === "deposit" ? "Deposit marked as received." : "Invoice marked paid in full."}${
+        invoice.customer_email ? ` Receipt emailed to ${invoice.customer_email}.` : ""
+      }`
     );
   }
 
@@ -653,8 +733,18 @@ export function AdminInvoiceEditor({
       });
       if (!ok) return;
     }
+    if (action === "mark_sent" && invoice.replaces_invoice_id) {
+      const ok = await confirm({
+        title: `Issue ${invoice.invoice_number} without emailing?`,
+        description: `${invoice.replaces_invoice_number ?? "The original"} will be voided and its payments move here. Only do this if you sent the update yourself.`,
+        confirmLabel: "Mark as sent",
+      });
+      if (!ok) return;
+    }
     const labels = {
-      mark_sent: "Marked as sent.",
+      mark_sent: invoice.replaces_invoice_id
+        ? `Marked as sent — ${invoice.replaces_invoice_number ?? "the original"} is now replaced.`
+        : "Marked as sent.",
       revert_draft: "Reverted to draft.",
       void: "Invoice voided.",
       unvoid: "Invoice restored.",
@@ -669,6 +759,78 @@ export function AdminInvoiceEditor({
         }),
       labels[action]
     );
+  }
+
+  async function reviseInvoice() {
+    const ok = await confirm({
+      eyebrow: "Correct an issued invoice",
+      title: `Revise ${invoice.invoice_number}?`,
+      description:
+        "A draft copy opens for your changes. Nothing changes for the client until you send it — then it replaces this invoice, recorded payments carry over, and they get one “Updated invoice” email.",
+      confirmLabel: "Start revision",
+    });
+    if (!ok || !(await ensureSaved())) return;
+    setBusyAction("revise");
+    flash();
+    try {
+      const response = await fetch(`/api/admin/invoices/${invoice.id}/revise`, { method: "POST" });
+      const json = (await response.json()) as { ok?: boolean; message?: string; invoiceId?: string };
+      if (!response.ok || !json.ok || !json.invoiceId) {
+        flash(null, json.message ?? "Could not start a revision.");
+        return;
+      }
+      router.push(`/admin/invoices/${json.invoiceId}`);
+    } catch {
+      flash(null, "Could not start a revision.");
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  async function translateWording() {
+    setBusyAction("translate");
+    flash();
+    try {
+      const response = await fetch("/api/admin/quotes/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: form.language,
+          notes: form.notes_translated.trim() ? null : form.notes,
+          terms: form.terms_translated.trim() ? null : form.terms,
+          lines: form.lines
+            .filter((line) => line.description.trim() && !line.description_translated?.trim())
+            .map((line) => ({ key: line.key, text: line.description })),
+        }),
+      });
+      const json = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        notes?: string | null;
+        terms?: string | null;
+        lines?: Array<{ key: string; text: string }>;
+      };
+      if (!response.ok || !json.ok) {
+        flash(null, json.message ?? "Translation failed.");
+        return;
+      }
+      const lines = new Map((json.lines ?? []).map((line) => [line.key, line.text]));
+      setForm((prev) => ({
+        ...prev,
+        notes_translated: prev.notes_translated || json.notes || "",
+        terms_translated: prev.terms_translated || json.terms || "",
+        lines: prev.lines.map((line) =>
+          lines.has(line.key) && !line.description_translated?.trim()
+            ? { ...line, description_translated: lines.get(line.key) ?? null }
+            : line
+        ),
+      }));
+      flash("Translation drafted — review it, then save.");
+    } catch {
+      flash(null, "Translation failed.");
+    } finally {
+      setBusyAction(null);
+    }
   }
 
   async function deleteDraft() {
@@ -786,7 +948,11 @@ export function AdminInvoiceEditor({
               }}
             >
               <Send className="size-4" />
-              {invoice.sent_at ? "Resend invoice" : "Send invoice"}
+              {invoice.sent_at
+                ? "Resend invoice"
+                : invoice.replaces_invoice_id
+                  ? "Send updated invoice"
+                  : "Send invoice"}
             </Button>
           </>
         }
@@ -806,12 +972,82 @@ export function AdminInvoiceEditor({
         </p>
       )}
 
-      {isVoid ? (
+      {isVoid && invoice.replaced_by_invoice_id ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card/30 px-4 py-3 text-sm">
+          <span className="flex items-start gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <RotateCcw className="size-4" />
+            </span>
+            <span>
+              <span className="block font-medium">
+                Replaced by {invoice.replaced_by_invoice_number ?? "a revision"}
+                {invoice.replaced_at ? ` on ${invoice.replaced_at.slice(0, 10)}` : ""}
+              </span>
+              <span className="text-muted-foreground">
+                Kept for the record. Its payments moved to the revision, and the client’s old link opens the new invoice.
+              </span>
+            </span>
+          </span>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/admin/invoices/${invoice.replaced_by_invoice_id}`}>
+              Open {invoice.replaced_by_invoice_number ?? "revision"}
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </div>
+      ) : isVoid ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm">
           <span>This invoice is void. Clients see it marked VOID; payments can’t be recorded.</span>
           <Button type="button" size="sm" variant="outline" onClick={() => void changeStatus("unvoid")}>
             <RotateCcw className="size-4" />
             Restore
+          </Button>
+        </div>
+      ) : locked ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/[0.07] px-4 py-3 text-sm">
+          <span className="flex min-w-0 items-start gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Lock className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium">Issued · locked</span>
+              <span className="text-muted-foreground">
+                Amounts, lines, dates and terms match what the client received. Contact, billing address, PO,
+                internal notes, payments and reminders stay editable. To correct anything else, revise it.
+              </span>
+            </span>
+          </span>
+          <LoadingButton
+            type="button"
+            size="sm"
+            isLoading={busyAction === "revise"}
+            icon={<FilePenLine className="size-4" />}
+            onClick={() => void reviseInvoice()}
+          >
+            Revise invoice
+          </LoadingButton>
+        </div>
+      ) : invoice.replaces_invoice_id ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/[0.07] px-4 py-3 text-sm">
+          <span className="flex min-w-0 items-start gap-3">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <FilePenLine className="size-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium">
+                Revision of {invoice.replaces_invoice_number ?? "an issued invoice"} · draft
+              </span>
+              <span className="text-muted-foreground">
+                The client still sees {invoice.replaces_invoice_number ?? "the original"}. When you send this one, it
+                replaces it: the original is voided, its payments move here, and the client gets one “Updated invoice”
+                email. Delete this draft to cancel the revision.
+              </span>
+            </span>
+          </span>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/admin/invoices/${invoice.replaces_invoice_id}`}>
+              Open {invoice.replaces_invoice_number ?? "original"}
+            </Link>
           </Button>
         </div>
       ) : null}
@@ -877,7 +1113,7 @@ export function AdminInvoiceEditor({
                       className={cn(customerLink?.po_required && !form.po_number.trim() && "border-primary/60")}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <Lockable locked={locked} className="space-y-1.5">
                     <Label>Currency</Label>
                     <div className="grid grid-cols-2 gap-2">
                       {(["CAD", "USD"] as const).map((currency) => (
@@ -905,7 +1141,7 @@ export function AdminInvoiceEditor({
                         .map((m) => m.label)
                         .join(", ") || "no payment methods — check Billing settings"}
                     </p>
-                  </div>
+                  </Lockable>
                 </div>
                 {customerLink ? (
                   <Link
@@ -924,6 +1160,7 @@ export function AdminInvoiceEditor({
               </div>
             </Panel>
 
+            <Lockable locked={locked}>
             <Panel icon={CalendarDays} eyebrow="Dates" title="Schedule & event">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
@@ -1029,8 +1266,10 @@ export function AdminInvoiceEditor({
                 </div>
               </div>
             </Panel>
+            </Lockable>
           </div>
 
+          <Lockable locked={locked}>
           <Panel
             icon={ListOrdered}
             eyebrow="Scope"
@@ -1075,8 +1314,8 @@ export function AdminInvoiceEditor({
                 ))}
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="hidden grid-cols-[44px_minmax(0,1fr)_80px_90px_120px_110px_auto] gap-2 px-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground md:grid">
+              <div className="@container space-y-3">
+                <div className="hidden grid-cols-[44px_minmax(0,1fr)_80px_90px_120px_110px_auto] gap-2 px-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground @3xl:grid">
                   <span />
                   <span>Description</span>
                   <span>Qty</span>
@@ -1090,9 +1329,9 @@ export function AdminInvoiceEditor({
                   return (
                     <div
                       key={line.key}
-                      className="grid gap-2 rounded-xl border border-border/40 bg-background/30 p-3 md:grid-cols-[44px_minmax(0,1fr)_80px_90px_120px_110px_auto] md:items-start md:border-0 md:bg-transparent md:p-1"
+                      className="grid grid-cols-3 gap-2 rounded-xl border border-border/40 bg-background/30 p-3 @3xl:grid-cols-[44px_minmax(0,1fr)_80px_90px_120px_110px_auto] @3xl:items-start @3xl:border-0 @3xl:bg-transparent @3xl:p-1"
                     >
-                      <div className="relative size-11 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
+                      <div className="relative col-span-3 size-11 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30 @3xl:col-span-1">
                         {line.image_url ? (
                           <Image
                             src={line.image_url}
@@ -1112,7 +1351,7 @@ export function AdminInvoiceEditor({
                           </div>
                         )}
                       </div>
-                      <div className="min-w-0 space-y-1.5">
+                      <div className="col-span-3 min-w-0 space-y-1.5 @3xl:col-span-1">
                         <Textarea
                           rows={1}
                           value={line.description}
@@ -1156,11 +1395,20 @@ export function AdminInvoiceEditor({
                           </div>
                         ) : null}
                       </div>
-                      <Input inputMode="decimal" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} aria-label="Quantity" />
-                      <Input value={line.unit_label} onChange={(e) => updateLine(line.key, { unit_label: e.target.value })} aria-label="Unit" placeholder="ft, set…" />
-                      <Input inputMode="decimal" value={line.unit_price} onChange={(e) => updateLine(line.key, { unit_price: e.target.value })} aria-label="Unit price" />
-                      <div className="flex h-8 items-center justify-end text-sm tabular-nums">{money(amount)}</div>
-                      <div className="flex items-center gap-1">
+                      <label className="min-w-0 space-y-1">
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground @3xl:hidden">Qty</span>
+                        <Input inputMode="decimal" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} aria-label="Quantity" />
+                      </label>
+                      <label className="min-w-0 space-y-1">
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground @3xl:hidden">Unit</span>
+                        <Input value={line.unit_label} onChange={(e) => updateLine(line.key, { unit_label: e.target.value })} aria-label="Unit" placeholder="ft, set…" />
+                      </label>
+                      <label className="min-w-0 space-y-1">
+                        <span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground @3xl:hidden">Unit price</span>
+                        <Input inputMode="decimal" value={line.unit_price} onChange={(e) => updateLine(line.key, { unit_price: e.target.value })} aria-label="Unit price" />
+                      </label>
+                      <div className="col-span-3 flex h-8 items-center justify-end text-sm tabular-nums @3xl:col-span-1">{money(amount)}</div>
+                      <div className="col-span-3 flex items-center gap-1 @3xl:col-span-1">
                         <button
                           type="button"
                           onClick={() => updateLine(line.key, { is_taxable: !line.is_taxable })}
@@ -1240,18 +1488,73 @@ export function AdminInvoiceEditor({
               </div>
             </div>
           </Panel>
+          </Lockable>
 
-          <Panel icon={ClipboardCheck} eyebrow="Wording" title="Notes & terms">
+          <Panel
+            icon={ClipboardCheck}
+            eyebrow="Wording"
+            title="Notes & terms"
+            actions={
+              locked ? null : (
+                <LoadingButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  isLoading={busyAction === "translate"}
+                  icon={<Sparkles className="size-4" />}
+                  onClick={() => void translateWording()}
+                >
+                  Draft {otherLanguageName}
+                </LoadingButton>
+              )
+            }
+          >
             <div className="grid gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="inv-notes">Notes to client</Label>
-                <Textarea id="inv-notes" rows={3} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Shown on the invoice" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="inv-terms">Terms</Label>
-                <Textarea id="inv-terms" rows={6} value={form.terms} onChange={(e) => set("terms", e.target.value)} />
-                <p className="text-xs text-muted-foreground">One term per line. Defaults come from Billing settings.</p>
-              </div>
+              <Lockable locked={locked} className="grid gap-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="inv-notes">Notes to client</Label>
+                    <Textarea id="inv-notes" rows={3} value={form.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Shown on the invoice" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="inv-notes-tr" className="flex items-center gap-1.5">
+                      <Languages className="size-3.5 text-primary" />
+                      Notes · {otherLanguageName}
+                    </Label>
+                    <Textarea
+                      id="inv-notes-tr"
+                      rows={3}
+                      value={form.notes_translated}
+                      onChange={(e) => set("notes_translated", e.target.value)}
+                      placeholder={form.language === "fr" ? "English version" : "Version française"}
+                      className={cn(form.notes.trim() && !form.notes_translated.trim() && "border-amber-500/50")}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="inv-terms">Terms</Label>
+                    <Textarea id="inv-terms" rows={6} value={form.terms} onChange={(e) => set("terms", e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="inv-terms-tr" className="flex items-center gap-1.5">
+                      <Languages className="size-3.5 text-primary" />
+                      Terms · {otherLanguageName}
+                    </Label>
+                    <Textarea
+                      id="inv-terms-tr"
+                      rows={6}
+                      value={form.terms_translated}
+                      onChange={(e) => set("terms_translated", e.target.value)}
+                      placeholder="Leave empty when using the Billing settings default"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  One term per line. The Billing settings defaults switch language automatically; custom wording uses
+                  the {otherLanguageName} version here when the client views the other language.
+                </p>
+              </Lockable>
               <div className="space-y-1.5">
                 <Label htmlFor="inv-internal">Internal notes</Label>
                 <Textarea id="inv-internal" rows={2} value={form.internal_notes} onChange={(e) => set("internal_notes", e.target.value)} placeholder="Only you see this" />
@@ -1261,6 +1564,7 @@ export function AdminInvoiceEditor({
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-6">
+          <Lockable locked={locked}>
           <Panel icon={BadgePercent} eyebrow="Deposit" title="Deposit request">
             <div className="space-y-2">
               {DEPOSIT_OPTIONS.map((option) => (
@@ -1315,6 +1619,7 @@ export function AdminInvoiceEditor({
               </>
             ) : null}
           </Panel>
+          </Lockable>
 
           <Panel
             icon={Wallet}
@@ -1401,18 +1706,68 @@ export function AdminInvoiceEditor({
           {engagementPanel}
 
           <Panel icon={Link2} eyebrow="Status" title="Invoice controls">
-            <div className="grid gap-2">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
               {invoice.status === "draft" ? (
                 <Button type="button" variant="outline" onClick={() => void changeStatus("mark_sent")}>
                   <Send className="size-4" />
                   Mark as sent (sent it myself)
                 </Button>
               ) : null}
-              {invoice.sent_at && invoice.status === "sent" ? (
-                <Button type="button" variant="outline" onClick={() => void changeStatus("revert_draft")}>
+              {locked && !isVoid ? (
+                <LoadingButton
+                  type="button"
+                  variant="outline"
+                  isLoading={busyAction === "revise"}
+                  icon={<FilePenLine className="size-4" />}
+                  onClick={() => void reviseInvoice()}
+                >
+                  Revise invoice
+                </LoadingButton>
+              ) : null}
+              {canRevertDraft ? (
+                <Button type="button" variant="ghost" size="sm" onClick={() => void changeStatus("revert_draft")}>
                   <RotateCcw className="size-4" />
-                  Revert to draft
+                  Revert to draft (not opened yet)
                 </Button>
+              ) : null}
+              {(invoice.status === "sent" || invoice.status === "partially_paid") &&
+              invoice.balance_due_cents > 0 &&
+              invoice.customer_email ? (
+                <LoadingButton
+                  type="button"
+                  variant="outline"
+                  isLoading={busyAction === "remind"}
+                  icon={<BellRing className="size-4" />}
+                  onClick={() => setRemindOpen(true)}
+                >
+                  Send payment reminder now
+                </LoadingButton>
+              ) : null}
+              {!isVoid ? (
+                <button
+                  type="button"
+                  onClick={() => setReminderSettingsOpen(true)}
+                  className={cn(
+                    "group flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition-all",
+                    "hover:-translate-y-px hover:border-primary/40 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+                    remindersOn ? "border-primary/40 bg-primary/10" : "border-border/40 bg-card/40"
+                  )}
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                    {remindersOn ? <BellRing className="size-4" /> : <BellOff className="size-4" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">
+                      Automatic reminders · {remindersOn ? "On" : "Paused"}
+                    </span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                      {remindersOn
+                        ? `${reminderPresetLabel} · ${reminderPeople} ${reminderPeople === 1 ? "person" : "people"}${nextReminder ? ` · next ${nextReminder}` : ""}`
+                        : "Nothing goes out automatically. Send one yourself when ready."}
+                    </span>
+                  </span>
+                  <span className="self-center text-xs font-medium text-primary group-hover:underline">Edit</span>
+                </button>
               ) : null}
               {publicUrl ? (
                 <div className="flex items-center gap-2 rounded-xl border border-border/40 bg-background/30 px-3 py-2 text-xs">
@@ -1498,6 +1853,34 @@ export function AdminInvoiceEditor({
         />
       ) : null}
 
+      {remindOpen ? (
+        <AdminInvoiceReminderDialog
+          invoice={invoice}
+          contacts={customerLink?.contactOptions ?? []}
+          open={remindOpen}
+          onOpenChange={setRemindOpen}
+          onSent={(next, msg) => {
+            applyInvoice(next, !isDirty);
+            flash(msg);
+            router.refresh();
+          }}
+        />
+      ) : null}
+
+      {reminderSettingsOpen ? (
+        <AdminInvoiceReminderSettingsDialog
+          invoice={invoice}
+          contacts={customerLink?.contactOptions ?? []}
+          open={reminderSettingsOpen}
+          onOpenChange={setReminderSettingsOpen}
+          onSaved={(next, msg) => {
+            applyInvoice(next, !isDirty);
+            flash(msg);
+            router.refresh();
+          }}
+        />
+      ) : null}
+
       {paymentOpen ? (
         <AdminRecordPaymentDialog
           invoice={invoice}
@@ -1507,9 +1890,9 @@ export function AdminInvoiceEditor({
           preferredMethodId={customerLink?.preferred_payment_method ?? null}
           open={paymentOpen}
           onOpenChange={setPaymentOpen}
-          onRecorded={(next) => {
+          onRecorded={(next, receiptTo) => {
             applyInvoice(next, true);
-            flash("Payment recorded.");
+            flash(receiptTo ? `Payment recorded. Receipt emailed to ${receiptTo}.` : "Payment recorded.");
             router.refresh();
           }}
         />

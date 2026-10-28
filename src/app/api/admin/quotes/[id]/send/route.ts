@@ -30,6 +30,8 @@ import {
   otherLanguageName,
 } from "@/lib/quotes";
 import type { ResendEmailAttachment } from "@/lib/resend";
+import { isQuoteLocked, QUOTE_LOCKED_MESSAGE } from "@/data/quotes";
+import { supersedeOtherRevisions } from "@/lib/quote-revisions";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -167,6 +169,10 @@ export async function POST(request: Request, context: RouteContext) {
       { ok: false, message: "Quote not found." },
       { status: 404 }
     );
+  }
+
+  if (isQuoteLocked(quote.status)) {
+    return NextResponse.json({ ok: false, message: QUOTE_LOCKED_MESSAGE }, { status: 409 });
   }
 
   let compose: ComposeBody = {};
@@ -364,6 +370,11 @@ export async function POST(request: Request, context: RouteContext) {
       // Proof the French version was provided (Charter s.55) — read by the signing step.
       pdf_languages: emailSent ? pdfLanguages : [],
     },
+  });
+  await supersedeOtherRevisions({
+    quote,
+    trigger: "sent",
+    actor: { type: "owner", userId: owner.user.id, email: owner.profile.email },
   });
 
   return NextResponse.json({

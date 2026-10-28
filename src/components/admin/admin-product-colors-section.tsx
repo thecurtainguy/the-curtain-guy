@@ -1,6 +1,5 @@
 "use client";
 
-import { useRef } from "react";
 import { Check, Images, Palette, Plus, Trash2 } from "lucide-react";
 import {
   PRODUCT_COLOR_PALETTE,
@@ -142,9 +141,6 @@ export function AdminProductColorsSection({
   onEnsureSaved,
   onError,
 }: AdminProductColorsSectionProps) {
-  const draftsRef = useRef(drafts);
-  draftsRef.current = drafts;
-
   function patchDraft(clientKey: string, partial: Partial<ColorDraft>) {
     onDraftsChange((prev) =>
       prev.map((draft) =>
@@ -161,7 +157,7 @@ export function AdminProductColorsSection({
 
   function addFromPalette(name: string, hex: string) {
     if (
-      draftsRef.current.some(
+      drafts.some(
         (draft) => draft.name.toLowerCase() === name.toLowerCase()
       )
     ) {

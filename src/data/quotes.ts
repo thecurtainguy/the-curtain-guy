@@ -14,9 +14,21 @@ export const QUOTE_STATUSES = [
   "revision_requested",
   "expired",
   "cancelled",
+  "superseded",
 ] as const;
 
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
+
+/**
+ * Accepted (signed or owner-recorded) and replaced quotes are frozen: changes go
+ * through a revision so the agreement on file always matches the quote.
+ */
+export function isQuoteLocked(status: QuoteStatus): boolean {
+  return status === "accepted" || status === "superseded";
+}
+
+export const QUOTE_LOCKED_MESSAGE =
+  "This quote is accepted and locked. Create a revision to change it — the revision replaces it once signed.";
 
 /** Statuses where the customer has received the quote and can still say yes. */
 const ACCEPTABLE_QUOTE_STATUSES: readonly QuoteStatus[] = [
@@ -136,6 +148,7 @@ export const QUOTE_EVENT_TYPES = [
   "pdf_downloaded",
   "request_reviewed",
   "revision_created",
+  "quote_superseded",
 ] as const;
 
 export type QuoteEventType = (typeof QUOTE_EVENT_TYPES)[number];
@@ -333,6 +346,7 @@ export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   revision_requested: "Revision requested",
   expired: "Expired",
   cancelled: "Cancelled",
+  superseded: "Replaced",
 };
 
 export const QUOTE_LINE_STATUS_LABELS: Record<QuoteLineStatus, string> = {
@@ -364,6 +378,7 @@ const QUOTE_STATUS_LABELS_FR: Record<QuoteStatus, string> = {
   revision_requested: "Révision demandée",
   expired: "Expirée",
   cancelled: "Annulée",
+  superseded: "Remplacée",
 };
 
 const QUOTE_LINE_STATUS_LABELS_FR: Record<QuoteLineStatus, string> = {
@@ -729,6 +744,9 @@ export type QuoteRow = {
   terms_translated?: string | null;
   /** Language the customer chose to be bound by; null until accepted. */
   agreed_language?: CustomerLanguage | null;
+  /** Later revision that replaced this quote. */
+  superseded_by_quote_id?: string | null;
+  superseded_at?: string | null;
   public_token_hash: string | null;
   public_token_expires_at: string | null;
   sent_at: string | null;

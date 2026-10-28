@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BadgePercent, Banknote, Check, Undo2 } from "lucide-react";
+import { BadgePercent, Banknote, Check, Mail, Undo2 } from "lucide-react";
 import {
   todayIsoDate,
   type InvoiceWithRelations,
@@ -41,7 +41,7 @@ export function AdminRecordPaymentDialog({
   preferredMethodId?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onRecorded: (invoice: InvoiceWithRelations) => void;
+  onRecorded: (invoice: InvoiceWithRelations, receiptTo: string | null) => void;
 }) {
   const methods = [
     ...paymentMethods,
@@ -57,6 +57,8 @@ export function AdminRecordPaymentDialog({
   );
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
+  const clientEmail = invoice.customer_email?.trim() || null;
+  const [sendReceipt, setSendReceipt] = useState(Boolean(clientEmail));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,14 +74,27 @@ export function AdminRecordPaymentDialog({
       const response = await fetch(`/api/admin/invoices/${invoice.id}/payments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, amount_cents: cents, paid_on: paidOn, method, reference, note }),
+        body: JSON.stringify({
+          kind,
+          amount_cents: cents,
+          paid_on: paidOn,
+          method,
+          reference,
+          note,
+          send_receipt: sendReceipt,
+        }),
       });
-      const json = (await response.json()) as { ok?: boolean; message?: string; invoice?: InvoiceWithRelations };
+      const json = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+        invoice?: InvoiceWithRelations;
+        receiptTo?: string | null;
+      };
       if (!response.ok || !json.ok || !json.invoice) {
         setError(json.message ?? "Could not record payment.");
         return;
       }
-      onRecorded(json.invoice);
+      onRecorded(json.invoice, json.receiptTo ?? null);
       onOpenChange(false);
     } catch {
       setError("Could not record payment.");
@@ -157,6 +172,21 @@ export function AdminRecordPaymentDialog({
               <Textarea id="pay-note" rows={1} value={note} onChange={(e) => setNote(e.target.value)} className="min-h-8" />
             </div>
           </div>
+
+          <OptionCard
+            mode="multi"
+            option={{
+              id: "receipt",
+              label: kind === "refund" ? "Email the client a refund notice" : "Email the client a receipt",
+              description: clientEmail
+                ? `Bilingual, sent to ${clientEmail} with the remaining balance.`
+                : "No client email on this invoice — add one in Client & billing.",
+              icon: Mail,
+            }}
+            selected={sendReceipt && Boolean(clientEmail)}
+            onSelect={() => clientEmail && setSendReceipt((value) => !value)}
+            className="p-3"
+          />
 
           {error ? (
             <p className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>

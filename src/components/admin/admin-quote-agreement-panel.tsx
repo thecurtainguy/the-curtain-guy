@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArrowRight,
   BadgeCheck,
   Download,
   FileSignature,
@@ -11,8 +13,11 @@ import {
   Laptop,
   Mail,
   MapPin,
+  Receipt,
   Stamp,
 } from "lucide-react";
+import { INVOICE_STATUS_LABELS, type InvoiceStatus } from "@/data/invoices";
+import { announceQuoteInvoice, type QuoteInvoiceReady } from "@/lib/quote-invoice-events";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -63,13 +68,17 @@ export function AdminQuoteAgreementPanel({
   quoteId,
   audit: auditProp,
   defaultCountersignerName,
+  linkedInvoice,
 }: {
   quoteId: string;
   audit: QuoteAgreementAudit;
   defaultCountersignerName: string;
+  linkedInvoice?: { id: string; invoiceNumber: string; status: InvoiceStatus } | null;
 }) {
   const router = useRouter();
   const [countersigned, setCountersigned] = useState<QuoteAgreementAudit | null>(null);
+  const [createdInvoice, setCreatedInvoice] = useState<QuoteInvoiceReady | null>(null);
+  const invoice = linkedInvoice ?? createdInvoice;
   const audit = countersigned ?? auditProp;
   const executed = audit.status === "countersigned";
   const [open, setOpen] = useState(false);
@@ -98,9 +107,20 @@ export function AdminQuoteAgreementPanel({
         ok?: boolean;
         message?: string;
         agreement?: QuoteAgreementAudit;
+        invoice?: { invoiceId: string; invoiceNumber: string } | null;
       } | null;
       if (!res.ok || !data?.ok) throw new Error(data?.message || "Could not countersign.");
       if (data.agreement) setCountersigned(data.agreement);
+      if (data.invoice) {
+        const ready = {
+          quoteId,
+          id: data.invoice.invoiceId,
+          invoiceNumber: data.invoice.invoiceNumber,
+          status: "draft" as const,
+        };
+        setCreatedInvoice(ready);
+        announceQuoteInvoice(ready);
+      }
       setOpen(false);
       router.refresh();
     } catch (err) {
@@ -201,6 +221,31 @@ export function AdminQuoteAgreementPanel({
             </div>
           ) : null}
         </dl>
+
+        {executed && invoice ? (
+          <Link
+            href={`/admin/invoices/${invoice.id}`}
+            className="flex items-center gap-3 rounded-2xl border border-primary/35 bg-primary/10 p-3 transition hover:border-primary/60"
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
+              <Receipt className="size-4" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                {invoice.status === "draft" ? "Draft invoice · ready to review" : "Invoice"}
+              </span>
+              <span className="block truncate text-sm font-medium text-foreground">
+                {invoice.invoiceNumber} · {INVOICE_STATUS_LABELS.en[invoice.status]}
+              </span>
+              {invoice.status === "draft" ? (
+                <span className="block text-[11px] text-muted-foreground">
+                  Lines, taxes, and deposit terms copied from the signed quote. Not sent yet.
+                </span>
+              ) : null}
+            </span>
+            <ArrowRight className="size-4 shrink-0 text-primary" aria-hidden />
+          </Link>
+        ) : null}
 
         <div className={cn("grid gap-2", executed ? "grid-cols-1" : "grid-cols-2")}>
           {!executed ? (

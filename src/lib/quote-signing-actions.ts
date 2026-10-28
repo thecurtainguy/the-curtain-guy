@@ -7,6 +7,7 @@ import {
 import { maskEmail } from "@/data/quote-signing";
 import { getResendApiKey } from "@/lib/env";
 import { ensureDraftJobAfterQuoteAccepted } from "@/lib/jobs";
+import { finalizeAcceptedRevision } from "@/lib/quote-revisions";
 import { renderSignedAgreementPdf } from "@/lib/quote-agreement-pdf";
 import {
   sendQuoteAcceptedCustomerEmail,
@@ -134,6 +135,14 @@ export async function handleSigningAction(input: {
       agreeAll: body.agreeAll,
       consent: body.consent,
       userId: input.userId,
+    });
+    await finalizeAcceptedRevision({
+      quote,
+      actor: {
+        type: input.userId ? "customer" : "public_link",
+        userId: input.userId ?? null,
+        email: signature.signer_email,
+      },
     });
     const jobResult = await ensureDraftJobAfterQuoteAccepted({
       quoteId: quote.id,

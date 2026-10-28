@@ -2,18 +2,24 @@ import {
   computeAmountDue,
   getInvoiceCopy,
   invoicePaymentSchedule,
+  todayIsoDate,
   type BusinessSettings,
   type InvoiceRow,
   type InvoiceWithRelations,
 } from "@/data/invoices";
 import { formatMoneyFromCents } from "@/data/quotes";
 import { formatQuoteDate } from "@/data/quote-copy";
-import { getEstimateNotifyTo, getQuoteFrom } from "@/lib/env";
+import { getEstimateNotifyTo, getQuoteFrom, getResendApiKey, getSiteUrl } from "@/lib/env";
 import { getLocalizedDocumentText } from "@/lib/document-texts";
 import { withOwnerCopySource } from "@/lib/document-views";
 import { recordEmailMessage } from "@/lib/email-tracking";
 import { invoicePdfFilename, renderInvoicePdfBuffer } from "@/lib/invoice-pdf";
-import { localizeInvoice, toCustomerSafeInvoice } from "@/lib/invoices";
+import {
+  fetchInvoiceById,
+  localizeInvoice,
+  logInvoiceEvent,
+  toCustomerSafeInvoice,
+} from "@/lib/invoices";
 import {
   bodyTextToEmailHtml,
   brandQuoteEmailShell,
@@ -23,33 +29,50 @@ import {
 import type { CustomerLanguage } from "@/data/customer-language";
 import { sendResendEmail } from "@/lib/resend";
 
+type InvoiceEmailIdentity = Pick<InvoiceRow, "invoice_number" | "language"> & {
+  replaces_invoice_number?: string | null;
+};
+
 export function buildDefaultInvoiceEmailSubject(
-  invoice: Pick<InvoiceRow, "invoice_number" | "language">,
+  invoice: InvoiceEmailIdentity,
   settings: Pick<BusinessSettings, "trade_name">
 ): string {
+  const replaces = invoice.replaces_invoice_number;
   if (invoice.language === "en") {
-    return `Facture / Invoice ${invoice.invoice_number} · ${settings.trade_name}`;
+    return replaces
+      ? `Facture mise à jour / Updated invoice ${invoice.invoice_number} (remplace / replaces ${replaces}) · ${settings.trade_name}`
+      : `Facture / Invoice ${invoice.invoice_number} · ${settings.trade_name}`;
   }
-  return getInvoiceCopy(invoice.language).emailSubject(
-    invoice.invoice_number,
-    settings.trade_name
-  );
+  const t = getInvoiceCopy(invoice.language);
+  return replaces
+    ? t.revisedSubject(invoice.invoice_number, replaces, settings.trade_name)
+    : t.emailSubject(invoice.invoice_number, settings.trade_name);
 }
 
 /** English invoices also go out with the French version, offered first. */
-function frenchVersionFor(invoice: Pick<InvoiceRow, "language">): boolean {
+export function frenchVersionFor(invoice: Pick<InvoiceRow, "language">): boolean {
   return invoice.language === "en";
 }
 
-function frenchVersionBlock(input: { customerName: string | null; url: string }): { text: string; html: string } {
+function invoiceEmailBodyCopy(language: CustomerLanguage, replaces: string | null | undefined): string {
+  const t = getInvoiceCopy(language);
+  return replaces ? t.revisedBody(replaces) : t.emailBody;
+}
+
+function frenchVersionBlock(input: {
+  customerName: string | null;
+  url: string;
+  replaces?: string | null;
+}): { text: string; html: string } {
   const fr = getInvoiceCopy("fr");
   const greeting = fr.emailGreeting(input.customerName);
-  const text = [greeting, "", fr.emailBody, "", `Version française : ${input.url}`, "", "———", ""].join("\n");
+  const body = invoiceEmailBodyCopy("fr", input.replaces);
+  const text = [greeting, "", body, "", `Version française : ${input.url}`, "", "———", ""].join("\n");
   const html = `
     <div lang="fr" style="margin:0 0 20px;padding:16px;border-radius:14px;border:1px solid rgba(212,175,55,0.35);background:rgba(212,175,55,0.06);">
       <p style="margin:0 0 6px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#b8860b;">Version française</p>
       <p style="margin:0 0 8px;color:#f8f5ec;">${escapeEmailHtml(greeting)}</p>
-      <p style="margin:0 0 12px;color:#cfc8b8;font-size:14px;">${escapeEmailHtml(fr.emailBody)}</p>
+      <p style="margin:0 0 12px;color:#cfc8b8;font-size:14px;">${escapeEmailHtml(body)}</p>
       <a href="${escapeEmailHtml(input.url)}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;font-weight:600;">
         ${escapeEmailHtml(fr.emailButton)}
       </a>
@@ -60,24 +83,30 @@ function frenchVersionBlock(input: { customerName: string | null; url: string })
 }
 
 export function buildDefaultInvoiceEmailBody(
-  invoice: Pick<InvoiceRow, "customer_name" | "language">
+  invoice: Pick<InvoiceRow, "customer_name" | "language"> & { replaces_invoice_number?: string | null }
 ): string {
   const t = getInvoiceCopy(invoice.language);
-  return [t.emailGreeting(invoice.customer_name?.trim() || null), "", t.emailBody].join("\n");
+  return [
+    t.emailGreeting(invoice.customer_name?.trim() || null),
+    "",
+    invoiceEmailBodyCopy(invoice.language, invoice.replaces_invoice_number),
+  ].join("\n");
 }
 
 export function buildInvoiceEmailParts(input: {
-  invoice: InvoiceRow;
+  invoice: InvoiceRow & { replaces_invoice_number?: string | null };
   publicUrl: string;
   bodyText: string;
   footer: string;
   pdfFilename?: string | null;
 }): { text: string; html: string } {
   const { invoice } = input;
+  const replaces = invoice.replaces_invoice_number;
   const french = frenchVersionFor(invoice)
     ? frenchVersionBlock({
         customerName: invoice.customer_name?.trim() || null,
         url: quoteUrlInLanguage(input.publicUrl, "fr"),
+        replaces,
       })
     : null;
   const language = invoice.language;
@@ -115,8 +144,10 @@ export function buildInvoiceEmailParts(input: {
     input.publicUrl,
   ].join("\n");
 
+  const headline = (copy: ReturnType<typeof getInvoiceCopy>) =>
+    replaces ? copy.revisedHeadline : copy.emailHeadline;
   const html = brandQuoteEmailShell(
-    french ? `${getInvoiceCopy("fr").emailHeadline} · ${t.emailHeadline}` : t.emailHeadline,
+    french ? `${headline(getInvoiceCopy("fr"))} · ${headline(t)}` : headline(t),
     `
     ${french?.html ?? ""}
     ${bodyTextToEmailHtml(input.bodyText)}
@@ -156,7 +187,7 @@ export function invoiceEmailFrom(): string {
   return getQuoteFrom();
 }
 
-async function invoiceEmailFooter(invoice: Pick<InvoiceRow, "language">): Promise<string> {
+export async function invoiceEmailFooter(invoice: Pick<InvoiceRow, "language">): Promise<string> {
   if (!frenchVersionFor(invoice)) return getLocalizedDocumentText("quote.email_footer", invoice.language);
   const [fr, en] = await Promise.all([
     getLocalizedDocumentText("quote.email_footer", "fr"),
@@ -309,4 +340,118 @@ export async function sendInvoiceEmail(input: {
   } catch (error) {
     console.error("[invoices] owner archive copy failed", error);
   }
+}
+
+/** Loads the draft and alerts the team; never throws (runs after the response). */
+export async function notifyDraftInvoiceReady(input: {
+  invoiceId: string;
+  quoteRef: string;
+  trigger: "countersigned" | "marked_accepted";
+}): Promise<void> {
+  const apiKey = getResendApiKey();
+  if (!apiKey) return;
+  try {
+    const invoice = await fetchInvoiceById(input.invoiceId);
+    if (!invoice || invoice.status !== "draft") return;
+    await sendDraftInvoiceReviewAlert({ apiKey, invoice, quoteRef: input.quoteRef, trigger: input.trigger });
+    await logInvoiceEvent({
+      invoiceId: invoice.id,
+      actorType: "system",
+      eventType: "review_alert_sent",
+      summary: `Team alerted to review and send (${getEstimateNotifyTo()})`,
+      metadata: { trigger: input.trigger },
+    });
+  } catch (error) {
+    console.error("[invoices] draft review alert failed", error);
+  }
+}
+
+/** Internal alert: a draft invoice was prepared from an executed agreement and needs review + send. */
+export async function sendDraftInvoiceReviewAlert(input: {
+  apiKey: string;
+  invoice: InvoiceRow;
+  quoteRef: string;
+  trigger: "countersigned" | "marked_accepted";
+}): Promise<void> {
+  const { invoice } = input;
+  const adminUrl = `${getSiteUrl().replace(/\/$/, "")}/admin/invoices/${invoice.id}`;
+  const money = (cents: number) => formatMoneyFromCents(cents, "en", invoice.currency);
+  const date = (value: string | null) => formatQuoteDate(value, "en", "—");
+  const customer = invoice.customer_name || invoice.customer_email || "Customer";
+  const hasDeposit = invoice.deposit_mode !== "none" && invoice.deposit_cents > 0;
+  const depositDueNow = hasDeposit && !!invoice.deposit_due_date && invoice.deposit_due_date <= todayIsoDate();
+  const triggerLabel =
+    input.trigger === "countersigned" ? "Agreement fully executed (countersigned)" : "Quote marked accepted";
+
+  const rows: Array<[string, string]> = [
+    ["Customer", `${customer}${invoice.customer_email ? ` · ${invoice.customer_email}` : ""}`],
+    ["Agreement", `${input.quoteRef} · ${triggerLabel}`],
+    ["Event date", date(invoice.event_date)],
+    ["Invoice total", money(invoice.total_cents)],
+    ...(hasDeposit
+      ? ([["Deposit", `${money(invoice.deposit_cents)} · due ${date(invoice.deposit_due_date)}`]] as Array<
+          [string, string]
+        >)
+      : []),
+    ["Balance due", date(invoice.due_date)],
+    ["Language", invoice.language === "fr" ? "Français (EN copy included)" : "English (FR copy included)"],
+  ];
+  const steps = [
+    "Open the draft and check lines, taxes, and deposit against the signed agreement.",
+    "Confirm the due dates (they were calculated today).",
+    "Send the invoice to the customer.",
+  ];
+
+  const subject = `${depositDueNow ? "URGENT — " : "Action needed — "}Review & send ${invoice.invoice_number} · ${customer}`;
+  const text = [
+    `Draft invoice ${invoice.invoice_number} is ready for review.`,
+    depositDueNow ? "The deposit is due now — send the invoice today." : "It has not been sent to the customer.",
+    "",
+    ...rows.map(([label, value]) => `${label}: ${value}`),
+    "",
+    ...steps.map((step, index) => `${index + 1}. ${step}`),
+    "",
+    `Review: ${adminUrl}`,
+  ].join("\n");
+
+  const html = brandQuoteEmailShell(
+    "Draft invoice ready",
+    `
+    <p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:${depositDueNow ? "#f87171" : "#d4af37"};">
+      ${depositDueNow ? "Urgent · deposit due now" : "Action needed"}
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#d7d2c6;">
+      Draft invoice <strong style="color:#f8f5ec;">${escapeEmailHtml(invoice.invoice_number)}</strong> was created from the signed agreement and has <strong style="color:#f8f5ec;">not been sent</strong> to the customer.
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border-spacing:0;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(212,175,55,0.18);">
+      ${rows
+        .map(
+          ([label, value]) => `<tr>
+        <td style="padding:10px 14px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#8b909a;white-space:nowrap;">${escapeEmailHtml(label)}</td>
+        <td style="padding:10px 14px;font-size:14px;color:#f8f5ec;text-align:right;">${escapeEmailHtml(value)}</td>
+      </tr>`
+        )
+        .join("")}
+    </table>
+    <p style="margin:22px 0 8px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#d4af37;">To do</p>
+    <ol style="margin:0 0 20px;padding-left:18px;font-size:14px;line-height:1.7;color:#cfc8b8;">
+      ${steps.map((step) => `<li>${escapeEmailHtml(step)}</li>`).join("")}
+    </ol>
+    <a href="${escapeEmailHtml(adminUrl)}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
+      Review &amp; send invoice
+    </a>
+  `,
+    "Internal notification · The Curtain Guy admin"
+  );
+
+  await sendResendEmail({
+    apiKey: input.apiKey,
+    from: invoiceEmailFrom(),
+    to: [getEstimateNotifyTo()],
+    subject,
+    text,
+    html,
+    copyOutbound: false,
+    logLabel: "invoices",
+  });
 }

@@ -124,20 +124,27 @@ export function EstimateBuilder({
     const raw = readEstimatePrefillFromEventBuilder();
     if (!raw) return;
     clearEstimatePrefillFromEventBuilder();
+    // sessionStorage is browser-only, so the event-builder hand-off can only be read after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormData((prev) =>
       mergeEstimatePrefill(prev, raw as Partial<EstimateFormData>)
     );
   }, []);
 
-  useEffect(() => {
-    if (!embedded || !defaultContact) return;
+  const contactKey =
+    embedded && defaultContact
+      ? `${defaultContact.name}|${defaultContact.email}|${defaultContact.phone}`
+      : "";
+  const [appliedContactKey, setAppliedContactKey] = useState("");
+  if (contactKey && contactKey !== appliedContactKey && defaultContact) {
+    setAppliedContactKey(contactKey);
     setFormData((prev) => ({
       ...prev,
       name: defaultContact.name || prev.name,
       email: defaultContact.email || prev.email,
       phone: defaultContact.phone || prev.phone,
     }));
-  }, [embedded, defaultContact]);
+  }
 
   const step = steps[currentStep];
   const isFirstStep = currentStep === 0;

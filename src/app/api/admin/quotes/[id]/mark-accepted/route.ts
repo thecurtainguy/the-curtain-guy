@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import {
   isCustomerLanguage,
@@ -7,8 +7,11 @@ import {
 } from "@/data/customer-language";
 import { canMarkQuoteAccepted } from "@/data/quotes";
 import { getResendApiKey } from "@/lib/env";
+import { notifyDraftInvoiceReady } from "@/lib/invoice-email";
+import { ensureDraftInvoiceAfterExecution } from "@/lib/invoices";
 import { sendJobConfirmedEmail } from "@/lib/job-email";
 import { createJobFromQuote, getAdminJob } from "@/lib/jobs";
+import { finalizeAcceptedRevision } from "@/lib/quote-revisions";
 import { fetchQuoteById, logQuoteEvent } from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -127,6 +130,10 @@ export async function POST(request: Request, context: RouteContext) {
         .update({ preferred_language: agreedLanguage })
         .eq("id", quote.customer_id);
     }
+    await finalizeAcceptedRevision({
+      quote,
+      actor: { type: "owner", userId: owner.user.id, email: owner.profile.email },
+    });
   }
 
   let jobId: string | null = null;
@@ -157,12 +164,28 @@ export async function POST(request: Request, context: RouteContext) {
     }
   }
 
+  const invoice = jobId
+    ? await ensureDraftInvoiceAfterExecution({ quoteId, ownerUserId: owner.user.id })
+    : null;
+  if (invoice?.created) {
+    after(() =>
+      notifyDraftInvoiceReady({
+        invoiceId: invoice.invoiceId,
+        quoteRef: quote.quote_display_ref,
+        trigger: "marked_accepted",
+      })
+    );
+  }
+
   return NextResponse.json({
     ok: true,
     jobId,
     emailSent,
+    invoice,
     message: jobId
-      ? "Quote marked accepted and job created."
+      ? invoice?.created
+        ? `Quote marked accepted, job created, and draft invoice ${invoice.invoiceNumber} ready to review.`
+        : "Quote marked accepted and job created."
       : "Quote marked accepted.",
   });
 }

@@ -21,6 +21,8 @@ export type QuoteCopy = {
   declinedRecorded: string;
   declinedBy: string;
   declinedNext: string;
+  supersededTitle: string;
+  supersededBody: string;
   expiredEyebrow: string;
   expiredTitle: string;
   expiredBody: (date: string) => string;
@@ -197,6 +199,9 @@ const en: QuoteCopy = {
   declinedRecorded: "We’ve recorded your response",
   declinedBy: "declined by",
   declinedNext: ". Reach out anytime if you’d like to revisit the plan.",
+  supersededTitle: "This version has been replaced",
+  supersededBody:
+    "A newer version of this proposal replaces this one. Please review and respond to the latest version we sent you.",
   expiredEyebrow: "Proposal expired",
   expiredTitle: "This proposal needs a quick refresh",
   expiredBody: (date) =>
@@ -382,6 +387,9 @@ const fr: QuoteCopy = {
   declinedBy: "refusée par",
   declinedNext:
     ". Écrivez-nous en tout temps si vous souhaitez revoir le projet.",
+  supersededTitle: "Cette version a été remplacée",
+  supersededBody:
+    "Une version plus récente remplace cette soumission. Veuillez consulter la dernière version que nous vous avons envoyée et y répondre.",
   expiredEyebrow: "Soumission expirée",
   expiredTitle: "Cette soumission doit être actualisée",
   expiredBody: (date) =>

@@ -10,6 +10,14 @@ import {
 import { CUSTOMER_LANGUAGE_LABELS } from "@/data/customer-language";
 import type { CustomerContactOption } from "@/data/customers";
 import { RecipientInput, splitRecipientEmails } from "@/components/admin/recipient-input";
+import { ReminderTimelineList } from "@/components/admin/admin-invoice-reminder-parts";
+import {
+  initialReminderDraft,
+  InvoiceSendReminders,
+  reminderDraftPayload,
+  useSendReminderPlan,
+  type ReminderDraft,
+} from "@/components/admin/admin-invoice-send-reminders";
 import { formatMoneyFromCents } from "@/data/quotes";
 import { Dialog } from "@/components/ui/dialog";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
@@ -46,9 +54,18 @@ export function AdminInvoiceSendDialog({
   const [to, setTo] = useState(invoice.customer_email ?? "");
   const [cc, setCc] = useState(defaultCc.join(", "));
   const [bcc, setBcc] = useState(DEFAULT_BCC);
-  const [subject, setSubject] = useState(t.emailSubject(invoice.invoice_number, tradeName));
+  const replaces = invoice.replaces_invoice_number;
+  const [subject, setSubject] = useState(
+    replaces
+      ? t.revisedSubject(invoice.invoice_number, replaces, tradeName)
+      : t.emailSubject(invoice.invoice_number, tradeName)
+  );
   const [bodyText, setBodyText] = useState(
-    [t.emailGreeting(invoice.customer_name?.trim() || null), "", t.emailBody].join("\n")
+    [
+      t.emailGreeting(invoice.customer_name?.trim() || null),
+      "",
+      replaces ? t.revisedBody(replaces) : t.emailBody,
+    ].join("\n")
   );
   const [attachPdf, setAttachPdf] = useState(true);
   const [sending, setSending] = useState(false);
@@ -56,6 +73,8 @@ export function AdminInvoiceSendDialog({
   const [mode, setMode] = useState<"write" | "preview">("write");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [reminders, setReminders] = useState<ReminderDraft>(() => initialReminderDraft(invoice));
+  const reminderPlan = useSendReminderPlan(invoice, reminders);
 
   async function fetchPreview(): Promise<Preview | null> {
     const response = await fetch(`/api/admin/invoices/${invoice.id}/email-preview`, {
@@ -97,13 +116,26 @@ export function AdminInvoiceSendDialog({
   }
 
   async function send() {
+    if (reminders.enabled && reminders.custom && splitRecipientEmails(reminders.to).length === 0) {
+      setMode("write");
+      setError("Add at least one reminder recipient, or switch reminders back to the people on this email.");
+      return;
+    }
     setSending(true);
     setError(null);
     try {
       const response = await fetch(`/api/admin/invoices/${invoice.id}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, cc, bcc, subject, bodyText, attachPdf }),
+        body: JSON.stringify({
+          to,
+          cc,
+          bcc,
+          subject,
+          bodyText,
+          attachPdf,
+          reminders: reminderDraftPayload(reminders),
+        }),
       });
       const json = (await response.json()) as {
         ok?: boolean;
@@ -268,47 +300,69 @@ export function AdminInvoiceSendDialog({
                   Attach {invoice.invoice_number}.pdf (with payment page)
                 </span>
               </label>
+              <InvoiceSendReminders
+                invoice={invoice}
+                contacts={contacts}
+                emailTo={toList}
+                emailCc={ccList}
+                draft={reminders}
+                onChange={(patch) => setReminders((prev) => ({ ...prev, ...patch }))}
+              />
             </>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/30">
-              <dl className="grid gap-x-3 gap-y-1 border-b border-border/40 px-4 py-3 text-xs sm:grid-cols-[80px_minmax(0,1fr)]">
-                {[
-                  ["From", preview?.from ?? "…"],
-                  ["Reply-to", preview?.replyTo ?? "…"],
-                  ["To", toList.join(", ") || "—"],
-                  ...(ccList.length ? [["Cc", ccList.join(", ")]] : []),
-                  ...(bccList.length ? [["Bcc", bccList.join(", ")]] : []),
-                  ["Subject", subject],
-                ].map(([label, value]) => (
-                  <div key={label} className="contents">
-                    <dt className="text-muted-foreground">{label}</dt>
-                    <dd className="break-words font-medium">{value}</dd>
+            <>
+              <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/30">
+                <dl className="grid gap-x-3 gap-y-1 border-b border-border/40 px-4 py-3 text-xs sm:grid-cols-[80px_minmax(0,1fr)]">
+                  {[
+                    ["From", preview?.from ?? "…"],
+                    ["Reply-to", preview?.replyTo ?? "…"],
+                    ["To", toList.join(", ") || "—"],
+                    ...(ccList.length ? [["Cc", ccList.join(", ")]] : []),
+                    ...(bccList.length ? [["Bcc", bccList.join(", ")]] : []),
+                    ["Subject", subject],
+                  ].map(([label, value]) => (
+                    <div key={label} className="contents">
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="break-words font-medium">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {preview?.attachment ? (
+                  <div className="flex items-center gap-2 border-b border-border/40 px-4 py-2 text-xs">
+                    <FileText className="size-3.5 text-primary" />
+                    {preview.attachment}
+                    <span className="text-muted-foreground">· same PDF as the Download button</span>
                   </div>
-                ))}
-              </dl>
-              {preview?.attachment ? (
-                <div className="flex items-center gap-2 border-b border-border/40 px-4 py-2 text-xs">
-                  <FileText className="size-3.5 text-primary" />
-                  {preview.attachment}
-                  <span className="text-muted-foreground">· same PDF as the Download button</span>
+                ) : null}
+                <div className="relative bg-[#0b0d12]">
+                  {previewLoading || !preview ? (
+                    <div className="flex h-[420px] items-center justify-center text-sm text-muted-foreground">
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                      Building preview…
+                    </div>
+                  ) : (
+                    <iframe
+                      title="Invoice email preview"
+                      srcDoc={preview.html}
+                      sandbox=""
+                      className="h-[420px] w-full border-0"
+                    />
+                  )}
                 </div>
-              ) : null}
-              <div className="relative bg-[#0b0d12]">
-                {previewLoading || !preview ? (
-                  <div className="flex h-[420px] items-center justify-center text-sm text-muted-foreground">
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                    Building preview…
-                  </div>
-                ) : (
-                  <iframe
-                    title="Invoice email preview"
-                    srcDoc={preview.html}
-                    sandbox=""
-                    className="h-[420px] w-full border-0"
-                  />
-                )}
               </div>
-            </div>
+              {reminderPlan.due ? (
+                <section className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                    Then, if it isn’t paid · automatic reminders{reminders.enabled ? "" : " (off)"}
+                  </p>
+                  <ReminderTimelineList
+                    timeline={reminderPlan.timeline}
+                    due={reminderPlan.due}
+                    enabled={reminders.enabled}
+                  />
+                </section>
+              ) : null}
+            </>
           )}
 
           {error ? (

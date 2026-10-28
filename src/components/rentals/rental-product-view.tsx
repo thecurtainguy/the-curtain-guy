@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Package } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -89,9 +89,11 @@ export function RentalProductView({
 
   const galleryKey = gallery.map((row) => `${row.id}:${row.image_url}`).join("|");
 
-  useEffect(() => {
+  const [indexGalleryKey, setIndexGalleryKey] = useState(galleryKey);
+  if (indexGalleryKey !== galleryKey) {
+    setIndexGalleryKey(galleryKey);
     setActiveIndex(0);
-  }, [galleryKey]);
+  }
 
   const hero = gallery[Math.min(activeIndex, Math.max(gallery.length - 1, 0))];
 

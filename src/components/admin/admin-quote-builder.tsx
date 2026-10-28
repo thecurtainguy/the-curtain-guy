@@ -14,6 +14,7 @@ import {
   FileText,
   Languages,
   Loader2,
+  Lock,
   Package,
   Pencil,
   Plus,
@@ -42,6 +43,7 @@ import {
   formatMoneyFromCents,
   formatQuoteRevisionLabel,
   getQuoteCategoryDefaultDescription,
+  isQuoteLocked,
   isZeroPricedQuoteLine,
   normalizeManualTaxLines,
   formatQuoteUnitSuffix,
@@ -386,6 +388,7 @@ export function AdminQuoteBuilder({
     [quote.events, fileActivity]
   );
   const booked = quote.status === "accepted";
+  const locked = isQuoteLocked(quote.status);
   const timeline = [
     { label: "Sent", at: quote.sent_at, by: null },
     { label: "Viewed", at: quote.viewed_at, by: null },
@@ -477,13 +480,13 @@ export function AdminQuoteBuilder({
     setManualTaxLines(manualTaxLinesFromQuote(source));
   }
 
-  useEffect(() => {
-    if (!isEditing) {
-      resetFromQuote(quote);
-    }
-    // Sync when server quote refreshes while viewing
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when quote identity/content updates outside edit
-  }, [quote.id, quote.updated_at, isEditing]);
+  // Sync when the server quote refreshes while viewing (never mid-edit).
+  const quoteSyncKey = `${quote.id}|${quote.updated_at}|${isEditing}`;
+  const [syncedQuoteKey, setSyncedQuoteKey] = useState(quoteSyncKey);
+  if (syncedQuoteKey !== quoteSyncKey) {
+    setSyncedQuoteKey(quoteSyncKey);
+    if (!isEditing) resetFromQuote(quote);
+  }
 
   const draftManualLines = useMemo(
     () => toStoredManualTaxLines(manualTaxLines),
@@ -1043,16 +1046,45 @@ export function AdminQuoteBuilder({
                     <Eye className="size-4" />
                     Preview as customer
                   </Button>
-                  <Button type="button" onClick={startEditing}>
-                    <Pencil className="size-4" />
-                    Edit
-                  </Button>
+                  {locked ? (
+                    <Button
+                      type="button"
+                      onClick={() => void createRevision()}
+                      disabled={revising || quote.status === "superseded"}
+                    >
+                      {revising ? <Loader2 className="size-4 animate-spin" /> : <FilePlus2 className="size-4" />}
+                      Create revision
+                    </Button>
+                  ) : (
+                    <Button type="button" onClick={startEditing}>
+                      <Pencil className="size-4" />
+                      Edit
+                    </Button>
+                  )}
                 </>
               )}
             </div>
           </div>
         }
       />
+
+      {locked ? (
+        <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/30 bg-primary/[0.08] px-4 py-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <Lock className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+              {quote.status === "superseded" ? "Replaced" : "Accepted · locked"}
+            </p>
+            <p className="mt-0.5 text-sm text-foreground">
+              {quote.status === "superseded"
+                ? "A later revision replaced this version. It stays on file with its signature, if any."
+                : "The signed agreement must match this quote, so it can't be edited. Create a revision — once the customer signs it, it replaces this version and the job moves over."}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       {sourceEventPlan && eventPlanRef ? (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/[0.08] px-4 py-3">
@@ -2154,16 +2186,16 @@ export function AdminQuoteBuilder({
           <h2 className="font-heading text-lg font-semibold">Actions</h2>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {booked ? <Fragment key="booking">{bookingActions}</Fragment> : null}
-            <Button
-              type="button"
-              variant={booked ? "outline" : "default"}
-              size={booked ? "sm" : "default"}
-              className="col-span-2"
-              onClick={() => void sendQuote()}
-            >
-              <Send className="size-4" />
-              Send quote
-            </Button>
+            {locked ? null : (
+              <Button
+                type="button"
+                className="col-span-2"
+                onClick={() => void sendQuote()}
+              >
+                <Send className="size-4" />
+                Send quote
+              </Button>
+            )}
             {booked ? null : <Fragment key="booking">{bookingActions}</Fragment>}
             <Button type="button" variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
               <Eye className="size-4" />
@@ -2196,7 +2228,7 @@ export function AdminQuoteBuilder({
               variant="ghost"
               size="sm"
               onClick={() => void createRevision()}
-              disabled={revising}
+              disabled={revising || quote.status === "superseded"}
             >
               {revising ? <Loader2 className="size-4 animate-spin" /> : <FilePlus2 className="size-4" />}
               Create revision

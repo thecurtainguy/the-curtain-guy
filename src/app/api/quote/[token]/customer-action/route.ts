@@ -92,7 +92,8 @@ export async function POST(request: Request, context: RouteContext) {
   if (
     quote.status === "accepted" ||
     quote.status === "declined" ||
-    quote.status === "cancelled"
+    quote.status === "cancelled" ||
+    quote.status === "superseded"
   ) {
     return NextResponse.json(
       { ok: false, message: "This proposal is no longer available." },

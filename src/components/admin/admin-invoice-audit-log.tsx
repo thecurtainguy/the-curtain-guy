@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   Banknote,
+  BellRing,
   ChevronDown,
+  Mail,
   Eye,
   FilePlus2,
   Link2,
@@ -36,7 +38,16 @@ const FILTERS: Array<{ id: FilterId; label: string }> = [
 function eventGroup(type: string): Exclude<FilterId, "all"> {
   if (type === "invoice_edited" || type === "synced_from_job" || type === "invoice_created" || type === "invoice_deleted") return "edits";
   if (type.includes("payment") || type.includes("refund") || type === "marked_unpaid") return "money";
-  if (type === "invoice_sent" || type === "invoice_viewed" || type === "pdf_downloaded" || type === "link_issued") return "client";
+  if (
+    type === "invoice_sent" ||
+    type === "invoice_viewed" ||
+    type === "pdf_downloaded" ||
+    type === "link_issued" ||
+    type === "reminder_sent" ||
+    type === "receipt_sent"
+  ) {
+    return "client";
+  }
   return "status";
 }
 
@@ -48,6 +59,8 @@ function eventIcon(type: string): LucideIcon {
   if (type === "invoice_sent") return Send;
   if (type === "invoice_viewed" || type === "pdf_downloaded") return Eye;
   if (type === "link_issued") return Link2;
+  if (type === "reminder_sent" || type === "reminder_settings_changed" || type === "reminders_paused") return BellRing;
+  if (type === "receipt_sent") return Mail;
   if (eventGroup(type) === "money") return Banknote;
   return ShieldCheck;
 }

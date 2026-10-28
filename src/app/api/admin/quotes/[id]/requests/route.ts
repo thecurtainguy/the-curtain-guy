@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import {
+  isQuoteLocked,
   isValidQuoteLineCategorySlug,
+  QUOTE_LOCKED_MESSAGE,
   type QuoteRequestStatus,
   normalizeUnitPriceCents,
 } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
-import { reviewCustomerRequest } from "@/lib/quotes";
+import { fetchQuoteById, reviewCustomerRequest } from "@/lib/quotes";
 
 export const runtime = "nodejs";
 
@@ -88,6 +90,13 @@ export async function POST(request: Request, context: RouteContext) {
       quantity: Number(convert.quantity) || 1,
       unit_price_cents: normalizeUnitPriceCents(convert.unit_price_cents),
     };
+  }
+
+  if (convertToLineItem) {
+    const quote = await fetchQuoteById(quoteId);
+    if (quote && isQuoteLocked(quote.status)) {
+      return NextResponse.json({ ok: false, message: QUOTE_LOCKED_MESSAGE }, { status: 409 });
+    }
   }
 
   const result = await reviewCustomerRequest({

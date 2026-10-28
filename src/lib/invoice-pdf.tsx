@@ -40,11 +40,14 @@ import {
 } from "@/data/invoices";
 import {
   formatMoneyFromCents,
+  formatQuoteFilenameStem,
   formatQuoteQuantity,
   formatQuoteUnitPrice,
   quoteLineCategoryLabel,
 } from "@/data/quotes";
 import { formatQuoteDate, quoteEventTypeLabel } from "@/data/quote-copy";
+import { quoteScheduleRows, type QuoteSchedule } from "@/data/quote-schedule";
+import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 /** Methods with more fields than this span the full page width in a 3-column grid. */
 const WIDE_METHOD_FIELDS = 5;
@@ -284,6 +287,45 @@ const styles = StyleSheet.create({
     padding: 9,
     backgroundColor: COLORS.cream,
   },
+  agreementStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 6,
+    backgroundColor: COLORS.goldWash,
+    borderWidth: 1,
+    borderColor: "#e2d4b0",
+  },
+  agreementLabel: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: COLORS.goldDeep,
+  },
+  agreementText: { flex: 1, fontSize: 8, color: COLORS.ink },
+  notesBody: { fontSize: 8, color: COLORS.ink, lineHeight: 1.35 },
+  termsBlock: { marginTop: 12 },
+  termsHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+    borderBottomWidth: 0.75,
+    borderBottomColor: COLORS.gold,
+    paddingBottom: 4,
+    marginBottom: 6,
+  },
+  termsTitle: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    letterSpacing: 1.3,
+    textTransform: "uppercase",
+    color: COLORS.ink,
+  },
+  termsContinued: { fontSize: 7, fontFamily: "Helvetica-Oblique", color: COLORS.muted },
   termRow: { flexDirection: "row", gap: 6, marginBottom: 3 },
   termIndex: { width: 11, fontSize: 7.5, fontFamily: "Helvetica-Bold", color: COLORS.goldDeep },
   termText: { flex: 1, fontSize: 7.5, lineHeight: 1.3, color: COLORS.muted },
@@ -360,6 +402,27 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Reports whether a page comes after the first page a breakable section was laid out on. */
+function createContinuationTracker() {
+  let firstPage = Number.POSITIVE_INFINITY;
+  return (pageNumber: number) => {
+    firstPage = Math.min(firstPage, pageNumber);
+    return pageNumber > firstPage;
+  };
+}
+
+/** Quote lines marked "included" arrive on the invoice at $0. */
+function isIncludedLine(line: { unit_price_cents: number; line_total_cents: number }): boolean {
+  return line.unit_price_cents === 0 && line.line_total_cents === 0;
+}
+
+export type InvoiceAgreementRef = {
+  number: string;
+  acceptedAt: string | null;
+  /** Client-side signer, "Name (Title)" when the title was given. */
+  acceptedBy?: string | null;
+};
+
 function stampStyle(status: string) {
   if (status === "paid") return { color: "#9fe0a9", borderColor: "#9fe0a9" };
   if (status === "void" || status === "overdue") return { color: "#f2a3a3", borderColor: "#f2a3a3" };
@@ -373,12 +436,18 @@ function InvoicePdfDocument({
   generatedAt,
   extraPages,
   appendedPages = 0,
+  agreement = null,
+  eventSchedule = null,
 }: {
   invoice: CustomerSafeInvoice;
   settings: BusinessSettings;
   publicUrl?: string | null;
   generatedAt: string;
   extraPages?: ReactNode;
+  /** The signed agreement this invoice bills, when it came from a quote. */
+  agreement?: InvoiceAgreementRef | null;
+  /** Event / install / teardown timing from the booked job (or its quote). */
+  eventSchedule?: QuoteSchedule | null;
   /** Pages merged after rendering (PDF attachments, payment document), counted in "Page X of Y". */
   appendedPages?: number;
 }) {
@@ -393,6 +462,15 @@ function InvoicePdfDocument({
   const addressLines = businessAddressLines(settings);
   const methods = visiblePaymentMethods(settings.payment_methods, language, invoice.currency);
   const terms = splitInvoiceTerms(invoice.terms);
+  const isTermsContinuation = createContinuationTracker();
+  // "23 h 49" must not split across lines in the narrow event panel.
+  const keepTimes = (window: string | null) =>
+    window?.split(" – ").map((part) => part.replace(/ /g, "\u00a0")).join(" – ") ?? null;
+  const scheduleRows = (eventSchedule ? quoteScheduleRows(eventSchedule, language) : []).map((row) => ({
+    ...row,
+    window: keepTimes(row.window),
+  }));
+  const eventWindow = scheduleRows.find((row) => row.key === "event")?.window ?? null;
   const footerText = businessText(settings, "invoice_footer", language);
   const payTitle = businessText(settings, "payment_page_title", language);
   const payIntro = businessText(settings, "payment_page_intro", language);
@@ -518,7 +596,19 @@ function InvoicePdfDocument({
                 value={quoteEventTypeLabel(invoice.event_type, language) || invoice.event_type}
               />
             ) : null}
-            <Meta label={t.eventDate} value={date(invoice.event_date)} />
+            <Meta
+              label={t.eventDate}
+              value={[date(invoice.event_date), eventWindow].filter(Boolean).join("\n")}
+            />
+            {scheduleRows
+              .filter((row) => row.key !== "event")
+              .map((row) => (
+                <Meta
+                  key={row.key}
+                  label={row.label}
+                  value={[row.date ? date(row.date) : null, row.window].filter(Boolean).join("\n") || "—"}
+                />
+              ))}
             <Meta
               label={t.venue}
               value={[invoice.venue_name, invoice.venue_address].filter(Boolean).join("\n") || "—"}
@@ -535,6 +625,19 @@ function InvoicePdfDocument({
             ) : null}
           </View>
         </View>
+
+        {agreement ? (
+          <View style={styles.agreementStrip} wrap={false}>
+            <Text style={styles.agreementLabel}>{t.agreement}</Text>
+            <Text style={styles.agreementText}>
+              {t.agreementRef(
+                agreement.number,
+                agreement.acceptedAt ? date(agreement.acceptedAt) : null,
+                agreement.acceptedBy ?? null
+              )}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.tableHeader}>
           <View style={styles.colThumb} />
@@ -579,11 +682,15 @@ function InvoicePdfDocument({
             </View>
             <View style={styles.colUnit}>
               <Text style={[styles.body, styles.right]}>
-                {formatQuoteUnitPrice(line.unit_price_cents, line.unit_label, language, invoice.currency)}
+                {isIncludedLine(line)
+                  ? "—"
+                  : formatQuoteUnitPrice(line.unit_price_cents, line.unit_label, language, invoice.currency)}
               </Text>
             </View>
             <View style={styles.colTotal}>
-              <Text style={[styles.body, styles.right]}>{money(line.line_total_cents)}</Text>
+              <Text style={[styles.body, styles.right]}>
+                {isIncludedLine(line) ? t.included : money(line.line_total_cents)}
+              </Text>
             </View>
           </View>
         ))}
@@ -662,17 +769,29 @@ function InvoicePdfDocument({
         ) : null}
 
         {invoice.notes ? (
-          <View style={styles.card} wrap={false}>
-            <Text style={styles.sectionTitle}>{t.notes}</Text>
-            <Text style={styles.body}>{invoice.notes}</Text>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle} minPresenceAhead={40}>
+              {t.notes}
+            </Text>
+            <Text style={styles.notesBody} orphans={3} widows={3}>
+              {invoice.notes}
+            </Text>
           </View>
         ) : null}
 
         {terms.length > 0 ? (
-          <View style={[styles.card, { backgroundColor: COLORS.white }]} wrap={false}>
-            <Text style={styles.sectionTitle}>{t.terms}</Text>
+          <View style={styles.termsBlock}>
+            <View style={styles.termsHeader} fixed minPresenceAhead={40}>
+              <Text style={styles.termsTitle}>{t.termsTitle}</Text>
+              <Text
+                style={styles.termsContinued}
+                render={({ pageNumber }) =>
+                  isTermsContinuation(pageNumber) ? `(${t.continued})` : ""
+                }
+              />
+            </View>
             {terms.map((line, index) => (
-              <View key={`${index}-${line.slice(0, 12)}`} style={styles.termRow}>
+              <View key={`${index}-${line.slice(0, 12)}`} style={styles.termRow} wrap={false}>
                 <Text style={styles.termIndex}>{index + 1}.</Text>
                 <Text style={styles.termText}>{line}</Text>
               </View>
@@ -787,12 +906,15 @@ export async function renderInvoicePdfBuffer(input: {
     ? [...attachments.pdfs, paymentDocument]
     : attachments.pdfs;
   const appendedPages = appendedPageCount(trailingPdfs);
+  const context = await loadInvoiceContext(input.invoice);
   const buffer = await renderToBuffer(
     <InvoicePdfDocument
       invoice={{ ...input.invoice, line_items: lineItems }}
       settings={input.settings}
       publicUrl={input.publicUrl}
       generatedAt={generatedAt}
+      agreement={context.agreement}
+      eventSchedule={context.eventSchedule}
       extraPages={renderAttachmentPages({
         attachments,
         language: input.invoice.language,
@@ -803,6 +925,69 @@ export async function renderInvoicePdfBuffer(input: {
     />
   );
   return appendPdfAttachments(Buffer.from(buffer), trailingPdfs, input.invoice.language);
+}
+
+const SCHEDULE_COLUMNS =
+  "event_date, event_start_time, event_end_time, install_date, install_start_time, install_end_time, teardown_date, teardown_start_time, teardown_end_time";
+
+/** Calendar date of a timestamp in Montréal, so late-evening signatures keep their local day. */
+function torontoDate(timestamp: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+/** The accepted agreement behind the invoice, and the booked schedule (job first, then quote). */
+async function loadInvoiceContext(
+  invoice: Pick<CustomerSafeInvoice, "quote_id" | "job_id">
+): Promise<{ agreement: InvoiceAgreementRef | null; eventSchedule: QuoteSchedule | null }> {
+  const admin = createAdminSupabaseClient();
+  const [quoteResult, jobResult] = await Promise.all([
+    invoice.quote_id
+      ? admin
+          .from("quotes")
+          .select(`opportunity_ref, revision_number, status, accepted_at, accepted_by_name, ${SCHEDULE_COLUMNS}`)
+          .eq("id", invoice.quote_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    invoice.job_id
+      ? admin.from("event_jobs").select(SCHEDULE_COLUMNS).eq("id", invoice.job_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const quote = quoteResult.data as
+    | (QuoteSchedule & {
+        opportunity_ref: string;
+        revision_number: number;
+        status: string;
+        accepted_at: string | null;
+        accepted_by_name: string | null;
+      })
+    | null;
+  const job = jobResult.data as QuoteSchedule | null;
+  if (!quote || quote.status !== "accepted") return { agreement: null, eventSchedule: job ?? quote ?? null };
+
+  const { data: signature } = await admin
+    .from("quote_signatures")
+    .select("signer_name, signer_title")
+    .eq("quote_id", invoice.quote_id as string)
+    .in("status", ["signed", "countersigned"])
+    .order("signed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const signer = signature as { signer_name: string | null; signer_title: string | null } | null;
+  const name = signer?.signer_name?.trim() || quote.accepted_by_name?.trim() || null;
+  const title = signer?.signer_name?.trim() ? signer.signer_title?.trim() || null : null;
+  return {
+    agreement: {
+      number: formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number),
+      acceptedAt: quote.accepted_at ? torontoDate(quote.accepted_at) : null,
+      acceptedBy: name ? (title ? `${name} (${title})` : name) : null,
+    },
+    eventSchedule: job ?? quote ?? null,
+  };
 }
 
 /** The payment document (void cheque) appended after the invoice, when active and readable. */

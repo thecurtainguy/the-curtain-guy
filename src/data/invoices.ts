@@ -9,25 +9,54 @@ import {
   type QuoteTaxMode,
 } from "@/data/quotes";
 
+// Mirrors the signed Agreement's payment, late-payment, charges and language articles; it must not add obligations the Agreement lacks.
 export const DEFAULT_INVOICE_TERMS = [
-  "This invoice is issued under the accepted proposal for the event and should be read together with that proposal and its approved revisions.",
-  "The event date, inventory, and crew are secured only after written booking confirmation and receipt of the required deposit.",
-  "The deposit is applied to the invoice total. The remaining balance is payable by the due date shown on this invoice.",
-  "Please include the invoice number with every payment. Payment is considered received once the funds have been successfully processed or cleared.",
-  "Cancellation, rescheduling, scope changes, additional labour, and damage charges are governed by the accepted proposal and any subsequent written approvals.",
-  "Rental items remain the property of The Curtain Guy and must remain accessible and available for teardown at the agreed time.",
+  "Where this invoice relates to a signed agreement (identified by the quote number shown), it is a document related to that agreement and is governed by it; if they differ, the signed agreement prevails.",
+  "Amounts are payable in the currency shown, in the amounts and by the due dates set out in the payment schedule on this invoice. The deposit is credited in full against the total price.",
+  "The event date, rental inventory and crew are reserved only once the agreement is formed and the deposit has been received.",
+  "Late payment: any amount not paid when due bears interest from its due date until paid at the rate of 2% per month, compounded monthly (26.82% per year). After written notice requiring payment within a reasonable period, The Curtain Guy may suspend delivery, installation or any further work until payment is received, as provided in the agreement.",
+  "Please include the invoice number as the payment reference. A payment is considered received once the funds have cleared or been successfully processed.",
+  "Approved changes, additional labour, waiting time, cleaning beyond normal use, and the repair or replacement of lost or damaged rental items are charged as provided in the agreement, on a separate or adjusted invoice with supporting details.",
+  "Rental items remain the property of The Curtain Guy and must remain at the venue and accessible for teardown at the scheduled time.",
+  "This invoice is available in French and English. The version in the language that binds the agreement prevails.",
   "Please report questions or payment discrepancies promptly to info@thecurtainguy.com or 514-963-3193.",
 ].join("\n");
 
 export const DEFAULT_INVOICE_TERMS_FR = [
-  "La présente facture est émise conformément à la soumission acceptée pour l’événement et doit être lue avec cette soumission et ses révisions approuvées.",
-  "La date de l’événement, l’inventaire et l’équipe sont réservés uniquement après la confirmation écrite de la réservation et la réception du dépôt exigé.",
-  "Le dépôt est appliqué au total de la facture. Le solde est payable au plus tard à la date d’échéance indiquée sur cette facture.",
-  "Veuillez indiquer le numéro de facture avec chaque paiement. Le paiement est considéré comme reçu lorsque les fonds ont été traités ou compensés avec succès.",
-  "Les annulations, reports, modifications de la portée, heures de travail additionnelles et frais pour dommages sont régis par la soumission acceptée et toute approbation écrite ultérieure.",
-  "Les articles loués demeurent la propriété de The Curtain Guy et doivent rester accessibles et disponibles pour le démontage à l’heure convenue.",
+  "Lorsque la présente facture se rapporte à un contrat signé (désigné par le numéro de soumission indiqué), elle constitue un document relatif à ce contrat et est régie par celui-ci; en cas de divergence, le contrat signé prévaut.",
+  "Les sommes sont payables dans la devise indiquée, selon les montants et aux dates d’échéance prévus au calendrier de paiement de la présente facture. Le dépôt est entièrement crédité sur le prix total.",
+  "La date de l’événement, l’inventaire de location et l’équipe ne sont réservés qu’une fois le contrat formé et le dépôt reçu.",
+  "Retard de paiement : toute somme impayée à son échéance porte intérêt à compter de cette date jusqu’à parfait paiement au taux de 2 % par mois, composé mensuellement (26,82 % par année). Après un avis écrit exigeant le paiement dans un délai raisonnable, The Curtain Guy peut suspendre la livraison, l’installation ou tout autre travail jusqu’à réception du paiement, conformément au contrat.",
+  "Veuillez indiquer le numéro de facture comme référence de paiement. Un paiement est considéré comme reçu lorsque les fonds ont été compensés ou traités avec succès.",
+  "Les modifications approuvées, les heures de travail additionnelles, le temps d’attente, le nettoyage au-delà de l’usage normal ainsi que la réparation ou le remplacement d’articles loués perdus ou endommagés sont facturés conformément au contrat, sur une facture distincte ou ajustée accompagnée des pièces justificatives.",
+  "Les articles loués demeurent la propriété de The Curtain Guy et doivent demeurer sur les lieux et accessibles pour le démontage à l’heure prévue.",
+  "La présente facture est offerte en français et en anglais. La version dans la langue qui lie les parties au contrat prévaut.",
   "Veuillez signaler rapidement toute question ou divergence de paiement à info@thecurtainguy.com ou au 514-963-3193.",
 ].join("\n");
+
+/** Earlier default terms as EN/FR pairs, so invoices issued with them still switch language. */
+export const LEGACY_INVOICE_TERMS: ReadonlyArray<{ en: string; fr: string }> = [
+  {
+    en: [
+      "This invoice is issued under the accepted proposal for the event and should be read together with that proposal and its approved revisions.",
+      "The event date, inventory, and crew are secured only after written booking confirmation and receipt of the required deposit.",
+      "The deposit is applied to the invoice total. The remaining balance is payable by the due date shown on this invoice.",
+      "Please include the invoice number with every payment. Payment is considered received once the funds have been successfully processed or cleared.",
+      "Cancellation, rescheduling, scope changes, additional labour, and damage charges are governed by the accepted proposal and any subsequent written approvals.",
+      "Rental items remain the property of The Curtain Guy and must remain accessible and available for teardown at the agreed time.",
+      "Please report questions or payment discrepancies promptly to info@thecurtainguy.com or 514-963-3193.",
+    ].join("\n"),
+    fr: [
+      "La présente facture est émise conformément à la soumission acceptée pour l’événement et doit être lue avec cette soumission et ses révisions approuvées.",
+      "La date de l’événement, l’inventaire et l’équipe sont réservés uniquement après la confirmation écrite de la réservation et la réception du dépôt exigé.",
+      "Le dépôt est appliqué au total de la facture. Le solde est payable au plus tard à la date d’échéance indiquée sur cette facture.",
+      "Veuillez indiquer le numéro de facture avec chaque paiement. Le paiement est considéré comme reçu lorsque les fonds ont été traités ou compensés avec succès.",
+      "Les annulations, reports, modifications de la portée, heures de travail additionnelles et frais pour dommages sont régis par la soumission acceptée et toute approbation écrite ultérieure.",
+      "Les articles loués demeurent la propriété de The Curtain Guy et doivent rester accessibles et disponibles pour le démontage à l’heure convenue.",
+      "Veuillez signaler rapidement toute question ou divergence de paiement à info@thecurtainguy.com ou au 514-963-3193.",
+    ].join("\n"),
+  },
+];
 
 export const DEFAULT_INVOICE_FOOTER =
   "Thank you for choosing The Curtain Guy.";
@@ -251,7 +280,24 @@ export type InvoiceRow = {
   balance_due_cents: number;
   notes: string | null;
   terms: string | null;
+  /** notes / terms in the language other than `language`. */
+  notes_translated?: string | null;
+  terms_translated?: string | null;
   internal_notes: string | null;
+  /** 0 for the original; n for INV-xxxxx-Rn. */
+  revision_number?: number;
+  replaces_invoice_id?: string | null;
+  replaced_by_invoice_id?: string | null;
+  replaced_at?: string | null;
+  /** Automatic payment reminders to the customer. */
+  reminders_enabled?: boolean;
+  /** Reminder recipients; null = whoever received the latest invoice email. */
+  reminder_to?: string[] | null;
+  reminder_cc?: string[] | null;
+  /** Enabled automatic steps (see `REMINDER_STEPS`). */
+  reminder_stages?: string[] | null;
+  /** Keep emailing weekly from 21 days late until paid. */
+  reminder_repeat_weekly?: boolean;
   public_token_hash: string | null;
   public_token_expires_at: string | null;
   sent_at: string | null;
@@ -338,6 +384,9 @@ export function readInvoiceFieldChanges(metadata: Record<string, unknown> | null
 }
 
 export type InvoiceWithRelations = InvoiceRow & {
+  /** Numbers of the linked invoices in a revision chain. */
+  replaces_invoice_number?: string | null;
+  replaced_by_invoice_number?: string | null;
   line_items: InvoiceLineItemRow[];
   payments: InvoicePaymentRow[];
   events?: InvoiceEventRow[];
@@ -352,7 +401,14 @@ export type CustomerSafeInvoice = Omit<
   | "view_count"
   | "viewed_at"
   | "last_viewed_at"
+  | "reminders_enabled"
+  | "reminder_to"
+  | "reminder_cc"
+  | "reminder_stages"
+  | "reminder_repeat_weekly"
 > & {
+  replaces_invoice_number?: string | null;
+  replaced_by_invoice_number?: string | null;
   line_items: InvoiceLineItemRow[];
   payments: Array<
     Pick<InvoicePaymentRow, "id" | "kind" | "amount_cents" | "paid_on" | "method">
@@ -381,6 +437,31 @@ export function isPaymentKind(value: unknown): value is PaymentKind {
 }
 
 /** `TCG-10030` → `INV-10030`; later invoices on the same job get `-1`, `-2`… */
+/** Once issued, an invoice is a record: corrections go through a revision that replaces it. */
+export function isInvoiceLocked(status: InvoiceStatus): boolean {
+  return status !== "draft";
+}
+
+/** Clerical fields that stay editable on an issued invoice (every edit is logged). */
+export const INVOICE_CLERICAL_FIELDS = [
+  "internal_notes",
+  "po_number",
+  "billing_address",
+  "customer_name",
+  "company_name",
+  "customer_email",
+  "customer_phone",
+] as const;
+
+export const INVOICE_LOCKED_MESSAGE =
+  "This invoice has been issued and is locked. Use “Revise invoice” to correct it — the revision replaces it when sent.";
+
+/** "INV-10043" → "INV-10043-R1"; revisions of a revision keep the original root. */
+export function formatInvoiceRevisionNumber(invoiceNumber: string, revision: number): string {
+  const root = invoiceNumber.replace(/-R\d+$/i, "");
+  return revision > 0 ? `${root}-R${revision}` : root;
+}
+
 export function formatInvoiceNumber(
   prefix: string,
   opportunityRef: string,
@@ -792,6 +873,13 @@ export const INVOICE_COPY = {
     payments: "Payments received",
     notes: "Notes",
     terms: "Terms",
+    termsTitle: "Terms and conditions",
+    continued: "continued",
+    included: "Included",
+    agreement: "Agreement",
+    agreementRef: (ref: string, date: string | null, by: string | null = null) =>
+      `Issued under agreement ${ref}${date || by ? ", accepted" : ""}${by ? ` by ${by}` : ""}${date ? `${by ? " on" : ""} ${date}` : ""}.`,
+    eventSchedule: "Schedule",
     gst: "GST #",
     qst: "QST #",
     neq: "NEQ",
@@ -815,6 +903,37 @@ export const INVOICE_COPY = {
       "Thank you for booking with us. Your invoice is attached as a PDF and available online at the link below. Payment options are listed on the second page of the invoice.",
     emailButton: "View invoice",
     emailHeadline: "Your invoice is ready",
+    revisedSubject: (number: string, replaces: string, business: string) =>
+      `Updated invoice ${number} (replaces ${replaces}) · ${business}`,
+    revisedHeadline: "Your updated invoice",
+    revisedBody: (replaces: string) =>
+      `Here is your updated invoice. It replaces invoice ${replaces}, which no longer needs to be paid. Any payment you already made has been applied to this invoice, and your previous link now opens this version.`,
+    replacesNotice: (replaces: string) =>
+      `This updated invoice replaces ${replaces}. Payments already received are applied here.`,
+    receiptSubject: (number: string, business: string) => `Payment received — invoice ${number} · ${business}`,
+    receiptHeadline: "Payment received — thank you",
+    receiptBody: "We received your payment. Here are the details for your records.",
+    refundSubject: (number: string, business: string) => `Refund issued — invoice ${number} · ${business}`,
+    refundHeadline: "Refund issued",
+    refundBody: "We issued a refund on your invoice. Here are the details for your records.",
+    receiptAmount: "Amount",
+    receiptMethod: "Method",
+    receiptDate: "Date",
+    receiptReference: "Reference",
+    receiptRemaining: "Remaining balance",
+    receiptPaidInFull: "Your invoice is now paid in full.",
+    reminderWhat: { deposit: "deposit", balance: "balance" },
+    reminderUpcomingSubject: (what: string, date: string, number: string) =>
+      `Reminder: ${what} due ${date} — invoice ${number}`,
+    reminderUpcomingHeadline: "A friendly reminder",
+    reminderUpcomingBody: (what: string, amount: string, date: string) =>
+      `Just a friendly reminder that the ${what} of ${amount} on your invoice is due on ${date}. If you’ve already sent it, thank you — please disregard this message.`,
+    reminderOverdueSubject: (number: string) => `Payment overdue — invoice ${number}`,
+    reminderOverdueHeadline: "Payment past due",
+    reminderOverdueBody: (what: string, amount: string, date: string) =>
+      `Our records show the ${what} of ${amount} on your invoice was due on ${date} and hasn’t been received yet. If you’ve already paid, thank you — please disregard this message, or reply with the payment details so we can match it.`,
+    reminderInterest: "As set out in your agreement, late payment interest may apply to overdue amounts.",
+    reminderArrangement: "If you’d like to discuss a payment arrangement, just reply to this email.",
   },
   fr: {
     invoice: "Facture",
@@ -847,6 +966,13 @@ export const INVOICE_COPY = {
     payments: "Paiements reçus",
     notes: "Notes",
     terms: "Conditions",
+    termsTitle: "Modalités et conditions",
+    continued: "suite",
+    included: "Inclus",
+    agreement: "Entente",
+    agreementRef: (ref: string, date: string | null, by: string | null = null) =>
+      `Émise en vertu de l'entente ${ref}${date || by ? ", acceptée" : ""}${by ? ` par ${by}` : ""}${date ? ` le ${date}` : ""}.`,
+    eventSchedule: "Horaire",
     gst: "N° TPS",
     qst: "N° TVQ",
     neq: "NEQ",
@@ -870,6 +996,38 @@ export const INVOICE_COPY = {
       "Merci d'avoir réservé avec nous. Votre facture est jointe en PDF et disponible en ligne au lien ci-dessous. Les modes de paiement figurent à la deuxième page de la facture.",
     emailButton: "Voir la facture",
     emailHeadline: "Votre facture est prête",
+    revisedSubject: (number: string, replaces: string, business: string) =>
+      `Facture mise à jour ${number} (remplace ${replaces}) · ${business}`,
+    revisedHeadline: "Votre facture mise à jour",
+    revisedBody: (replaces: string) =>
+      `Voici votre facture mise à jour. Elle remplace la facture ${replaces}, qui n'est plus à payer. Tout paiement déjà effectué a été appliqué à cette facture, et votre lien précédent ouvre maintenant cette version.`,
+    replacesNotice: (replaces: string) =>
+      `Cette facture mise à jour remplace ${replaces}. Les paiements déjà reçus y sont appliqués.`,
+    receiptSubject: (number: string, business: string) => `Paiement reçu — facture ${number} · ${business}`,
+    receiptHeadline: "Paiement reçu — merci",
+    receiptBody: "Nous avons bien reçu votre paiement. Voici les détails pour vos dossiers.",
+    refundSubject: (number: string, business: string) => `Remboursement émis — facture ${number} · ${business}`,
+    refundHeadline: "Remboursement émis",
+    refundBody: "Nous avons émis un remboursement sur votre facture. Voici les détails pour vos dossiers.",
+    receiptAmount: "Montant",
+    receiptMethod: "Mode de paiement",
+    receiptDate: "Date",
+    receiptReference: "Référence",
+    receiptRemaining: "Solde restant",
+    receiptPaidInFull: "Votre facture est maintenant payée en totalité.",
+    reminderWhat: { deposit: "dépôt", balance: "solde" },
+    reminderUpcomingSubject: (what: string, date: string, number: string) =>
+      `Rappel : ${what} payable le ${date} — facture ${number}`,
+    reminderUpcomingHeadline: "Petit rappel amical",
+    reminderUpcomingBody: (what: string, amount: string, date: string) =>
+      `Petit rappel amical : le ${what} de ${amount} sur votre facture est payable le ${date}. Si vous l'avez déjà envoyé, merci — veuillez ignorer ce message.`,
+    reminderOverdueSubject: (number: string) => `Paiement en retard — facture ${number}`,
+    reminderOverdueHeadline: "Paiement en souffrance",
+    reminderOverdueBody: (what: string, amount: string, date: string) =>
+      `Selon nos dossiers, le ${what} de ${amount} sur votre facture était payable le ${date} et n'a pas encore été reçu. Si vous avez déjà payé, merci — veuillez ignorer ce message ou nous répondre avec les détails du paiement afin que nous puissions le retracer.`,
+    reminderInterest:
+      "Conformément à votre entente, des intérêts de retard peuvent s'appliquer aux montants en souffrance.",
+    reminderArrangement: "Si vous souhaitez discuter d'une entente de paiement, répondez simplement à ce courriel.",
   },
 } as const;
 

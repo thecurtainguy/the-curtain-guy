@@ -324,7 +324,7 @@ export function QuoteProposalView({
     return keys;
   }, [quote.requests, extraPendingKeys]);
 
-  const isFinal = status === "accepted" || status === "declined";
+  const isFinal = status === "accepted" || status === "declined" || status === "superseded";
   const canAct =
     !isFinal &&
     status !== "cancelled" &&
@@ -645,6 +645,20 @@ export function QuoteProposalView({
                 ) : null}
                 {t.declinedNext}
               </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {status === "superseded" ? (
+        <div className="rounded-2xl border border-primary/30 bg-primary/10 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <RefreshCw className="mt-0.5 size-5 shrink-0 text-primary" />
+            <div>
+              <p className="font-heading text-lg font-semibold text-foreground">
+                {t.supersededTitle}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">{t.supersededBody}</p>
             </div>
           </div>
         </div>

@@ -3,13 +3,15 @@ import {
   DEFAULT_GST_RATE,
   DEFAULT_QST_RATE,
   isQuoteLineStatus,
+  isQuoteLocked,
   isValidQuoteLineCategorySlug,
   isQuoteTaxMode,
   normalizeManualTaxLines,
   normalizeUnitPriceCents,
+  QUOTE_LOCKED_MESSAGE,
 } from "@/data/quotes";
 import { requireOwner } from "@/lib/auth";
-import { upsertLineItems, type LineItemInput } from "@/lib/quotes";
+import { fetchQuoteById, upsertLineItems, type LineItemInput } from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -28,6 +30,13 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
+  const quote = await fetchQuoteById(id);
+  if (!quote) {
+    return NextResponse.json({ ok: false, message: "Quote not found." }, { status: 404 });
+  }
+  if (isQuoteLocked(quote.status)) {
+    return NextResponse.json({ ok: false, message: QUOTE_LOCKED_MESSAGE }, { status: 409 });
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

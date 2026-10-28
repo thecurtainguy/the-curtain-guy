@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
+import { supersedeOtherRevisions } from "@/lib/quote-revisions";
 import { fetchQuoteById, logQuoteEvent } from "@/lib/quotes";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
@@ -76,6 +77,11 @@ export async function POST(request: Request, context: RouteContext) {
     eventType: "quote_sent",
     summary: `Sent ${CHANNEL_LABELS[channel]} outside the system (recorded by owner)${note ? ` — ${note}` : ""}`,
     metadata: { channel, recorded_by_owner: true, note: note || null },
+  });
+  await supersedeOtherRevisions({
+    quote,
+    trigger: "sent",
+    actor: { type: "owner", userId: owner.user.id, email: owner.profile.email },
   });
 
   return NextResponse.json({ ok: true, message: "Quote marked as sent." });

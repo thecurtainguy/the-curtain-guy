@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { isPaymentKind } from "@/data/invoices";
 import { requireOwner } from "@/lib/auth";
+import { sendPaymentReceipt } from "@/lib/invoice-notices";
 import {
   addInvoicePayment,
   clearInvoicePayments,
@@ -35,6 +36,8 @@ export async function POST(request: Request, context: RouteContext) {
     method?: string;
     reference?: string;
     note?: string;
+    /** Email the client a receipt (default on). */
+    send_receipt?: boolean;
   };
 
   const invoice = await fetchInvoiceById(id);
@@ -76,8 +79,13 @@ export async function POST(request: Request, context: RouteContext) {
   if ("error" in result) {
     return NextResponse.json({ ok: false, message: result.error }, { status: 400 });
   }
+  const receiptTo = body.send_receipt !== false ? invoice.customer_email?.trim() || null : null;
+  if (receiptTo) {
+    after(() => sendPaymentReceipt({ invoiceId: id, paymentId: result.paymentId, actorUserId: owner.user.id }));
+  }
   return NextResponse.json({
     ok: true,
+    receiptTo,
     invoice: await fetchInvoiceById(id, { includeEvents: true }),
   });
 }

@@ -53,10 +53,8 @@ export function PageTransition({ children }: PageTransitionProps) {
   const duration = reduced || simpleMotion || isHome ? 0.2 : config.duration;
 
   useEffect(() => {
-    if (reduced || simpleMotion || isHome) {
-      setSettledPath(pathname);
-      return;
-    }
+    // These modes already render as settled (see className below).
+    if (reduced || simpleMotion || isHome) return;
 
     const timeout = window.setTimeout(
       () => setSettledPath((current) => current ?? pathname),

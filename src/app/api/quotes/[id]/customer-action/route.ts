@@ -90,7 +90,8 @@ export async function POST(request: Request, context: RouteContext) {
     quote.status === "draft" ||
     quote.status === "accepted" ||
     quote.status === "declined" ||
-    quote.status === "cancelled"
+    quote.status === "cancelled" ||
+    quote.status === "superseded"
   ) {
     return NextResponse.json(
       { ok: false, message: "This quote is not available for customer action." },

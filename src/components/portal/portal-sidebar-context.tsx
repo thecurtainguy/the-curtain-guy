@@ -4,9 +4,8 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
+  useSyncExternalStore,
 } from "react";
 
 type PortalSidebarContextValue = {
@@ -22,13 +21,27 @@ const PortalSidebarContext = createContext<PortalSidebarContextValue | null>(
   null
 );
 
+/** Fallback when localStorage is unavailable (private mode), so toggling still works this session. */
+const memoryCollapsed = new Map<string, boolean>();
+const collapsedListeners = new Set<() => void>();
+
+function subscribeCollapsed(listener: () => void) {
+  collapsedListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    collapsedListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
 function readStoredCollapsed(storageKey: string): boolean {
-  if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem(storageKey) === "true";
+    const stored = window.localStorage.getItem(storageKey);
+    if (stored !== null) return stored === "true";
   } catch {
-    return false;
+    /* fall through to memory */
   }
+  return memoryCollapsed.get(storageKey) ?? false;
 }
 
 export function PortalSidebarProvider({
@@ -41,22 +54,22 @@ export function PortalSidebarProvider({
   forceExpanded?: boolean;
   children: React.ReactNode;
 }) {
-  const [collapsed, setCollapsedState] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setCollapsedState(readStoredCollapsed(storageKey));
-    setHydrated(true);
-  }, [storageKey]);
+  // Server and hydration render expanded; the stored preference applies right after.
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    () => readStoredCollapsed(storageKey),
+    () => false
+  );
 
   const setCollapsed = useCallback(
     (next: boolean) => {
-      setCollapsedState(next);
+      memoryCollapsed.set(storageKey, next);
       try {
         window.localStorage.setItem(storageKey, next ? "true" : "false");
       } catch {
         /* ignore quota / private mode */
       }
+      collapsedListeners.forEach((listener) => listener());
     },
     [storageKey]
   );
@@ -67,12 +80,12 @@ export function PortalSidebarProvider({
 
   const value = useMemo<PortalSidebarContextValue>(
     () => ({
-      collapsed: hydrated ? collapsed : false,
-      isRail: forceExpanded ? false : hydrated ? collapsed : false,
+      collapsed,
+      isRail: forceExpanded ? false : collapsed,
       toggleCollapsed,
       setCollapsed,
     }),
-    [collapsed, forceExpanded, hydrated, setCollapsed, toggleCollapsed]
+    [collapsed, forceExpanded, setCollapsed, toggleCollapsed]
   );
 
   return (

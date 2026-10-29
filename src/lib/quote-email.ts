@@ -34,6 +34,7 @@ import {
   quotePdfAttachmentName,
   quoteUrlInLanguage,
 } from "@/lib/quote-email-compose";
+import { withLinkChannel } from "@/data/link-channel";
 import { withOwnerCopySource } from "@/lib/document-views";
 import { recordEmailMessage } from "@/lib/email-tracking";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
@@ -154,7 +155,7 @@ export async function sendQuoteReadyEmail(input: {
     bcc,
     replyTo: getEstimateNotifyTo(),
     subject,
-    ...buildParts(publicQuoteUrl),
+    ...buildParts(withLinkChannel(publicQuoteUrl, "email")),
     attachments: attachments.length > 0 ? attachments : undefined,
     copyOutbound: compose?.copyOutbound,
     logLabel: "quotes",
@@ -298,6 +299,7 @@ export async function buildQuoteAcceptedCustomerEmail(input: QuoteAcceptedEmailI
   attachments?: ResendEmailAttachment[];
 } | null> {
   const { proposalUrl, acceptedByName } = input;
+  const emailUrl = withLinkChannel(proposalUrl, "email");
   const language =
     input.language ?? normalizeCustomerLanguage(input.quote.agreed_language ?? input.quote.language);
   const quote = await localizeQuote(input.quote, language);
@@ -394,7 +396,7 @@ export async function buildQuoteAcceptedCustomerEmail(input: QuoteAcceptedEmailI
     c.nextTitle,
     nextStep,
     "",
-    `${c.button}: ${proposalUrl}`,
+    `${c.button}: ${emailUrl}`,
     attachments.length ? c.pdfNote(pdfFilename) : "",
     c.questions,
   ]
@@ -435,7 +437,7 @@ export async function buildQuoteAcceptedCustomerEmail(input: QuoteAcceptedEmailI
     ${paymentHtml}
     <p style="margin:22px 0 6px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#d4af37;">${escapeEmailHtml(c.nextTitle)}</p>
     <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#cfc8b8;">${escapeEmailHtml(nextStep)}</p>
-    <a href="${escapeEmailHtml(proposalUrl)}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">${escapeEmailHtml(c.button)}</a>
+    <a href="${escapeEmailHtml(emailUrl)}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">${escapeEmailHtml(c.button)}</a>
     <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#8b909a;">
       ${attachments.length ? `${escapeEmailHtml(c.pdfNote(pdfFilename))}<br/>` : ""}${escapeEmailHtml(c.questions)}
     </p>`,

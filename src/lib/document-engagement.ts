@@ -1,6 +1,7 @@
 import {
   listDocumentViews,
   type DocumentTarget,
+  type DocumentViewChannel,
   type DocumentViewKind,
   type DocumentViewSource,
 } from "@/lib/document-views";
@@ -16,6 +17,8 @@ export type EngagementActivity = {
   id: string;
   kind: EngagementActivityKind;
   source: DocumentViewSource;
+  /** Which link brought them; null before channel tracking. */
+  channel: DocumentViewChannel | null;
   at: string;
   activeSeconds: number;
   device: string | null;
@@ -61,6 +64,8 @@ export type DocumentEngagement = {
   emails: EngagementEmail[];
   ownerCopies: number;
   trackingConfigured: boolean;
+  /** Customer reads and PDF downloads per channel, most used first. */
+  channels: Array<{ channel: DocumentViewChannel; count: number }>;
   activity: EngagementActivity[];
 };
 
@@ -87,6 +92,7 @@ async function listLegacyActivity(target: DocumentTarget): Promise<EngagementAct
     id: `legacy-${event.id as string}`,
     kind: event.event_type === "pdf_downloaded" ? "legacy_pdf" : "legacy_open",
     source: event.actor_type === "customer" ? "account" : "public_link",
+    channel: null,
     at: event.created_at as string,
     activeSeconds: 0,
     device: null,
@@ -122,6 +128,7 @@ export async function getDocumentEngagement(target: DocumentTarget): Promise<Doc
         id: row.id,
         kind: row.kind,
         source: row.source,
+        channel: row.channel,
         at: row.created_at,
         activeSeconds: row.active_seconds,
         device: row.device,
@@ -134,6 +141,12 @@ export async function getDocumentEngagement(target: DocumentTarget): Promise<Doc
     })
     .reverse()
     .concat(legacy);
+
+  const channelCounts = new Map<DocumentViewChannel, number>();
+  for (const row of rows) {
+    const customer = (row.kind === "view" || row.kind === "pdf") && !row.is_bot && !isOwnerSource(row.source);
+    if (customer && row.channel) channelCounts.set(row.channel, (channelCounts.get(row.channel) ?? 0) + 1);
+  }
 
   return {
     views: customerViews.length,
@@ -167,6 +180,9 @@ export async function getDocumentEngagement(target: DocumentTarget): Promise<Doc
       })),
     ownerCopies: messages.filter((message) => message.audience === "owner_copy").length,
     trackingConfigured: isEmailTrackingConfigured(),
+    channels: [...channelCounts]
+      .map(([channel, count]) => ({ channel, count }))
+      .sort((a, b) => b.count - a.count),
     activity,
   };
 }

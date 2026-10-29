@@ -33,6 +33,7 @@ import {
   quoteEventTypeLabel,
 } from "@/data/quote-copy";
 import { formatTimeWindow, quoteScheduleRows } from "@/data/quote-schedule";
+import { withLinkChannel } from "@/data/link-channel";
 import { QUOTE_PAYMENT_COPY, quotePaymentRows } from "@/data/quote-payment-terms";
 import { siteConfig } from "@/data/site";
 import { getLocalizedDocumentTexts } from "@/lib/document-texts";
@@ -660,7 +661,7 @@ function QuotePdfDocument({
           <Text style={styles.actionsTitle}>{p.respondTitle}</Text>
           <View style={styles.actionsRow}>
             {proposalUrl ? (
-              <Link src={proposalUrl} style={[styles.actionBtn, styles.actionBtnPrimary]}>
+              <Link src={withLinkChannel(proposalUrl, "pdf")} style={[styles.actionBtn, styles.actionBtnPrimary]}>
                 <IconLink />
                 <Text style={styles.actionLabelOnDark}>{p.openProposal}</Text>
               </Link>

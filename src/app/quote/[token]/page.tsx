@@ -22,6 +22,7 @@ import {
   toCustomerSafeQuote,
 } from "@/lib/quotes";
 import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
+import { LINK_CHANNEL_PARAM, linkChannelFrom } from "@/data/link-channel";
 import {
   isOwnerCopySource,
   OWNER_COPY_PARAM,
@@ -34,7 +35,11 @@ const getQuoteForToken = cache(fetchQuoteByPublicToken);
 
 type PageProps = {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ lang?: string | string[]; src?: string | string[] }>;
+  searchParams: Promise<{
+    lang?: string | string[];
+    src?: string | string[];
+    via?: string | string[];
+  }>;
 };
 
 export async function generateMetadata({
@@ -57,15 +62,17 @@ export default async function PublicQuotePage({
   searchParams,
 }: PageProps) {
   const { token } = await params;
-  const { lang, src } = await searchParams;
+  const { lang, src, via } = await searchParams;
   const quote = await getQuoteForToken(token);
   if (!quote) notFound();
 
   const ownerCopy = isOwnerCopySource(src);
+  const channel = linkChannelFrom(via);
   const { viewId } = await recordDocumentOpen({
     target: { quoteId: quote.id },
     source: "public_link",
     ownerCopy,
+    via: channel,
   });
   const studioSummary = await fetchStudioDesignSummaryForQuote(quote);
 
@@ -84,6 +91,7 @@ export default async function PublicQuotePage({
   const pdfParams = new URLSearchParams();
   if (language !== quoteLanguage) pdfParams.set("lang", language);
   if (ownerCopy) pdfParams.set(OWNER_COPY_PARAM, OWNER_COPY_VALUE);
+  if (channel) pdfParams.set(LINK_CHANNEL_PARAM, channel);
   const pdfUrl = `/api/quote/${token}/pdf${pdfParams.size ? `?${pdfParams}` : ""}`;
 
   const attachments = await listAttachmentViewItems(

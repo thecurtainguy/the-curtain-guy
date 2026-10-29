@@ -10,6 +10,7 @@ import {
   logInvoiceClientAccess,
   toCustomerSafeInvoice,
 } from "@/lib/invoices";
+import { LINK_CHANNEL_PARAM } from "@/data/link-channel";
 import { isOwnerCopySource, OWNER_COPY_PARAM, recordDocumentOpen } from "@/lib/document-views";
 
 export const runtime = "nodejs";
@@ -35,6 +36,7 @@ export async function GET(request: Request, context: RouteContext) {
     source: "public_link",
     ownerCopy: isOwnerCopySource(searchParams.get(OWNER_COPY_PARAM)),
     pdf: true,
+    via: searchParams.get(LINK_CHANNEL_PARAM),
   });
   if (!owner) {
     await logInvoiceClientAccess({

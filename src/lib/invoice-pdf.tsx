@@ -38,6 +38,7 @@ import {
   type BusinessSettings,
   type CustomerSafeInvoice,
 } from "@/data/invoices";
+import { withLinkChannel } from "@/data/link-channel";
 import {
   formatMoneyFromCents,
   formatQuoteFilenameStem,
@@ -863,7 +864,7 @@ function InvoicePdfDocument({
                 {settings.email} · {settings.phone} · {settings.website}
               </Text>
               {publicUrl ? (
-                <Link src={publicUrl} style={styles.onlineLink}>
+                <Link src={withLinkChannel(publicUrl, "pdf")} style={styles.onlineLink}>
                   {t.viewOnline}
                 </Link>
               ) : null}

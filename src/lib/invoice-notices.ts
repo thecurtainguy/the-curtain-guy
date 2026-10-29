@@ -33,6 +33,7 @@ import { formatMoneyFromCents } from "@/data/quotes";
 import { formatQuoteDate } from "@/data/quote-copy";
 import { getBusinessSettings } from "@/lib/business-settings";
 import { recordEmailMessage } from "@/lib/email-tracking";
+import { withLinkChannel } from "@/data/link-channel";
 import { withOwnerCopySource } from "@/lib/document-views";
 import { getEstimateNotifyTo, getOutboundEmailCopyTo, getResendApiKey, getSiteUrl } from "@/lib/env";
 import {
@@ -158,7 +159,7 @@ async function sendCustomerNotice(input: {
     cc: cc.length ? cc : undefined,
     replyTo: invoiceReplyTo(input.settings),
     subject: input.subject,
-    ...parts(input.publicUrl),
+    ...parts(withLinkChannel(input.publicUrl, "email")),
     copyOutbound: false,
     logLabel: "invoices",
   });

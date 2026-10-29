@@ -7,6 +7,7 @@ import { isCustomerLanguage, type CustomerLanguage } from "@/data/customer-langu
 import { otherCustomerLanguage } from "@/data/quotes";
 import { getBusinessSettings } from "@/lib/business-settings";
 import { DocumentViewBeacon } from "@/components/documents/document-view-beacon";
+import { LINK_CHANNEL_PARAM, linkChannelFrom } from "@/data/link-channel";
 import {
   isOwnerCopySource,
   OWNER_COPY_PARAM,
@@ -19,7 +20,11 @@ const getInvoiceForToken = cache(fetchInvoiceByPublicToken);
 
 type PageProps = {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ lang?: string | string[]; src?: string | string[] }>;
+  searchParams: Promise<{
+    lang?: string | string[];
+    src?: string | string[];
+    via?: string | string[];
+  }>;
 };
 
 /** `?lang=` shows the same invoice in the other language. */
@@ -42,25 +47,29 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
   const invoice = await getInvoiceForToken(token);
   if (!invoice) notFound();
 
-  const { lang, src } = await searchParams;
+  const { lang, src, via } = await searchParams;
   const language = viewLanguage(invoice.language, lang);
   const ownerCopy = isOwnerCopySource(src);
+  const channel = linkChannelFrom(via);
   const { viewId } = await recordDocumentOpen({
     target: { invoiceId: invoice.id },
     source: "public_link",
     ownerCopy,
+    via: channel,
   });
   const settings = await getBusinessSettings();
 
   const pdfParams = new URLSearchParams();
   if (language !== invoice.language) pdfParams.set("lang", language);
   if (ownerCopy) pdfParams.set(OWNER_COPY_PARAM, OWNER_COPY_VALUE);
+  if (channel) pdfParams.set(LINK_CHANNEL_PARAM, channel);
   const pdfQuery = pdfParams.toString();
 
   const other = otherCustomerLanguage(language);
   const otherParams = new URLSearchParams();
   if (other !== invoice.language) otherParams.set("lang", other);
   if (ownerCopy) otherParams.set(OWNER_COPY_PARAM, OWNER_COPY_VALUE);
+  if (channel) otherParams.set(LINK_CHANNEL_PARAM, channel);
   const otherQuery = otherParams.toString();
 
   return (

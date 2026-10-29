@@ -11,6 +11,7 @@ import { formatMoneyFromCents } from "@/data/quotes";
 import { formatQuoteDate } from "@/data/quote-copy";
 import { getEstimateNotifyTo, getQuoteFrom, getResendApiKey, getSiteUrl } from "@/lib/env";
 import { getLocalizedDocumentText } from "@/lib/document-texts";
+import { withLinkChannel } from "@/data/link-channel";
 import { withOwnerCopySource } from "@/lib/document-views";
 import { recordEmailMessage } from "@/lib/email-tracking";
 import { invoicePdfFilename, renderInvoicePdfBuffer } from "@/lib/invoice-pdf";
@@ -301,7 +302,7 @@ export async function sendInvoiceEmail(input: {
     bcc,
     replyTo: invoiceReplyTo(settings),
     subject,
-    ...buildParts(input.publicUrl),
+    ...buildParts(withLinkChannel(input.publicUrl, "email")),
     attachments: attachments.length ? attachments : undefined,
     copyOutbound: false,
     logLabel: "invoices",

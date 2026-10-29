@@ -9,8 +9,11 @@ import {
   Clock,
   Download,
   Eye,
+  FileText,
   History,
+  LayoutDashboard,
   Laptop,
+  Link2,
   Mail,
   MapPin,
   ShieldCheck,
@@ -24,6 +27,7 @@ import type {
   EngagementActivity,
   EngagementEmail,
 } from "@/lib/document-engagement";
+import type { DocumentViewChannel } from "@/lib/document-views";
 import { cn } from "@/lib/utils";
 
 const ACTIVITY_PREVIEW = 3;
@@ -112,6 +116,26 @@ function emailChips(email: EngagementEmail, trackingConfigured: boolean): Array<
 
 const DEVICE_LABEL: Record<string, string> = { mobile: "Phone", tablet: "Tablet", desktop: "Computer" };
 
+const CHANNEL_META: Record<DocumentViewChannel, { label: string; short: string; icon: LucideIcon }> = {
+  email: { label: "From the email", short: "Email", icon: Mail },
+  pdf: { label: "From the PDF", short: "PDF", icon: FileText },
+  portal: { label: "Customer portal", short: "Portal", icon: LayoutDashboard },
+  direct: { label: "Direct or shared link", short: "Direct", icon: Link2 },
+};
+
+function ChannelTag({ item }: { item: EngagementActivity }) {
+  if (item.source === "owner_copy" || item.source === "admin_session") return null;
+  const channel = item.channel ?? (item.source === "account" ? "portal" : null);
+  if (!channel) return null;
+  const { label, icon: Icon } = CHANNEL_META[channel];
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Icon className="size-3" />
+      {label}
+    </span>
+  );
+}
+
 function DeviceIcon({ device }: { device: string | null }) {
   const Icon = device === "mobile" ? Smartphone : device === "tablet" ? Tablet : Laptop;
   return <Icon className="size-3.5" />;
@@ -157,7 +181,13 @@ function groupActivity(items: EngagementActivity[]): EngagementActivity[][] {
     const key =
       item.kind === "view"
         ? null
-        : [describeActivity(item).title, deviceLabel(item), item.location ?? "", item.source ?? ""].join("|");
+        : [
+            describeActivity(item).title,
+            deviceLabel(item),
+            item.location ?? "",
+            item.source ?? "",
+            item.channel ?? "",
+          ].join("|");
     if (key !== null && key === lastKey) {
       groups[groups.length - 1].push(item);
     } else {
@@ -211,7 +241,7 @@ function ActivityRow({ items }: { items: EngagementActivity[] }) {
               {item.location}
             </span>
           ) : null}
-          {item.source === "account" ? <span>Portal</span> : null}
+          <ChannelTag item={item} />
           {item.kind === "legacy_open" || item.kind === "legacy_pdf" ? (
             <span>Unverified: could be a scanner or your own copy</span>
           ) : null}
@@ -288,6 +318,32 @@ export function DocumentEngagementCard({
           <StatTile icon={Clock} label="Read time" value={formatDuration(engagement.activeSeconds)} />
           <StatTile icon={Download} label="PDF" value={String(engagement.pdfDownloads)} />
         </div>
+
+        {engagement.channels.length > 0 ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Link2 className="size-3.5 text-primary" />
+              <h3 className="text-[10px] font-medium uppercase tracking-[0.18em] text-primary">Opened from</h3>
+            </div>
+            <ul className="grid grid-cols-2 gap-2">
+              {engagement.channels.map(({ channel, count }) => {
+                const { short, icon: Icon } = CHANNEL_META[channel];
+                return (
+                  <li
+                    key={channel}
+                    className="flex items-center gap-2 rounded-xl border border-border/30 bg-background/40 px-3 py-2"
+                  >
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="size-3" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-foreground">{short}</span>
+                    <span className="font-heading text-sm font-semibold tabular-nums text-foreground">{count}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
 
         {engagement.emails.length > 0 ? (
           <div className="space-y-2">

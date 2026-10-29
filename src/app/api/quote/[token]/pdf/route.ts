@@ -3,6 +3,7 @@ import { formatQuoteFilenameStem, quoteViewLanguage } from "@/data/quotes";
 import { getSiteUrl } from "@/lib/env";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
+import { LINK_CHANNEL_PARAM } from "@/data/link-channel";
 import { isOwnerCopySource, OWNER_COPY_PARAM, recordDocumentOpen } from "@/lib/document-views";
 import {
   fetchQuoteByPublicToken,
@@ -28,7 +29,8 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   const publicUrl = buildPublicQuoteUrl(getSiteUrl(), token);
-  const lang = new URL(request.url).searchParams.get("lang");
+  const searchParams = new URL(request.url).searchParams;
+  const lang = searchParams.get("lang");
   const language = quoteViewLanguage(quote, lang);
   const safe = toCustomerSafeQuote(await localizeQuote(quote, language), {
     shareUrl: publicUrl,
@@ -42,8 +44,9 @@ export async function GET(request: Request, context: RouteContext) {
   const { owner } = await recordDocumentOpen({
     target: { quoteId: quote.id },
     source: "public_link",
-    ownerCopy: isOwnerCopySource(new URL(request.url).searchParams.get(OWNER_COPY_PARAM)),
+    ownerCopy: isOwnerCopySource(searchParams.get(OWNER_COPY_PARAM)),
     pdf: true,
+    via: searchParams.get(LINK_CHANNEL_PARAM),
   });
   if (!owner) {
     await logQuoteEvent({

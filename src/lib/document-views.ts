@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { linkChannelFrom } from "@/data/link-channel";
 import { requireOwner } from "@/lib/auth";
 import { logInvoiceClientAccess, markInvoiceViewed } from "@/lib/invoices";
 import { markQuoteViewed } from "@/lib/quotes";
@@ -8,6 +9,7 @@ export type DocumentTarget = { quoteId: string } | { invoiceId: string };
 
 export type DocumentViewKind = "link_hit" | "view" | "owner" | "pdf";
 export type DocumentViewSource = "public_link" | "account" | "owner_copy" | "admin_session";
+export type DocumentViewChannel = "email" | "pdf" | "portal" | "direct";
 
 export type DocumentViewRow = {
   id: string;
@@ -24,6 +26,8 @@ export type DocumentViewRow = {
   region: string | null;
   country: string | null;
   is_bot: boolean;
+  /** Null for rows logged before channel tracking. */
+  channel: DocumentViewChannel | null;
   active_seconds: number;
   created_at: string;
   confirmed_at: string | null;
@@ -43,7 +47,6 @@ export function withOwnerCopySource(url: string): string {
 export function isOwnerCopySource(value: string | string[] | undefined | null): boolean {
   return (Array.isArray(value) ? value[0] : value) === OWNER_COPY_VALUE;
 }
-
 const BOT_USER_AGENT =
   /bot|crawl|spider|slurp|preview|headless|phantom|python|curl|wget|httpclient|okhttp|java\/|go-http|libwww|axios|node-fetch|scan|safelinks|proofpoint|mimecast|barracuda|ironport|symantec|forcepoint|trendmicro|fireeye|ms-office|microsoft office|googleimageproxy|yahoomailproxy/i;
 
@@ -119,6 +122,8 @@ export async function recordDocumentOpen(input: {
   source: "public_link" | "account";
   ownerCopy?: boolean;
   pdf?: boolean;
+  /** Value of `?via=`; missing means portal for account pages, direct otherwise. */
+  via?: string | string[] | null;
 }): Promise<{ viewId: string | null; owner: boolean }> {
   const requestHeaders = await headers();
   const userAgent = requestHeaders.get("user-agent");
@@ -129,6 +134,8 @@ export async function recordDocumentOpen(input: {
     : owner
       ? "admin_session"
       : input.source;
+  const channel: DocumentViewChannel =
+    linkChannelFrom(input.via) ?? (input.source === "account" ? "portal" : "direct");
 
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
@@ -137,6 +144,7 @@ export async function recordDocumentOpen(input: {
       ...targetColumns(input.target),
       kind,
       source,
+      channel,
       user_agent: userAgent?.slice(0, 500) ?? null,
       ...describeUserAgent(userAgent),
       city: headerText(requestHeaders.get("x-vercel-ip-city")),

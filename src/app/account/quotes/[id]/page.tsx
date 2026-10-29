@@ -63,9 +63,10 @@ const STUDIO_COPY = {
 
 type PageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ via?: string | string[] }>;
 };
 
-export default async function AccountQuoteDetailPage({ params }: PageProps) {
+export default async function AccountQuoteDetailPage({ params, searchParams }: PageProps) {
   const current = await requireAccountPage();
   const verified = isEmailVerified(current.user);
   const { id } = await params;
@@ -83,6 +84,7 @@ export default async function AccountQuoteDetailPage({ params }: PageProps) {
   const { viewId } = await recordDocumentOpen({
     target: { quoteId: quote.id },
     source: "account",
+    via: (await searchParams).via,
   });
 
   const language = normalizeCustomerLanguage(quote.language);

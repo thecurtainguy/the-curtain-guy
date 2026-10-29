@@ -56,6 +56,8 @@ type ComposeBody = {
   attachPdf?: boolean;
   opportunityFileIds?: string[];
   uploads?: ComposeUpload[];
+  /** False sends only the quote's language; saved on the quote. */
+  bilingual?: boolean;
 };
 
 async function downloadEstimateFileAttachment(
@@ -221,12 +223,14 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const missing = await missingQuoteTranslations(quote);
+  const bilingual =
+    typeof compose.bilingual === "boolean" ? compose.bilingual : quote.bilingual !== false;
+  const missing = bilingual ? await missingQuoteTranslations(quote) : [];
   if (missing.length > 0) {
     return NextResponse.json(
       {
         ok: false,
-        message: `Add the ${otherLanguageName(quote.language)} version before sending — both versions go out together. Missing: ${missing.join(", ")}.`,
+        message: `Add the ${otherLanguageName(quote.language)} version before sending French + English, or send it in one language. Missing: ${missing.join(", ")}.`,
       },
       { status: 400 }
     );
@@ -248,6 +252,7 @@ export async function POST(request: Request, context: RouteContext) {
     .update({
       status: "sent",
       sent_at: now,
+      bilingual,
     })
     .eq("id", id);
 
@@ -367,6 +372,7 @@ export async function POST(request: Request, context: RouteContext) {
       attachment_names: attachmentNames,
       attach_pdf: compose.attachPdf !== false,
       email_sent: emailSent,
+      bilingual,
       // Proof the French version was provided (Charter s.55) — read by the signing step.
       pdf_languages: emailSent ? pdfLanguages : [],
     },

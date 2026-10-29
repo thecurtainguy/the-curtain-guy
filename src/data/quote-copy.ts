@@ -624,6 +624,8 @@ const API_ERRORS_FR: Record<string, string> = {
   "Please accept the electronic signature consent.":
     "Veuillez accepter le consentement à la signature électronique.",
   "This quote has already been signed.": "Cette soumission a déjà été signée.",
+  "This quote can only be signed in the language it was issued in.":
+    "Cette soumission ne peut être signée que dans la langue où elle a été émise.",
   "Could not record your signature. Please try again.":
     "Impossible d’enregistrer votre signature. Veuillez réessayer.",
   "Something went wrong. Please try again.": "Une erreur est survenue. Veuillez réessayer.",

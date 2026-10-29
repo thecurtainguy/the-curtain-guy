@@ -1,6 +1,7 @@
 import {
   formatMoneyFromCents,
   formatQuoteDisplayRef,
+  quoteDocumentLanguages,
   resolveQuoteDisplayRef,
   type QuoteRow,
 } from "@/data/quotes";
@@ -67,13 +68,18 @@ export async function sendQuoteReadyEmail(input: {
   compose?: QuoteReadyComposeOptions;
 }): Promise<{ pdfLanguages: CustomerLanguage[] }> {
   const { quote, publicQuoteUrl, apiKey, compose } = input;
+  const languages = quoteDocumentLanguages(quote);
   const [frTexts, enTexts] = await Promise.all(
     QUOTE_EMAIL_LANGUAGES.map((lang) => getLocalizedDocumentTexts(lang))
   );
-  const emailFooter = joinBilingual({
-    fr: frTexts["quote.email_footer"],
-    en: enTexts["quote.email_footer"],
-  });
+  const emailFooter = joinBilingual(
+    {
+      fr: frTexts["quote.email_footer"],
+      en: enTexts["quote.email_footer"],
+    },
+    " · ",
+    languages
+  );
   const siteUrl = getSiteUrl().replace(/\/$/, "");
   const attachPdf = compose?.attachPdf !== false;
 
@@ -100,7 +106,7 @@ export async function sendQuoteReadyEmail(input: {
   const pdfNames: string[] = [];
   if (attachPdf) {
     const pdfs: ResendEmailAttachment[] = [];
-    for (const lang of QUOTE_EMAIL_LANGUAGES) {
+    for (const lang of languages) {
       try {
         const safe = toCustomerSafeQuote(await localizeQuote(quote, lang), {
           shareUrl: quoteUrlInLanguage(publicQuoteUrl, lang),

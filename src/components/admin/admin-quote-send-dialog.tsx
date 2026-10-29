@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FileText,
+  Globe2,
+  Languages,
   Paperclip,
   Send,
   Trash2,
@@ -10,7 +12,10 @@ import {
 } from "lucide-react";
 import type { OpportunityFileItem } from "@/components/estimates/opportunity-files-panel";
 import { RecipientInput } from "@/components/admin/recipient-input";
+import { OptionCard } from "@/components/estimate/option-card";
+import { normalizeCustomerLanguage } from "@/data/customer-language";
 import type { CustomerContactOption } from "@/data/customers";
+import { linesMissingTranslation } from "@/data/quotes";
 import { Dialog } from "@/components/ui/dialog";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
@@ -32,14 +37,16 @@ import {
   buildDefaultQuoteEmailBodyText,
   buildDefaultQuoteEmailSubject,
   buildQuoteReadyEmailParts,
-  bilingualQuotePdfNames,
   isValidEmailAddress,
   parseEmailList,
+  quotePdfNames,
 } from "@/lib/quote-email-compose";
 import type { QuoteWithRelations } from "@/lib/quotes";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_BCC = "admin@thecurtainguy.com";
+
+const LANGUAGE_NAMES = { fr: "French", en: "English" } as const;
 
 type ExtraUpload = {
   id: string;
@@ -88,15 +95,22 @@ export function AdminQuoteSendDialog({
   onSent: (result: { publicUrl?: string; message?: string; emailSent?: boolean; to?: string }) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const defaultTexts = defaultQuoteEmailTexts();
+  const baseLanguage = normalizeCustomerLanguage(quote.language);
+  const missingTranslations =
+    linesMissingTranslation(quote.line_items ?? []).length +
+    (quote.customer_notes?.trim() && !quote.customer_notes_translated?.trim() ? 1 : 0);
+  const [bilingual, setBilingual] = useState(quote.bilingual !== false);
+  const bilingualRef = useRef(bilingual);
+  const composeQuote = useMemo(() => ({ ...quote, bilingual }), [quote, bilingual]);
+  const [emailTexts, setEmailTexts] = useState(defaultQuoteEmailTexts);
   const [to, setTo] = useState(quote.customer_email || "");
   const [cc, setCc] = useState(defaultCc.join(", "));
   const [bcc, setBcc] = useState(DEFAULT_BCC);
-  const [subject, setSubject] = useState(buildDefaultQuoteEmailSubject(quote));
-  const [bodyText, setBodyText] = useState(
-    buildDefaultQuoteEmailBodyText({ quote, emailNotes: defaultTexts.notes })
+  const [subject, setSubject] = useState(() => buildDefaultQuoteEmailSubject(composeQuote));
+  const [bodyText, setBodyText] = useState(() =>
+    buildDefaultQuoteEmailBodyText({ quote: composeQuote, emailNotes: emailTexts.notes })
   );
-  const [emailFooter, setEmailFooter] = useState(defaultTexts.footer);
+  const emailFooter = bilingual ? emailTexts.footer : emailTexts.footers[baseLanguage];
   const [attachPdf, setAttachPdf] = useState(true);
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   const [uploads, setUploads] = useState<ExtraUpload[]>([]);
@@ -114,10 +128,15 @@ export function AdminQuoteSendDialog({
 
   useEffect(() => {
     let cancelled = false;
-    void fetchQuoteEmailTexts().then(({ notes, footer }) => {
+    void fetchQuoteEmailTexts().then((texts) => {
       if (cancelled) return;
-      setEmailFooter(footer);
-      setBodyText(buildDefaultQuoteEmailBodyText({ quote, emailNotes: notes }));
+      setEmailTexts(texts);
+      setBodyText(
+        buildDefaultQuoteEmailBodyText({
+          quote: { ...quote, bilingual: bilingualRef.current },
+          emailNotes: texts.notes,
+        })
+      );
     });
     return () => {
       cancelled = true;
@@ -130,10 +149,10 @@ export function AdminQuoteSendDialog({
     publicQuoteUrlPreview ||
     `https://www.thecurtainguy.com/quote/preview-${quote.opportunity_ref}`;
 
-  const pdfNames = useMemo(() => bilingualQuotePdfNames(quote), [quote]);
+  const pdfNames = useMemo(() => quotePdfNames(composeQuote), [composeQuote]);
   const previewHtml = useMemo(() => {
     return buildQuoteReadyEmailParts({
-      quote,
+      quote: composeQuote,
       publicQuoteUrl: previewUrl,
       bodyText,
       emailFooter,
@@ -141,7 +160,26 @@ export function AdminQuoteSendDialog({
       lineItems: quote.line_items,
       assetBaseUrl: typeof window === "undefined" ? null : window.location.origin,
     }).html;
-  }, [attachPdf, bodyText, emailFooter, pdfNames, previewUrl, quote]);
+  }, [attachPdf, bodyText, composeQuote, emailFooter, pdfNames, previewUrl, quote.line_items]);
+
+  /** Switches languages; subject and body follow unless the owner edited them. */
+  function chooseBilingual(next: boolean) {
+    if (next === bilingual) return;
+    const before = { ...quote, bilingual };
+    const after = { ...quote, bilingual: next };
+    if (subject.trim() === buildDefaultQuoteEmailSubject(before)) {
+      setSubject(buildDefaultQuoteEmailSubject(after));
+    }
+    if (
+      bodyText.trim() ===
+      buildDefaultQuoteEmailBodyText({ quote: before, emailNotes: emailTexts.notes }).trim()
+    ) {
+      setBodyText(buildDefaultQuoteEmailBodyText({ quote: after, emailNotes: emailTexts.notes }));
+    }
+    bilingualRef.current = next;
+    setBilingual(next);
+    setError(null);
+  }
 
   function toggleOpportunityFile(id: string) {
     setSelectedFileIds((prev) =>
@@ -225,6 +263,7 @@ export function AdminQuoteSendDialog({
           attachPdf,
           opportunityFileIds: selectedFileIds,
           uploads: uploadPayload,
+          bilingual,
         }),
       });
       const payload = (await response.json()) as {
@@ -267,8 +306,10 @@ export function AdminQuoteSendDialog({
           <>
             Compose the customer email, preview the HTML, and choose attachments
             before sending {quote.opportunity_ref}. The email goes out{" "}
-            <span className="font-medium text-primary">French first, then English</span>
-            , with both proposal PDFs.
+            <span className="font-medium text-primary">
+              {bilingual ? "French first, then English" : `in ${LANGUAGE_NAMES[baseLanguage]} only`}
+            </span>
+            {bilingual ? ", with both proposal PDFs." : "."}
           </>
         }
         footer={
@@ -295,6 +336,51 @@ export function AdminQuoteSendDialog({
       >
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div className="space-y-4">
+              <section className="rounded-2xl border border-border/50 bg-card/40 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="inline-flex size-8 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                    <Languages className="size-4" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+                      Language
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Email, PDF, quote page and signing
+                    </p>
+                  </div>
+                </div>
+                <div role="radiogroup" aria-label="Quote language" className="grid gap-2 sm:grid-cols-2">
+                  <OptionCard
+                    option={{
+                      id: "bilingual",
+                      label: "French + English",
+                      description: "French first. Required for Québec customers.",
+                      icon: Languages,
+                    }}
+                    selected={bilingual}
+                    onSelect={() => chooseBilingual(true)}
+                  />
+                  <OptionCard
+                    option={{
+                      id: "single",
+                      label: `${LANGUAGE_NAMES[baseLanguage]} only`,
+                      description: "For customers outside Québec. No translation needed.",
+                      icon: Globe2,
+                    }}
+                    selected={!bilingual}
+                    onSelect={() => chooseBilingual(false)}
+                  />
+                </div>
+                {bilingual && missingTranslations > 0 ? (
+                  <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:text-amber-200">
+                    {missingTranslations} item{missingTranslations === 1 ? " has" : "s have"} no{" "}
+                    {baseLanguage === "fr" ? "English" : "French"} version yet. Use “Translate missing” in
+                    the quote, or send in {LANGUAGE_NAMES[baseLanguage]} only.
+                  </p>
+                ) : null}
+              </section>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="quote-send-to">To</Label>
@@ -385,7 +471,9 @@ export function AdminQuoteSendDialog({
                       ))}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
-                      French and English proposal PDFs · attaching the French PDF records that the French version was provided
+                      {bilingual
+                        ? "French and English proposal PDFs · attaching the French PDF records that the French version was provided"
+                        : `${LANGUAGE_NAMES[baseLanguage]} proposal PDF`}
                     </span>
                   </span>
                   <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">

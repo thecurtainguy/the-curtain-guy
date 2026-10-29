@@ -143,6 +143,7 @@ export function toCustomerSafeQuote(
     ...quotePaymentTermsFrom(quote),
     status: customerQuoteStatus(effectiveQuoteStatus(quote.status, quote.valid_until)),
     language: normalizeCustomerLanguage(quote.language),
+    bilingual: quote.bilingual !== false,
     currency: quote.currency,
     subtotal_cents: quote.subtotal_cents,
     total_cents: quote.total_cents,

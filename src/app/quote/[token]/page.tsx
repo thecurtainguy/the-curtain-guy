@@ -4,10 +4,8 @@ import { cache } from "react";
 import { PageLocale } from "@/components/i18n/page-locale";
 import { StudioDesignSummaryCard } from "@/components/admin/studio-quote/studio-design-summary-card";
 import { QuoteProposalView } from "@/components/quotes/quote-proposal-view";
-import {
-  isCustomerLanguage,
-  normalizeCustomerLanguage,
-} from "@/data/customer-language";
+import { normalizeCustomerLanguage } from "@/data/customer-language";
+import { quoteViewLanguage } from "@/data/quotes";
 import { heroImage } from "@/data/site";
 import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
@@ -39,14 +37,6 @@ type PageProps = {
   searchParams: Promise<{ lang?: string | string[]; src?: string | string[] }>;
 };
 
-/** `?lang=` lets a visitor read the quote in the other language. */
-function viewLanguage(
-  quoteLanguage: string | null | undefined,
-  lang: string | string[] | undefined
-) {
-  return isCustomerLanguage(lang) ? lang : normalizeCustomerLanguage(quoteLanguage);
-}
-
 export async function generateMetadata({
   params,
   searchParams,
@@ -54,7 +44,7 @@ export async function generateMetadata({
   const { token } = await params;
   const { lang } = await searchParams;
   const quote = await getQuoteForToken(token);
-  const language = viewLanguage(quote?.language, lang);
+  const language = quote ? quoteViewLanguage(quote, lang) : normalizeCustomerLanguage(null);
   return {
     title:
       language === "fr" ? "Votre soumission de drapage" : "Your draping proposal",
@@ -80,7 +70,7 @@ export default async function PublicQuotePage({
   const studioSummary = await fetchStudioDesignSummaryForQuote(quote);
 
   const quoteLanguage = normalizeCustomerLanguage(quote.language);
-  const language = viewLanguage(quote.language, lang);
+  const language = quoteViewLanguage(quote, lang);
   const siteUrl = getSiteUrl();
   const shareUrl = buildPublicQuoteUrl(siteUrl, token);
   const [safe, signingQuotes, frenchEvidence] = await Promise.all([

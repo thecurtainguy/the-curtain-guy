@@ -20,6 +20,8 @@ export type QuoteEmailTexts = {
   notes: Record<CustomerLanguage, string>;
   /** French then English footer. */
   footer: string;
+  /** Footer per language, for quotes sent in one language. */
+  footers: Record<CustomerLanguage, string>;
 };
 
 function quoteEmailTexts(
@@ -27,12 +29,14 @@ function quoteEmailTexts(
 ): QuoteEmailTexts {
   const text = (slug: BaseDocumentTextSlug, language: CustomerLanguage) =>
     bodyFor(slug, language) || defaultQuoteDocumentText(slug, language);
+  const footers = {
+    fr: text("quote.email_footer", "fr"),
+    en: text("quote.email_footer", "en"),
+  };
   return {
     notes: { fr: text("quote.email_note", "fr"), en: text("quote.email_note", "en") },
-    footer: joinBilingual({
-      fr: text("quote.email_footer", "fr"),
-      en: text("quote.email_footer", "en"),
-    }),
+    footer: joinBilingual(footers),
+    footers,
   };
 }
 

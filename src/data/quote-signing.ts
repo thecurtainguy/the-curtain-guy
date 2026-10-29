@@ -67,11 +67,20 @@ export type QuoteAgreementAudit = QuoteAgreementSummary & {
   frenchVersionProvidedAt: string | null;
 };
 
-export function signingConsentText(language: CustomerLanguage, signerName: string, displayRef: string): string {
+/** `bilingual` false: the quote exists in one language only, so no French-version statement. */
+export function signingConsentText(
+  language: CustomerLanguage,
+  signerName: string,
+  displayRef: string,
+  bilingual = true
+): string {
   const quoteRef = displayRef.replace(/^(Quote|Soumission)\s+/i, "");
+  const frenchProvided = bilingual
+    ? " The French version of this agreement was provided to me before signing, and I expressly wish to be bound by its English version."
+    : "";
   return language === "fr"
     ? `En sélectionnant « Signer et accepter », moi, ${signerName}, reconnais que ma signature et mes initiales électroniques ont la même valeur juridique que ma signature manuscrite, que je suis autorisé(e) à signer au nom du client indiqué, et que j’accepte la soumission ${quoteRef} dans la version qui m’est présentée, y compris son horaire, sa portée, ses quantités, ses prix et son calendrier de paiement, ainsi que l’ensemble des conditions. Je consens à recevoir cette entente et les avis connexes par voie électronique.`
-    : `By selecting “Sign & accept”, I, ${signerName}, agree that my electronic signature and initials are the legal equivalent of my handwritten signature, that I am authorized to sign on behalf of the client named in this agreement, and that I accept quote ${quoteRef} in the version displayed to me, including its schedule, scope, quantities, pricing and payment schedule, and all terms and conditions. The French version of this agreement was provided to me before signing, and I expressly wish to be bound by its English version. I consent to receive this agreement and related notices electronically.`;
+    : `By selecting “Sign & accept”, I, ${signerName}, agree that my electronic signature and initials are the legal equivalent of my handwritten signature, that I am authorized to sign on behalf of the client named in this agreement, and that I accept quote ${quoteRef} in the version displayed to me, including its schedule, scope, quantities, pricing and payment schedule, and all terms and conditions.${frenchProvided} I consent to receive this agreement and related notices electronically.`;
 }
 
 /**
@@ -106,7 +115,12 @@ export const SIGNING_LANGUAGE_CHOICE = {
 } as const;
 
 /** Exact wording recorded as the signer's language choice. */
-export function signingLanguageChoiceText(language: CustomerLanguage): string {
+export function signingLanguageChoiceText(language: CustomerLanguage, bilingual = true): string {
+  if (!bilingual) {
+    return language === "fr"
+      ? "Français — soumission émise en français seulement."
+      : "English — quote issued in English only.";
+  }
   const option = SIGNING_LANGUAGE_CHOICE.options[language];
   return `${option.label} — ${option.description}`;
 }

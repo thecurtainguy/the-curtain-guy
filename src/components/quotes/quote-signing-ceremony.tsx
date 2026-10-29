@@ -330,6 +330,7 @@ export function QuoteSigningCeremony({
   actionEndpoint,
   agreementPdfUrl,
   frenchPdfUrl,
+  onlyLanguage = null,
   preview = false,
   onSigned,
 }: {
@@ -343,13 +344,15 @@ export function QuoteSigningCeremony({
   agreementPdfUrl: string | null;
   /** French PDF of the proposal; opening it provides the French version before choosing English. */
   frenchPdfUrl: string;
+  /** Set when the quote was issued in one language: no language choice, no French-first step. */
+  onlyLanguage?: CustomerLanguage | null;
   preview?: boolean;
   onSigned: (agreement: QuoteAgreementSummary) => void;
 }) {
-  const [language, setLanguage] = useState<CustomerLanguage>("fr");
+  const [language, setLanguage] = useState<CustomerLanguage>(onlyLanguage ?? "fr");
   const [frenchOpened, setFrenchOpened] = useState(frenchVersionProvided);
   const quote = quotes[language];
-  const englishNeedsFrench = language === "en" && !frenchOpened;
+  const englishNeedsFrench = !onlyLanguage && language === "en" && !frenchOpened;
   const L = SIGNING_LANGUAGE_CHOICE;
   const s = QUOTE_SIGNING_COPY[language];
   const t = getQuoteCopy(language);
@@ -712,61 +715,63 @@ export function QuoteSigningCeremony({
                     title={s.verifyTitle}
                     body={s.verifyBody(maskedEmail ?? maskEmail(quote.customer_email))}
                   />
-                  <div className={cn(cardClass, "space-y-4 p-4 sm:p-5")}>
-                    <div
-                      className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.16),transparent_70%)]"
-                      aria-hidden
-                    />
-                    <div className="flex items-start gap-3">
-                      <IconBadge icon={Languages} />
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <p className="font-heading text-base font-semibold text-foreground">{L.heading}</p>
-                        <p className="text-xs leading-relaxed text-muted-foreground">{L.body}</p>
-                      </div>
-                    </div>
-                    <div role="radiogroup" aria-label={L.heading} className="grid gap-3 sm:grid-cols-2">
-                      {(["fr", "en"] as const).map((lang) => (
-                        <OptionCard
-                          key={lang}
-                          option={{
-                            id: lang,
-                            label: L.options[lang].label,
-                            description: L.options[lang].description,
-                            icon: Languages,
-                          }}
-                          selected={language === lang}
-                          onSelect={() => chooseLanguage(lang)}
-                        />
-                      ))}
-                    </div>
-                    {language === "en" ? (
-                      frenchOpened ? (
-                        <p className="flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
-                          <BadgeCheck className="size-3.5" aria-hidden />
-                          {L.frenchFirst.opened}
-                        </p>
-                      ) : (
-                        <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:flex-row sm:items-center">
-                          <div className="min-w-0 flex-1 space-y-0.5">
-                            <p className="text-sm font-medium text-foreground">{L.frenchFirst.title}</p>
-                            <p className="text-xs leading-relaxed text-muted-foreground">{L.frenchFirst.body}</p>
-                          </div>
-                          <Button asChild variant="outline" className="h-10 shrink-0 rounded-full">
-                            <a
-                              href={frenchPdfUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              lang="fr"
-                              onClick={() => setFrenchOpened(true)}
-                            >
-                              <ExternalLink className="size-4" aria-hidden />
-                              {L.frenchFirst.open}
-                            </a>
-                          </Button>
+                  {onlyLanguage ? null : (
+                    <div className={cn(cardClass, "space-y-4 p-4 sm:p-5")}>
+                      <div
+                        className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.16),transparent_70%)]"
+                        aria-hidden
+                      />
+                      <div className="flex items-start gap-3">
+                        <IconBadge icon={Languages} />
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="font-heading text-base font-semibold text-foreground">{L.heading}</p>
+                          <p className="text-xs leading-relaxed text-muted-foreground">{L.body}</p>
                         </div>
-                      )
-                    ) : null}
-                  </div>
+                      </div>
+                      <div role="radiogroup" aria-label={L.heading} className="grid gap-3 sm:grid-cols-2">
+                        {(["fr", "en"] as const).map((lang) => (
+                          <OptionCard
+                            key={lang}
+                            option={{
+                              id: lang,
+                              label: L.options[lang].label,
+                              description: L.options[lang].description,
+                              icon: Languages,
+                            }}
+                            selected={language === lang}
+                            onSelect={() => chooseLanguage(lang)}
+                          />
+                        ))}
+                      </div>
+                      {language === "en" ? (
+                        frenchOpened ? (
+                          <p className="flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
+                            <BadgeCheck className="size-3.5" aria-hidden />
+                            {L.frenchFirst.opened}
+                          </p>
+                        ) : (
+                          <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3 sm:flex-row sm:items-center">
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <p className="text-sm font-medium text-foreground">{L.frenchFirst.title}</p>
+                              <p className="text-xs leading-relaxed text-muted-foreground">{L.frenchFirst.body}</p>
+                            </div>
+                            <Button asChild variant="outline" className="h-10 shrink-0 rounded-full">
+                              <a
+                                href={frenchPdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                lang="fr"
+                                onClick={() => setFrenchOpened(true)}
+                              >
+                                <ExternalLink className="size-4" aria-hidden />
+                                {L.frenchFirst.open}
+                              </a>
+                            </Button>
+                          </div>
+                        )
+                      ) : null}
+                    </div>
+                  )}
                   <div className={cn(cardClass, "space-y-4 p-5")}>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
@@ -1048,7 +1053,7 @@ export function QuoteSigningCeremony({
                     icon={ShieldCheck}
                     title={s.consentTitle}
                   >
-                    {signingConsentText(language, signerName.trim(), quote.quote_display_ref)}
+                    {signingConsentText(language, signerName.trim(), quote.quote_display_ref, !onlyLanguage)}
                   </CheckTile>
                   <p className="flex items-start gap-2 text-xs text-muted-foreground">
                     <Lock className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />

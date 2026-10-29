@@ -25,10 +25,10 @@ import {
   type QuoteEmailTexts,
 } from "@/lib/quote-email-defaults";
 import {
-  bilingualQuotePdfNames,
   buildDefaultQuoteEmailBodyText,
   buildDefaultQuoteEmailSubject,
   buildQuoteReadyEmailParts,
+  quotePdfNames,
 } from "@/lib/quote-email-compose";
 import type { QuoteWithRelations } from "@/lib/quotes";
 import { cn } from "@/lib/utils";
@@ -151,7 +151,7 @@ export function AdminQuotePreviewDialog({
     };
   }, [open]);
 
-  const pdfNames = useMemo(() => bilingualQuotePdfNames(quote), [quote]);
+  const pdfNames = useMemo(() => quotePdfNames(quote), [quote]);
   const subject = buildDefaultQuoteEmailSubject(quote);
   const emailHtml = useMemo(() => {
     if (!emailTexts) return null;
@@ -164,7 +164,10 @@ export function AdminQuotePreviewDialog({
         quote,
         emailNotes: emailTexts.notes,
       }),
-      emailFooter: emailTexts.footer,
+      emailFooter:
+        quote.bilingual === false
+          ? emailTexts.footers[normalizeCustomerLanguage(quote.language)]
+          : emailTexts.footer,
       pdfFilenames: pdfNames,
       lineItems: quote.line_items,
       assetBaseUrl: typeof window === "undefined" ? null : window.location.origin,

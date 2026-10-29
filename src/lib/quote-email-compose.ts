@@ -5,6 +5,7 @@ import {
   formatQuoteFilenameStem,
   formatQuoteQuantity,
   getQuoteTaxBreakdownRows,
+  quoteDocumentLanguages,
   textInLanguage,
   type QuoteLineItemRow,
   type QuoteRow,
@@ -89,6 +90,7 @@ export type QuoteEmailComposeDefaultsInput = {
     | "total_before_tax_cents"
     | "total_tax_cents"
     | "currency"
+    | "bilingual"
   >;
   emailNote?: string;
   defaultBcc?: string;
@@ -104,8 +106,12 @@ function quoteLanguage(
 export const QUOTE_EMAIL_LANGUAGES = ["fr", "en"] as const satisfies readonly CustomerLanguage[];
 
 /** "Bonjour… · Hello…" — French then English, duplicates dropped. */
-export function joinBilingual(values: Record<CustomerLanguage, string>, separator = " · "): string {
-  return QUOTE_EMAIL_LANGUAGES.map((lang) => values[lang]?.trim() ?? "")
+export function joinBilingual(
+  values: Record<CustomerLanguage, string>,
+  separator = " · ",
+  languages: readonly CustomerLanguage[] = QUOTE_EMAIL_LANGUAGES
+): string {
+  return languages.map((lang) => values[lang]?.trim() ?? "")
     .filter((value, index, list) => value && list.indexOf(value) === index)
     .join(separator);
 }
@@ -141,17 +147,21 @@ export function buildDefaultQuoteEmailSubject(
   quote: QuoteEmailComposeDefaultsInput["quote"]
 ): string {
   const ref = formatQuoteFilenameStem(quote.opportunity_ref, quote.revision_number);
-  return `${joinBilingual({
-    fr: getQuoteCopy("fr").mail.subjectLead,
-    en: getQuoteCopy("en").mail.subjectLead,
-  }, " / ")} — ${ref}`;
+  return `${joinBilingual(
+    {
+      fr: getQuoteCopy("fr").mail.subjectLead,
+      en: getQuoteCopy("en").mail.subjectLead,
+    },
+    " / ",
+    quoteDocumentLanguages(quote)
+  )} — ${ref}`;
 }
 
 export function buildDefaultQuoteEmailBodyText(input: {
   quote: QuoteEmailComposeDefaultsInput["quote"];
   emailNotes?: Partial<Record<CustomerLanguage, string>>;
 }): string {
-  const blocks = QUOTE_EMAIL_LANGUAGES.map((lang) => {
+  const blocks = quoteDocumentLanguages(input.quote).map((lang) => {
     const e = getQuoteCopy(lang).mail;
     const lines = [e.ready(input.quote.customer_name?.trim() || null), "", e.instructions];
     const note = input.emailNotes?.[lang]?.trim();
@@ -276,16 +286,19 @@ export function buildQuoteReadyEmailParts(input: {
 }): { text: string; html: string; displayRef: string } {
   const { publicQuoteUrl, bodyText, emailFooter } = input;
   const baseLanguage = quoteLanguage(input.quote);
-  const language: CustomerLanguage = "fr";
+  const bilingual = input.quote.bilingual !== false;
+  const language: CustomerLanguage = bilingual ? "fr" : baseLanguage;
   const quote = { ...input.quote, language };
   const e = getQuoteCopy(language).mail;
   const en = getQuoteCopy("en").mail;
-  const frUrl = quoteUrlInLanguage(publicQuoteUrl, "fr");
+  const mainUrl = bilingual ? quoteUrlInLanguage(publicQuoteUrl, "fr") : publicQuoteUrl;
   const enUrl = quoteUrlInLanguage(publicQuoteUrl, "en");
   const pdfNames = (input.pdfFilenames ?? []).filter(Boolean);
-  const pdfNote = pdfNames.length
-    ? `${joinBilingual({ fr: e.pdfVersionsAttached, en: en.pdfVersionsAttached })} (${pdfNames.join(", ")}).`
-    : "";
+  const pdfNote = !pdfNames.length
+    ? ""
+    : bilingual
+      ? `${joinBilingual({ fr: e.pdfVersionsAttached, en: en.pdfVersionsAttached })} (${pdfNames.join(", ")}).`
+      : e.pdfAttachedText(pdfNames.join(", "));
   const money = (cents: number) =>
     formatMoneyFromCents(cents, language, quote.currency);
   const displayRef = customerQuoteDisplayRef(quote);
@@ -331,15 +344,16 @@ export function buildQuoteReadyEmailParts(input: {
     ...included.text,
     ...taxText,
     "",
-    `${e.reviewLink} ${frUrl}`,
-    `${en.reviewLink} ${enUrl}`,
+    `${e.reviewLink} ${mainUrl}`,
+    bilingual ? `${en.reviewLink} ${enUrl}` : "",
     pdfNote ? `\n${pdfNote}` : "",
   ]
     .filter(Boolean)
     .join("\n");
 
   const html = brandQuoteEmailShell(
-    input.headline || joinBilingual({ fr: e.headline, en: en.headline }),
+    input.headline ||
+      joinBilingual({ fr: getQuoteCopy("fr").mail.headline, en: en.headline }, " · ", quoteDocumentLanguages(quote)),
     `
     ${bodyTextToEmailHtml(bodyText)}
     <div style="margin:0 0 18px;padding:16px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.2);">
@@ -351,12 +365,16 @@ export function buildQuoteReadyEmailParts(input: {
       <div style="margin:12px 0 0;${included.html ? "padding:12px 0 0;border-top:1px solid rgba(212,175,55,0.16);" : ""}">${taxHtml}</div>
     </div>
     <p style="margin:0 0 8px;">
-      <a href="${escapeEmailHtml(frUrl)}" lang="fr" style="display:inline-block;margin:0 8px 8px 0;padding:12px 18px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
+      <a href="${escapeEmailHtml(mainUrl)}" lang="${language}" style="display:inline-block;margin:0 8px 8px 0;padding:12px 18px;border-radius:999px;background:#d4af37;color:#111827;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
         ${escapeEmailHtml(e.reviewButton)}
       </a>
-      <a href="${escapeEmailHtml(enUrl)}" lang="en" style="display:inline-block;margin:0 0 8px;padding:11px 17px;border-radius:999px;border:1px solid rgba(212,175,55,0.55);color:#d4af37;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
+      ${
+        bilingual
+          ? `<a href="${escapeEmailHtml(enUrl)}" lang="en" style="display:inline-block;margin:0 0 8px;padding:11px 17px;border-radius:999px;border:1px solid rgba(212,175,55,0.55);color:#d4af37;text-decoration:none;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">
         ${escapeEmailHtml(en.viewInLanguage)}
-      </a>
+      </a>`
+          : ""
+      }
     </p>
     ${
       pdfNote
@@ -379,9 +397,9 @@ export function quotePdfAttachmentName(
   return `${stem}${language ? `-${language.toUpperCase()}` : ""}.pdf`;
 }
 
-/** Both proposal PDF names, French first. */
-export function bilingualQuotePdfNames(
-  quote: Pick<QuoteRow, "opportunity_ref" | "revision_number">
+/** Attached proposal PDF names: both languages French first, or just the quote's. */
+export function quotePdfNames(
+  quote: Pick<QuoteRow, "opportunity_ref" | "revision_number" | "language" | "bilingual">
 ): string[] {
-  return QUOTE_EMAIL_LANGUAGES.map((lang) => quotePdfAttachmentName(quote, lang));
+  return quoteDocumentLanguages(quote).map((lang) => quotePdfAttachmentName(quote, lang));
 }

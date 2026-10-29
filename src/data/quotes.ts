@@ -1,5 +1,6 @@
 import {
   customerLocaleTag,
+  normalizeCustomerLanguage,
   type CustomerLanguage,
 } from "@/data/customer-language";
 import type { DepositMode } from "@/data/invoices";
@@ -609,6 +610,29 @@ export function textInLanguage(
   return translated?.trim() || base || "";
 }
 
+/**
+ * Languages the quote goes out in. Bilingual (the default) is French first
+ * then English (Charter of the French Language s.55); otherwise only the
+ * quote's own language, e.g. for customers outside Québec.
+ */
+export function quoteDocumentLanguages(quote: {
+  language?: string | null;
+  bilingual?: boolean | null;
+}): CustomerLanguage[] {
+  return quote.bilingual === false
+    ? [normalizeCustomerLanguage(quote.language)]
+    : ["fr", "en"];
+}
+
+/** The language a visitor sees: `?lang=` only applies to bilingual quotes. */
+export function quoteViewLanguage(
+  quote: { language?: string | null; bilingual?: boolean | null },
+  requested: string | string[] | null | undefined
+): CustomerLanguage {
+  const languages = quoteDocumentLanguages(quote);
+  return languages.find((lang) => lang === requested) ?? normalizeCustomerLanguage(quote.language);
+}
+
 /** Customer-visible lines with text but no translation into the other language. */
 export function linesMissingTranslation<
   T extends { description: string; description_translated?: string | null; customer_visible?: boolean },
@@ -745,6 +769,8 @@ export type QuoteRow = {
   terms_translated?: string | null;
   /** Language the customer chose to be bound by; null until accepted. */
   agreed_language?: CustomerLanguage | null;
+  /** False: issued only in `language` (no French version, no language choice). */
+  bilingual?: boolean | null;
   /** Later revision that replaced this quote. */
   superseded_by_quote_id?: string | null;
   superseded_at?: string | null;
@@ -853,6 +879,8 @@ export type CustomerSafeQuote = {
   payment_balance_due_date: string | null;
   status: QuoteStatus;
   language: CustomerLanguage;
+  /** False: only `language` exists — no language toggle or language choice. */
+  bilingual: boolean;
   currency: string;
   subtotal_cents: number;
   total_cents: number;

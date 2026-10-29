@@ -3,11 +3,11 @@ import { notFound } from "next/navigation";
 import { PageLocale } from "@/components/i18n/page-locale";
 import { QuoteProposalView } from "@/components/quotes/quote-proposal-view";
 import {
-  isCustomerLanguage,
   normalizeCustomerLanguage,
 } from "@/data/customer-language";
 import { heroImage } from "@/data/site";
 import { requireOwner } from "@/lib/auth";
+import { quoteViewLanguage } from "@/data/quotes";
 import { getSiteUrl } from "@/lib/env";
 import { listAttachmentViewItems } from "@/lib/pdf-attachments";
 import { fetchExecutedSignature, toAgreementSummary } from "@/lib/quote-signing";
@@ -46,7 +46,7 @@ export default async function QuoteCustomerPreviewPage({
   if (!quote) notFound();
 
   const quoteLanguage = normalizeCustomerLanguage(quote.language);
-  const language = isCustomerLanguage(lang) ? lang : quoteLanguage;
+  const language = quoteViewLanguage(quote, lang);
   const siteUrl = getSiteUrl();
   const shareUrl = (await findActivePublicQuoteUrl(id, siteUrl)) ?? siteUrl;
   // Customers only ever see a quote once it has been sent.

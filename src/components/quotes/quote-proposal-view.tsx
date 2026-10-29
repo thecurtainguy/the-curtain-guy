@@ -592,6 +592,7 @@ export function QuoteProposalView({
           actionEndpoint={actionEndpoint}
           agreementPdfUrl={agreementPdfUrl}
           frenchPdfUrl={withPdfLanguage(pdfUrl, "fr")}
+          onlyLanguage={quote.bilingual ? null : quote.language}
           preview={preview}
           onSigned={(next) => {
             setSignedAgreement(next);

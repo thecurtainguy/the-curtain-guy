@@ -99,6 +99,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
+import { draftTranslation } from "@/lib/translate-draft";
 import { cn } from "@/lib/utils";
 
 type LineDraft = {
@@ -783,30 +784,24 @@ export function AdminInvoiceEditor({
     setBusyAction("translate");
     flash();
     try {
-      const response = await fetch("/api/admin/quotes/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: form.language,
-          notes: form.notes_translated.trim() ? null : form.notes,
-          terms: form.terms_translated.trim() ? null : form.terms,
-          lines: form.lines
-            .filter((line) => line.description.trim() && !line.description_translated?.trim())
-            .map((line) => ({ key: line.key, text: line.description })),
-        }),
+      const result = await draftTranslation({
+        from: form.language,
+        notes: form.notes_translated.trim() ? null : form.notes,
+        terms: form.terms_translated.trim() ? null : form.terms,
+        lines: form.lines
+          .filter((line) => line.description.trim() && !line.description_translated?.trim())
+          .map((line) => ({ key: line.key, text: line.description })),
       });
-      const json = (await response.json()) as {
-        ok?: boolean;
-        message?: string;
-        notes?: string | null;
-        terms?: string | null;
-        lines?: Array<{ key: string; text: string }>;
-      };
-      if (!response.ok || !json.ok) {
-        flash(null, json.message ?? "Translation failed.");
+      if (!result.ok) {
+        flash(null, result.message);
         return;
       }
-      const lines = new Map((json.lines ?? []).map((line) => [line.key, line.text]));
+      if (result.engine === "none") {
+        flash("Nothing to translate — every line already has a translation.");
+        return;
+      }
+      const json = result.draft;
+      const lines = new Map(json.lines.map((line) => [line.key, line.text]));
       setForm((prev) => ({
         ...prev,
         notes_translated: prev.notes_translated || json.notes || "",

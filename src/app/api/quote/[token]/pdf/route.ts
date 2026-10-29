@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  isCustomerLanguage,
-  normalizeCustomerLanguage,
-} from "@/data/customer-language";
-import { formatQuoteFilenameStem } from "@/data/quotes";
+import { formatQuoteFilenameStem, quoteViewLanguage } from "@/data/quotes";
 import { getSiteUrl } from "@/lib/env";
 import { renderQuotePdfBuffer } from "@/lib/quote-pdf";
 import { buildPublicQuoteUrl } from "@/lib/quote-tokens";
@@ -33,8 +29,7 @@ export async function GET(request: Request, context: RouteContext) {
 
   const publicUrl = buildPublicQuoteUrl(getSiteUrl(), token);
   const lang = new URL(request.url).searchParams.get("lang");
-  const quoteLanguage = normalizeCustomerLanguage(quote.language);
-  const language = isCustomerLanguage(lang) ? lang : quoteLanguage;
+  const language = quoteViewLanguage(quote, lang);
   const safe = toCustomerSafeQuote(await localizeQuote(quote, language), {
     shareUrl: publicUrl,
   });

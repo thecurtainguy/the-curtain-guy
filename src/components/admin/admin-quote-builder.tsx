@@ -90,6 +90,7 @@ import { DocumentTextPreviewButton } from "@/components/admin/document-text-prev
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { AdminQuotePreviewDialog } from "@/components/admin/admin-quote-preview-dialog";
 import { AdminQuoteSendDialog } from "@/components/admin/admin-quote-send-dialog";
+import { draftTranslation } from "@/lib/translate-draft";
 import { toast } from "@/components/ui/sonner";
 import { AdminQuoteDuplicateDialog } from "@/components/admin/admin-quote-duplicate-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
@@ -676,30 +677,24 @@ export function AdminQuoteBuilder({
     setTranslating(true);
     flash();
     try {
-      const response = await fetch("/api/admin/quotes/translate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: language,
-          lines: lines
-            .filter((line) => line.description.trim() && !line.descriptionTranslated.trim())
-            .map((line) => ({ key: line.key, text: line.description })),
-          notes: customerNotes.trim() && !customerNotesTranslated.trim() ? customerNotes : null,
-          terms: terms.trim() && !termsTranslated.trim() ? terms : null,
-        }),
+      const result = await draftTranslation({
+        from: language,
+        lines: lines
+          .filter((line) => line.description.trim() && !line.descriptionTranslated.trim())
+          .map((line) => ({ key: line.key, text: line.description })),
+        notes: customerNotes.trim() && !customerNotesTranslated.trim() ? customerNotes : null,
+        terms: terms.trim() && !termsTranslated.trim() ? terms : null,
       });
-      const json = (await response.json()) as {
-        ok?: boolean;
-        message?: string;
-        lines?: Array<{ key: string; text: string }>;
-        notes?: string | null;
-        terms?: string | null;
-      };
-      if (!response.ok || !json.ok) {
-        flash(undefined, json.message || "Could not translate.");
+      if (!result.ok) {
+        flash(undefined, result.message);
         return;
       }
-      const byKey = new Map((json.lines ?? []).map((line) => [line.key, line.text]));
+      if (result.engine === "none") {
+        flash(`Nothing to translate — the ${otherLanguageLabel} version is complete.`);
+        return;
+      }
+      const json = result.draft;
+      const byKey = new Map(json.lines.map((line) => [line.key, line.text]));
       setLines((prev) =>
         prev.map((line) =>
           !line.descriptionTranslated.trim() && byKey.get(line.key)
@@ -1336,8 +1331,8 @@ export function AdminQuoteBuilder({
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Both versions go out together. Standard terms translate
-                  automatically; custom text needs a translation.
+                  Needed only when sending French + English (Québec customers).
+                  Standard terms translate automatically.
                 </p>
               </div>
             </div>

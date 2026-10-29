@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { headers } from "next/headers";
 import type { CustomerLanguage } from "@/data/customer-language";
-import { isCustomerLanguage } from "@/data/customer-language";
+import { isCustomerLanguage, normalizeCustomerLanguage } from "@/data/customer-language";
 import {
   SIGNATURE_IMAGE_MAX_CHARS,
   SIGNING_CLAUSE_KEYS,
@@ -428,12 +428,17 @@ export async function signQuote(input: SignQuoteInput): Promise<QuoteSignatureRo
     throw new SigningError("Please choose the language of your agreement.");
   }
   const language: CustomerLanguage = input.language;
+  const bilingual = quote.bilingual !== false;
+  if (!bilingual && language !== normalizeCustomerLanguage(quote.language)) {
+    throw new SigningError("This quote can only be signed in the language it was issued in.");
+  }
   // Charter of the French Language s.55: English binds only once the French version was provided.
-  const frenchEvidence = language === "en" ? await findFrenchVersionEvidence(quote.id) : null;
-  if (language === "en" && !frenchEvidence) {
+  const frenchEvidence =
+    bilingual && language === "en" ? await findFrenchVersionEvidence(quote.id) : null;
+  if (bilingual && language === "en" && !frenchEvidence) {
     throw new SigningError(SIGNING_LANGUAGE_CHOICE.errors.frenchFirst);
   }
-  const languageChoiceText = signingLanguageChoiceText(language);
+  const languageChoiceText = signingLanguageChoiceText(language, bilingual);
   const snapshot = await buildSigningSnapshot(quote, language);
   const signedAt = new Date().toISOString();
   const acknowledgements: SigningAcknowledgement[] = buildSigningClauses(snapshot, language).map(
@@ -450,7 +455,7 @@ export async function signQuote(input: SignQuoteInput): Promise<QuoteSignatureRo
       };
     }
   );
-  const consentText = signingConsentText(language, signerName, snapshot.quote_display_ref);
+  const consentText = signingConsentText(language, signerName, snapshot.quote_display_ref, bilingual);
   const documentHash = sha256(
     stableStringify({
       document: snapshot,

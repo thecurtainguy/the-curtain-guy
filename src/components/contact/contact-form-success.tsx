@@ -5,7 +5,6 @@ import { CheckCircle2, Clock3, MapPin, Sparkles } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { CurtainReveal } from "@/components/ui/curtain-reveal";
-import { siteConfig } from "@/data/site";
 
 type ContactFormSuccessProps = {
   onSendAnother?: () => void;
@@ -13,6 +12,7 @@ type ContactFormSuccessProps = {
 
 export function ContactFormSuccess({ onSendAnother }: ContactFormSuccessProps) {
   const t = useTranslations("contact.form");
+  const tCommon = useTranslations("common");
 
   return (
     <CurtainReveal className="mt-6">
@@ -40,7 +40,7 @@ export function ContactFormSuccess({ onSendAnother }: ContactFormSuccessProps) {
         </span>
         <span className="surface-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
           <MapPin className="size-3.5 text-primary" aria-hidden />
-          {siteConfig.location}
+          {tCommon("location")}
         </span>
       </div>
 

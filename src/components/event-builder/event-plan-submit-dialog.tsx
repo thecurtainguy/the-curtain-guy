@@ -8,7 +8,10 @@ import type { EventBuilderBrief } from "@/data/event-builder/brief";
 import { isValidPhone } from "@/data/estimate";
 import type { StudioDesignJson } from "@/data/studio";
 import { clearEventBuilderBrief } from "@/data/event-builder/brief";
-import { postEventPlanSubmission } from "@/lib/event-builder/event-plan-client";
+import {
+  EventPlanRequestError,
+  postEventPlanSubmission,
+} from "@/lib/event-builder/event-plan-client";
 import { readStoredStudioLead } from "@/components/studio/lead/lead-storage";
 import { useOptionalStudioLead } from "@/components/studio/lead/studio-lead-context";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
@@ -17,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 
 type EventPlanSubmitDialogProps = {
   open: boolean;
@@ -108,6 +112,7 @@ function EventPlanSubmitDialogBody({
 
       clearEventBuilderBrief();
       onOpenChange(false);
+      toast.success(t("toasts.submitted"));
 
       if (onSubmitSuccess && body.id) {
         onSubmitSuccess({ id: body.id, reference: body.reference });
@@ -120,7 +125,12 @@ function EventPlanSubmitDialogBody({
       if (email.trim()) successParams.set("email", email.trim());
       router.push(`/studio/plan/success?${successParams.toString()}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("errorGeneric"));
+      const errorMessage =
+        err instanceof EventPlanRequestError && err.message
+          ? err.message
+          : t("errorGeneric");
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }

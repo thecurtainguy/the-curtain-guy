@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   CalendarDays,
   ClipboardList,
@@ -16,6 +17,7 @@ import {
 import type { UserProfile } from "@/lib/auth";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { toast } from "@/components/ui/sonner";
 import {
   PortalEstimateEmbedProvider,
   PortalEstimateEmbedSlot,
@@ -61,11 +63,21 @@ function AccountShellFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const startEstimate = usePortalStartEstimate();
+  const t = useTranslations("common.toasts");
   const isStudioEditor = /^\/account\/studio\/[^/]+\/?$/.test(pathname);
 
   async function signOut() {
-    const supabase = createBrowserSupabaseClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast.error(t("signOutFailed"));
+        return;
+      }
+    } catch {
+      toast.error(t("signOutFailed"));
+      return;
+    }
     router.push("/account/login");
     router.refresh();
   }

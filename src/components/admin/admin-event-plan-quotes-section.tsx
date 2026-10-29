@@ -12,6 +12,7 @@ import {
 } from "@/data/quotes";
 import { QuoteStatusBadge } from "@/components/quotes/quote-status-badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 
 export function AdminEventPlanQuotesSection({
   eventPlanId,
@@ -43,12 +44,16 @@ export function AdminEventPlanQuotesSection({
         quoteId?: string;
       };
       if (!response.ok || !payload.ok || !payload.quoteId) {
-        setError(payload.message ?? "Could not create quote.");
+        const failure = payload.message ?? "Could not create quote.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
+      toast.success("Draft quote created.");
       router.push(`/admin/quotes/${payload.quoteId}`);
     } catch {
       setError("Could not create quote.");
+      toast.error("Could not create quote.");
     } finally {
       setCreating(false);
     }

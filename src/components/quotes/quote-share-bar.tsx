@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, Mail, MessageCircle, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import type { CustomerLanguage } from "@/data/customer-language";
 import { getQuoteCopy } from "@/data/quote-copy";
 import { siteConfig } from "@/data/site";
@@ -41,9 +42,11 @@ export function QuoteShareBar({
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
+      toast.success(t.linkCopied);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopied(false);
+      toast.error(t.copyError);
     }
   }
 

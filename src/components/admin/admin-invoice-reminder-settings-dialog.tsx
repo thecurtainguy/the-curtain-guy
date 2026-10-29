@@ -29,6 +29,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 export function AdminInvoiceReminderSettingsDialog({
@@ -103,13 +104,16 @@ export function AdminInvoiceReminderSettingsDialog({
       });
       const json = (await response.json()) as { ok?: boolean; message?: string; invoice?: InvoiceWithRelations };
       if (!response.ok || !json.ok || !json.invoice) {
-        setError(json.message ?? "Could not save reminder settings.");
+        const message = json.message ?? "Could not save reminder settings.";
+        setError(message);
+        toast.error(message);
         return;
       }
       onSaved(json.invoice, json.message ?? "Reminder settings saved.");
       onOpenChange(false);
     } catch {
       setError("Could not save reminder settings.");
+      toast.error("Could not save reminder settings.");
     } finally {
       setSaving(false);
     }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/sonner";
 import {
   ArrowRight,
   Ban,
@@ -454,7 +455,6 @@ export function AdminInvoiceEditor({
   const [baseline, setBaseline] = useState(() => JSON.stringify(toPayload(toForm(initialInvoice))));
   const [saving, setSaving] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -609,8 +609,9 @@ export function AdminInvoiceEditor({
   }
 
   function flash(ok?: string | null, err?: string | null) {
-    setMessage(ok ?? null);
     setError(err ?? null);
+    if (ok) toast.success(ok);
+    if (err) toast.error(err);
   }
 
   function applyInvoice(next: InvoiceWithRelations, resetForm: boolean) {
@@ -769,6 +770,7 @@ export function AdminInvoiceEditor({
         flash(null, json.message ?? "Could not start a revision.");
         return;
       }
+      flash("Revision draft created.");
       router.push(`/admin/invoices/${json.invoiceId}`);
     } catch {
       flash(null, "Could not start a revision.");
@@ -832,6 +834,7 @@ export function AdminInvoiceEditor({
     });
     if (!ok) return;
     setBusyAction("delete");
+    flash();
     try {
       const response = await fetch(`/api/admin/invoices/${invoice.id}`, { method: "DELETE" });
       const json = (await response.json()) as { ok?: boolean; message?: string };
@@ -839,7 +842,10 @@ export function AdminInvoiceEditor({
         flash(null, json.message ?? "Could not delete.");
         return;
       }
+      flash(`${invoice.invoice_number} deleted.`);
       router.push(invoice.job_id ? `/admin/jobs/${invoice.job_id}` : "/admin/invoices");
+    } catch {
+      flash(null, "Could not delete.");
     } finally {
       setBusyAction(null);
     }
@@ -861,10 +867,24 @@ export function AdminInvoiceEditor({
       }
       setPublicUrl(json.url);
       if (json.invoice) applyInvoice(json.invoice, !isDirty);
-      await navigator.clipboard.writeText(json.url).catch(() => undefined);
+      const copiedOk = await navigator.clipboard.writeText(json.url).then(
+        () => true,
+        () => false
+      );
+      if (!copiedOk) {
+        flash(
+          null,
+          regenerate
+            ? "New link created, but it couldn’t be copied. The old link no longer works — copy the new one below."
+            : "Couldn’t copy the link. Copy it from Invoice controls."
+        );
+        return;
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       flash(regenerate ? "New link copied. The old link no longer works." : "Client link copied.");
+    } catch {
+      flash(null, "Could not create link.");
     } finally {
       setBusyAction(null);
     }
@@ -948,17 +968,12 @@ export function AdminInvoiceEditor({
         }
       />
 
-      {(message || error) && (
+      {error && (
         <p
-          className={cn(
-            "rounded-2xl border px-4 py-3 text-sm",
-            error
-              ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : "border-primary/25 bg-primary/10 text-foreground"
-          )}
-          role={error ? "alert" : undefined}
+          className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
         >
-          {error || message}
+          {error}
         </p>
       )}
 

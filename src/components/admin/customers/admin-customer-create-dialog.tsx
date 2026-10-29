@@ -11,6 +11,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { CUSTOMER_LANGUAGE_LABELS, type CustomerLanguage } from "@/data/customer-language";
 import type { CustomerKind } from "@/data/customers";
 import { CUSTOMER_KIND_OPTIONS, readJson } from "@/components/admin/customers/customer-ui";
@@ -67,13 +68,19 @@ export function AdminCustomerCreateButton() {
       });
       const json = await readJson<{ customer?: { id: string }; existingId?: string | null }>(response);
       if (!response.ok || !json.ok || !json.customer) {
-        setError(json.message ?? "Could not create the customer.");
+        const message = json.message ?? "Could not create the customer.";
+        setError(message);
         setExistingId(json.existingId ?? null);
+        toast.error(message);
         return;
       }
       setOpen(false);
       reset();
+      toast.success(name.trim() ? `${name.trim()} added as a customer.` : "Customer created.");
       router.push(`/admin/customers/${json.customer.id}`);
+    } catch {
+      setError("Could not create the customer.");
+      toast.error("Could not create the customer.");
     } finally {
       setSaving(false);
     }

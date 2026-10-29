@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeft,
   BookmarkCheck,
@@ -26,6 +27,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import type {
   StudioEventDetails,
   StudioLeadContact,
@@ -80,6 +82,7 @@ function SaveDesignDialogBody({
   onSignIn,
   createAccountHref,
 }: Omit<SaveDesignDialogProps, "open">) {
+  const tToast = useTranslations("studio.toasts");
   const [step, setStep] = useState<"contact" | "sign-in">("contact");
   const [name, setName] = useState(initialContact?.name ?? "");
   const [email, setEmail] = useState(initialContact?.email ?? "");
@@ -112,6 +115,7 @@ function SaveDesignDialogBody({
       if (!result.ok) {
         setErrors(result.fieldErrors ?? {});
         setFormError(result.message);
+        toast.error(tToast("saveFailed"), { description: result.message });
         return;
       }
       setSuccess({
@@ -119,6 +123,10 @@ function SaveDesignDialogBody({
         emailed: result.emailed,
         resumePath: result.resumePath,
       });
+      toast.success(tToast(result.emailed ? "designSavedEmailed" : "designSaved"));
+    } catch {
+      setFormError(tToast("saveFailed"));
+      toast.error(tToast("saveFailed"), { description: tToast("networkError") });
     } finally {
       setSubmitting(false);
     }
@@ -129,8 +137,10 @@ function SaveDesignDialogBody({
     try {
       await navigator.clipboard.writeText(`${window.location.origin}${success.resumePath}`);
       setCopied(true);
+      toast.success(tToast("linkCopied"));
     } catch {
       setCopied(false);
+      toast.error(tToast("copyFailed"));
     }
   }
 
@@ -382,6 +392,7 @@ function SignInStep({
   onBack: () => void;
   onSignIn: SaveDesignDialogProps["onSignIn"];
 }) {
+  const tToast = useTranslations("studio.toasts");
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -399,9 +410,11 @@ function SignInStep({
     const result = await onSignIn(email, password);
     if (result.ok) {
       setPending("opening");
+      toast.success(tToast("designSavedToAccount"));
       return;
     }
     setError(result.message);
+    toast.error(tToast("saveFailed"), { description: result.message });
     setPending("idle");
   }
 

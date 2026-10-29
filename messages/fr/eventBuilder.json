@@ -88,7 +88,11 @@
     "nameRequired": "Le nom est requis.",
     "emailRequired": "Le courriel est requis.",
     "phoneRequired": "Entrez un numéro de téléphone avec l’indicatif régional pour que nous puissions vous joindre.",
-    "errorGeneric": "Échec de la soumission. Réessayez."
+    "errorGeneric": "Échec de la soumission. Réessayez.",
+    "toasts": {
+      "submitted": "Plan d’événement envoyé — nous vous contacterons sous peu.",
+      "updated": "Plan d’événement mis à jour."
+    }
   },
   "success": {
     "eyebrow": "Plan reçu",

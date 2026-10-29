@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { SelectInput } from "@/components/ui/select-input";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useBrandConfirm } from "@/components/ui/brand-dialog";
 import { CUSTOMER_LANGUAGE_LABELS, type CustomerLanguage } from "@/data/customer-language";
@@ -171,14 +172,14 @@ export function AdminCustomerProfileForm({
     setForm(initial);
   }
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [confirm, confirmDialog] = useBrandConfirm();
 
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
-    setMessage(null);
+    setError(null);
   }
 
   async function save() {
@@ -204,7 +205,7 @@ export function AdminCustomerProfileForm({
     }
 
     setSaving(true);
-    setMessage(null);
+    setError(null);
     try {
       const response = await fetch(`/api/admin/customers/${customer.id}`, {
         method: "PATCH",
@@ -215,18 +216,22 @@ export function AdminCustomerProfileForm({
         cascade?: { quotes: string[]; invoices: string[]; estimates: number } | null;
       }>(response);
       if (!response.ok || !json.ok) {
-        setMessage({ tone: "error", text: json.message ?? "Could not save." });
+        const message = json.message ?? "Could not save.";
+        setError(message);
+        toast.error(message);
         return;
       }
       const cascade = json.cascade;
       const moved = cascade ? [...cascade.quotes, ...cascade.invoices] : [];
-      setMessage({
-        tone: "ok",
-        text: moved.length
-          ? `Saved. Also switched ${moved.join(", ")} to ${CUSTOMER_LANGUAGE_LABELS[form.preferred_language]}.`
-          : "Saved.",
-      });
+      toast.success(
+        moved.length
+          ? `Customer saved. Also switched ${moved.join(", ")} to ${CUSTOMER_LANGUAGE_LABELS[form.preferred_language]}.`
+          : "Customer saved."
+      );
       router.refresh();
+    } catch {
+      setError("Could not save.");
+      toast.error("Could not save.");
     } finally {
       setSaving(false);
     }
@@ -510,11 +515,11 @@ export function AdminCustomerProfileForm({
         <p
           className={cn(
             "text-sm",
-            message?.tone === "error" ? "text-destructive" : message ? "text-primary" : "text-muted-foreground"
+            error ? "text-destructive" : "text-muted-foreground"
           )}
-          role={message ? "status" : undefined}
+          role={error ? "alert" : undefined}
         >
-          {message?.text ?? (dirty ? "You have unsaved changes." : "All changes saved.")}
+          {error ?? (dirty ? "You have unsaved changes." : "All changes saved.")}
         </p>
         <div className="flex gap-2">
           {dirty ? (
@@ -523,7 +528,7 @@ export function AdminCustomerProfileForm({
               className="text-sm text-muted-foreground hover:text-foreground"
               onClick={() => {
                 setForm(initial);
-                setMessage(null);
+                setError(null);
               }}
             >
               Discard

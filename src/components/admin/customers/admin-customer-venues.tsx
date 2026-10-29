@@ -21,6 +21,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import type { CustomerVenueRow } from "@/data/customers";
 import { CustomerPanel } from "@/components/admin/customers/customer-panel";
@@ -108,11 +109,20 @@ export function AdminCustomerVenues({
       });
       const json = await readJson(response);
       if (!response.ok || !json.ok) {
-        setError(json.message ?? "Could not save venue.");
+        const message = json.message ?? "Could not save venue.";
+        setError(message);
+        toast.error(message);
         return;
       }
+      const label = draft.name.trim();
       setEditing(null);
+      toast.success(
+        isNew ? (label ? `${label} added to venues.` : "Venue added.") : label ? `${label} updated.` : "Venue updated."
+      );
       router.refresh();
+    } catch {
+      setError("Could not save venue.");
+      toast.error("Could not save venue.");
     } finally {
       setSaving(false);
     }
@@ -126,8 +136,18 @@ export function AdminCustomerVenues({
       destructive: true,
     });
     if (!ok) return;
-    const response = await fetch(`/api/admin/customers/${customerId}/venues/${venue.id}`, { method: "DELETE" });
-    if (response.ok) router.refresh();
+    try {
+      const response = await fetch(`/api/admin/customers/${customerId}/venues/${venue.id}`, { method: "DELETE" });
+      const json = await readJson(response);
+      if (!response.ok || json.ok === false) {
+        toast.error(json.message ?? "Could not remove venue.");
+        return;
+      }
+      toast.success(`${venue.name} removed.`);
+      router.refresh();
+    } catch {
+      toast.error("Could not remove venue.");
+    }
   }
 
   return (

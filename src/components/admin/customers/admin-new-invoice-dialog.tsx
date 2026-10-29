@@ -12,6 +12,7 @@ import { EventTypeInput } from "@/components/ui/event-type-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { CUSTOMER_LANGUAGE_LABELS, type CustomerLanguage } from "@/data/customer-language";
 import { CustomerPicker, type PickedCustomer } from "@/components/admin/customers/customer-picker";
 import { CustomerPanel, ToggleTile } from "@/components/admin/customers/customer-panel";
@@ -93,11 +94,17 @@ export function AdminNewInvoiceButton({
       });
       const json = await readJson<{ invoiceId?: string }>(response);
       if (!response.ok || !json.ok || !json.invoiceId) {
-        setError(json.message ?? "Could not create the invoice.");
+        const message = json.message ?? "Could not create the invoice.";
+        setError(message);
+        toast.error(message);
         return;
       }
       setOpen(false);
+      toast.success(`Draft invoice created for ${picked.display_name}.`);
       router.push(`/admin/invoices/${json.invoiceId}`);
+    } catch {
+      setError("Could not create the invoice.");
+      toast.error("Could not create the invoice.");
     } finally {
       setSaving(false);
     }

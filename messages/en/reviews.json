@@ -340,6 +340,9 @@
     "close": "Close",
     "errors": {
       "generic": "Something went wrong. Please email info@thecurtainguy.com directly."
+    },
+    "toasts": {
+      "sent": "Review sent — thank you for sharing your experience."
     }
   }
 }

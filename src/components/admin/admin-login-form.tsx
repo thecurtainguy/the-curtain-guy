@@ -7,6 +7,7 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/sonner";
 
 export function AdminLoginForm() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export function AdminLoginForm() {
 
       if (signError || !data.user) {
         setError("Invalid email or password.");
+        toast.error("Invalid email or password.");
         return;
       }
 
@@ -54,6 +56,7 @@ export function AdminLoginForm() {
       router.refresh();
     } catch {
       setError("Could not sign in. Please try again.");
+      toast.error("Could not sign in. Please try again.");
     } finally {
       setLoading(false);
     }

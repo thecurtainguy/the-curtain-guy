@@ -372,6 +372,10 @@
     },
     "contact": {
       "honeypot": "Leave blank"
+    },
+    "toasts": {
+      "sent": "Request sent — we’ll be in touch shortly.",
+      "uploadFailed": "{count, plural, one {# file could not be uploaded — you can email it to us.} other {# files could not be uploaded — you can email them to us.}}"
     }
   },
   "validation": {
@@ -415,6 +419,18 @@
       "tooLarge": "File exceeds 10 MB limit.",
       "invalidType": "Only PDF, JPG, and PNG files are allowed.",
       "maxFiles": "Maximum 5 files allowed."
+    },
+    "toasts": {
+      "uploaded": "{count, plural, one {# file uploaded.} other {# files uploaded.}}",
+      "uploadPartialFailed": "{count, plural, one {# file failed to upload.} other {# files failed to upload.}}",
+      "uploadFailed": "Upload failed. Please try again.",
+      "downloadFailed": "Could not create download link.",
+      "updated": "File updated.",
+      "updateFailed": "Could not update the file.",
+      "deleted": "File deleted.",
+      "deleteFailed": "Could not delete the file.",
+      "restored": "File restored.",
+      "restoreFailed": "Could not restore the file."
     }
   },
   "portalEmbed": {

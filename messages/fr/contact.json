@@ -38,6 +38,9 @@
       "message": "Le message est requis.",
       "eventType": "Le type d'événement est requis.",
       "generic": "Une erreur s'est produite. Veuillez écrire directement à info@thecurtainguy.com."
+    },
+    "toasts": {
+      "sent": "Message envoyé — nous vous répondrons sous peu."
     }
   }
 }

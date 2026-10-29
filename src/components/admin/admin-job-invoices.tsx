@@ -11,6 +11,7 @@ import {
 import { formatMoneyFromCents } from "@/data/quotes";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 
 export function AdminJobInvoices({
   jobId,
@@ -34,12 +35,16 @@ export function AdminJobInvoices({
         invoiceId?: string;
       };
       if (!response.ok || !payload.ok || !payload.invoiceId) {
-        setError(payload.message ?? "Could not create invoice.");
+        const message = payload.message ?? "Could not create invoice.";
+        setError(message);
+        toast.error(message);
         return;
       }
+      toast.success("Draft invoice created.");
       router.push(`/admin/invoices/${payload.invoiceId}`);
     } catch {
       setError("Could not create invoice.");
+      toast.error("Could not create invoice.");
     } finally {
       setBusy(false);
     }

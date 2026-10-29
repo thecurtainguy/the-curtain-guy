@@ -16,6 +16,7 @@ import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/sonner";
 import { formatQuoteUnitPrice } from "@/data/quotes";
 import {
   STUDIO_BOM_SECTIONS,
@@ -220,6 +221,14 @@ export function StudioPricingManager({
                   },
                 }));
                 setPickerKey(null);
+                const linked = pickerChoice ? productsById.get(pickerChoice) : null;
+                toast.success(
+                  linked
+                    ? `${pickerEntry.label} linked to ${linked.name}.`
+                    : `${pickerEntry.label} saved as unpriced.`
+                );
+              } else {
+                toast.error(result);
               }
               return result;
             }}
@@ -386,22 +395,23 @@ function MappingRow({
 }) {
   const [notes, setNotes] = useState(saved.notes);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const optional = isOptional(entry);
   const inactive = Boolean(product && !product.isActive);
   const missing = !optional && (!product || inactive);
   const dirty = notes.trim() !== saved.notes.trim();
 
-  async function persist(next: Saved) {
+  async function persist(next: Saved, successMessage: string) {
     setSaving(true);
-    setMessage(null);
+    setError(null);
     const result = await saveMapping(entry.key, next);
     setSaving(false);
     if (result === true) {
       onSaved(next);
-      setMessage({ tone: "ok", text: "Saved" });
+      toast.success(successMessage);
     } else {
-      setMessage({ tone: "error", text: result });
+      setError(result);
+      toast.error(result);
     }
   }
 
@@ -467,7 +477,7 @@ function MappingRow({
               variant="ghost"
               aria-label={`Unlink ${entry.label}`}
               disabled={saving}
-              onClick={() => void persist({ productId: null, notes })}
+              onClick={() => void persist({ productId: null, notes }, `${entry.label} unlinked.`)}
             >
               <X className="size-4" />
             </Button>
@@ -502,19 +512,13 @@ function MappingRow({
           size="sm"
           variant={dirty ? "default" : "outline"}
           disabled={!dirty || saving}
-          onClick={() => void persist({ productId: saved.productId, notes })}
+          onClick={() => void persist({ productId: saved.productId, notes }, "Notes saved.")}
         >
           {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Save"}
         </Button>
-        {message ? (
-          <span
-            className={cn(
-              "text-xs whitespace-nowrap",
-              message.tone === "ok" ? "text-primary" : "text-destructive"
-            )}
-            role={message.tone === "error" ? "alert" : undefined}
-          >
-            {message.text}
+        {error ? (
+          <span className="text-xs whitespace-nowrap text-destructive" role="alert">
+            {error}
           </span>
         ) : null}
       </div>

@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 
 export function ClaimEstimateButton({ estimateId }: { estimateId: string }) {
   const router = useRouter();
+  const t = useTranslations("account-auth.portal.toasts");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -24,13 +27,17 @@ export function ClaimEstimateButton({ estimateId }: { estimateId: string }) {
         message?: string;
       };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not save estimate.");
+        const errorMessage = payload.message ?? t("estimateClaimFailed");
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
       setDone(true);
+      toast.success(t("estimateClaimed"));
       router.refresh();
     } catch {
-      setError("Could not save estimate.");
+      setError(t("estimateClaimFailed"));
+      toast.error(t("estimateClaimFailed"));
     } finally {
       setLoading(false);
     }

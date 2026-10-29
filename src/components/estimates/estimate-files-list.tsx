@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import { formatFileSize } from "@/lib/estimate-files-shared";
 
 export type FileListItem = {
@@ -24,6 +26,7 @@ export function EstimateFilesList({
   emptyMessage?: string;
   showVisibility?: boolean;
 }) {
+  const t = useTranslations("estimate.filePicker.toasts");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,12 +43,15 @@ export function EstimateFilesList({
         message?: string;
       };
       if (!response.ok || !payload.ok || !payload.url) {
-        setError(payload.message ?? "Could not create download link.");
+        const errorMessage = payload.message ?? t("downloadFailed");
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
       window.open(payload.url, "_blank", "noopener,noreferrer");
     } catch {
-      setError("Could not create download link.");
+      setError(t("downloadFailed"));
+      toast.error(t("downloadFailed"));
     } finally {
       setBusyId(null);
     }

@@ -23,6 +23,7 @@ import {
 import type { UserProfile } from "@/lib/auth";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { toast } from "@/components/ui/sonner";
 import {
   PortalEstimateEmbedProvider,
   PortalEstimateEmbedSlot,
@@ -107,8 +108,17 @@ function AdminShellFrame({
   const isStudioEditor = /^\/admin\/studio\/[^/]+\/edit\/?$/.test(pathname);
 
   async function signOut() {
-    const supabase = createBrowserSupabaseClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createBrowserSupabaseClient();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast.error("Could not sign out. Please try again.");
+        return;
+      }
+    } catch {
+      toast.error("Could not sign out. Please try again.");
+      return;
+    }
     router.push("/admin/login");
     router.refresh();
   }

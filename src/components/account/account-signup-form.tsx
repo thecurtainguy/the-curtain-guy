@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/sonner";
 
 function useFriendlyAuthError() {
   const t = useTranslations("account-auth.signup.errors");
@@ -76,7 +77,9 @@ export function AccountSignupForm() {
       });
 
       if (signError) {
-        setError(friendlyAuthError(signError.message));
+        const errorMessage = friendlyAuthError(signError.message);
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
@@ -87,6 +90,7 @@ export function AccountSignupForm() {
         const sessionPayload = (await sessionRes.json()) as {
           role?: "owner" | "customer" | null;
         };
+        toast.success(t("toasts.created"));
         router.push(
           safeNextPath(requestedNext, postLoginPath(sessionPayload.role))
         );
@@ -95,8 +99,10 @@ export function AccountSignupForm() {
       }
 
       setCheckEmail(true);
+      toast.success(t("toasts.checkEmail"));
     } catch {
       setError(t("errors.retry"));
+      toast.error(t("errors.retry"));
     } finally {
       setLoading(false);
     }

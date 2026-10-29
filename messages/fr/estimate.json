@@ -372,6 +372,10 @@
     },
     "contact": {
       "honeypot": "Laisser vide"
+    },
+    "toasts": {
+      "sent": "Demande envoyée — nous vous contacterons sous peu.",
+      "uploadFailed": "{count, plural, one {# fichier n’a pas pu être téléversé — vous pouvez nous l’envoyer par courriel.} other {# fichiers n’ont pas pu être téléversés — vous pouvez nous les envoyer par courriel.}}"
     }
   },
   "validation": {
@@ -415,6 +419,18 @@
       "tooLarge": "Le fichier dépasse la limite de 10 Mo.",
       "invalidType": "Seuls les fichiers PDF, JPG et PNG sont permis.",
       "maxFiles": "Maximum 5 fichiers permis."
+    },
+    "toasts": {
+      "uploaded": "{count, plural, one {# fichier téléversé.} other {# fichiers téléversés.}}",
+      "uploadPartialFailed": "{count, plural, one {# fichier n’a pas pu être téléversé.} other {# fichiers n’ont pas pu être téléversés.}}",
+      "uploadFailed": "Échec du téléversement. Veuillez réessayer.",
+      "downloadFailed": "Impossible de créer le lien de téléchargement.",
+      "updated": "Fichier mis à jour.",
+      "updateFailed": "Impossible de mettre à jour le fichier.",
+      "deleted": "Fichier supprimé.",
+      "deleteFailed": "Impossible de supprimer le fichier.",
+      "restored": "Fichier restauré.",
+      "restoreFailed": "Impossible de restaurer le fichier."
     }
   },
   "portalEmbed": {

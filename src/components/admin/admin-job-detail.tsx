@@ -37,6 +37,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/sonner";
 import { TimeInput } from "@/components/ui/time-input";
 import { cn } from "@/lib/utils";
 
@@ -106,7 +107,6 @@ export function AdminJobDetail({
   const [messageBusy, setMessageBusy] = useState(false);
   const [ownerMessage, setOwnerMessage] = useState("");
   const [ownerMessageInternal, setOwnerMessageInternal] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [venueBusy, setVenueBusy] = useState(false);
@@ -133,6 +133,7 @@ export function AdminJobDetail({
       return;
     }
     setVenueBusy(true);
+    flash();
     try {
       const response = await fetch(`/api/admin/customers/${customer.id}/venues`, {
         method: "POST",
@@ -159,6 +160,8 @@ export function AdminJobDetail({
       }
       flash(`Saved ${venueName} to ${customer.display_name}'s venues.`);
       router.refresh();
+    } catch {
+      flash(undefined, "Could not save venue.");
     } finally {
       setVenueBusy(false);
     }
@@ -182,8 +185,9 @@ export function AdminJobDetail({
   }, [job.checklist_items]);
 
   function flash(ok?: string, err?: string) {
-    setMessage(ok ?? null);
     setError(err ?? null);
+    if (ok) toast.success(ok);
+    if (err) toast.error(err);
   }
 
   function buildPayload() {
@@ -314,7 +318,7 @@ export function AdminJobDetail({
     }
   }
 
-  async function toggleChecklist(itemId: string, complete: boolean) {
+  async function toggleChecklist(itemId: string, label: string, complete: boolean) {
     setChecklistBusy(itemId);
     flash();
     try {
@@ -332,6 +336,7 @@ export function AdminJobDetail({
         return;
       }
       setJob(payload.job);
+      flash(complete ? `Checked off “${label}”.` : `Reopened “${label}”.`);
     } catch {
       flash(undefined, "Could not update checklist.");
     } finally {
@@ -374,6 +379,7 @@ export function AdminJobDetail({
   async function copySummary() {
     try {
       await navigator.clipboard.writeText(buildJobSummaryText(job));
+      toast.success("Job summary copied.");
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -454,17 +460,12 @@ export function AdminJobDetail({
         }
       />
 
-      {(message || error) && (
+      {error && (
         <div
-          className={cn(
-            "rounded-2xl border px-4 py-3 text-sm",
-            error
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200"
-          )}
-          role={error ? "alert" : undefined}
+          className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
         >
-          {error ?? message}
+          {error}
         </div>
       )}
 
@@ -892,7 +893,7 @@ export function AdminJobDetail({
                         variant="outline"
                         disabled={checklistBusy === item.id}
                         onClick={() =>
-                          void toggleChecklist(item.id, !item.is_completed)
+                          void toggleChecklist(item.id, item.label, !item.is_completed)
                         }
                       >
                         {checklistBusy === item.id ? (

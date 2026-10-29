@@ -23,6 +23,7 @@ import { EventTypeInput } from "@/components/ui/event-type-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { OptionCard } from "@/components/estimate/option-card";
 import { CustomerLanguagePicker } from "@/components/quotes/customer-language-picker";
 import { CustomerCurrencyPicker } from "@/components/quotes/customer-currency-picker";
@@ -284,9 +285,14 @@ export function AdminQuoteDuplicateDialog({
         warnings?: string[];
       };
       if (!response.ok || !data.ok || !data.quoteId) {
-        setError(data.message ?? "Could not duplicate the quote.");
+        const failure = data.message ?? "Could not duplicate the quote.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
+      toast.success(
+        data.opportunityRef ? `Quote duplicated as ${data.opportunityRef}.` : "Quote duplicated."
+      );
       if (data.warnings?.length) {
         setResult({ quoteId: data.quoteId, ref: data.opportunityRef ?? "", warnings: data.warnings });
         return;
@@ -295,6 +301,7 @@ export function AdminQuoteDuplicateDialog({
       onOpenChange(false);
     } catch {
       setError("Could not duplicate the quote.");
+      toast.error("Could not duplicate the quote.");
     } finally {
       setSaving(false);
     }

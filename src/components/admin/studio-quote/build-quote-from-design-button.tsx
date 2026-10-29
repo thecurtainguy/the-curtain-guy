@@ -20,6 +20,7 @@ import {
 import { BrandDialogContent } from "@/components/ui/brand-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { toast } from "@/components/ui/sonner";
 import {
   formatCadFromCents,
   formatQuoteQuantity,
@@ -111,13 +112,23 @@ export function BuildQuoteFromDesignButton(props: BuildQuoteFromDesignButtonProp
       });
       const payload = (await response.json()) as CreateResponse;
       if (!response.ok || !payload.ok || !payload.quoteId) {
-        setError(payload.message ?? "Could not create the quote.");
+        const failure = payload.message ?? "Could not create the quote.";
+        setError(failure);
+        toast.error(failure);
         if (payload.existingQuoteId) void loadPreview();
         return;
       }
+      toast.success(
+        mode === "revision"
+          ? "Revision created from design."
+          : preview?.existingQuote?.fillable
+            ? `${preview.existingQuote.displayRef} filled from design.`
+            : "Draft quote created from design."
+      );
       router.push(`/admin/quotes/${payload.quoteId}`);
     } catch {
       setError("Could not create the quote.");
+      toast.error("Could not create the quote.");
     } finally {
       setSubmitting(null);
     }

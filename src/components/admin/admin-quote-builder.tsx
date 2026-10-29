@@ -90,6 +90,7 @@ import { DocumentTextPreviewButton } from "@/components/admin/document-text-prev
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { AdminQuotePreviewDialog } from "@/components/admin/admin-quote-preview-dialog";
 import { AdminQuoteSendDialog } from "@/components/admin/admin-quote-send-dialog";
+import { toast } from "@/components/ui/sonner";
 import { AdminQuoteDuplicateDialog } from "@/components/admin/admin-quote-duplicate-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import { QuoteGuestProposalCard } from "@/components/quotes/quote-guest-proposal-card";
@@ -442,7 +443,6 @@ export function AdminQuoteBuilder({
   const [revising, setRevising] = useState(false);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [duplicateKey, setDuplicateKey] = useState(0);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [publicUrl, setPublicUrl] = useState<string | null>(initialGuestUrl);
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -539,8 +539,9 @@ export function AdminQuoteBuilder({
   }, [clearDirty]);
 
   function flash(okMessage?: string, err?: string) {
-    setMessage(okMessage ?? null);
     setError(err ?? null);
+    if (okMessage) toast.success(okMessage);
+    if (err) toast.error(err);
   }
 
   function startEditing() {
@@ -608,7 +609,7 @@ export function AdminQuoteBuilder({
       texts?: Array<{ slug: string; body: string }>;
     };
     if (!response.ok || !json.ok) {
-      setError(json.message || "Could not load default terms.");
+      flash(undefined, json.message || "Could not load default terms.");
       return null;
     }
     const bodyFor = (lang: CustomerLanguage) =>
@@ -625,13 +626,14 @@ export function AdminQuoteBuilder({
       const defaults = await fetchDefaultTerms();
       if (!defaults) return;
       if (!defaults[language]) {
-        setError("Default terms are not configured.");
+        flash(undefined, "Default terms are not configured.");
         return;
       }
       setTerms(defaults[language]);
       setTermsTranslated("");
+      toast.success("Default terms applied.");
     } catch {
-      setError("Could not load default terms.");
+      flash(undefined, "Could not load default terms.");
     } finally {
       setApplyingDefaultTerms(false);
     }
@@ -840,6 +842,7 @@ export function AdminQuoteBuilder({
         flash(undefined, payload.message ?? "Could not create revision.");
         return;
       }
+      flash("Revision draft created.");
       router.push(`/admin/quotes/${payload.quoteId}`);
     } catch {
       flash(undefined, "Could not create revision.");
@@ -881,7 +884,7 @@ export function AdminQuoteBuilder({
         return;
       }
       setConvertFor(null);
-      flash("Request updated.");
+      flash(convert ? "Request added as a line item." : "Request updated.");
       router.refresh();
     } catch {
       flash(undefined, "Could not update request.");
@@ -1105,17 +1108,12 @@ export function AdminQuoteBuilder({
         </section>
       ) : null}
 
-      {(message || error) && (
+      {error && (
         <div
-          className={cn(
-            "rounded-2xl border px-4 py-3 text-sm",
-            error
-              ? "border-destructive/40 bg-destructive/10 text-destructive"
-              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
-          )}
-          role={error ? "alert" : undefined}
+          className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
         >
-          {error ?? message}
+          {error}
         </div>
       )}
 
@@ -2334,7 +2332,11 @@ export function AdminQuoteBuilder({
           contacts={customer?.contactOptions ?? []}
           onSent={(result) => {
             if (result.publicUrl) setPublicUrl(result.publicUrl);
-            flash(result.message ?? "Quote sent.");
+            if (result.emailSent === false) {
+              flash(undefined, result.message ?? "Email failed to send.");
+            } else {
+              flash(result.to ? `Quote sent to ${result.to}.` : (result.message ?? "Quote sent."));
+            }
             router.refresh();
           }}
         />

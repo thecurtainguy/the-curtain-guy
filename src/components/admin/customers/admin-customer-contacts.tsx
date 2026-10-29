@@ -25,6 +25,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CONTACT_ROLES,
@@ -143,11 +144,20 @@ export function AdminCustomerContacts({
       });
       const json = await readJson(response);
       if (!response.ok || !json.ok) {
-        setError(json.message ?? "Could not save contact.");
+        const message = json.message ?? "Could not save contact.";
+        setError(message);
+        toast.error(message);
         return;
       }
+      const label = draft.name.trim() || draft.email.trim();
       setEditing(null);
+      toast.success(
+        isNew ? (label ? `${label} added to contacts.` : "Contact added.") : label ? `${label} updated.` : "Contact updated."
+      );
       router.refresh();
+    } catch {
+      setError("Could not save contact.");
+      toast.error("Could not save contact.");
     } finally {
       setSaving(false);
     }
@@ -161,8 +171,18 @@ export function AdminCustomerContacts({
       destructive: true,
     });
     if (!ok) return;
-    const response = await fetch(`/api/admin/customers/${customerId}/contacts/${contact.id}`, { method: "DELETE" });
-    if (response.ok) router.refresh();
+    try {
+      const response = await fetch(`/api/admin/customers/${customerId}/contacts/${contact.id}`, { method: "DELETE" });
+      const json = await readJson(response);
+      if (!response.ok || json.ok === false) {
+        toast.error(json.message ?? "Could not remove contact.");
+        return;
+      }
+      toast.success(`${contact.name || contact.email || "Contact"} removed.`);
+      router.refresh();
+    } catch {
+      toast.error("Could not remove contact.");
+    }
   }
 
   return (

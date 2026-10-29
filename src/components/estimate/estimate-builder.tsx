@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { StepTransition } from "@/components/animation/step-transition";
 import { Reveal } from "@/components/animation/reveal";
@@ -325,7 +326,9 @@ export function EstimateBuilder({
         };
 
         if (!response.ok || !payload.ok) {
-          setSubmitError(payload.message ?? tBuilder("submitError"));
+          const errorMessage = payload.message ?? tBuilder("submitError");
+          setSubmitError(errorMessage);
+          toast.error(errorMessage);
           return;
         }
 
@@ -340,6 +343,11 @@ export function EstimateBuilder({
           });
           uploadFailed = uploadResult.failed;
           uploadUploaded = uploadResult.uploaded;
+        }
+
+        toast.success(tBuilder("toasts.sent"));
+        if (uploadFailed > 0) {
+          toast.error(tBuilder("toasts.uploadFailed", { count: uploadFailed }));
         }
 
         const viewerRole: EstimateSuccessViewerRole =
@@ -374,6 +382,7 @@ export function EstimateBuilder({
         clearDirty();
       } catch {
         setSubmitError(tBuilder("submitErrorNetwork"));
+        toast.error(tBuilder("submitErrorNetwork"));
       } finally {
         setIsSubmitting(false);
       }

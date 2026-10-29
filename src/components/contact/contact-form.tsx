@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ContactFormSuccess } from "@/components/contact/contact-form-success";
+import { toast } from "@/components/ui/sonner";
 import type { ContactFormData } from "@/lib/contact-schema";
 
 const emptyForm: ContactFormData = {
@@ -81,7 +82,9 @@ export function ContactForm() {
         if (payload.fieldErrors) {
           setFieldErrors(payload.fieldErrors);
         }
-        setSubmitError(payload.message ?? t("errors.generic"));
+        const errorMessage = payload.message ?? t("errors.generic");
+        setSubmitError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
@@ -90,8 +93,10 @@ export function ContactForm() {
       setFormData(emptyForm);
       setHoneypot("");
       setShowValidation(false);
+      toast.success(t("toasts.sent"));
     } catch {
       setSubmitError(t("errors.generic"));
+      toast.error(t("errors.generic"));
     } finally {
       setIsSubmitting(false);
     }

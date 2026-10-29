@@ -39,5 +39,8 @@
   "breadcrumbs": {
     "home": "Home",
     "services": "Services"
+  },
+  "toasts": {
+    "signOutFailed": "Could not sign you out. Please try again."
   }
 }

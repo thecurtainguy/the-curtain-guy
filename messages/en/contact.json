@@ -38,6 +38,9 @@
       "message": "Message is required.",
       "eventType": "Event type is required.",
       "generic": "Something went wrong. Please email info@thecurtainguy.com directly."
+    },
+    "toasts": {
+      "sent": "Message sent — we’ll be in touch shortly."
     }
   }
 }

@@ -118,6 +118,8 @@ export type QuoteCopy = {
   viewPdf: string;
   copied: string;
   copyLink: string;
+  linkCopied: string;
+  copyError: string;
   email: string;
   share: string;
   shareMailBody: (company: string, url: string) => string;
@@ -300,6 +302,8 @@ const en: QuoteCopy = {
   viewPdf: "View PDF",
   copied: "Copied",
   copyLink: "Copy link",
+  linkCopied: "Link copied to clipboard.",
+  copyError: "Could not copy the link.",
   email: "Email",
   share: "Share",
   shareMailBody: (company, url) =>
@@ -491,6 +495,8 @@ const fr: QuoteCopy = {
   viewPdf: "Voir le PDF",
   copied: "Copié",
   copyLink: "Copier le lien",
+  linkCopied: "Lien copié dans le presse-papiers.",
+  copyError: "Impossible de copier le lien.",
   email: "Courriel",
   share: "Partager",
   shareMailBody: (company, url) =>

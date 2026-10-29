@@ -93,7 +93,10 @@
     "colorEyebrow": "Couleur",
     "colorTitle": "Choisir une couleur",
     "colorRequired": "Sélectionnez une couleur pour continuer.",
-    "colorOwnPrice": "À partir de {price}"
+    "colorOwnPrice": "À partir de {price}",
+    "toasts": {
+      "added": "Ajouté à votre panier."
+    }
   },
   "cart": {
     "title": "Votre panier de location",
@@ -197,6 +200,9 @@
       "signIn": "Se connecter",
       "viewAccount": "Voir les estimations dans le compte",
       "backToRentals": "Retour aux locations"
+    },
+    "toasts": {
+      "sent": "Demande envoyée — nous vous contacterons sous peu."
     }
   }
 }

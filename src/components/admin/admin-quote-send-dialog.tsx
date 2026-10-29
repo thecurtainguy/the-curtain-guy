@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   defaultQuoteEmailTexts,
@@ -84,7 +85,7 @@ export function AdminQuoteSendDialog({
   publicQuoteUrlPreview: string | null;
   defaultCc?: string[];
   contacts?: CustomerContactOption[];
-  onSent: (result: { publicUrl?: string; message?: string }) => void;
+  onSent: (result: { publicUrl?: string; message?: string; emailSent?: boolean; to?: string }) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const defaultTexts = defaultQuoteEmailTexts();
@@ -230,18 +231,24 @@ export function AdminQuoteSendDialog({
         ok?: boolean;
         message?: string;
         publicUrl?: string;
+        emailSent?: boolean;
       };
       if (!response.ok || !payload.ok) {
-        setError(payload.message || "Could not send quote.");
+        const failure = payload.message || "Could not send quote.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
       onSent({
         publicUrl: payload.publicUrl,
         message: payload.message,
+        emailSent: payload.emailSent,
+        to: toList.join(", "),
       });
       onOpenChange(false);
     } catch {
       setError("Could not send quote.");
+      toast.error("Could not send quote.");
     } finally {
       setSending(false);
     }

@@ -33,8 +33,13 @@ import { ROOM_MIN_FT } from "@/lib/event-builder/brief-room";
 import { computeEventWallRoles } from "@/lib/event-builder/wall-roles";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { buildStarterDesignFromBrief } from "@/lib/event-builder/build-starter-design";
-import { patchEventPlanSubmission, postEventPlanSubmission } from "@/lib/event-builder/event-plan-client";
+import {
+  EventPlanRequestError,
+  patchEventPlanSubmission,
+  postEventPlanSubmission,
+} from "@/lib/event-builder/event-plan-client";
 import { normalizeStudioDesign } from "@/data/studio";
 
 const STEPS = EVENT_BUILDER_STEPS;
@@ -387,6 +392,7 @@ export function EventBuilderFlow({
       );
 
       clearEventBuilderBrief();
+      toast.success(t("submit.toasts.submitted"));
 
       if (onSubmitSaved && body.id) {
         onSubmitSaved(body.id);
@@ -401,9 +407,12 @@ export function EventBuilderFlow({
       }
       router.push(`/studio/plan/success?${successParams.toString()}`);
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : t("submit.errorGeneric")
-      );
+      const errorMessage =
+        err instanceof EventPlanRequestError && err.message
+          ? err.message
+          : t("submit.errorGeneric");
+      setSaveError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -428,6 +437,7 @@ export function EventBuilderFlow({
         normalizeStudioDesign(buildStarterDesignFromBrief(brief)),
         contactDefaults
       );
+      toast.success(t("submit.toasts.updated"));
 
       if (onEditSaved) {
         onEditSaved();
@@ -438,9 +448,12 @@ export function EventBuilderFlow({
         router.push(successHref);
       }
     } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : t("submit.errorGeneric")
-      );
+      const errorMessage =
+        err instanceof EventPlanRequestError && err.message
+          ? err.message
+          : t("submit.errorGeneric");
+      setSaveError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }

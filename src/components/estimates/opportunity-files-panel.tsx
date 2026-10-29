@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Check,
   ChevronDown,
@@ -30,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SelectInput } from "@/components/ui/select-input";
+import { toast } from "@/components/ui/sonner";
 import {
   ESTIMATE_FILE_CAPTION_MAX,
   ESTIMATE_FILE_KINDS,
@@ -171,6 +173,7 @@ function OpportunityFilesList({
   audience: "admin" | "customer";
 }) {
   const router = useRouter();
+  const t = useTranslations("estimate.filePicker.toasts");
   const [confirm, confirmDialog] = useBrandConfirm();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -188,12 +191,15 @@ function OpportunityFilesList({
         message?: string;
       };
       if (!response.ok || !payload.ok || !payload.url) {
-        setError(payload.message ?? "Could not create download link.");
+        const errorMessage = payload.message ?? t("downloadFailed");
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
       window.open(payload.url, "_blank", "noopener,noreferrer");
     } catch {
-      setError("Could not create download link.");
+      setError(t("downloadFailed"));
+      toast.error(t("downloadFailed"));
     } finally {
       setBusyId(null);
     }
@@ -218,12 +224,16 @@ function OpportunityFilesList({
         message?: string;
       };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not update the file.");
+        const errorMessage = payload.message ?? t("updateFailed");
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
+      toast.success(t("updated"));
       router.refresh();
     } catch {
-      setError("Could not update the file.");
+      setError(t("updateFailed"));
+      toast.error(t("updateFailed"));
     } finally {
       setBusyId(null);
     }
@@ -267,12 +277,16 @@ function OpportunityFilesList({
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not delete the file.");
+        const errorMessage = payload.message ?? t("deleteFailed");
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
+      toast.success(t("deleted"));
       router.refresh();
     } catch {
-      setError("Could not delete the file.");
+      setError(t("deleteFailed"));
+      toast.error(t("deleteFailed"));
     } finally {
       setBusyId(null);
     }
@@ -450,6 +464,7 @@ function DrawerSummary({
 
 function DeletedFilesDrawer({ files }: { files: OpportunityFileItem[] }) {
   const router = useRouter();
+  const t = useTranslations("estimate.filePicker.toasts");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -462,12 +477,16 @@ function DeletedFilesDrawer({ files }: { files: OpportunityFileItem[] }) {
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not restore the file.");
+        const errorMessage = payload.message ?? t("restoreFailed");
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
+      toast.success(t("restored"));
       router.refresh();
     } catch {
-      setError("Could not restore the file.");
+      setError(t("restoreFailed"));
+      toast.error(t("restoreFailed"));
     } finally {
       setBusyId(null);
     }
@@ -701,6 +720,7 @@ function OpportunityFileUploader({
   audience: "admin" | "customer";
 }) {
   const router = useRouter();
+  const t = useTranslations("estimate.filePicker.toasts");
   const isAdmin = audience === "admin";
   const [files, setFiles] = useState<SelectedEstimateFile[]>([]);
   const [progress, setProgress] = useState<FileUploadProgress[]>([]);
@@ -738,6 +758,7 @@ function OpportunityFileUploader({
               : ""
           }.`
         );
+        toast.success(t("uploaded", { count: result.uploaded }));
         setFiles([]);
         router.refresh();
       }
@@ -745,9 +766,11 @@ function OpportunityFileUploader({
         setError(
           `${result.failed} file${result.failed === 1 ? "" : "s"} failed.`
         );
+        toast.error(t("uploadPartialFailed", { count: result.failed }));
       }
     } catch {
       setError("Upload failed. Please try again.");
+      toast.error(t("uploadFailed"));
     } finally {
       setBusy(false);
     }

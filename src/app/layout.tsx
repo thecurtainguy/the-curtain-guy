@@ -10,6 +10,7 @@ import { LocaleHtmlLang } from "@/components/i18n/locale-html-lang";
 import { SiteShell } from "@/components/layout/site-shell";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UnsavedChangesProvider } from "@/components/providers/unsaved-changes-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/data/site";
 import { buildSiteGraphJsonLd } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/env";
@@ -124,6 +125,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <SiteShell>{children}</SiteShell>
             </UnsavedChangesProvider>
           </LocaleProvider>
+          <Toaster />
         </ThemeProvider>
         <GoogleAnalytics />
       </body>

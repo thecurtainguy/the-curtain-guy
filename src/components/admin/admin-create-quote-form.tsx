@@ -21,6 +21,7 @@ import { EventTypeInput } from "@/components/ui/event-type-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 
 export function AdminCreateQuoteForm({ initialCustomer = null }: { initialCustomer?: PickedCustomer | null }) {
@@ -74,13 +75,17 @@ export function AdminCreateQuoteForm({ initialCustomer = null }: { initialCustom
         quoteId?: string;
       };
       if (!response.ok || !payload.ok || !payload.quoteId) {
-        setError(payload.message || "Could not create quote.");
+        const failure = payload.message || "Could not create quote.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
+      toast.success("Draft quote created.");
       router.push(`/admin/quotes/${payload.quoteId}`);
       router.refresh();
     } catch {
       setError("Could not create quote.");
+      toast.error("Could not create quote.");
     } finally {
       setCreating(false);
     }

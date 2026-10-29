@@ -88,7 +88,11 @@
     "nameRequired": "Name is required.",
     "emailRequired": "Email is required.",
     "phoneRequired": "Enter a phone number with area code so we can reach you.",
-    "errorGeneric": "We could not submit your plan. Please try again."
+    "errorGeneric": "We could not submit your plan. Please try again.",
+    "toasts": {
+      "submitted": "Event plan sent — we’ll be in touch shortly.",
+      "updated": "Event plan updated."
+    }
   },
   "success": {
     "eyebrow": "Plan received",

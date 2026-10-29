@@ -24,6 +24,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import {
   SignatureAdopter,
   adoptedSignatureImage,
@@ -97,7 +98,10 @@ export function AdminQuoteAgreementPanel({
     setBusy(true);
     try {
       const signatureImage = await adoptedSignatureImage({ method, name, drawnImage });
-      if (!signatureImage) throw new Error("Type or draw your signature.");
+      if (!signatureImage) {
+        setError("Type or draw your signature.");
+        return;
+      }
       const res = await fetch(`/api/admin/quotes/${quoteId}/countersign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,10 +125,17 @@ export function AdminQuoteAgreementPanel({
         setCreatedInvoice(ready);
         announceQuoteInvoice(ready);
       }
+      toast.success(
+        data.invoice
+          ? `Agreement countersigned. Draft invoice ${data.invoice.invoiceNumber} created.`
+          : "Agreement countersigned."
+      );
       setOpen(false);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not countersign.");
+      const failure = err instanceof Error ? err.message : "Could not countersign.";
+      setError(failure);
+      toast.error(failure);
     } finally {
       setBusy(false);
     }

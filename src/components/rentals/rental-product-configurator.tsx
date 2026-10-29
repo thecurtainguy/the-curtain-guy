@@ -25,6 +25,7 @@ import { useRentalsCart } from "@/components/rentals/rentals-cart-provider";
 import { QuantityStepper } from "@/components/rentals/quantity-stepper";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 type RentalProductConfiguratorProps = {
@@ -139,6 +140,7 @@ export function RentalProductConfigurator({
     }
     if (!previewLines.length) return;
     addLines(previewLines);
+    toast.success(t("toasts.added"));
   }
 
   return (

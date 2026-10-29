@@ -63,5 +63,14 @@
     "title": "AI design assistance is coming next.",
     "description": "Today's Studio is manual by design. Floor-plan upload and AI-assisted suggestions are not part of this first release.",
     "cta": "See what's next"
+  },
+  "toasts": {
+    "designSaved": "Design saved.",
+    "designSavedEmailed": "Design saved — we emailed you a private link.",
+    "designSavedToAccount": "Design saved to your account.",
+    "saveFailed": "Couldn’t save your design.",
+    "networkError": "Check your connection and try again.",
+    "linkCopied": "Link copied to clipboard.",
+    "copyFailed": "Couldn’t copy the link."
   }
 }

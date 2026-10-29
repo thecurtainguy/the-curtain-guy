@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { SelectInput } from "@/components/ui/select-input";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 type ZoneDraft = {
@@ -125,7 +126,6 @@ export function AdminDeliveryZonesEditor({
       Math.max(0, ...initialZones.map((zone) => zone.sortOrder)) + 10
     )
   );
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [previewHomeZoneId, setPreviewHomeZoneId] = useState(
@@ -193,12 +193,16 @@ export function AdminDeliveryZonesEditor({
     }));
   }
 
-  async function saveZone(id: string): Promise<boolean> {
+  function fail(message: string) {
+    setError(message);
+    toast.error(message);
+  }
+
+  async function saveZone(id: string, notify = true): Promise<boolean> {
     const draft = drafts[id];
     if (!draft) return false;
     setSavingId(id);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/admin/delivery-zones", {
         method: "PUT",
@@ -222,7 +226,7 @@ export function AdminDeliveryZonesEditor({
         zone?: RentalDeliveryZone;
       };
       if (!response.ok || !json.ok || !json.zone) {
-        setError(json.message || "Could not save zone.");
+        fail(json.message || "Could not save zone.");
         return false;
       }
       setZones((prev) =>
@@ -231,12 +235,12 @@ export function AdminDeliveryZonesEditor({
           .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id))
       );
       setDrafts((prev) => ({ ...prev, [id]: toDraft(json.zone!) }));
-      setMessage(
-        `Saved ${json.zone.shortLabel}. Rentals checkout will use the new rates.`
-      );
+      if (notify) {
+        toast.success(`Saved ${json.zone.shortLabel}. Rentals checkout will use the new rates.`);
+      }
       return true;
     } catch {
-      setError("Could not save zone.");
+      fail("Could not save zone.");
       return false;
     } finally {
       setSavingId(null);
@@ -257,10 +261,10 @@ export function AdminDeliveryZonesEditor({
     const ids = dirtyZoneIds;
     if (ids.length === 0) return;
     for (const id of ids) {
-      const ok = await saveZone(id);
+      const ok = await saveZone(id, false);
       if (!ok) return;
     }
-    setMessage(
+    toast.success(
       ids.length === 1
         ? "Saved zone. Rentals checkout will use the new rates."
         : `Saved ${ids.length} zones. Rentals checkout will use the new rates.`
@@ -270,21 +274,20 @@ export function AdminDeliveryZonesEditor({
   async function createZone() {
     const id = slugifyZoneId(newDraft.id || newDraft.shortLabel || newDraft.label);
     if (!id) {
-      setError("Zone id or short label is required.");
+      fail("Zone id or short label is required.");
       return;
     }
     if (zones.some((zone) => zone.id === id)) {
-      setError(`Zone “${id}” already exists.`);
+      fail(`Zone “${id}” already exists.`);
       return;
     }
     if (!newDraft.label.trim()) {
-      setError("Checkout label is required.");
+      fail("Checkout label is required.");
       return;
     }
 
     setCreating(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/admin/delivery-zones", {
         method: "PUT",
@@ -308,7 +311,7 @@ export function AdminDeliveryZonesEditor({
         zone?: RentalDeliveryZone;
       };
       if (!response.ok || !json.ok || !json.zone) {
-        setError(json.message || "Could not create zone.");
+        fail(json.message || "Could not create zone.");
         return;
       }
       setZones((prev) =>
@@ -324,9 +327,9 @@ export function AdminDeliveryZonesEditor({
             10
         )
       );
-      setMessage(`Created ${json.zone.shortLabel}.`);
+      toast.success(`Created ${json.zone.shortLabel}.`);
     } catch {
-      setError("Could not create zone.");
+      fail("Could not create zone.");
     } finally {
       setCreating(false);
     }
@@ -348,7 +351,6 @@ export function AdminDeliveryZonesEditor({
 
     setDeletingId(id);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/admin/delivery-zones", {
         method: "DELETE",
@@ -361,7 +363,7 @@ export function AdminDeliveryZonesEditor({
         zones?: RentalDeliveryZone[];
       };
       if (!response.ok || !json.ok) {
-        setError(json.message || "Could not delete zone.");
+        fail(json.message || "Could not delete zone.");
         return;
       }
       const nextZones = json.zones || zones.filter((row) => row.id !== id);
@@ -378,9 +380,9 @@ export function AdminDeliveryZonesEditor({
             DEFAULT_PACKAGE_LOGISTICS_ZONE_ID
         );
       }
-      setMessage(`Deleted ${label}.`);
+      toast.success(`Deleted ${label}.`);
     } catch {
-      setError("Could not delete zone.");
+      fail("Could not delete zone.");
     } finally {
       setDeletingId(null);
     }
@@ -389,7 +391,6 @@ export function AdminDeliveryZonesEditor({
   async function restoreDefaults() {
     setRestoring(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/admin/delivery-zones", {
         method: "PUT",
@@ -402,16 +403,16 @@ export function AdminDeliveryZonesEditor({
         zones?: RentalDeliveryZone[];
       };
       if (!response.ok || !json.ok || !json.zones) {
-        setError(json.message || "Could not restore defaults.");
+        fail(json.message || "Could not restore defaults.");
         return;
       }
       setZones(json.zones);
       setDrafts(
         Object.fromEntries(json.zones.map((zone) => [zone.id, toDraft(zone)]))
       );
-      setMessage("Restored factory zone prices.");
+      toast.success("Restored factory zone prices.");
     } catch {
-      setError("Could not restore defaults.");
+      fail("Could not restore defaults.");
     } finally {
       setRestoring(false);
     }
@@ -494,16 +495,12 @@ export function AdminDeliveryZonesEditor({
         </div>
       </section>
 
-      {(message || error) && (
+      {error && (
         <p
-          className={cn(
-            "rounded-2xl border px-4 py-3 text-sm",
-            error
-              ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : "border-primary/25 bg-primary/10 text-foreground"
-          )}
+          className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
         >
-          {error || message}
+          {error}
         </p>
       )}
 

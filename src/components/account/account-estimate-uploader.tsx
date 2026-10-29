@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   EstimateFilePicker,
   uploadEstimateFiles,
@@ -9,6 +10,7 @@ import {
   type SelectedEstimateFile,
 } from "@/components/estimates/estimate-file-picker";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import { Loader2 } from "lucide-react";
 
 export function AccountEstimateUploader({
@@ -19,6 +21,7 @@ export function AccountEstimateUploader({
   remainingSlots?: number;
 }) {
   const router = useRouter();
+  const t = useTranslations("estimate.filePicker.toasts");
   const [files, setFiles] = useState<SelectedEstimateFile[]>([]);
   const [progress, setProgress] = useState<FileUploadProgress[]>([]);
   const [busy, setBusy] = useState(false);
@@ -44,19 +47,18 @@ export function AccountEstimateUploader({
         onProgress: setProgress,
       });
       if (result.uploaded > 0) {
-        setMessage(
-          `${result.uploaded} file${result.uploaded === 1 ? "" : "s"} uploaded.`
-        );
+        setMessage(t("uploaded", { count: result.uploaded }));
+        toast.success(t("uploaded", { count: result.uploaded }));
         setFiles([]);
         router.refresh();
       }
       if (result.failed > 0) {
-        setError(
-          `${result.failed} file${result.failed === 1 ? "" : "s"} failed to upload.`
-        );
+        setError(t("uploadPartialFailed", { count: result.failed }));
+        toast.error(t("uploadPartialFailed", { count: result.failed }));
       }
     } catch {
-      setError("Upload failed. Please try again.");
+      setError(t("uploadFailed"));
+      toast.error(t("uploadFailed"));
     } finally {
       setBusy(false);
     }

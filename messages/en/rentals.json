@@ -93,7 +93,10 @@
     "colorEyebrow": "Color",
     "colorTitle": "Choose a color",
     "colorRequired": "Select a color to continue.",
-    "colorOwnPrice": "From {price}"
+    "colorOwnPrice": "From {price}",
+    "toasts": {
+      "added": "Added to your cart."
+    }
   },
   "cart": {
     "title": "Your rental cart",
@@ -197,6 +200,9 @@
       "signIn": "Sign in",
       "viewAccount": "View estimates in account",
       "backToRentals": "Back to rentals"
+    },
+    "toasts": {
+      "sent": "Request sent — we’ll be in touch shortly."
     }
   }
 }

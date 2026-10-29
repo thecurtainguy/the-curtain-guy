@@ -10,6 +10,7 @@ import {
 } from "@/data/review-submissions";
 import { ReviewSubmissionStatusBadge } from "@/components/reviews/review-submission-status-badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -30,13 +31,11 @@ export function AdminReviewActions({
   const [status, setStatus] = useState(initialStatus);
   const [notes, setNotes] = useState(initialNotes);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function save(next?: { status?: ReviewSubmissionStatus; notes?: string }) {
     setSaving(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch(`/api/admin/reviews/${reviewId}`, {
         method: "PATCH",
@@ -52,15 +51,22 @@ export function AdminReviewActions({
         message?: string;
       };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not save.");
+        const failure = payload.message ?? "Could not save.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
       if (next?.status) setStatus(next.status);
       if (next?.notes !== undefined) setNotes(next.notes);
-      setMessage("Saved.");
+      toast.success(
+        next?.status
+          ? `Review marked ${getReviewSubmissionStatusLabel(next.status).toLowerCase()}.`
+          : "Notes saved."
+      );
       router.refresh();
     } catch {
       setError("Could not save.");
+      toast.error("Could not save.");
     } finally {
       setSaving(false);
     }
@@ -121,9 +127,6 @@ export function AdminReviewActions({
         </Button>
       </div>
 
-      {message ? (
-        <p className="text-sm text-emerald-600 dark:text-emerald-400">{message}</p>
-      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );

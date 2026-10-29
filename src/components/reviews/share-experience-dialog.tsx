@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { SelectInput } from "@/components/ui/select-input";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { ReviewSubmissionData } from "@/lib/review-submission-schema";
@@ -168,15 +169,19 @@ export function ShareExperienceDialog({ children }: ShareExperienceDialogProps) 
 
       if (!response.ok || !payload.ok) {
         if (payload.fieldErrors) setFieldErrors(payload.fieldErrors);
-        setSubmitError(payload.message ?? t("errors.generic"));
+        const errorMessage = payload.message ?? t("errors.generic");
+        setSubmitError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
       setSubmitSuccess(true);
       setFieldErrors({});
       setShowValidation(false);
+      toast.success(t("toasts.sent"));
     } catch {
       setSubmitError(t("errors.generic"));
+      toast.error(t("errors.generic"));
     } finally {
       setIsSubmitting(false);
     }

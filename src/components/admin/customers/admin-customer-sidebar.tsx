@@ -22,6 +22,7 @@ import {
 import { OptionCard } from "@/components/estimate/option-card";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { useBrandConfirm } from "@/components/ui/brand-dialog";
 import { CUSTOMER_LANGUAGE_LABELS, type CustomerLanguage } from "@/data/customer-language";
 import type { CustomerEventRow, CustomerRow } from "@/data/customers";
@@ -52,7 +53,6 @@ export function AdminCustomerPortalCard({
 }) {
   const router = useRouter();
   const [sending, setSending] = useState(false);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [confirm, confirmDialog] = useBrandConfirm();
 
   async function invite() {
@@ -65,12 +65,17 @@ export function AdminCustomerPortalCard({
     });
     if (!ok) return;
     setSending(true);
-    setMessage(null);
     try {
       const response = await fetch(`/api/admin/customers/${customer.id}/invite`, { method: "POST" });
       const json = await readJson(response);
-      setMessage({ tone: response.ok && json.ok ? "ok" : "error", text: json.message ?? "Could not send." });
-      if (response.ok) router.refresh();
+      if (!response.ok || !json.ok) {
+        toast.error(json.message ?? "Could not send the invitation.");
+        return;
+      }
+      toast.success(json.message ?? `Invitation sent to ${customer.primary_email}.`);
+      router.refresh();
+    } catch {
+      toast.error("Could not send the invitation.");
     } finally {
       setSending(false);
     }
@@ -118,11 +123,6 @@ export function AdminCustomerPortalCard({
         >
           {portal.hasAccount ? "Send sign-in link" : portal.invitedAt ? "Resend invitation" : "Invite to portal"}
         </LoadingButton>
-        {message ? (
-          <p className={cn("text-xs", message.tone === "ok" ? "text-primary" : "text-destructive")} role="status">
-            {message.text}
-          </p>
-        ) : null}
       </div>
     </CustomerPanel>
   );
@@ -204,6 +204,11 @@ export function AdminCustomerAccountActions({
   const [confirm, confirmDialog] = useBrandConfirm();
   const archived = customer.status === "archived";
 
+  function fail(message: string) {
+    setError(message);
+    toast.error(message);
+  }
+
   async function toggleArchive() {
     setBusy(true);
     setError(null);
@@ -214,8 +219,14 @@ export function AdminCustomerAccountActions({
         body: JSON.stringify({ status: archived ? "active" : "archived" }),
       });
       const json = await readJson(response);
-      if (!response.ok || !json.ok) setError(json.message ?? "Could not update.");
-      else router.refresh();
+      if (!response.ok || !json.ok) {
+        fail(json.message ?? "Could not update.");
+        return;
+      }
+      toast.success(archived ? `${customer.display_name} restored.` : `${customer.display_name} archived.`);
+      router.refresh();
+    } catch {
+      fail("Could not update.");
     } finally {
       setBusy(false);
     }
@@ -230,15 +241,19 @@ export function AdminCustomerAccountActions({
     });
     if (!ok) return;
     setBusy(true);
+    setError(null);
     try {
       const response = await fetch(`/api/admin/customers/${customer.id}`, { method: "DELETE" });
       const json = await readJson(response);
       if (!response.ok || !json.ok) {
-        setError(json.message ?? "Could not delete.");
+        fail(json.message ?? "Could not delete.");
         return;
       }
+      toast.success(`${customer.display_name} deleted.`);
       router.push("/admin/customers");
       router.refresh();
+    } catch {
+      fail("Could not delete.");
     } finally {
       setBusy(false);
     }

@@ -9,6 +9,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import type { CustomerLanguage } from "@/data/customer-language";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ const COPY = {
     open: "Open guest proposal",
     copy: "Copy guest link",
     copied: "Copied",
+    linkCopied: "Guest link copied to clipboard.",
     openError: "Could not open guest proposal.",
     copyError: "Could not copy link.",
   },
@@ -30,6 +32,7 @@ const COPY = {
     open: "Ouvrir la soumission",
     copy: "Copier le lien",
     copied: "Copié",
+    linkCopied: "Lien invité copié dans le presse-papiers.",
     openError: "Impossible d’ouvrir la soumission.",
     copyError: "Impossible de copier le lien.",
   },
@@ -72,15 +75,17 @@ export function QuoteGuestProposalCard({
         message?: string;
       };
       if (!response.ok || !payload.ok || !payload.publicUrl) {
-        setError(
-          language === "en" ? (payload.message ?? t.openError) : t.openError
-        );
+        const errorMessage =
+          language === "en" ? (payload.message ?? t.openError) : t.openError;
+        setError(errorMessage);
+        toast.error(errorMessage);
         return null;
       }
       setUrl(payload.publicUrl);
       return payload.publicUrl;
     } catch {
       setError(t.openError);
+      toast.error(t.openError);
       return null;
     } finally {
       setBusy(false);
@@ -100,9 +105,11 @@ export function QuoteGuestProposalCard({
     try {
       await navigator.clipboard.writeText(next);
       setCopied(true);
+      toast.success(t.linkCopied);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       setError(t.copyError);
+      toast.error(t.copyError);
     }
   }
 

@@ -16,7 +16,6 @@ import {
   isRentalDeliveryZoneId,
   type RentalDeliveryZoneId,
 } from "@/data/rentals-logistics";
-import { siteConfig } from "@/data/site";
 import { Link } from "@/i18n/navigation";
 import { useRentalsCart } from "@/components/rentals/rentals-cart-provider";
 import { RentalsCheckoutSummary } from "@/components/rentals/rentals-checkout-summary";
@@ -29,6 +28,7 @@ import { GuardedLink } from "@/components/ui/guarded-link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { CurtainReveal } from "@/components/ui/curtain-reveal";
 import { CelebrationConfetti } from "@/components/ui/celebration-confetti";
@@ -62,6 +62,7 @@ export function RentalsCheckoutForm({
   isAuthenticated = false,
 }: RentalsCheckoutFormProps) {
   const t = useTranslations("rentals.checkout");
+  const tCommon = useTranslations("common");
   const {
     lines,
     checkoutLines,
@@ -171,7 +172,9 @@ export function RentalsCheckoutForm({
 
       if (!response.ok || !payload.ok) {
         if (payload.fieldErrors) setFieldErrors(payload.fieldErrors);
-        setSubmitError(payload.message ?? t("errors.generic"));
+        const errorMessage = payload.message ?? t("errors.generic");
+        setSubmitError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
@@ -180,8 +183,10 @@ export function RentalsCheckoutForm({
         opportunityRef: payload.opportunityRef ?? null,
         estimateTotalCents: payload.estimateTotalCents ?? subtotalCents,
       });
+      toast.success(t("toasts.sent"));
     } catch {
       setSubmitError(t("errors.generic"));
+      toast.error(t("errors.generic"));
     } finally {
       setIsSubmitting(false);
     }
@@ -223,7 +228,7 @@ export function RentalsCheckoutForm({
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border/40 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground">
             <MapPin className="size-3.5 text-primary" aria-hidden />
-            {siteConfig.location}
+            {tCommon("location")}
           </span>
         </div>
         <p className="text-xs text-muted-foreground">{t("disclaimer")}</p>

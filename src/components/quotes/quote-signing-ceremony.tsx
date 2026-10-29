@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import {
   SignatureAdopter,
   adoptedSignatureImage,
@@ -420,7 +421,14 @@ export function QuoteSigningCeremony({
     try {
       await task();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.errorGeneric);
+      const errorMessage =
+        err instanceof TypeError
+          ? t.errorNetwork
+          : err instanceof Error && err.message
+            ? err.message
+            : t.errorGeneric;
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setBusy(false);
     }
@@ -449,6 +457,7 @@ export function QuoteSigningCeremony({
         const data = await call({ action: "signing_send_code", signatureId });
         setSignatureId(data.signatureId as string);
         setMaskedEmail(data.maskedEmail as string);
+        toast.success(s.codeSent(data.maskedEmail as string));
       }
       setCode("");
       const at = Date.now();
@@ -518,6 +527,7 @@ export function QuoteSigningCeremony({
       const signed = data.agreement as QuoteAgreementSummary;
       setAgreement(signed);
       onSigned(signed);
+      toast.success(t.acceptedTitle);
       goTo("done");
     });
   }

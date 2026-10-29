@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   Calendar,
   CalendarDays,
@@ -28,6 +29,7 @@ import { PortalPageHeader } from "@/components/portal/portal-page-header";
 import type { JobWithRelations } from "@/lib/jobs";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +51,7 @@ export function CustomerEventDetail({
   quoteLineItems?: JobWithRelations["quote_line_items"];
   estimateFiles?: FileListItem[];
 }) {
+  const t = useTranslations("account-auth.portal.toasts");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -73,14 +76,17 @@ export function CustomerEventDetail({
         message?: EventJobMessageRow;
       };
       if (!response.ok || !payload.ok || !payload.message) {
-        setError("Could not send message. Please try again.");
+        setError(t("messageFailed"));
+        toast.error(t("messageFailed"));
         return;
       }
       setMessages((prev) => [...prev, payload.message!]);
       setMessage("");
-      setFeedback("Message sent. Our team will follow up.");
+      setFeedback(t("messageSent"));
+      toast.success(t("messageSent"));
     } catch {
-      setError("Could not send message.");
+      setError(t("messageFailed"));
+      toast.error(t("messageFailed"));
     } finally {
       setSending(false);
     }

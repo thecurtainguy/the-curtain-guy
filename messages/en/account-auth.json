@@ -108,6 +108,20 @@
       "generic": "Could not create account.",
       "retry": "Could not create account. Please try again in a moment.",
       "phoneRequired": "Enter a phone number with area code so we can reach you."
+    },
+    "toasts": {
+      "created": "Account created — welcome!",
+      "checkEmail": "Account created — check your email to confirm it."
+    }
+  },
+  "portal": {
+    "toasts": {
+      "profileSaved": "Profile updated.",
+      "profileSaveFailed": "Could not update your profile.",
+      "estimateClaimed": "Estimate saved to your account.",
+      "estimateClaimFailed": "Could not save this estimate to your account.",
+      "messageSent": "Message sent — our team will follow up.",
+      "messageFailed": "Could not send your message. Please try again."
     }
   }
 }

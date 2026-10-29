@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EstimateStatusBadge } from "@/components/estimates/status-badge";
+import { toast } from "@/components/ui/sonner";
 
 const STATUSES = ["new", "reviewed", "quoted", "closed", "spam"] as const;
 
@@ -27,13 +28,11 @@ export function AdminEstimateActions({
   const [status, setStatus] = useState(initialStatus);
   const [notes, setNotes] = useState(initialNotes);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function save(next?: { status?: string; notes?: string }) {
     setSaving(true);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch(`/api/admin/estimates/${estimateId}`, {
         method: "PATCH",
@@ -49,15 +48,18 @@ export function AdminEstimateActions({
         message?: string;
       };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not save.");
+        const failure = payload.message ?? "Could not save.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
       if (next?.status) setStatus(next.status);
       if (next?.notes !== undefined) setNotes(next.notes);
-      setMessage("Saved.");
+      toast.success(next?.status ? `Status set to ${next.status}.` : "Notes saved.");
       router.refresh();
     } catch {
       setError("Could not save.");
+      toast.error("Could not save.");
     } finally {
       setSaving(false);
     }
@@ -118,7 +120,6 @@ export function AdminEstimateActions({
         </Button>
       </div>
 
-      {message && <p className="feedback-success">{message}</p>}
       {error && (
         <p className="text-sm text-destructive" role="alert">
           {error}

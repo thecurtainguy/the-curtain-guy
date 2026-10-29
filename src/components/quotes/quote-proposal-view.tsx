@@ -45,6 +45,7 @@ import { QuoteSigningCeremony } from "@/components/quotes/quote-signing-ceremony
 import { Reveal } from "@/components/animation/reveal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatMoneyFromCents,
@@ -377,18 +378,21 @@ export function QuoteProposalView({
       } | null;
 
       if (!res.ok || !data?.ok) {
-        setError(
-          localizeQuoteApiError(data?.message, language) || t.errorGeneric
-        );
+        const errorMessage =
+          localizeQuoteApiError(data?.message, language) || t.errorGeneric;
+        setError(errorMessage);
+        toast.error(errorMessage);
         return false;
       }
 
       if (data.status === "declined" || payload.action === "decline") {
         setOptimisticStatus("declined");
         setConfirmNote(t.confirmDeclined);
+        toast.success(t.confirmDeclined);
       } else if (payload.action === "request_changes") {
         setOptimisticStatus("revision_requested");
         setConfirmNote(t.confirmChanges);
+        toast.success(t.confirmChanges);
       } else if (payload.action === "request_add_on" && payload.sourceKey) {
         setExtraPendingKeys((prev) =>
           prev.includes(payload.sourceKey!)
@@ -396,15 +400,20 @@ export function QuoteProposalView({
             : [...prev, payload.sourceKey!]
         );
         setConfirmNote(t.confirmAddOn);
+        toast.success(t.confirmAddOn);
       } else if (payload.action === "custom_request") {
         setConfirmNote(t.confirmCustom);
+        toast.success(t.confirmCustom);
       } else if (payload.action === "ask_question") {
         setConfirmNote(t.confirmQuestion);
+        toast.success(t.confirmQuestion);
       } else if (payload.action === "request_renewal") {
         setRenewalRequested(true);
         setRenewalNote("");
+        toast.success(t.expiredRequestedTitle);
       } else {
         setConfirmNote(t.confirmGeneric);
+        toast.success(t.confirmGeneric);
       }
 
       setPanel(null);
@@ -414,6 +423,7 @@ export function QuoteProposalView({
       return true;
     } catch {
       setError(t.errorNetwork);
+      toast.error(t.errorNetwork);
       return false;
     } finally {
       setBusy(false);

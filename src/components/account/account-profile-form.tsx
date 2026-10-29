@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/sonner";
 import { CustomerLanguagePicker } from "@/components/quotes/customer-language-picker";
 import type { CustomerLanguage } from "@/data/customer-language";
 
@@ -21,6 +23,7 @@ export function AccountProfileForm({
   initialLanguage: CustomerLanguage | null;
 }) {
   const router = useRouter();
+  const t = useTranslations("account-auth.portal.toasts");
   const [fullName, setFullName] = useState(initialFullName);
   const [phone, setPhone] = useState(initialPhone);
   const [language, setLanguage] = useState<CustomerLanguage | null>(
@@ -50,13 +53,17 @@ export function AccountProfileForm({
         message?: string;
       };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not update profile.");
+        const errorMessage = payload.message ?? t("profileSaveFailed");
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
-      setMessage("Profile updated.");
+      setMessage(t("profileSaved"));
+      toast.success(t("profileSaved"));
       router.refresh();
     } catch {
-      setError("Could not update profile.");
+      setError(t("profileSaveFailed"));
+      toast.error(t("profileSaveFailed"));
     } finally {
       setSaving(false);
     }

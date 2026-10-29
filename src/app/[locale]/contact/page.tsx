@@ -117,7 +117,7 @@ export default async function ContactPage({ params }: PageProps) {
                         {t("serviceArea")}
                       </p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {siteConfig.location}
+                        {tCommon("location")}
                       </p>
                     </div>
                   </CardContent>

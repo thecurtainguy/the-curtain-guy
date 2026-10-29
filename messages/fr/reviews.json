@@ -340,6 +340,9 @@
     "close": "Fermer",
     "errors": {
       "generic": "Une erreur s'est produite. Veuillez écrire directement à info@thecurtainguy.com."
+    },
+    "toasts": {
+      "sent": "Avis envoyé — merci de partager votre expérience."
     }
   }
 }

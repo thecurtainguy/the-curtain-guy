@@ -20,6 +20,7 @@ import { BrandDialogContent, useBrandConfirm } from "@/components/ui/brand-dialo
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/sonner";
 import {
   PRODUCT_CATEGORY_LABEL_MAX,
   sortProductCategories,
@@ -78,11 +79,14 @@ export function ProductCategoryCreateForm({
     });
     setSaving(false);
     if (requestError || !data?.category) {
-      setError(requestError || "Could not create category.");
+      const failure = requestError || "Could not create category.";
+      setError(failure);
+      toast.error(failure);
       return;
     }
     setLabel("");
     setLabelFr("");
+    toast.success(`Category “${data.category.label}” created.`);
     onCreated(data.category);
   }
 
@@ -473,7 +477,8 @@ export function AdminProductCategoriesManager({
 
   async function patchCategory(
     category: ProductCategoryWithCount,
-    body: Record<string, unknown>
+    body: Record<string, unknown>,
+    successMessage: string
   ): Promise<boolean> {
     setBusyId(category.id);
     setError(null);
@@ -485,10 +490,13 @@ export function AdminProductCategoriesManager({
     });
     setBusyId(null);
     if (requestError || !data?.category) {
-      setError(requestError || "Could not update category.");
+      const failure = requestError || "Could not update category.";
+      setError(failure);
+      toast.error(failure);
       return false;
     }
     replaceCategory({ ...data.category, product_count: category.product_count });
+    toast.success(successMessage);
     return true;
   }
 
@@ -515,7 +523,10 @@ export function AdminProductCategoriesManager({
     if (requestError) {
       onCategoriesChange(previous);
       setError(requestError);
+      toast.error(requestError);
+      return;
     }
+    toast.success("Category order saved.");
   }
 
   async function remove(category: ProductCategoryWithCount) {
@@ -537,9 +548,11 @@ export function AdminProductCategoriesManager({
     setBusyId(null);
     if (requestError) {
       setError(requestError);
+      toast.error(requestError);
       return;
     }
     onCategoriesChange(categories.filter((row) => row.id !== category.id));
+    toast.success(`Category “${category.label}” deleted.`);
   }
 
   function renderRows(rows: ProductCategoryWithCount[], offset: number, total: number) {
@@ -551,9 +564,15 @@ export function AdminProductCategoriesManager({
         isLast={offset + index === total - 1}
         busy={busyId !== null}
         onMove={(direction) => void move(category, direction)}
-        onRename={(names) => patchCategory(category, names)}
+        onRename={(names) => patchCategory(category, names, "Category renamed.")}
         onToggleActive={() =>
-          void patchCategory(category, { is_active: !category.is_active })
+          void patchCategory(
+            category,
+            { is_active: !category.is_active },
+            category.is_active
+              ? `Category “${category.label}” archived.`
+              : `Category “${category.label}” restored.`
+          )
         }
         onDelete={() => void remove(category)}
       />

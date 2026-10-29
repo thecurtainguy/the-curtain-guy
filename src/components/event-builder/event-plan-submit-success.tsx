@@ -12,7 +12,6 @@ import {
   Shield,
   UserPlus,
 } from "lucide-react";
-import { siteConfig } from "@/data/site";
 import { Link } from "@/i18n/navigation";
 import { studioBuildHref } from "@/data/event-builder/brief";
 import { RootLink } from "@/components/ui/root-link";
@@ -39,6 +38,7 @@ export function EventPlanSubmitSuccess({
   adminEventPlanHref,
 }: EventPlanSubmitSuccessProps) {
   const t = useTranslations("eventBuilder.success");
+  const tCommon = useTranslations("common");
   const stageRef = useRef<HTMLDivElement>(null);
 
   const accountHref = accountEventPlanHref ?? "/account/event-plans";
@@ -97,7 +97,7 @@ export function EventPlanSubmitSuccess({
           </span>
           <span className="surface-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-muted-foreground">
             <MapPin className="size-3.5 text-primary" aria-hidden />
-            {siteConfig.location}
+            {tCommon("location")}
           </span>
         </div>
 

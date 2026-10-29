@@ -23,6 +23,7 @@ import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +53,6 @@ export function AdminDocumentTextsEditor({
   );
   const [selectedType, setSelectedType] = useState<DocumentType>("quote_pdf");
   const [savingSlug, setSavingSlug] = useState<DocumentTextSlug | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fields = useMemo(
@@ -70,10 +70,14 @@ export function AdminDocumentTextsEditor({
       });
   }, [drafts, fields, texts]);
 
-  async function save(slug: DocumentTextSlug, restoreDefault = false): Promise<boolean> {
+  function fail(message: string) {
+    setError(message);
+    toast.error(message);
+  }
+
+  async function save(slug: DocumentTextSlug, restoreDefault = false, notify = true): Promise<boolean> {
     setSavingSlug(slug);
     setError(null);
-    setMessage(null);
     try {
       const response = await fetch("/api/admin/document-texts", {
         method: "PUT",
@@ -90,7 +94,7 @@ export function AdminDocumentTextsEditor({
         text?: { body: string; updated_at: string | null; isCustomized: boolean };
       };
       if (!response.ok || !json.ok || !json.text) {
-        setError(json.message || "Could not save.");
+        fail(json.message || "Could not save.");
         return false;
       }
       setDrafts((prev) => ({ ...prev, [slug]: json.text!.body }));
@@ -106,12 +110,21 @@ export function AdminDocumentTextsEditor({
             : item
         )
       );
-      setMessage(
-        restoreDefault ? "Restored factory default." : "Saved. New documents will use this copy."
-      );
+      if (notify) {
+        const label = DOCUMENT_TEXT_DEFS.find((def) => def.slug === slug)?.label;
+        toast.success(
+          restoreDefault
+            ? label
+              ? `Restored the factory default for “${label}”.`
+              : "Restored factory default."
+            : label
+              ? `Saved “${label}”. New documents will use this copy.`
+              : "Saved. New documents will use this copy."
+        );
+      }
       return true;
     } catch {
-      setError("Could not save.");
+      fail("Could not save.");
       return false;
     } finally {
       setSavingSlug(null);
@@ -122,10 +135,10 @@ export function AdminDocumentTextsEditor({
     const slugs = dirtySlugs;
     if (slugs.length === 0) return;
     for (const slug of slugs) {
-      const ok = await save(slug);
+      const ok = await save(slug, false, false);
       if (!ok) return;
     }
-    setMessage(
+    toast.success(
       slugs.length === 1
         ? "Saved. New documents will use this copy."
         : `Saved ${slugs.length} fields. New documents will use this copy.`
@@ -200,7 +213,6 @@ export function AdminDocumentTextsEditor({
               type="button"
               onClick={() => {
                 setSelectedType(type);
-                setMessage(null);
                 setError(null);
               }}
               className={cn(
@@ -247,16 +259,12 @@ export function AdminDocumentTextsEditor({
         })}
       </div>
 
-      {(message || error) && (
+      {error && (
         <p
-          className={cn(
-            "rounded-2xl border px-4 py-3 text-sm",
-            error
-              ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : "border-primary/25 bg-primary/10 text-foreground"
-          )}
+          className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
         >
-          {error || message}
+          {error}
         </p>
       )}
 

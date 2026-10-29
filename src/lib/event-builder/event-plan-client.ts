@@ -8,6 +8,8 @@ export type EventPlanContactPayload = {
   notes: string;
 };
 
+export class EventPlanRequestError extends Error {}
+
 type EventPlanApiResponse = {
   ok?: boolean;
   reference?: string;
@@ -39,7 +41,7 @@ export async function patchEventPlanSubmission(
   const body = (await response.json().catch(() => null)) as EventPlanApiResponse | null;
 
   if (!response.ok || !body?.ok) {
-    throw new Error(body?.message ?? "Could not save your event plan.");
+    throw new EventPlanRequestError(body?.message ?? "");
   }
 
   return { id: body.id ?? planId, reference: body.reference };
@@ -81,7 +83,7 @@ export async function postEventPlanSubmission(
   const body = (await response.json().catch(() => null)) as EventPlanApiResponse | null;
 
   if (!response.ok || !body?.ok) {
-    throw new Error(body?.message ?? "Could not submit your event plan.");
+    throw new EventPlanRequestError(body?.message ?? "");
   }
 
   return { id: body.id ?? "", reference: body.reference };

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -144,13 +145,16 @@ export function AdminInvoiceSendDialog({
         invoice?: InvoiceWithRelations;
       };
       if (!response.ok || !json.ok || !json.invoice) {
-        setError(json.message ?? "Could not send invoice.");
+        const message = json.message ?? "Could not send invoice.";
+        setError(message);
+        toast.error(message);
         return;
       }
       onSent(json.invoice, json.publicUrl ?? null, json.message ?? "Invoice sent.");
       onOpenChange(false);
     } catch {
       setError("Could not send invoice.");
+      toast.error("Could not send invoice.");
     } finally {
       setSending(false);
     }

@@ -112,6 +112,20 @@
       "generic": "Impossible de créer le compte.",
       "retry": "Impossible de créer le compte. Veuillez réessayer dans un moment.",
       "phoneRequired": "Entrez un numéro de téléphone avec l’indicatif régional pour que nous puissions vous joindre."
+    },
+    "toasts": {
+      "created": "Compte créé — bienvenue!",
+      "checkEmail": "Compte créé — vérifiez votre courriel pour le confirmer."
+    }
+  },
+  "portal": {
+    "toasts": {
+      "profileSaved": "Profil mis à jour.",
+      "profileSaveFailed": "Impossible de mettre à jour votre profil.",
+      "estimateClaimed": "Estimation enregistrée dans votre compte.",
+      "estimateClaimFailed": "Impossible d’enregistrer cette estimation dans votre compte.",
+      "messageSent": "Message envoyé — notre équipe vous répondra.",
+      "messageFailed": "Impossible d’envoyer votre message. Veuillez réessayer."
     }
   }
 }

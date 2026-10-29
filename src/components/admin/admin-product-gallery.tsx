@@ -14,6 +14,7 @@ import {
   type ProductImageRow,
 } from "@/data/product-images";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 type AdminProductGalleryProps = {
@@ -99,6 +100,11 @@ export function AdminProductGallery({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when gallery scope changes
   }, [productId, colorVariantId]);
 
+  function fail(message: string) {
+    onError?.(message);
+    toast.error(message);
+  }
+
   async function ensureId(): Promise<string | null> {
     if (productId) return productId;
     if (!onEnsureSaved) return null;
@@ -113,12 +119,13 @@ export function AdminProductGallery({
 
     const remaining = PRODUCT_GALLERY_MAX - images.length;
     if (remaining <= 0) {
-      onError?.(`Galleries can have at most ${PRODUCT_GALLERY_MAX} photos.`);
+      fail(`Galleries can have at most ${PRODUCT_GALLERY_MAX} photos.`);
       return;
     }
 
     setUploading(true);
     onError?.(null);
+    let uploaded = 0;
     try {
       for (const file of list.slice(0, remaining)) {
         const body = new FormData();
@@ -139,17 +146,21 @@ export function AdminProductGallery({
           product?: unknown;
         };
         if (!response.ok || !data.ok) {
-          onError?.(data.message ?? "Upload failed.");
+          fail(data.message ?? "Upload failed.");
           break;
         }
+        uploaded += 1;
         const next = data.images || [];
         setImages(next);
         onImagesChange?.(next);
         if (data.product) onProductRefresh?.(data.product);
       }
     } catch {
-      onError?.("Upload failed.");
+      fail("Upload failed.");
     } finally {
+      if (uploaded > 0) {
+        toast.success(uploaded === 1 ? "Photo uploaded." : `${uploaded} photos uploaded.`);
+      }
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -171,15 +182,16 @@ export function AdminProductGallery({
         product?: unknown;
       };
       if (!response.ok || !data.ok) {
-        onError?.(data.message ?? "Could not delete photo.");
+        fail(data.message ?? "Could not delete photo.");
         return;
       }
       const next = data.images || [];
       setImages(next);
       onImagesChange?.(next);
       if (data.product) onProductRefresh?.(data.product);
+      toast.success("Photo deleted.");
     } catch {
-      onError?.("Could not delete photo.");
+      fail("Could not delete photo.");
     } finally {
       setBusyId(null);
     }
@@ -213,7 +225,7 @@ export function AdminProductGallery({
         product?: unknown;
       };
       if (!response.ok || !data.ok) {
-        onError?.(data.message ?? "Could not reorder photos.");
+        fail(data.message ?? "Could not reorder photos.");
         await load(productId);
         return;
       }
@@ -221,8 +233,9 @@ export function AdminProductGallery({
       setImages(nextImages);
       onImagesChange?.(nextImages);
       if (data.product) onProductRefresh?.(data.product);
+      toast.success("Photo order saved.");
     } catch {
-      onError?.("Could not reorder photos.");
+      fail("Could not reorder photos.");
       await load(productId);
     } finally {
       setBusyId(null);

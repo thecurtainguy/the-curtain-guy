@@ -2,6 +2,7 @@
 
 import { useOptionalUnsavedChanges } from "@/components/providers/unsaved-changes-provider";
 import { CalendarHeart, History } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   STUDIO_TITLE_MAX_LENGTH,
@@ -13,6 +14,7 @@ import {
 } from "@/data/studio";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   memo,
   useCallback,
@@ -241,6 +243,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
     onSaved,
     onDesignIdChange,
   } = props;
+  const tToast = useTranslations("studio.toasts");
   const [design, setDesign] = useState<StudioDesignJson>(() => initialJson(props));
   const [title, setTitle] = useState(
     props.initialTitle ??
@@ -656,14 +659,18 @@ export function StudioDesigner(props: StudioDesignerProps) {
           ? "Saved just now"
           : "Saved, with newer changes pending"
       );
+      toast.success(tToast("designSaved"));
       onSaved?.(body.design, body);
     } catch (error) {
-      setSaveState("error");
-      setSaveMessage(
-        error instanceof Error
+      const errorMessage =
+        error instanceof Error && !(error instanceof TypeError)
           ? error.message
-          : "We couldn’t save this design. Please try again."
-      );
+          : "We couldn’t save this design. Please try again.";
+      setSaveState("error");
+      setSaveMessage(errorMessage);
+      toast.error(tToast("saveFailed"), {
+        description: error instanceof TypeError ? tToast("networkError") : errorMessage,
+      });
     } finally {
       saving.current = false;
     }
@@ -682,6 +689,7 @@ export function StudioDesigner(props: StudioDesignerProps) {
     saveEndpoint,
     savedUpdatedAt,
     savedDesignPathBase,
+    tToast,
     title,
   ]);
 

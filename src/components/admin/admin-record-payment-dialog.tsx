@@ -17,6 +17,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -126,13 +127,16 @@ export function AdminRecordPaymentDialog({
         receiptTo?: string | null;
       };
       if (!response.ok || !json.ok || !json.invoice) {
-        setError(json.message ?? "Could not record payment.");
+        const message = json.message ?? "Could not record payment.";
+        setError(message);
+        toast.error(message);
         return;
       }
       onRecorded(json.invoice, json.receiptTo ?? null);
       onOpenChange(false);
     } catch {
       setError("Could not record payment.");
+      toast.error("Could not record payment.");
     } finally {
       setBusy(false);
     }

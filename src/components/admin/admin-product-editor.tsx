@@ -33,6 +33,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectInput } from "@/components/ui/select-input";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   PRODUCT_AVAILABILITY_LABELS,
@@ -697,7 +698,9 @@ export function AdminProductEditor({
         product?: ProductRow;
       };
       if (!response.ok || !data.ok || !data.product) {
-        setError(data.message ?? "Could not save item.");
+        const failure = data.message ?? "Could not save item.";
+        setError(failure);
+        toast.error(failure);
         return null;
       }
       setProductId(data.product.id);
@@ -744,6 +747,7 @@ export function AdminProductEditor({
       });
 
       if (!options?.silent) {
+        toast.success(isNew ? "Item created." : "Item saved.");
         if (isNew) {
           router.replace(`/admin/products/${data.product.id}`);
         } else {
@@ -753,6 +757,7 @@ export function AdminProductEditor({
       return data.product.id;
     } catch {
       setError("Could not save item.");
+      toast.error("Could not save item.");
       return null;
     } finally {
       setSaving(false);

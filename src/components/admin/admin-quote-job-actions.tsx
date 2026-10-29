@@ -26,6 +26,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { todayIsoDate } from "@/data/invoices";
 import { QUOTE_INVOICE_READY_EVENT, type QuoteInvoiceReady } from "@/lib/quote-invoice-events";
@@ -100,12 +101,16 @@ export function AdminQuoteJobActions({
         jobId?: string;
       };
       if (!response.ok || !payload.ok || !payload.jobId) {
-        setError(payload.message ?? "Could not create job.");
+        const failure = payload.message ?? "Could not create job.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
+      toast.success("Job created.");
       router.push(`/admin/jobs/${payload.jobId}`);
     } catch {
       setError("Could not create job.");
+      toast.error("Could not create job.");
     } finally {
       setCreating(false);
     }
@@ -125,14 +130,24 @@ export function AdminQuoteJobActions({
         ok?: boolean;
         message?: string;
         invoiceId?: string;
+        invoiceNumber?: string;
+        reused?: boolean;
       };
       if (!response.ok || !payload.ok || !payload.invoiceId) {
-        setError(payload.message ?? "Could not create invoice.");
+        const failure = payload.message ?? "Could not create invoice.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
+      toast.success(
+        payload.reused
+          ? `Opening existing invoice${payload.invoiceNumber ? ` ${payload.invoiceNumber}` : ""}.`
+          : `Draft invoice${payload.invoiceNumber ? ` ${payload.invoiceNumber}` : ""} created.`
+      );
       router.push(`/admin/invoices/${payload.invoiceId}`);
     } catch {
       setError("Could not create invoice.");
+      toast.error("Could not create invoice.");
     } finally {
       setCreatingInvoice(false);
     }
@@ -299,12 +314,16 @@ function MarkAcceptedDialog({
         invoice?: { invoiceId: string; created: boolean } | null;
       };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not mark accepted.");
+        const failure = payload.message ?? "Could not mark accepted.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
+      toast.success(payload.message ?? "Quote marked accepted.");
       onDone(payload.jobId ?? null, payload.invoice?.created ? payload.invoice.invoiceId : null);
     } catch {
       setError("Could not mark accepted.");
+      toast.error("Could not mark accepted.");
     } finally {
       setBusy(false);
     }
@@ -508,12 +527,16 @@ function MarkSentDialog({
       });
       const payload = (await response.json()) as { ok?: boolean; message?: string };
       if (!response.ok || !payload.ok) {
-        setError(payload.message ?? "Could not mark the quote as sent.");
+        const failure = payload.message ?? "Could not mark the quote as sent.";
+        setError(failure);
+        toast.error(failure);
         return;
       }
+      toast.success("Quote marked sent.");
       onDone();
     } catch {
       setError("Could not mark the quote as sent.");
+      toast.error("Could not mark the quote as sent.");
     } finally {
       setBusy(false);
     }

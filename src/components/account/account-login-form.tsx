@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "@/components/ui/sonner";
 
 export function AccountLoginForm() {
   const router = useRouter();
@@ -42,7 +43,9 @@ export function AccountLoginForm() {
       });
 
       if (signError) {
-        setError(signError.message || t("errors.invalidCredentials"));
+        const errorMessage = signError.message || t("errors.invalidCredentials");
+        setError(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
@@ -59,6 +62,7 @@ export function AccountLoginForm() {
       router.refresh();
     } catch {
       setError(t("errors.generic"));
+      toast.error(t("errors.generic"));
     } finally {
       setLoading(false);
     }

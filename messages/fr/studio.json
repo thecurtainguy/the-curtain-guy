@@ -63,5 +63,14 @@
     "title": "L'assistance design par IA arrive bientôt.",
     "description": "Le Studio d'aujourd'hui est manuel par conception. Le téléversement de plan et les suggestions assistées par IA ne font pas partie de cette première version.",
     "cta": "Voir la suite"
+  },
+  "toasts": {
+    "designSaved": "Design enregistré.",
+    "designSavedEmailed": "Design enregistré — nous vous avons envoyé un lien privé par courriel.",
+    "designSavedToAccount": "Design enregistré dans votre compte.",
+    "saveFailed": "Impossible d’enregistrer votre design.",
+    "networkError": "Vérifiez votre connexion et réessayez.",
+    "linkCopied": "Lien copié dans le presse-papiers.",
+    "copyFailed": "Impossible de copier le lien."
   }
 }

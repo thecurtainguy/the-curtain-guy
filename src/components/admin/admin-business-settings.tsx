@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -170,7 +171,6 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
   const [baseline, setBaseline] = useState(() => JSON.stringify(initial));
   const [lang, setLang] = useState<"en" | "fr">("en");
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [documentBusy, setDocumentBusy] = useState(false);
 
@@ -204,9 +204,13 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
     });
   }
 
+  function fail(message: string) {
+    setError(message);
+    toast.error(message);
+  }
+
   async function changeDocument(action: "upload" | "remove", file?: File) {
     setDocumentBusy(true);
-    setMessage(null);
     setError(null);
     try {
       let response: Response;
@@ -219,20 +223,20 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
       }
       const json = (await response.json()) as { ok?: boolean; message?: string; settings?: BusinessSettings };
       if (!response.ok || !json.ok || !json.settings) {
-        setError(json.message ?? "Could not update the payment document.");
+        fail(json.message ?? "Could not update the payment document.");
         return;
       }
       const fields = pickDocumentFields(json.settings);
       setSettings((prev) => ({ ...prev, ...fields }));
       setBaseline((prev) => JSON.stringify({ ...(JSON.parse(prev) as BusinessSettings), ...fields }));
-      setMessage(
+      toast.success(
         action === "upload"
           ? "Document uploaded. It’s now the last page of every invoice PDF."
           : "Document removed. Invoice PDFs no longer include it."
       );
       router.refresh();
     } catch {
-      setError("Could not update the payment document.");
+      fail("Could not update the payment document.");
     } finally {
       setDocumentBusy(false);
     }
@@ -240,7 +244,6 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
 
   async function save() {
     setSaving(true);
-    setMessage(null);
     setError(null);
     try {
       const response = await fetch("/api/admin/business-settings", {
@@ -250,15 +253,15 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
       });
       const json = (await response.json()) as { ok?: boolean; message?: string; settings?: BusinessSettings };
       if (!response.ok || !json.ok || !json.settings) {
-        setError(json.message ?? "Could not save settings.");
+        fail(json.message ?? "Could not save settings.");
         return;
       }
       setSettings(json.settings);
       setBaseline(JSON.stringify(json.settings));
-      setMessage("Saved. New PDFs and emails use these details right away.");
+      toast.success("Settings saved. New PDFs and emails use these details right away.");
       router.refresh();
     } catch {
-      setError("Could not save settings.");
+      fail("Could not save settings.");
     } finally {
       setSaving(false);
     }
@@ -309,14 +312,12 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
         </div>
       </section>
 
-      {(message || error) && (
+      {error && (
         <p
-          className={cn(
-            "rounded-2xl border px-4 py-3 text-sm",
-            error ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-primary/25 bg-primary/10"
-          )}
+          className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
         >
-          {error || message}
+          {error}
         </p>
       )}
 

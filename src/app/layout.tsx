@@ -68,12 +68,14 @@ export const metadata: Metadata = {
     images: ["/images/brand/logo-full.png"],
   },
   robots: { index: true, follow: true },
+  appleWebApp: { capable: true, title: "Curtain Guy", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#f9f5ec",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

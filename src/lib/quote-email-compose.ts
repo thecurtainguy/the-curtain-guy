@@ -20,6 +20,7 @@ import {
   labelWithColon,
   quoteEventTypeLabel,
 } from "@/data/quote-copy";
+import { brandMonogram } from "@/data/site";
 import { emailDarkBrandHeaderHtml } from "@/lib/email-brand";
 
 export function escapeEmailHtml(value: string): string {
@@ -242,12 +243,19 @@ function buildIncludedBlock(input: {
     remaining > 0 ? e.moreItems(remaining) : "",
   ];
 
+  const monogram = emailThumbnailUrl(brandMonogram.src, input.assetBaseUrl);
+  const monogramHtml = monogram
+    ? `<table role="presentation" width="56" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;width:56px;height:56px;background:#f5efe0;border:1px solid rgba(212,175,55,0.35);border-radius:10px;">
+          <tr><td align="center" valign="middle" style="width:56px;height:56px;padding:0;line-height:0;font-size:0;"><img src="${escapeEmailHtml(monogram)}" width="40" height="40" alt="" style="display:inline-block;width:40px;height:40px;border:0;" /></td></tr>
+        </table>`
+    : `<div style="width:56px;height:56px;border-radius:10px;background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.25);"></div>`;
+
   const rows = shown
     .map((item) => {
       const thumb = emailThumbnailUrl(item.image_url, input.assetBaseUrl);
       const thumbHtml = thumb
         ? `<img src="${escapeEmailHtml(thumb)}" width="56" height="56" alt="${escapeEmailHtml(item.image_alt || "")}" style="display:block;width:56px;height:56px;border-radius:10px;border:1px solid rgba(212,175,55,0.25);" />`
-        : `<div style="width:56px;height:56px;border-radius:10px;background:rgba(212,175,55,0.12);border:1px solid rgba(212,175,55,0.25);"></div>`;
+        : monogramHtml;
       return `<tr>
         <td width="56" style="width:56px;padding:6px 12px 6px 0;vertical-align:middle;">${thumbHtml}</td>
         <td style="padding:6px 0;vertical-align:middle;">

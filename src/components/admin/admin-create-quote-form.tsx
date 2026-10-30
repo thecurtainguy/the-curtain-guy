@@ -1,5 +1,7 @@
 "use client";
 
+import { SavedVenuePicker, useCustomerVenues } from "@/components/admin/saved-venue-picker";
+import { formatVenueAddress } from "@/data/customers";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -42,6 +44,8 @@ export function AdminCreateQuoteForm({ initialCustomer = null }: { initialCustom
   const [eventDate, setEventDate] = useState("");
   const [eventType, setEventType] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [venueAddress, setVenueAddress] = useState("");
+  const customerVenues = useCustomerVenues(customer?.id);
   const [cityArea, setCityArea] = useState("Montreal area");
   const [ownerNotes, setOwnerNotes] = useState("");
   const [language, setLanguage] = useState<CustomerLanguage | null>(null);
@@ -63,6 +67,7 @@ export function AdminCreateQuoteForm({ initialCustomer = null }: { initialCustom
           eventDate,
           eventType,
           venueName,
+          venueAddress,
           cityArea,
           ownerNotes,
           ...(customer ? { customerId: customer.id } : {}),
@@ -257,6 +262,29 @@ export function AdminCreateQuoteForm({ initialCustomer = null }: { initialCustom
               onChange={(e) => setCityArea(e.target.value)}
             />
           </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="direct-venue-address">Venue address</Label>
+            <Input
+              id="direct-venue-address"
+              value={venueAddress}
+              onChange={(e) => setVenueAddress(e.target.value)}
+              placeholder="Street, city, province, postal code — shown on the proposal and PDF"
+              maxLength={400}
+            />
+          </div>
+          <SavedVenuePicker
+            className="sm:col-span-2"
+            customer={customer ? { id: customer.id, display_name: customer.display_name, venues: customerVenues } : null}
+            selectedVenueId={
+              customerVenues.find((venue) => venue.name.trim().toLowerCase() === venueName.trim().toLowerCase())?.id ?? null
+            }
+            venueName={venueName}
+            onPick={(venue) => {
+              setVenueName(venue.name);
+              setVenueAddress(formatVenueAddress(venue));
+              if (venue.city) setCityArea(venue.city);
+            }}
+          />
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="direct-notes">Owner notes</Label>
             <Textarea

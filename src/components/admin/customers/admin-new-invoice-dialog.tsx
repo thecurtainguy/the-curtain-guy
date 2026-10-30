@@ -17,6 +17,8 @@ import { CUSTOMER_LANGUAGE_LABELS, type CustomerLanguage } from "@/data/customer
 import { CustomerPicker, type PickedCustomer } from "@/components/admin/customers/customer-picker";
 import { CustomerPanel, ToggleTile } from "@/components/admin/customers/customer-panel";
 import { readJson } from "@/components/admin/customers/customer-ui";
+import { SavedVenuePicker, useCustomerVenues } from "@/components/admin/saved-venue-picker";
+import { formatVenueAddress } from "@/data/customers";
 
 export type InvoiceableJob = { id: string; label: string; hasInvoice: boolean };
 
@@ -44,6 +46,7 @@ export function AdminNewInvoiceButton({
   const [eventType, setEventType] = useState("");
   const [venueName, setVenueName] = useState("");
   const [venueAddress, setVenueAddress] = useState("");
+  const pickedVenues = useCustomerVenues(open ? picked?.id : null);
   const [language, setLanguage] = useState<CustomerLanguage | null>(null);
   const [requestDeposit, setRequestDeposit] = useState(false);
   const [poNumber, setPoNumber] = useState(billing?.default_po_number ?? "");
@@ -204,6 +207,19 @@ export function AdminNewInvoiceButton({
                       maxLength={400}
                     />
                   </div>
+                  <SavedVenuePicker
+                    className="sm:col-span-2"
+                    customer={picked ? { id: picked.id, display_name: picked.display_name, venues: pickedVenues } : null}
+                    selectedVenueId={
+                      pickedVenues.find((venue) => venue.name.trim().toLowerCase() === venueName.trim().toLowerCase())?.id ?? null
+                    }
+                    venueName={venueName}
+                    gridClassName="sm:grid-cols-2"
+                    onPick={(venue) => {
+                      setVenueName(venue.name);
+                      setVenueAddress(formatVenueAddress(venue));
+                    }}
+                  />
                 </div>
               </CustomerPanel>
 

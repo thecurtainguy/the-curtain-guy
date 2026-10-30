@@ -16,6 +16,7 @@ import {
   type CustomerRow,
   type CustomerStats,
   type CustomerVenueRow,
+  type VenueSearchResult,
 } from "@/data/customers";
 import {
   isBalanceDueRule,
@@ -375,6 +376,30 @@ export async function listCustomerVenues(customerId: string): Promise<CustomerVe
     .order("name", { ascending: true });
   if (error) console.error("[customers] listCustomerVenues", error);
   return (data ?? []) as CustomerVenueRow[];
+}
+
+/** Saved venues across every customer, newest first, each tagged with its owner. */
+export async function searchAllVenues(input: {
+  query?: string;
+  excludeCustomerId?: string | null;
+  limit?: number;
+}): Promise<VenueSearchResult[]> {
+  const q = (input.query ?? "").trim().replace(/[%_,()]/g, " ").trim();
+  const admin = createAdminSupabaseClient();
+  let request = admin
+    .from("customer_venues")
+    .select("*, customer:customers(id, customer_number, display_name)")
+    .order("updated_at", { ascending: false })
+    .limit(Math.min(Math.max(input.limit ?? 30, 1), 60));
+  if (input.excludeCustomerId) request = request.neq("customer_id", input.excludeCustomerId);
+  if (q) {
+    request = request.or(
+      [`name.ilike.%${q}%`, `address.ilike.%${q}%`, `city.ilike.%${q}%`, `postal_code.ilike.%${q}%`].join(",")
+    );
+  }
+  const { data, error } = await request;
+  if (error) console.error("[customers] searchAllVenues", error);
+  return (data ?? []) as VenueSearchResult[];
 }
 
 export type CustomerHistory = {
@@ -1180,7 +1205,10 @@ export async function ensureCustomerVenue(input: {
   venueName: string | null | undefined;
   venueAddress: string | null | undefined;
   actor: Actor;
-  source: VenueSource;
+  source?: VenueSource;
+  fromJobId?: string;
+  /** Extra fields (city, access notes…) used only when a new venue is created. */
+  details?: VenueInput;
 }): Promise<CustomerVenueRow | null> {
   const name = input.venueName?.trim();
   if (!name) return null;
@@ -1190,9 +1218,9 @@ export async function ensureCustomerVenue(input: {
   if (existing) return existing;
   const result = await createVenue(
     input.customerId,
-    { name, address: input.venueAddress?.trim() || null },
+    { ...input.details, name, address: input.venueAddress?.trim() || null },
     input.actor,
-    { fromDocument: input.source }
+    { fromDocument: input.source, fromJobId: input.fromJobId }
   );
   return "venue" in result ? result.venue : null;
 }

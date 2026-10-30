@@ -4,8 +4,6 @@ import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Building,
-  Check,
   ChevronDown,
   Copy,
   Download,
@@ -132,6 +130,7 @@ import {
   QuoteLineReorderItem,
 } from "@/components/admin/quote-line-reorder";
 import Image from "next/image";
+import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 
 type QuoteSourceEventPlan = {
   id: string;
@@ -580,10 +579,10 @@ export function AdminQuoteBuilder({
     };
   }
 
-  function applySavedVenue(venue: CustomerVenueRow) {
+  function applySavedVenue(venue: CustomerVenueRow, linked = true) {
     setVenueName(venue.name);
     setVenueAddress(formatVenueAddress(venue));
-    setVenueId(venue.id);
+    setVenueId(linked ? venue.id : null);
     if (venue.city) setCityArea(venue.city);
   }
 
@@ -1231,39 +1230,14 @@ export function AdminQuoteBuilder({
           </div>
         </div>
 
-        {isEditing && customer?.venues.length ? (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Saved venues for {customer.display_name}
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {customer.venues.map((venue) => {
-                const active = venue.id === venueId;
-                return (
-                  <button
-                    key={venue.id}
-                    type="button"
-                    onClick={() => applySavedVenue(venue)}
-                    className={cn(
-                      "flex items-start gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors",
-                      active
-                        ? "border-primary/50 bg-primary/10"
-                        : "border-border/40 bg-card/40 hover:border-primary/30"
-                    )}
-                  >
-                    <Building className="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{venue.name}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {formatVenueAddress(venue) || "No address"}
-                      </span>
-                    </span>
-                    {active ? <Check className="size-4 shrink-0 text-primary" /> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        {isEditing ? (
+          <SavedVenuePicker
+            className="mt-4"
+            customer={customer ?? null}
+            selectedVenueId={venueId}
+            venueName={venueName}
+            onPick={applySavedVenue}
+          />
         ) : null}
 
         <QuoteScheduleFields

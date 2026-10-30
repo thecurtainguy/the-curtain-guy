@@ -10,7 +10,6 @@ import {
   ExternalLink,
   Loader2,
   Mail,
-  Building,
   BookmarkPlus,
   PanelsTopLeft,
   RotateCcw,
@@ -35,6 +34,7 @@ import { formatCustomerNumber, type CustomerVenueRow } from "@/data/customers";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { EventTypeInput } from "@/components/ui/event-type-input";
+import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -112,7 +112,7 @@ export function AdminJobDetail({
   const [copied, setCopied] = useState(false);
   const [venueBusy, setVenueBusy] = useState(false);
 
-  function applySavedVenue(venue: CustomerVenueRow) {
+  function applySavedVenue(venue: CustomerVenueRow, linked = true) {
     setVenueName(venue.name);
     setVenueAddress(venue.address ?? "");
     setVenueCity(venue.city ?? "");
@@ -124,7 +124,11 @@ export function AdminJobDetail({
     if (venue.parking_notes) setParkingNotes(venue.parking_notes);
     if (venue.elevator_notes) setElevatorNotes(venue.elevator_notes);
     if (venue.room_notes) setRoomNotes(venue.room_notes);
-    flash(`Filled in ${venue.name}. Save the job to keep it.`);
+    flash(
+      linked || !customer
+        ? `Filled in ${venue.name}. Save the job to keep it.`
+        : `Filled in ${venue.name}. Saving the job also adds it to ${customer.display_name}'s venues.`
+    );
   }
 
   async function saveVenueToCustomer() {
@@ -167,6 +171,10 @@ export function AdminJobDetail({
       setVenueBusy(false);
     }
   }
+
+  const venueIsSaved = Boolean(
+    customer?.venues.some((venue) => venue.name.trim().toLowerCase() === venueName.trim().toLowerCase())
+  );
 
   const checklistProgress = useMemo(
     () => getChecklistProgress(job.checklist_items),
@@ -271,6 +279,7 @@ export function AdminJobDetail({
         message?: string;
         job?: JobWithRelations;
         invoicesUpdated?: string[];
+        venueSavedTo?: string | null;
       };
       if (!response.ok || !payload.ok) {
         flash(undefined, payload.message ?? "Could not save job.");
@@ -278,10 +287,12 @@ export function AdminJobDetail({
       }
       setBaseline(JSON.stringify(buildPayload()));
       const synced = payload.invoicesUpdated ?? [];
+      const venueNote =
+        payload.venueSavedTo && customer ? ` ${payload.venueSavedTo} added to ${customer.display_name}'s venues.` : "";
       flash(
         synced.length
-          ? `Job saved. Also updated ${synced.join(", ")} — check the invoice and resend if the client already has it.`
-          : "Job saved."
+          ? `Job saved.${venueNote} Also updated ${synced.join(", ")} — check the invoice and resend if the client already has it.`
+          : `Job saved.${venueNote}`
       );
       router.refresh();
     } catch {
@@ -519,7 +530,7 @@ export function AdminJobDetail({
         <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-heading text-lg font-semibold">Venue</h2>
-            {customer ? (
+            {customer && venueName.trim() && !venueIsSaved ? (
               <Button
                 type="button"
                 size="sm"
@@ -538,37 +549,16 @@ export function AdminJobDetail({
                 {formatCustomerNumber(customer.customer_number)} {customer.display_name}
                 {customer.venues.length ? ` · ${customer.venues.length} saved venue${customer.venues.length === 1 ? "" : "s"}` : " · no saved venues yet"}
               </Link>
-              {customer.venues.length ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {customer.venues.map((venue) => {
-                    const active = venue.name === venueName;
-                    return (
-                      <button
-                        key={venue.id}
-                        type="button"
-                        onClick={() => applySavedVenue(venue)}
-                        className={cn(
-                          "flex items-start gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors",
-                          active
-                            ? "border-primary/50 bg-primary/10"
-                            : "border-border/40 bg-card/40 hover:border-primary/30"
-                        )}
-                      >
-                        <Building className="mt-0.5 size-4 shrink-0 text-primary" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">{venue.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {[venue.address, venue.city].filter(Boolean).join(", ") || "No address"}
-                          </span>
-                        </span>
-                        {active ? <Check className="size-4 shrink-0 text-primary" /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
             </div>
           ) : null}
+          <SavedVenuePicker
+            className="mt-3"
+            customer={customer ?? null}
+            selectedVenueId={customer?.venues.find((venue) => venue.name === venueName)?.id ?? null}
+            venueName={venueName}
+            gridClassName="sm:grid-cols-2"
+            onPick={applySavedVenue}
+          />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="venue_name">Venue name</Label>

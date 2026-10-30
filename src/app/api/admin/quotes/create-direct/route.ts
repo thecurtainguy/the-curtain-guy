@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     eventDate: typeof body.eventDate === "string" ? body.eventDate : null,
     eventType: typeof body.eventType === "string" ? body.eventType : null,
     venueName: typeof body.venueName === "string" ? body.venueName : null,
+    venueAddress: typeof body.venueAddress === "string" ? body.venueAddress : null,
     cityArea: typeof body.cityArea === "string" ? body.cityArea : null,
     ownerNotes: typeof body.ownerNotes === "string" ? body.ownerNotes : null,
     language: isCustomerLanguage(body.language) ? body.language : undefined,

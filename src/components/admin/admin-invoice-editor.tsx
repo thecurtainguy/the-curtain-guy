@@ -1,5 +1,6 @@
 "use client";
 
+import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,7 +13,6 @@ import {
   BadgePercent,
   BellOff,
   BellRing,
-  Building2,
   CalendarDays,
   Check,
   CircleDollarSign,
@@ -1217,37 +1217,21 @@ export function AdminInvoiceEditor({
                   />
                 </div>
               </div>
-              {customerLink?.venues.length ? (
-                <div className="mt-4 space-y-1.5">
-                  <Label className="flex items-center gap-1.5">
-                    <Building2 className="size-3.5 text-primary" />
-                    Saved venues for {customerLink.display_name}
-                  </Label>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {customerLink.venues.map((venue) => (
-                      <OptionCard
-                        key={venue.id}
-                        option={{
-                          id: venue.id,
-                          label: venue.name,
-                          description: formatVenueAddress(venue) || "No address",
-                          icon: Building2,
-                        }}
-                        selected={form.customer_venue_id === venue.id}
-                        onSelect={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            venue_name: venue.name,
-                            venue_address: formatVenueAddress(venue),
-                            customer_venue_id: venue.id,
-                          }))
-                        }
-                        className="p-3"
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+              <SavedVenuePicker
+                className="mt-4"
+                customer={customerLink ?? null}
+                selectedVenueId={form.customer_venue_id}
+                venueName={form.venue_name}
+                gridClassName="sm:grid-cols-2"
+                onPick={(venue, linked) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    venue_name: venue.name,
+                    venue_address: formatVenueAddress(venue),
+                    customer_venue_id: linked ? venue.id : null,
+                  }))
+                }
+              />
               <div className="mt-4 space-y-1.5">
                 <Label className="flex items-center gap-1.5">
                   <Languages className="size-3.5 text-primary" />

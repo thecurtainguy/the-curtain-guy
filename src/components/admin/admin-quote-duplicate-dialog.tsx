@@ -1,5 +1,6 @@
 "use client";
 
+import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -216,10 +217,10 @@ export function AdminQuoteDuplicateDialog({
     setLines((prev) => prev.map((line) => (line.sourceId === sourceId ? { ...line, ...patch } : line)));
   }
 
-  function applySavedVenue(venue: CustomerVenueRow) {
+  function applySavedVenue(venue: CustomerVenueRow, linked = true) {
     setVenueName(venue.name);
     setVenueAddress(formatVenueAddress(venue));
-    setVenueId(venue.id);
+    setVenueId(linked ? venue.id : null);
     if (venue.city) setCityArea(venue.city);
   }
 
@@ -435,35 +436,13 @@ export function AdminQuoteDuplicateDialog({
             </Section>
 
             <Section icon={Building} title="Event & venue" hint="Pick a saved venue or type a new one">
-              {customer?.venues.length ? (
-                <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {customer.venues.map((venue) => {
-                    const active = venue.id === venueId;
-                    return (
-                      <button
-                        key={venue.id}
-                        type="button"
-                        onClick={() => applySavedVenue(venue)}
-                        className={cn(
-                          "flex items-start gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors",
-                          active
-                            ? "border-primary/50 bg-primary/10"
-                            : "border-border/40 bg-card/40 hover:border-primary/30"
-                        )}
-                      >
-                        <Building className="mt-0.5 size-4 shrink-0 text-primary" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">{venue.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {formatVenueAddress(venue) || "No address"}
-                          </span>
-                        </span>
-                        {active ? <Check className="size-4 shrink-0 text-primary" /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
+              <SavedVenuePicker
+                className="mb-4"
+                customer={customer}
+                selectedVenueId={venueId}
+                venueName={venueName}
+                onPick={applySavedVenue}
+              />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1.5 lg:col-span-2">
                   <Label htmlFor="dup_venue_name">Venue</Label>

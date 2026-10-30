@@ -118,6 +118,10 @@ export type CustomerVenueRow = {
   updated_at: string;
 };
 
+export type VenueSearchResult = CustomerVenueRow & {
+  customer: { id: string; customer_number: number; display_name: string } | null;
+};
+
 type VenueAddressParts = {
   address?: string | null;
   city?: string | null;

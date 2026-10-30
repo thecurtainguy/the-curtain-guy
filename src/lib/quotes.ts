@@ -10,6 +10,7 @@ import {
   type QuoteLineItemRow,
   type QuoteRequestStatus,
   type QuoteRequestType,
+  resolveQuoteDisplayRef,
   type QuoteRow,
   type QuoteStatus,
   type QuoteTaxCategory,
@@ -39,9 +40,9 @@ import {
 } from "@/data/estimate";
 import { formatEventPlanReference, type EventPlanSubmissionRow } from "@/data/event-plans";
 import { parseEventBuilderBrief } from "@/data/event-builder/brief";
-import { formatCustomerBillingAddress, type CustomerRow } from "@/data/customers";
+import { formatCustomerBillingAddress, formatVenueAddress, type CustomerRow } from "@/data/customers";
 import { isEmailVerified } from "@/lib/auth";
-import { fetchCustomerById, findCustomerByEmail } from "@/lib/customers";
+import { ensureCustomerVenue, fetchCustomerById, findCustomerByEmail } from "@/lib/customers";
 import {
   fetchEstimateById,
   type EstimateRequestRow,
@@ -629,6 +630,7 @@ export type DirectQuoteInput = {
   eventDate?: string | null;
   eventType?: string | null;
   venueName?: string | null;
+  venueAddress?: string | null;
   cityArea?: string | null;
   ownerNotes?: string | null;
   language?: CustomerLanguage;
@@ -724,15 +726,34 @@ export async function createDirectQuote(
     return quoteResult;
   }
 
-  if (input.ownerNotes?.trim()) {
-    await admin
-      .from("quotes")
-      .update({ owner_notes: input.ownerNotes.trim() })
-      .eq("id", quoteResult.quote.id);
-    quoteResult.quote.owner_notes = input.ownerNotes.trim();
+  const quote = quoteResult.quote;
+  const extras: Partial<QuoteRow> = {};
+  if (input.ownerNotes?.trim()) extras.owner_notes = input.ownerNotes.trim();
+  const venueAddress = input.venueAddress?.trim().slice(0, 400) || null;
+  if (venueAddress) extras.venue_address = venueAddress;
+  if (quote.customer_id && quote.venue_name) {
+    const venue = await ensureCustomerVenue({
+      customerId: quote.customer_id,
+      venueName: quote.venue_name,
+      venueAddress,
+      actor: { userId: input.createdByUserId },
+      source: { kind: "quote", id: quote.id, ref: `Quote ${resolveQuoteDisplayRef(quote)}` },
+    });
+    if (venue) {
+      extras.customer_venue_id = venue.id;
+      if (!venueAddress) {
+        const savedAddress = formatVenueAddress(venue);
+        if (savedAddress) extras.venue_address = savedAddress;
+      }
+    }
+  }
+  if (Object.keys(extras).length > 0) {
+    const { error: extrasError } = await admin.from("quotes").update(extras).eq("id", quote.id);
+    if (extrasError) console.error("[quotes] createDirectQuote extras", extrasError);
+    else Object.assign(quote, extras);
   }
 
-  return { quote: quoteResult.quote };
+  return { quote };
 }
 
 export async function ensureEstimateFromEventPlan(

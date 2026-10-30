@@ -1,10 +1,22 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
-import { createVenue, fetchCustomerById, type VenueInput } from "@/lib/customers";
+import { createVenue, fetchCustomerById, listCustomerVenues, type VenueInput } from "@/lib/customers";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, context: RouteContext) {
+  const owner = await requireOwner();
+  if (!owner) {
+    return NextResponse.json({ ok: false, message: "Owner access required." }, { status: 403 });
+  }
+  const { id } = await context.params;
+  if (!(await fetchCustomerById(id))) {
+    return NextResponse.json({ ok: false, message: "Customer not found." }, { status: 404 });
+  }
+  return NextResponse.json({ ok: true, venues: await listCustomerVenues(id) });
+}
 
 export async function POST(request: Request, context: RouteContext) {
   const owner = await requireOwner();

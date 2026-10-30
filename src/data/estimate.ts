@@ -11,7 +11,6 @@ import {
   Monitor,
   Moon,
   Music,
-  PartyPopper,
   Sparkles,
   Star,
   Theater,
@@ -19,6 +18,7 @@ import {
   Wand2,
 } from "lucide-react";
 import enEstimate from "../../messages/en/estimate.json";
+import { getEventTypeLabel } from "@/data/event-types";
 import { siteConfig } from "@/data/site";
 
 export type EstimateOptionDef = {
@@ -53,17 +53,6 @@ export const estimateBuilderSteps: EstimateStepDef[] = [
   { id: "look-fabric" },
   { id: "add-ons" },
   { id: "contact-summary" },
-];
-
-export const eventTypes: EstimateOptionDef[] = [
-  { id: "wedding", icon: Layers },
-  { id: "corporate", icon: Building2 },
-  { id: "gala", icon: Crown },
-  { id: "mitzvah", icon: PartyPopper },
-  { id: "stage-show", icon: Theater },
-  { id: "trade-show", icon: LayoutGrid },
-  { id: "private", icon: Sparkles },
-  { id: "other", icon: Wand2 },
 ];
 
 export const venueSettings: EstimateOptionDef[] = [
@@ -321,6 +310,7 @@ export function getEnglishOptionLabel(
   group: EstimateOptionGroup,
   id: string
 ): string | undefined {
+  if (group === "eventTypes") return getEventTypeLabel(id, "en");
   return getEnglishOptionEntry(group, id)?.label;
 }
 

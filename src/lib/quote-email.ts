@@ -47,6 +47,7 @@ import {
   sendResendEmail,
   type ResendEmailAttachment,
 } from "@/lib/resend";
+import { getEventTypes } from "@/lib/event-types";
 
 export type QuoteReadyComposeOptions = {
   to: string[];
@@ -68,6 +69,7 @@ export async function sendQuoteReadyEmail(input: {
   publicQuoteUrl: string;
   compose?: QuoteReadyComposeOptions;
 }): Promise<{ pdfLanguages: CustomerLanguage[] }> {
+  await getEventTypes();
   const { quote, publicQuoteUrl, apiKey, compose } = input;
   const languages = quoteDocumentLanguages(quote);
   const [frTexts, enTexts] = await Promise.all(
@@ -298,6 +300,7 @@ export async function buildQuoteAcceptedCustomerEmail(input: QuoteAcceptedEmailI
   html: string;
   attachments?: ResendEmailAttachment[];
 } | null> {
+  await getEventTypes();
   const { proposalUrl, acceptedByName } = input;
   const emailUrl = withLinkChannel(proposalUrl, "email");
   const language =
@@ -461,6 +464,7 @@ export async function sendQuoteOwnerActionNotification(input: {
   actionLabel: string;
   details?: string | null;
 }): Promise<void> {
+  await getEventTypes();
   const siteUrl = getSiteUrl().replace(/\/$/, "");
   const adminUrl = `${siteUrl}/admin/quotes/${input.quote.id}`;
   const displayRef = resolveQuoteDisplayRef(input.quote);

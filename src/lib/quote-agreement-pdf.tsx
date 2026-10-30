@@ -17,6 +17,7 @@ import {
   type QuoteSignatureRow,
 } from "@/lib/quote-signing";
 import type { QuoteAgreementAudit } from "@/data/quote-signing";
+import { getEventTypes } from "@/lib/event-types";
 
 const COLORS = {
   ink: "#1a1612",
@@ -424,6 +425,7 @@ export function signedAgreementFilename(
 export async function renderSignedAgreementPdf(
   row: QuoteSignatureRow
 ): Promise<{ buffer: Buffer; filename: string }> {
+  await getEventTypes();
   const snapshot = row.document_snapshot;
   if (!snapshot) throw new Error("Signature has no document snapshot.");
   const audit = toAgreementAudit(row);

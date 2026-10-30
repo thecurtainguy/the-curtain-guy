@@ -49,6 +49,7 @@ import {
 import { formatQuoteDate, quoteEventTypeLabel } from "@/data/quote-copy";
 import { quoteScheduleRows, type QuoteSchedule } from "@/data/quote-schedule";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { getEventTypes } from "@/lib/event-types";
 
 /** Methods with more fields than this span the full page width in a 3-column grid. */
 const WIDE_METHOD_FIELDS = 5;
@@ -889,6 +890,7 @@ export async function renderInvoicePdfBuffer(input: {
   settings: BusinessSettings;
   publicUrl?: string | null;
 }): Promise<Buffer> {
+  await getEventTypes();
   const generatedAt = new Date().toLocaleString(customerLocaleTag(input.invoice.language), {
     timeZone: "America/Toronto",
   });

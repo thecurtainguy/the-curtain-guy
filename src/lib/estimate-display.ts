@@ -1,7 +1,6 @@
 import {
   addOnOptions,
   drapeGoals,
-  eventTypes,
   fabricDirections,
   formatHeightSummaryValue,
   formatMeasurementSummaryValue,
@@ -157,7 +156,6 @@ export function formatEventType(value: string | null | undefined): string {
   return getEnglishOptionLabel("eventTypes", value) ?? value;
 }
 
-const englishEventTypes = getEnglishOptions("eventTypes", eventTypes);
 const englishDrapeGoals = getEnglishOptions("drapeGoals", drapeGoals);
 const englishFabricDirections = getEnglishOptions(
   "fabricDirections",
@@ -169,7 +167,6 @@ const englishAddOnOptions = getEnglishOptions("addOns", addOnOptions);
 export {
   englishAddOnOptions as addOnOptions,
   englishDrapeGoals as drapeGoals,
-  englishEventTypes as eventTypes,
   englishFabricDirections as fabricDirections,
   englishFullnessOptions as fullnessOptions,
 };

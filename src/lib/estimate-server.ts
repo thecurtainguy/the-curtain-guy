@@ -6,6 +6,7 @@ import {
   isValidPhone,
 } from "@/data/estimate";
 import type { CustomerLanguage } from "@/data/customer-language";
+import { getEventTypes } from "@/lib/event-types";
 
 export type EstimateSubmissionValidation = {
   valid: boolean;
@@ -215,6 +216,7 @@ export async function insertEstimateRequest(
   data: EstimateFormData,
   meta: EstimateInsertMeta = {}
 ): Promise<EstimateInsertResult> {
+  await getEventTypes();
   const row = buildEstimateInsertRow(data, meta);
   const endpoint = `${config.url.replace(/\/$/, "")}/rest/v1/estimate_requests`;
 

@@ -8,6 +8,7 @@ import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { LocaleHtmlLang } from "@/components/i18n/locale-html-lang";
 import { SiteShell } from "@/components/layout/site-shell";
+import { EventTypesProvider } from "@/components/providers/event-types-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { UnsavedChangesProvider } from "@/components/providers/unsaved-changes-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -16,6 +17,7 @@ import { buildSiteGraphJsonLd } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/env";
 import { navLinks } from "@/data/site";
 import { loadAllMessages } from "@/lib/i18n/load-messages";
+import { getEventTypes } from "@/lib/event-types";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -80,7 +82,7 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
-  const messagesByLocale = await loadAllMessages();
+  const [messagesByLocale, eventTypes] = await Promise.all([loadAllMessages(), getEventTypes()]);
   const navItems = [
     ...navLinks,
     { label: "Get Estimate", href: "/get-estimate" },
@@ -123,9 +125,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider>
           <LocaleProvider messagesByLocale={messagesByLocale}>
             <LocaleHtmlLang />
-            <UnsavedChangesProvider>
-              <SiteShell>{children}</SiteShell>
-            </UnsavedChangesProvider>
+            <EventTypesProvider eventTypes={eventTypes}>
+              <UnsavedChangesProvider>
+                <SiteShell>{children}</SiteShell>
+              </UnsavedChangesProvider>
+            </EventTypesProvider>
           </LocaleProvider>
           <Toaster />
         </ThemeProvider>

@@ -1,8 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, ChevronDown, Loader2, Plus } from "lucide-react";
+import { slugifyEventTypeLabel, type EventType } from "@/data/event-types";
 import { useLocalizedEventTypes } from "@/lib/i18n/estimate";
+import { useAddEventType, useEventTypes } from "@/components/providers/event-types-provider";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 type EventTypeInputProps = Omit<
@@ -11,6 +15,8 @@ type EventTypeInputProps = Omit<
 > & {
   value?: string;
   onChange?: (value: string) => void;
+  /** Owner-only: offer to add typed text to the managed event type list. */
+  allowCreate?: boolean;
 };
 
 const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
@@ -22,18 +28,27 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
       id,
       disabled,
       placeholder = "Select or type…",
+      allowCreate = false,
       ...props
     },
     ref
   ) {
+    const router = useRouter();
+    const managedTypes = useEventTypes();
+    const addEventType = useAddEventType();
     const localizedTypes = useLocalizedEventTypes();
-    const suggestions = localizedTypes.filter((type) => type.id !== "other");
+    const knownTypes = useLocalizedEventTypes({ includeHidden: true });
+    const [creating, setCreating] = React.useState(false);
+    const suggestions = React.useMemo(
+      () => localizedTypes.filter((type) => type.id !== "other"),
+      [localizedTypes]
+    );
 
     const rootRef = React.useRef<HTMLDivElement>(null);
     const inputRef = React.useRef<HTMLInputElement>(null);
     const [open, setOpen] = React.useState(false);
     const [focused, setFocused] = React.useState(false);
-    const [draft, setDraft] = React.useState(() => toDisplay(value, suggestions));
+    const [draft, setDraft] = React.useState(() => toDisplay(value, knownTypes));
     const [activeIndex, setActiveIndex] = React.useState(-1);
     const [openUpward, setOpenUpward] = React.useState(false);
 
@@ -41,9 +56,9 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
 
     React.useEffect(() => {
       if (!focused) {
-        setDraft(toDisplay(value, suggestions));
+        setDraft(toDisplay(value, knownTypes));
       }
-    }, [value, focused, suggestions]);
+    }, [value, focused, knownTypes]);
 
     React.useLayoutEffect(() => {
       if (!open || !rootRef.current) return;
@@ -78,9 +93,23 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
       return () => document.removeEventListener("mousedown", onPointerDown);
     }, [open]);
 
+    function findManagedType(text: string): EventType | undefined {
+      const normalized = text.trim().replace(/\s+/g, " ");
+      if (!normalized) return undefined;
+      const lower = normalized.toLowerCase();
+      const slug = slugifyEventTypeLabel(normalized);
+      return managedTypes.find(
+        (type) =>
+          type.id === normalized ||
+          type.id === slug ||
+          type.label.toLowerCase() === lower ||
+          type.label_fr.toLowerCase() === lower
+      );
+    }
+
     function commitDraft(nextDraft: string) {
-      const stored = toStored(nextDraft, suggestions);
-      setDraft(toDisplay(stored, suggestions) || nextDraft.trim());
+      const stored = findManagedType(nextDraft)?.id ?? toStored(nextDraft, knownTypes);
+      setDraft(toDisplay(stored, knownTypes) || nextDraft.trim());
       onChange?.(stored);
     }
 
@@ -147,8 +176,42 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
       }
     }
 
+    const typed = draft.trim().replace(/\s+/g, " ");
+    const canCreate =
+      allowCreate && Boolean(slugifyEventTypeLabel(typed)) && !findManagedType(typed);
+
+    async function createType() {
+      if (!canCreate || creating) return;
+      setCreating(true);
+      try {
+        const response = await fetch("/api/admin/event-types", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: typed }),
+        });
+        const json = (await response.json().catch(() => ({}))) as {
+          ok?: boolean;
+          message?: string;
+          eventType?: EventType;
+        };
+        if (!response.ok || !json.ok || !json.eventType) {
+          toast.error(json.message ?? "Could not add the event type.");
+          return;
+        }
+        const created = json.eventType;
+        addEventType(created);
+        selectOption(created.id, created.label);
+        toast.success(`“${created.label}” added to your event types. Add a French name in Settings → Event types.`);
+        router.refresh();
+      } catch {
+        toast.error("Could not add the event type.");
+      } finally {
+        setCreating(false);
+      }
+    }
+
     const selectedId =
-      suggestions.find((type) => type.id === toStored(value, suggestions))?.id ??
+      suggestions.find((type) => type.id === toStored(value, knownTypes))?.id ??
       suggestions.find(
         (type) => type.label.toLowerCase() === draft.trim().toLowerCase()
       )?.id;
@@ -252,9 +315,34 @@ const EventTypeInput = React.forwardRef<HTMLInputElement, EventTypeInputProps>(
                 );
               })}
             </ul>
-            <p className="border-t border-border/40 px-2.5 py-2 text-xs text-muted-foreground">
-              Or type a custom event type
-            </p>
+            {canCreate ? (
+              <div className="border-t border-border/40 pt-1.5">
+                <button
+                  type="button"
+                  disabled={creating}
+                  className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    void createType();
+                  }}
+                >
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary/15">
+                    {creating ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <Plus className="size-3.5" aria-hidden />
+                    )}
+                  </span>
+                  <span className="min-w-0 break-words">
+                    Add “{typed}” as a new event type
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <p className="border-t border-border/40 px-2.5 py-2 text-xs text-muted-foreground">
+                {allowCreate ? "Type a name to add a new event type" : "Or type a custom event type"}
+              </p>
+            )}
           </div>
         ) : null}
       </div>

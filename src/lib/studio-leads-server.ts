@@ -190,7 +190,9 @@ type StudioDraftInput = {
   source: StudioDesignSource;
 };
 
-function parseDraftInput(body: Record<string, unknown>): StudioResult<{ draft: StudioDraftInput }> {
+async function parseDraftInput(
+  body: Record<string, unknown>
+): Promise<StudioResult<{ draft: StudioDraftInput }>> {
   if ("owner_user_id" in body || "visitor_id" in body || "created_by_user_id" in body) {
     return failure("validation", "Ownership fields are not accepted.");
   }
@@ -216,7 +218,7 @@ function parseDraftInput(body: Record<string, unknown>): StudioResult<{ draft: S
   }
   let details: StudioEventDetails | undefined;
   if ("event_details" in body) {
-    const parsed = parseStudioEventDetails(body.event_details);
+    const parsed = await parseStudioEventDetails(body.event_details);
     if (!parsed.ok) return parsed;
     details = parsed.details;
   }
@@ -401,7 +403,7 @@ export async function autosaveVisitorDesign(
   body: Record<string, unknown>,
   meta: StudioLeadRequestMeta
 ): Promise<StudioResult<{ row: StudioDesignLeadRow }>> {
-  const parsed = parseDraftInput(body);
+  const parsed = await parseDraftInput(body);
   if (!parsed.ok) return parsed;
   const result = await writeVisitorDesign(visitorId, parsed.draft, meta, {
     throttle: true,
@@ -434,7 +436,7 @@ export async function saveVisitorLead(
   | ({ ok: true } & StudioLeadSaveResult)
   | (StudioFailure & { fieldErrors?: Record<string, string> })
 > {
-  const parsed = parseDraftInput(body);
+  const parsed = await parseDraftInput(body);
   if (!parsed.ok) return parsed;
   const contactInput = isRecord(body.contact) ? body.contact : {};
   const contactResult = validateStudioLeadContact({

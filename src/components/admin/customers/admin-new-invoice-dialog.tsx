@@ -188,7 +188,7 @@ export function AdminNewInvoiceButton({
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="ni-type">Event type</Label>
-                    <EventTypeInput id="ni-type" value={eventType} onChange={setEventType} />
+                    <EventTypeInput id="ni-type" value={eventType} onChange={setEventType} allowCreate />
                   </div>
                   <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="ni-venue">Venue</Label>

@@ -21,10 +21,9 @@ import {
   type CustomerLanguage,
 } from "@/data/customer-language";
 import type { EventPlanSubmissionRow } from "@/data/event-plans";
+import { getEventTypeLabel } from "@/data/event-types";
 import {
-  PRODUCT_EVENT_TYPE_LABELS,
   buildProductColorOptions,
-  isProductEventTypeId,
   resolveColorUnitPriceCents,
   resolveProductDisplayImage,
   resolveProductDisplayTitle,
@@ -1028,9 +1027,10 @@ function formatEventDate(value: string | null, language: CustomerLanguage): stri
 
 function eventTypeLabel(value: string | null): string | null {
   if (!value) return null;
-  return isProductEventTypeId(value)
-    ? PRODUCT_EVENT_TYPE_LABELS[value]
-    : value.replaceAll("_", " ").replace(/^\w/, (char) => char.toUpperCase());
+  return (
+    getEventTypeLabel(value) ??
+    value.replaceAll("_", " ").replace(/^\w/, (char) => char.toUpperCase())
+  );
 }
 
 /** Customer-facing event summary for `quotes.customer_notes`. */

@@ -1,13 +1,8 @@
-import {
-  PRODUCT_EVENT_TYPE_IDS,
-  PRODUCT_EVENT_TYPE_LABELS,
-  type ProductEventTypeId,
-} from "./product-colors";
-
 /** Event context a customer attaches to a studio room (studio_designs columns). */
 export type StudioEventDetails = {
   eventName: string | null;
-  eventType: ProductEventTypeId | null;
+  /** Managed event type id (see `event_types`). */
+  eventType: string | null;
   /** ISO date, YYYY-MM-DD. */
   eventDate: string | null;
   guestCount: number | null;
@@ -21,9 +16,6 @@ export type StudioLeadContact = {
   email: string;
   phone: string;
 };
-
-export const STUDIO_EVENT_TYPES = PRODUCT_EVENT_TYPE_IDS;
-export const STUDIO_EVENT_TYPE_LABELS = PRODUCT_EVENT_TYPE_LABELS;
 
 export const EMPTY_STUDIO_EVENT_DETAILS: StudioEventDetails = {
   eventName: null,
@@ -81,11 +73,4 @@ export function getStudioLeadStage(input: StudioLeadStageInput): StudioLeadStage
   const { eventName, eventType, eventDate, guestCount } = input.details;
   if (eventName || eventType || eventDate || guestCount) return "details";
   return "browsing";
-}
-
-export function isStudioEventType(value: unknown): value is ProductEventTypeId {
-  return (
-    typeof value === "string" &&
-    (STUDIO_EVENT_TYPES as readonly string[]).includes(value)
-  );
 }

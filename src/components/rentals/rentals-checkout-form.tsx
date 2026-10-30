@@ -9,7 +9,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { eventTypes, isValidPhone } from "@/data/estimate";
+import { isValidPhone } from "@/data/estimate";
+import { getActiveEventTypes } from "@/data/event-types";
 import {
   formatLogisticsEstimateLabel,
   getRentalDeliveryZone,
@@ -82,7 +83,7 @@ export function RentalsCheckoutForm({
     email: defaultContact?.email ?? "",
     phone: defaultContact?.phone ?? "",
     eventDate: "",
-    eventType: eventTypes[0]?.id ?? "other",
+    eventType: getActiveEventTypes()[0]?.id ?? "other",
     venueName: "",
     venueAddress: "",
     message: "",

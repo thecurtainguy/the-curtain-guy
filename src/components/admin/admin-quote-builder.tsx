@@ -1188,6 +1188,7 @@ export function AdminQuoteBuilder({
               value={eventType}
               onChange={setEventType}
               disabled={!isEditing}
+              allowCreate
             />
           </div>
           <div className="space-y-2">

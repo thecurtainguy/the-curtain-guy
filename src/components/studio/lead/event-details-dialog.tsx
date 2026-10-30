@@ -18,10 +18,8 @@ import { DateInput } from "@/components/ui/date-input";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { eventTypes } from "@/data/estimate";
+import { useLocalizedEventTypes } from "@/lib/i18n/estimate";
 import {
-  STUDIO_EVENT_TYPES,
-  STUDIO_EVENT_TYPE_LABELS,
   STUDIO_GUEST_COUNT_MAX,
   STUDIO_LEAD_TEXT_MAX,
   type StudioEventDetails,
@@ -46,12 +44,6 @@ type FormState = {
   venueName: string;
   cityArea: string;
 };
-
-const EVENT_TYPE_OPTIONS = STUDIO_EVENT_TYPES.map((id) => ({
-  id,
-  label: STUDIO_EVENT_TYPE_LABELS[id],
-  icon: eventTypes.find((option) => option.id === id)?.icon,
-}));
 
 function toForm(details: StudioEventDetails): FormState {
   return {
@@ -97,6 +89,7 @@ function EventDetailsDialogBody({
 }: Omit<EventDetailsDialogProps, "open">) {
   const [form, setForm] = useState<FormState>(() => toForm(details));
   const [error, setError] = useState<string | null>(null);
+  const eventTypeOptions = useLocalizedEventTypes();
 
   const preview = useMemo(() => {
     const guests = Number(form.guestCount);
@@ -187,7 +180,7 @@ function EventDetailsDialogBody({
             aria-label="Event type"
             className="grid grid-cols-1 gap-2 sm:grid-cols-2"
           >
-            {EVENT_TYPE_OPTIONS.map((option) => (
+            {eventTypeOptions.map((option) => (
               <OptionCard
                 key={option.id}
                 option={option}

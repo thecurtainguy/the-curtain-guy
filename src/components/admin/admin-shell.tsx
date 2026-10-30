@@ -17,6 +17,7 @@ import {
   ScrollText,
   Sparkles,
   Star,
+  Tags,
   Truck,
   Users,
 } from "lucide-react";
@@ -53,6 +54,7 @@ const links: PortalNavItem[] = [
   { href: "/admin/studio", label: "Studio leads", icon: PanelsTopLeft },
   { href: "/admin/documents", label: "Documents", icon: ScrollText },
   { href: "/admin/billing", label: "Billing settings", icon: Landmark },
+  { href: "/admin/settings/event-types", label: "Event types", icon: Tags },
   { href: "/", label: "Site", icon: Globe, exact: true },
 ];
 

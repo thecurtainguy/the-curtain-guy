@@ -56,7 +56,7 @@ export function EventPlanCard({
 }: EventPlanCardProps) {
   const copy = useWizardCopy();
   const catalog = useWizardCatalog();
-  const eventTypes = useLocalizedEventTypes();
+  const eventTypes = useLocalizedEventTypes({ includeHidden: true });
   const drapeColors = useLocalizedDrapeColors();
   const detailsId = useId();
   const [submitOpen, setSubmitOpen] = useState(false);

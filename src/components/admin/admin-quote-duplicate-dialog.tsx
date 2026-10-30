@@ -483,7 +483,7 @@ export function AdminQuoteDuplicateDialog({
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="dup_event_type">Event type</Label>
-                  <EventTypeInput id="dup_event_type" value={eventType} onChange={setEventType} />
+                  <EventTypeInput id="dup_event_type" value={eventType} onChange={setEventType} allowCreate />
                 </div>
                 <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
                   <Label htmlFor="dup_venue_address">Venue address</Label>

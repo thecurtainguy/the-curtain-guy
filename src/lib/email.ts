@@ -32,6 +32,7 @@ import type { EventPlanContact } from "@/lib/event-builder/event-plan-server";
 import { emailBannerBrandHeaderHtml } from "@/lib/email-brand";
 import { sendResendEmail } from "@/lib/resend";
 import { formatFileSize, type TeamEmailFiles } from "@/lib/estimate-team-files";
+import { getEventTypes } from "@/lib/event-types";
 
 export type SendEstimateNotificationInput = {
   requestId: string;
@@ -494,6 +495,7 @@ function buildCustomerConfirmationHtml(
 export async function sendEstimateNotificationEmail(
   input: SendEstimateNotificationInput
 ): Promise<void> {
+  await getEventTypes();
   const { requestId, opportunityRef, data, apiKey, fileCount = 0, files = null } = input;
   const ctx = {
     ...buildEstimateEmailContext(requestId, data, fileCount, opportunityRef),
@@ -524,6 +526,7 @@ export async function sendEstimateLateFileEmail(input: {
   customerEmail: string | null;
   files: TeamEmailFiles;
 }): Promise<void> {
+  await getEventTypes();
   const { requestId, reference, files } = input;
   const who = input.customerName?.trim() || input.customerEmail?.trim() || "The customer";
   const count = files.files.length;
@@ -562,6 +565,7 @@ export async function sendEstimateLateFileEmail(input: {
 export async function sendEstimateCustomerConfirmationEmail(
   input: SendEstimateCustomerConfirmationInput
 ): Promise<void> {
+  await getEventTypes();
   if (!shouldSendCustomerConfirmation()) {
     return;
   }
@@ -676,6 +680,7 @@ function buildEventPlanHtml(
 export async function sendEventPlanNotificationEmail(
   input: SendEventPlanNotificationInput
 ): Promise<void> {
+  await getEventTypes();
   const { reference, brief, design, contact, apiKey } = input;
   const sections = buildEventPlanSections(brief, design, contact);
   const disclaimer = await getDocumentText("estimate.email_disclaimer");
@@ -702,6 +707,7 @@ export async function sendEventPlanNotificationEmail(
 export async function sendEventPlanCustomerConfirmationEmail(
   input: SendEventPlanCustomerConfirmationInput
 ): Promise<void> {
+  await getEventTypes();
   if (!shouldSendCustomerConfirmation()) return;
 
   const customerEmail = input.contact.email.trim();

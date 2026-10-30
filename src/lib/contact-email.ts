@@ -3,6 +3,7 @@ import { emailBannerBrandHeaderHtml } from "@/lib/email-brand";
 import { getContactFrom, getContactNotifyTo } from "@/lib/env";
 import type { ContactFormData } from "@/lib/contact-schema";
 import { sendResendEmail } from "@/lib/resend";
+import { getEventTypes } from "@/lib/event-types";
 
 function escapeHtml(value: string): string {
   return value
@@ -85,6 +86,7 @@ export async function sendContactNotificationEmail(input: {
   data: ContactFormData;
   apiKey: string;
 }): Promise<void> {
+  await getEventTypes();
   const { data, apiKey } = input;
   const customerEmail = data.email.trim();
 

@@ -1,4 +1,5 @@
 import { getEnglishOptionLabel } from "@/data/estimate";
+import { getEventTypeLabel } from "@/data/event-types";
 import {
   getBriefCeilingPreset,
   getBriefFabric,
@@ -143,6 +144,7 @@ function optionLabel(
   id: string,
   language: CustomerLanguage
 ): string | undefined {
+  if (group === "eventTypes") return getEventTypeLabel(id, language);
   if (language === "fr") {
     const groupOptions = (
       frEstimate.options as Record<string, Record<string, { label?: string }>>

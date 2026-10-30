@@ -13,10 +13,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatCadFromCents, type PublicRentalProduct } from "@/data/rentals";
-import {
-  PRODUCT_EVENT_TYPE_LABELS,
-  type ProductEventTypeId,
-} from "@/data/product-colors";
+import { getOptionLabel, useLocalizedEventTypes } from "@/lib/i18n/estimate";
 import { resolveProductCopy } from "@/data/product-copy-templates";
 import {
   PRODUCT_AVAILABILITY_LABELS,
@@ -120,6 +117,7 @@ function FilterPanel({
   resultCount: number;
 }) {
   const t = useTranslations("rentals.filters");
+  const eventTypeLabels = useLocalizedEventTypes({ includeHidden: true });
 
   function patch(partial: Partial<RentalsCatalogFilters>) {
     setFilters({ ...filters, ...partial });
@@ -236,7 +234,7 @@ function FilterPanel({
                     })
                   }
                 >
-                  {PRODUCT_EVENT_TYPE_LABELS[id as ProductEventTypeId]}
+                  {getOptionLabel(eventTypeLabels, id) ?? id}
                 </FilterOptionButton>
               );
             })}

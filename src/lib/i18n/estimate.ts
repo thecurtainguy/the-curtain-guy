@@ -1,13 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
+import { useEventTypes } from "@/components/providers/event-types-provider";
+import {
+  EVENT_TYPE_ICONS,
+  eventTypeDisplayLabel,
+  getActiveEventTypes,
+} from "@/data/event-types";
 import {
   addOnOptions,
   drapeGoals,
   estimateBuilderSteps,
-  eventTypes,
   fabricDirections,
   floorPlanOptions,
   fullnessOptions,
@@ -60,9 +65,22 @@ export function useLocalizedEstimateSteps(): LocalizedEstimateStep[] {
   }));
 }
 
-export function useLocalizedEventTypes() {
-  const t = useTranslations("estimate.options.eventTypes");
-  return localizeOptionGroup(eventTypes, t);
+/** Visible event types for pickers; pass includeHidden to also label records using hidden types. */
+export function useLocalizedEventTypes(
+  options: { includeHidden?: boolean } = {}
+): LocalizedEstimateOption[] {
+  const types = useEventTypes();
+  const language = useLocale() === "fr" ? "fr" : "en";
+  const { includeHidden = false } = options;
+  return useMemo(
+    () =>
+      (includeHidden ? types : getActiveEventTypes(types)).map((type) => ({
+        id: type.id,
+        icon: EVENT_TYPE_ICONS[type.icon],
+        label: eventTypeDisplayLabel(type, language),
+      })),
+    [types, language, includeHidden]
+  );
 }
 
 export function useLocalizedVenueSettings() {

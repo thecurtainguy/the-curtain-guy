@@ -235,6 +235,7 @@ export function AdminCreateQuoteForm({ initialCustomer = null }: { initialCustom
               id="direct-event-type"
               value={eventType}
               onChange={setEventType}
+              allowCreate
             />
           </div>
           <div className="space-y-2">

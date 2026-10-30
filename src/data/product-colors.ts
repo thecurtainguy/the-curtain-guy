@@ -266,33 +266,3 @@ export function resolveColorUnitPriceCents(input: {
   }
   return Math.max(0, input.productPriceCents);
 }
-
-export const PRODUCT_EVENT_TYPE_IDS = [
-  "wedding",
-  "corporate",
-  "gala",
-  "mitzvah",
-  "stage-show",
-  "trade-show",
-  "private",
-  "other",
-] as const;
-
-export type ProductEventTypeId = (typeof PRODUCT_EVENT_TYPE_IDS)[number];
-
-export const PRODUCT_EVENT_TYPE_LABELS: Record<ProductEventTypeId, string> = {
-  wedding: "Wedding",
-  corporate: "Corporate Event",
-  gala: "Gala",
-  mitzvah: "Bar/Bat Mitzvah",
-  "stage-show": "Stage/Show",
-  "trade-show": "Trade Show",
-  private: "Private Event",
-  other: "Other",
-};
-
-export function isProductEventTypeId(
-  value: string
-): value is ProductEventTypeId {
-  return (PRODUCT_EVENT_TYPE_IDS as readonly string[]).includes(value);
-}

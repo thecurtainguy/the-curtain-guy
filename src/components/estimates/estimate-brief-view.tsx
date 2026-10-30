@@ -13,13 +13,13 @@ import {
   getOptionLabel,
   type EstimateOption,
 } from "@/data/estimate";
+import { getEventTypeIcon } from "@/data/event-types";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
 import {
   addOnOptions,
   asOptionIds,
   buildAdminMeasurementRows,
   drapeGoals,
-  eventTypes,
   fabricDirections,
   formatEventType,
   formatVenueSetting,
@@ -171,10 +171,7 @@ export function EstimateBriefView({
   const look = getLookAndFabricIds(estimate.look_and_fabric);
   const measurementRows = buildAdminMeasurementRows(estimate.measurements);
   const eventTypeLabel = formatEventType(estimate.event_type);
-  const eventTypeOption = eventTypes.find(
-    (item) => item.id === estimate.event_type
-  );
-  const EventIcon = eventTypeOption?.icon ?? Sparkles;
+  const EventIcon = getEventTypeIcon(estimate.event_type) ?? Sparkles;
 
   return (
     <div className={cn("space-y-5", className)}>

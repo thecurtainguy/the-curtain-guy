@@ -44,6 +44,7 @@ import {
   renderAttachmentPages,
 } from "@/lib/pdf-attachments";
 import { toPdfSafeImage } from "@/lib/pdf-image";
+import { getEventTypes } from "@/lib/event-types";
 
 const COLORS = {
   ink: "#1a1612",
@@ -932,6 +933,7 @@ export async function renderQuotePdfBuffer(input: {
   publicUrl?: string | null;
   siteUrl?: string | null;
 }): Promise<Buffer> {
+  await getEventTypes();
   const language = input.quote.language;
   const generatedAt = new Date().toLocaleString(customerLocaleTag(language), {
     timeZone: "America/Toronto",

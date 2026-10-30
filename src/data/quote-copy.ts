@@ -2,10 +2,9 @@ import {
   customerLocaleTag,
   type CustomerLanguage,
 } from "@/data/customer-language";
-import { getEnglishOptionLabel } from "@/data/estimate";
+import { getEventTypeLabel } from "@/data/event-types";
 import { QUOTE_EXPIRED_MESSAGE } from "@/data/quotes";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
-import frEstimate from "../../messages/fr/estimate.json";
 
 export type QuoteCopy = {
   proposal: string;
@@ -664,11 +663,6 @@ export function formatQuoteDate(
   }
 }
 
-const FR_EVENT_TYPES = frEstimate.options.eventTypes as Record<
-  string,
-  { label?: string }
->;
-
 /** Event types are stored as option ids (e.g. "corporate"); free text passes through. */
 export function quoteEventTypeLabel(
   value: string | null | undefined,
@@ -676,10 +670,7 @@ export function quoteEventTypeLabel(
 ): string | null {
   const id = value?.trim();
   if (!id) return null;
-  if (language === "fr" && FR_EVENT_TYPES[id]?.label) {
-    return FR_EVENT_TYPES[id].label!;
-  }
-  return getEnglishOptionLabel("eventTypes", id) ?? id;
+  return getEventTypeLabel(id, language) ?? id;
 }
 
 /** French puts a no-break space before the colon. */

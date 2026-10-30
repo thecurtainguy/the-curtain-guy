@@ -18,11 +18,11 @@ import {
 } from "@/data/event-builder/catalog";
 import { fullnessIdFromValue, type EventBuilderFullnessId } from "@/data/event-builder/look";
 import {
-  eventTypes,
   fabricDirections,
   getEnglishOptionLabel,
   getEnglishOptionLabels,
 } from "@/data/estimate";
+import { getEventTypeIcon } from "@/data/event-types";
 import { DRAPE_COLORS, type StudioDesignJson } from "@/data/studio";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
 import { cn } from "@/lib/utils";
@@ -122,8 +122,7 @@ export function EventPlanBriefView({
     getEnglishOptionLabel("eventTypes", brief.eventType) ??
     plan.event_type ??
     "—";
-  const eventTypeOption = eventTypes.find((item) => item.id === brief.eventType);
-  const EventIcon = eventTypeOption?.icon ?? Sparkles;
+  const EventIcon = getEventTypeIcon(brief.eventType) ?? Sparkles;
 
   const stats = roomPreviewStats(brief);
   const setupItems = brief.catalogSelections

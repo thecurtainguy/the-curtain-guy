@@ -1,12 +1,11 @@
+import { getActiveEventTypes } from "@/data/event-types";
 import {
-  PRODUCT_EVENT_TYPE_IDS,
   buildProductColorOptions,
   galleryPrimary,
   isProductBaseColorId,
   resolveColorUnitPriceCents,
   resolveProductDisplayTitle,
   type ProductColorVariantRow,
-  type ProductEventTypeId,
 } from "@/data/product-colors";
 import type { ProductAvailabilityStatus } from "@/data/products";
 import type { PublicRentalProduct } from "@/data/rentals";
@@ -171,9 +170,7 @@ export function collectCatalogFacets(
   for (const product of products) {
     categorySet.add(String(product.category));
     for (const id of product.event_type_ids || []) {
-      if ((PRODUCT_EVENT_TYPE_IDS as readonly string[]).includes(id)) {
-        eventSet.add(id);
-      }
+      eventSet.add(id);
     }
 
     const options = buildProductColorOptions(product);
@@ -210,9 +207,9 @@ export function collectCatalogFacets(
       .map((slug) => ({ slug, label: resolveProductCategoryLabel(slug) })),
   ];
 
-  const eventTypes = PRODUCT_EVENT_TYPE_IDS.filter((id) =>
-    eventSet.has(id)
-  ) as ProductEventTypeId[];
+  const eventTypes = getActiveEventTypes()
+    .map((type) => type.id)
+    .filter((id) => eventSet.has(id));
 
   const colors = [...colorMap.values()].sort((a, b) =>
     a.name.localeCompare(b.name)

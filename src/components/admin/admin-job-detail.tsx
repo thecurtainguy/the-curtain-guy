@@ -34,6 +34,7 @@ import type { JobWithRelations } from "@/lib/jobs";
 import { formatCustomerNumber, type CustomerVenueRow } from "@/data/customers";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
+import { EventTypeInput } from "@/components/ui/event-type-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -484,7 +485,7 @@ export function AdminJobDetail({
             </div>
             <div className="space-y-2">
               <Label htmlFor="event_type">Event type</Label>
-              <Input id="event_type" value={eventType} onChange={(e) => setEventType(e.target.value)} />
+              <EventTypeInput id="event_type" value={eventType} onChange={setEventType} allowCreate />
             </div>
             <div className="space-y-2">
               <Label htmlFor="event_date">Event date</Label>

@@ -16,11 +16,11 @@ import {
   EMPTY_STUDIO_EVENT_DETAILS,
   STUDIO_GUEST_COUNT_MAX,
   STUDIO_LEAD_TEXT_MAX,
-  isStudioEventType,
   type StudioDesignSource,
   type StudioEventDetails,
   type StudioLeadContact,
 } from "@/data/studio-leads";
+import { isKnownEventType } from "@/data/event-types";
 import type { UserRole } from "@/lib/auth";
 import {
   customerCanAccessEstimate,
@@ -28,6 +28,7 @@ import {
 } from "@/lib/estimate-access";
 import { customerCanAccessJob } from "@/lib/jobs";
 import { customerCanAccessQuote } from "@/lib/quotes";
+import { getEventTypes } from "@/lib/event-types";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 
 export const STUDIO_REQUEST_MAX_BYTES = 320 * 1024;
@@ -93,7 +94,7 @@ export function studioEventDetailsFromRow(
 ): StudioEventDetails {
   return {
     eventName: row.event_name ?? null,
-    eventType: isStudioEventType(row.event_type) ? row.event_type : null,
+    eventType: row.event_type || null,
     eventDate: row.event_date ?? null,
     guestCount:
       typeof row.guest_count === "number" ? row.guest_count : null,
@@ -190,9 +191,9 @@ function readOptionalGuestCount(value: unknown): number | null | StudioFailure {
 }
 
 /** Validates a client `event_details` object (camelCase StudioEventDetails). */
-export function parseStudioEventDetails(
+export async function parseStudioEventDetails(
   value: unknown
-): StudioResult<{ details: StudioEventDetails }> {
+): Promise<StudioResult<{ details: StudioEventDetails }>> {
   if (value === undefined || value === null) {
     return { ok: true, details: { ...EMPTY_STUDIO_EVENT_DETAILS } };
   }
@@ -211,7 +212,7 @@ export function parseStudioEventDetails(
   if (isFailure(guestCount)) return guestCount;
   let eventType: StudioEventDetails["eventType"] = null;
   if (value.eventType !== undefined && value.eventType !== null && value.eventType !== "") {
-    if (!isStudioEventType(value.eventType)) {
+    if (!isKnownEventType(value.eventType, await getEventTypes())) {
       return failure("validation", "Choose a valid event type.");
     }
     eventType = value.eventType;
@@ -1149,7 +1150,7 @@ export async function createStudioDesign(
 
   let detailColumns: Partial<StudioEventDetailColumns> = {};
   if ("event_details" in input) {
-    const detailsResult = parseStudioEventDetails(input.event_details);
+    const detailsResult = await parseStudioEventDetails(input.event_details);
     if (!detailsResult.ok) return detailsResult;
     detailColumns = studioEventDetailsToColumns(detailsResult.details);
   }
@@ -1265,7 +1266,7 @@ export async function updateStudioDesign(
     updates.design_json = validation.design;
   }
   if ("event_details" in input) {
-    const detailsResult = parseStudioEventDetails(input.event_details);
+    const detailsResult = await parseStudioEventDetails(input.event_details);
     if (!detailsResult.ok) return detailsResult;
     Object.assign(updates, studioEventDetailsToColumns(detailsResult.details));
   }

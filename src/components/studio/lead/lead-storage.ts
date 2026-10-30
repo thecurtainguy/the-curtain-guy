@@ -1,10 +1,10 @@
 import {
   EMPTY_STUDIO_EVENT_DETAILS,
   STUDIO_GUEST_COUNT_MAX,
-  isStudioEventType,
   type StudioEventDetails,
   type StudioLeadContact,
 } from "@/data/studio-leads";
+import { isKnownEventType } from "@/data/event-types";
 import type { EventBuilderBrief } from "@/data/event-builder/brief";
 
 export type StudioRoomKind = "designer" | "event";
@@ -44,7 +44,7 @@ export function sanitizeStudioEventDetails(value: unknown): StudioEventDetails {
       : null;
   return {
     eventName: text(raw.eventName),
-    eventType: isStudioEventType(raw.eventType) ? raw.eventType : null,
+    eventType: isKnownEventType(raw.eventType) ? raw.eventType : null,
     eventDate,
     guestCount,
     venueName: text(raw.venueName),

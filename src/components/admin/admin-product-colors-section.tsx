@@ -3,8 +3,6 @@
 import { Check, Images, Palette, Plus, Trash2 } from "lucide-react";
 import {
   PRODUCT_COLOR_PALETTE,
-  PRODUCT_EVENT_TYPE_IDS,
-  PRODUCT_EVENT_TYPE_LABELS,
   normalizeHexColor,
   type ProductColorVariantInput,
   type ProductColorVariantRow,
@@ -15,6 +13,7 @@ import {
   isProductAvailabilityStatus,
   type ProductAvailabilityStatus,
 } from "@/data/products";
+import { useEventTypes } from "@/components/providers/event-types-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -141,6 +140,8 @@ export function AdminProductColorsSection({
   onEnsureSaved,
   onError,
 }: AdminProductColorsSectionProps) {
+  const allEventTypes = useEventTypes();
+
   function patchDraft(clientKey: string, partial: Partial<ColorDraft>) {
     onDraftsChange((prev) =>
       prev.map((draft) =>
@@ -175,6 +176,9 @@ export function AdminProductColorsSection({
   }
 
   const namedDrafts = drafts.filter((draft) => draft.name.trim());
+  const tagOptions = allEventTypes.filter(
+    (type) => type.active || eventTypeIds.includes(type.id)
+  );
 
   return (
     <div className="space-y-6">
@@ -197,7 +201,7 @@ export function AdminProductColorsSection({
         <div className="mt-6 space-y-3">
           <Label>Event type tags</Label>
           <div className="grid gap-2 sm:grid-cols-2">
-            {PRODUCT_EVENT_TYPE_IDS.map((id) => {
+            {tagOptions.map(({ id, label, active }) => {
               const selected = eventTypeIds.includes(id);
               return (
                 <button
@@ -216,8 +220,13 @@ export function AdminProductColorsSection({
                 >
                   <span className="min-w-0 flex-1 pr-1">
                     <span className="block text-sm font-medium text-foreground">
-                      {PRODUCT_EVENT_TYPE_LABELS[id]}
+                      {label}
                     </span>
+                    {!active ? (
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Hidden from the site
+                      </span>
+                    ) : null}
                   </span>
                   <span
                     className={cn(

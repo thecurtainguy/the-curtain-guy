@@ -14,6 +14,7 @@ import {
   getSiteUrl,
 } from "@/lib/env";
 import { sendResendEmail } from "@/lib/resend";
+import { getEventTypes } from "@/lib/event-types";
 
 const COPY = {
   en: {
@@ -140,6 +141,7 @@ export type StudioDesignSavedEmailInput = {
 export async function sendStudioDesignSavedEmail(
   input: StudioDesignSavedEmailInput
 ): Promise<void> {
+  await getEventTypes();
   const c = COPY[input.language];
   const firstName = input.name.trim().split(/\s+/)[0] || input.name.trim();
   const rows = [
@@ -206,6 +208,7 @@ export type StudioLeadOwnerEmailInput = {
 export async function sendStudioLeadOwnerNotification(
   input: StudioLeadOwnerEmailInput
 ): Promise<void> {
+  await getEventTypes();
   const adminUrl = `${getSiteUrl()}/admin/studio/${input.designId}`;
   const contactRows: Row[] = [
     { label: "Name", value: input.contact.name },

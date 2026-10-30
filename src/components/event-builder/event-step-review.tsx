@@ -141,7 +141,7 @@ export function EventStepReview({
   const t = useTranslations("eventBuilder");
   const copy = useWizardCopy();
   const catalog = useWizardCatalog();
-  const eventTypes = useLocalizedEventTypes();
+  const eventTypes = useLocalizedEventTypes({ includeHidden: true });
   const drapeColors = useLocalizedDrapeColors();
   const colorLabel = (value: string) =>
     drapeColors.find((color) => color.value === value)?.label ?? value;

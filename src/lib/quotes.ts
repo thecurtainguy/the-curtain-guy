@@ -75,6 +75,7 @@ import {
   hashQuoteToken,
   resolveOpportunityDisplayRef,
 } from "@/lib/quote-tokens";
+import { getEventTypes } from "@/lib/event-types";
 
 export type QuoteWithRelations = QuoteRow & {
   line_items: QuoteLineItemRow[];
@@ -1445,6 +1446,7 @@ export async function fillQuoteFromStudioPreview(input: {
   preview: StudioQuotePreview;
   actorUserId: string | null;
 }): Promise<{ ok: true } | { ok: false; message: string }> {
+  await getEventTypes();
   const { conversion } = input.preview;
   const saved = await upsertLineItems({
     quoteId: input.quoteId,

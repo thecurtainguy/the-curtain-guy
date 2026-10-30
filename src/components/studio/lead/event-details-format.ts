@@ -1,29 +1,13 @@
 import type { CustomerLanguage } from "@/data/customer-language";
-import {
-  STUDIO_EVENT_TYPE_LABELS,
-  type StudioEventDetails,
-} from "@/data/studio-leads";
-import type { ProductEventTypeId } from "@/data/product-colors";
-
-const STUDIO_EVENT_TYPE_LABELS_FR: Record<ProductEventTypeId, string> = {
-  wedding: "Mariage",
-  corporate: "Événement corporatif",
-  gala: "Gala",
-  mitzvah: "Bar/Bat Mitzvah",
-  "stage-show": "Scène/Spectacle",
-  "trade-show": "Salon professionnel",
-  private: "Événement privé",
-  other: "Autre",
-};
+import { getEventTypeLabel } from "@/data/event-types";
+import type { StudioEventDetails } from "@/data/studio-leads";
 
 export function studioEventTypeLabel(
   eventType: StudioEventDetails["eventType"],
   language: CustomerLanguage = "en"
 ): string | null {
   if (!eventType) return null;
-  return language === "fr"
-    ? STUDIO_EVENT_TYPE_LABELS_FR[eventType]
-    : STUDIO_EVENT_TYPE_LABELS[eventType];
+  return getEventTypeLabel(eventType, language) ?? eventType;
 }
 
 /** "Jun 14" this year, "Jun 14, 2027" otherwise. Dates are calendar days (no timezone shift). */

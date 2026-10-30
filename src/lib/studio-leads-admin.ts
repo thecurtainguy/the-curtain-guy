@@ -9,14 +9,13 @@ import {
 } from "@/data/studio";
 import {
   STUDIO_DESIGN_SOURCES,
-  STUDIO_EVENT_TYPE_LABELS,
   STUDIO_LEAD_STAGES,
   STUDIO_LEAD_STAGE_LABELS,
   getStudioLeadStage,
-  isStudioEventType,
   type StudioDesignSource,
   type StudioLeadStage,
 } from "@/data/studio-leads";
+import { getEventTypeLabel } from "@/data/event-types";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
 import { requireOwner } from "@/lib/auth";
 import { calculateRoomAreaSquareFeet, getStudioBounds } from "@/lib/studio-geometry";
@@ -138,7 +137,7 @@ function formatEventDate(value: string | null): string | null {
 
 function eventTypeLabel(value: string | null): string | null {
   if (!value) return null;
-  return isStudioEventType(value) ? STUDIO_EVENT_TYPE_LABELS[value] : value;
+  return getEventTypeLabel(value) ?? value;
 }
 
 function asSource(value: string | null): StudioDesignSource {
@@ -320,7 +319,7 @@ function stageFor(row: LeadIndexRow, links: StageLinks): StudioLeadStage {
     contactEmail: row.contact_email,
     details: {
       eventName: row.event_name,
-      eventType: isStudioEventType(row.event_type) ? row.event_type : null,
+      eventType: row.event_type || null,
       eventDate: row.event_date,
       guestCount: row.guest_count,
     },

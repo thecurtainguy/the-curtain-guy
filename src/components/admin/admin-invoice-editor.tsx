@@ -99,7 +99,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
-import { draftTranslation } from "@/lib/translate-draft";
+import { draftTranslation, onlyOneFilled, placeTranslation } from "@/lib/translate-draft";
 import { cn } from "@/lib/utils";
 
 type LineDraft = {
@@ -784,13 +784,18 @@ export function AdminInvoiceEditor({
     setBusyAction("translate");
     flash();
     try {
+      const notesSource = onlyOneFilled(form.notes, form.notes_translated);
+      const termsSource = onlyOneFilled(form.terms, form.terms_translated);
+      const lineSources = form.lines.flatMap((line) => {
+        const text = onlyOneFilled(line.description, line.description_translated);
+        return text ? [{ key: line.key, text }] : [];
+      });
+      const sentByKey = new Map(lineSources.map((line) => [line.key, line.text]));
       const result = await draftTranslation({
         from: form.language,
-        notes: form.notes_translated.trim() ? null : form.notes,
-        terms: form.terms_translated.trim() ? null : form.terms,
-        lines: form.lines
-          .filter((line) => line.description.trim() && !line.description_translated?.trim())
-          .map((line) => ({ key: line.key, text: line.description })),
+        notes: notesSource,
+        terms: termsSource,
+        lines: lineSources,
       });
       if (!result.ok) {
         flash(null, result.message);
@@ -801,17 +806,31 @@ export function AdminInvoiceEditor({
         return;
       }
       const json = result.draft;
-      const lines = new Map(json.lines.map((line) => [line.key, line.text]));
-      setForm((prev) => ({
-        ...prev,
-        notes_translated: prev.notes_translated || json.notes || "",
-        terms_translated: prev.terms_translated || json.terms || "",
-        lines: prev.lines.map((line) =>
-          lines.has(line.key) && !line.description_translated?.trim()
-            ? { ...line, description_translated: lines.get(line.key) ?? null }
-            : line
-        ),
-      }));
+      const lines = new Map(json.lines.map((line) => [line.key, line]));
+      setForm((prev) => {
+        const [notes, notesTranslated] =
+          json.notes && notesSource && onlyOneFilled(prev.notes, prev.notes_translated) === notesSource
+            ? placeTranslation(notesSource, json.notes)
+            : [prev.notes, prev.notes_translated];
+        const [terms, termsTranslated] =
+          json.terms && termsSource && onlyOneFilled(prev.terms, prev.terms_translated) === termsSource
+            ? placeTranslation(termsSource, json.terms)
+            : [prev.terms, prev.terms_translated];
+        return {
+          ...prev,
+          notes,
+          notes_translated: notesTranslated,
+          terms,
+          terms_translated: termsTranslated,
+          lines: prev.lines.map((line) => {
+            const out = lines.get(line.key);
+            const sent = onlyOneFilled(line.description, line.description_translated);
+            if (!out || !sent || sent !== sentByKey.get(line.key)) return line;
+            const [description, descriptionTranslated] = placeTranslation(sent, out);
+            return { ...line, description, description_translated: descriptionTranslated };
+          }),
+        };
+      });
       flash("Translation drafted — review it, then save.");
     } catch {
       flash(null, "Translation failed.");

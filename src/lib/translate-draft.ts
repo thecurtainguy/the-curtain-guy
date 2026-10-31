@@ -1,15 +1,40 @@
 import { toast } from "@/components/ui/sonner";
 import type { CustomerLanguage } from "@/data/customer-language";
 
+/**
+ * `swapped` means the source was already written in the other language, so
+ * `text` is the document-language version and the source belongs in the
+ * translated field.
+ */
+export type TranslatedText = { text: string; swapped: boolean };
+
 export type TranslationDraft = {
-  lines: Array<{ key: string; text: string }>;
-  notes: string | null;
-  terms: string | null;
+  lines: Array<{ key: string } & TranslatedText>;
+  notes: TranslatedText | null;
+  terms: TranslatedText | null;
 };
+
+/** The text to translate when exactly one of the two language fields is filled. */
+export function onlyOneFilled(main: string | null | undefined, other: string | null | undefined) {
+  const a = main?.trim() ? main : null;
+  const b = other?.trim() ? other : null;
+  return a && !b ? a : b && !a ? b : null;
+}
+
+/** `[main field, translated field]` for a source text and its draft. */
+export function placeTranslation(source: string, out: TranslatedText): [string, string] {
+  return out.swapped ? [out.text, source] : [source, out.text];
+}
 
 export type TranslationDraftResult =
   | { ok: true; draft: TranslationDraft; engine: "chrome" | "deepl" | "none" }
   | { ok: false; message: string };
+
+type TranslationSource = {
+  lines: Array<{ key: string; text: string }>;
+  notes: string | null;
+  terms: string | null;
+};
 
 type ChromeTranslator = {
   translate(text: string): Promise<string>;
@@ -88,6 +113,24 @@ async function startChromeTranslator(
   }
 }
 
+function words(text: string): string[] {
+  return (
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .match(/[a-z0-9]+/g) ?? []
+  );
+}
+
+/** The translator hands back text it thinks is already in the target language. */
+function looksUntranslated(source: string, output: string): boolean {
+  const out = words(output);
+  if (out.length === 0) return true;
+  const src = new Set(words(source));
+  return out.filter((word) => src.has(word)).length / out.length >= 0.8;
+}
+
 /** Line by line, so line breaks and list markers survive. */
 async function translateBlock(translator: ChromeTranslator, text: string): Promise<string> {
   const out: string[] = [];
@@ -103,18 +146,32 @@ async function translateBlock(translator: ChromeTranslator, text: string): Promi
   return out.join("\n").trim();
 }
 
+/**
+ * Text that comes back unchanged was typed in the other language; translate it
+ * back into the document language and mark it swapped.
+ */
 async function translateWithChrome(
-  translator: ChromeTranslator,
-  source: TranslationDraft
+  forward: ChromeTranslator,
+  reverse: ChromeTranslator | null,
+  source: TranslationSource
 ): Promise<TranslationDraft> {
+  async function one(text: string): Promise<TranslatedText> {
+    const translated = await translateBlock(forward, text);
+    if (reverse && looksUntranslated(text, translated)) {
+      const back = await translateBlock(reverse, text);
+      if (!looksUntranslated(text, back)) return { text: back, swapped: true };
+    }
+    return { text: translated, swapped: false };
+  }
+
   const lines: TranslationDraft["lines"] = [];
   for (const line of source.lines) {
-    lines.push({ key: line.key, text: await translateBlock(translator, line.text) });
+    lines.push({ key: line.key, ...(await one(line.text)) });
   }
   return {
     lines,
-    notes: source.notes ? await translateBlock(translator, source.notes) : null,
-    terms: source.terms ? await translateBlock(translator, source.terms) : null,
+    notes: source.notes ? await one(source.notes) : null,
+    terms: source.terms ? await one(source.terms) : null,
   };
 }
 
@@ -127,7 +184,7 @@ async function post(body: Record<string, unknown>) {
   const json = (await response.json().catch(() => ({}))) as {
     ok?: boolean;
     message?: string;
-    source?: TranslationDraft;
+    source?: TranslationSource;
   } & Partial<TranslationDraft>;
   return { ok: response.ok && Boolean(json.ok), json };
 }
@@ -144,28 +201,35 @@ export async function draftTranslation(input: {
   terms: string | null;
 }): Promise<TranslationDraftResult> {
   const to: CustomerLanguage = input.from === "fr" ? "en" : "fr";
-  const chrome = startChromeTranslator(input.from, to);
+  const chrome = Promise.all([
+    startChromeTranslator(input.from, to),
+    startChromeTranslator(to, input.from),
+  ]);
+  const release = () =>
+    void chrome.then((translators) => translators.forEach((translator) => translator?.destroy?.()));
 
   const prepared = await post({ ...input, prepare: true });
   if (!prepared.ok || !prepared.json.source) {
-    void chrome.then((translator) => translator?.destroy?.());
+    release();
     return { ok: false, message: prepared.json.message || "Could not translate." };
   }
   const source = prepared.json.source;
   if (source.lines.length === 0 && !source.notes && !source.terms) {
-    void chrome.then((translator) => translator?.destroy?.());
+    release();
     return { ok: true, draft: { lines: [], notes: null, terms: null }, engine: "none" };
   }
 
-  const translator = await chrome;
-  if (translator) {
+  const [forward, reverse] = await chrome;
+  if (forward) {
     try {
-      return { ok: true, draft: await translateWithChrome(translator, source), engine: "chrome" };
+      return { ok: true, draft: await translateWithChrome(forward, reverse, source), engine: "chrome" };
     } catch (error) {
       console.warn("[translate] browser translation failed, trying DeepL", error);
     } finally {
-      translator.destroy?.();
+      release();
     }
+  } else {
+    release();
   }
 
   const remote = await post({ ...input });

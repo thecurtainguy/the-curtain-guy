@@ -88,7 +88,7 @@ import { DocumentTextPreviewButton } from "@/components/admin/document-text-prev
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { AdminQuotePreviewDialog } from "@/components/admin/admin-quote-preview-dialog";
 import { AdminQuoteSendDialog } from "@/components/admin/admin-quote-send-dialog";
-import { draftTranslation } from "@/lib/translate-draft";
+import { draftTranslation, onlyOneFilled, placeTranslation } from "@/lib/translate-draft";
 import { toast } from "@/components/ui/sonner";
 import { AdminQuoteDuplicateDialog } from "@/components/admin/admin-quote-duplicate-dialog";
 import { PortalPageHeader } from "@/components/portal/portal-page-header";
@@ -593,10 +593,11 @@ export function AdminQuoteBuilder({
   }
 
   const money = (cents: number) => formatMoneyFromCents(cents, "en", currency);
+  const languageLabel = language === "fr" ? "French" : "English";
   const otherLanguageLabel = language === "fr" ? "English" : "French";
   const missingTranslationCount =
-    lines.filter((line) => line.description.trim() && !line.descriptionTranslated.trim()).length +
-    (customerNotes.trim() && !customerNotesTranslated.trim() ? 1 : 0);
+    lines.filter((line) => onlyOneFilled(line.description, line.descriptionTranslated)).length +
+    (onlyOneFilled(customerNotes, customerNotesTranslated) ? 1 : 0);
 
   async function fetchDefaultTerms(): Promise<Record<
     CustomerLanguage,
@@ -676,13 +677,18 @@ export function AdminQuoteBuilder({
     setTranslating(true);
     flash();
     try {
+      const notesSource = onlyOneFilled(customerNotes, customerNotesTranslated);
+      const termsSource = terms.trim() && !termsTranslated.trim() ? terms : null;
+      const lineSources = lines.flatMap((line) => {
+        const text = onlyOneFilled(line.description, line.descriptionTranslated);
+        return text ? [{ key: line.key, text }] : [];
+      });
+      const sentByKey = new Map(lineSources.map((line) => [line.key, line.text]));
       const result = await draftTranslation({
         from: language,
-        lines: lines
-          .filter((line) => line.description.trim() && !line.descriptionTranslated.trim())
-          .map((line) => ({ key: line.key, text: line.description })),
-        notes: customerNotes.trim() && !customerNotesTranslated.trim() ? customerNotes : null,
-        terms: terms.trim() && !termsTranslated.trim() ? terms : null,
+        lines: lineSources,
+        notes: notesSource,
+        terms: termsSource,
       });
       if (!result.ok) {
         flash(undefined, result.message);
@@ -693,17 +699,35 @@ export function AdminQuoteBuilder({
         return;
       }
       const json = result.draft;
-      const byKey = new Map(json.lines.map((line) => [line.key, line.text]));
+      const byKey = new Map(json.lines.map((line) => [line.key, line]));
       setLines((prev) =>
-        prev.map((line) =>
-          !line.descriptionTranslated.trim() && byKey.get(line.key)
-            ? { ...line, descriptionTranslated: byKey.get(line.key)! }
-            : line
-        )
+        prev.map((line) => {
+          const out = byKey.get(line.key);
+          const sent = onlyOneFilled(line.description, line.descriptionTranslated);
+          if (!out || !sent || sent !== sentByKey.get(line.key)) return line;
+          const [description, descriptionTranslated] = placeTranslation(sent, out);
+          return { ...line, description, descriptionTranslated };
+        })
       );
-      if (json.notes) setCustomerNotesTranslated((current) => current.trim() || json.notes!);
-      if (json.terms) setTermsTranslated((current) => current.trim() || json.terms!);
-      flash(`Draft ${otherLanguageLabel} added — review it before saving.`);
+      if (json.notes && notesSource) {
+        const [main, other] = placeTranslation(notesSource, json.notes);
+        setCustomerNotes(main);
+        setCustomerNotesTranslated(other);
+      }
+      if (json.terms && termsSource) {
+        const [main, other] = placeTranslation(termsSource, json.terms);
+        setTerms(main);
+        setTermsTranslated(other);
+      }
+      const swapped =
+        json.lines.filter((line) => line.swapped).length +
+        (json.notes?.swapped ? 1 : 0) +
+        (json.terms?.swapped ? 1 : 0);
+      flash(
+        swapped > 0
+          ? `Draft added — ${swapped} field${swapped === 1 ? " was" : "s were"} written in ${otherLanguageLabel}, so the ${languageLabel} version now sits in the main field. Review before saving.`
+          : `Draft ${otherLanguageLabel} added — review it before saving.`
+      );
     } catch {
       flash(undefined, "Could not translate.");
     } finally {
@@ -1306,8 +1330,8 @@ export function AdminQuoteBuilder({
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Needed only when sending French + English (Québec customers).
-                  Standard terms translate automatically.
+                  Write the main fields in {languageLabel}; Translate fills the {otherLanguageLabel} lines
+                  under them. Typed in {otherLanguageLabel} by mistake? It gets moved to the right field.
                 </p>
               </div>
             </div>
@@ -1457,7 +1481,7 @@ export function AdminQuoteBuilder({
                   </div>
                   <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
                     <Label className="text-xs text-muted-foreground">
-                      Description
+                      Description · {languageLabel}
                     </Label>
                     <Input
                       value={line.description}
@@ -1477,7 +1501,7 @@ export function AdminQuoteBuilder({
                       placeholder={language === "fr" ? "English version" : "Version française"}
                       className={cn(
                         "h-8 text-xs",
-                        line.description.trim() && !line.descriptionTranslated.trim()
+                        onlyOneFilled(line.description, line.descriptionTranslated)
                           ? "border-amber-500/50"
                           : "border-border/40"
                       )}
@@ -1980,7 +2004,7 @@ export function AdminQuoteBuilder({
         </p>
         <div className="mt-4 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="customer_notes">Customer notes</Label>
+            <Label htmlFor="customer_notes">Customer notes · {languageLabel}</Label>
             <Textarea
               id="customer_notes"
               rows={4}
@@ -2000,7 +2024,7 @@ export function AdminQuoteBuilder({
                   onChange={(e) => setCustomerNotesTranslated(e.target.value)}
                   disabled={!isEditing}
                   className={cn(
-                    customerNotes.trim() && !customerNotesTranslated.trim() ? "border-amber-500/50" : undefined
+                    onlyOneFilled(customerNotes, customerNotesTranslated) ? "border-amber-500/50" : undefined
                   )}
                 />
               </>
@@ -2021,7 +2045,7 @@ export function AdminQuoteBuilder({
         <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <Label htmlFor="terms">Terms & conditions</Label>
+              <Label htmlFor="terms">Terms & conditions · {languageLabel}</Label>
               <p className="mt-1 text-xs text-muted-foreground">
                 One term per line — same numbered list as the PDF.
               </p>

@@ -29,14 +29,15 @@ function cleanText(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, MAX_TEXT) : null;
 }
 
-async function deeplTranslate(
+type TranslatedText = { text: string; swapped: boolean };
+
+async function deeplRequest(
   apiKey: string,
   texts: string[],
-  from: CustomerLanguage,
   to: CustomerLanguage
-): Promise<string[]> {
+): Promise<Array<{ text: string; detected: string }>> {
   const host = apiKey.endsWith(":fx") ? "https://api-free.deepl.com" : "https://api.deepl.com";
-  const out: string[] = [];
+  const out: Array<{ text: string; detected: string }> = [];
   for (let start = 0; start < texts.length; start += DEEPL_BATCH) {
     const response = await fetch(`${host}/v2/translate`, {
       method: "POST",
@@ -46,7 +47,6 @@ async function deeplTranslate(
       },
       body: JSON.stringify({
         text: texts.slice(start, start + DEEPL_BATCH),
-        source_lang: from.toUpperCase(),
         target_lang: to === "fr" ? "FR" : "EN-US",
         preserve_formatting: true,
         ...(to === "fr" ? { formality: "prefer_more" } : {}),
@@ -57,10 +57,44 @@ async function deeplTranslate(
     if (!response.ok) {
       throw new Error(`DeepL ${response.status}: ${await response.text().catch(() => "")}`);
     }
-    const json = (await response.json()) as { translations?: Array<{ text?: string }> };
-    out.push(...(json.translations ?? []).map((item) => item.text ?? ""));
+    const json = (await response.json()) as {
+      translations?: Array<{ text?: string; detected_source_language?: string }>;
+    };
+    out.push(
+      ...(json.translations ?? []).map((item) => ({
+        text: item.text ?? "",
+        detected: (item.detected_source_language ?? "").slice(0, 2).toLowerCase(),
+      }))
+    );
   }
   return out;
+}
+
+/**
+ * Source language is auto-detected: text already written in the target
+ * language is translated back into the document language and marked swapped.
+ */
+async function deeplTranslate(
+  apiKey: string,
+  texts: string[],
+  from: CustomerLanguage,
+  to: CustomerLanguage
+): Promise<TranslatedText[]> {
+  const forward = await deeplRequest(apiKey, texts, to);
+  const mislabeled = forward.flatMap((item, i) => (item.detected === to ? [i] : []));
+  const result = forward.map((item) => ({ text: item.text, swapped: false }));
+  if (mislabeled.length > 0) {
+    const back = await deeplRequest(apiKey, mislabeled.map((i) => texts[i]), from);
+    mislabeled.forEach((i, j) => {
+      result[i] = { text: back[j]?.text ?? "", swapped: true };
+    });
+  }
+  return result;
+}
+
+function cleanTranslated(value: TranslatedText | undefined): TranslatedText | null {
+  const text = cleanText(value?.text);
+  return value && text ? { text, swapped: value.swapped } : null;
 }
 
 /**
@@ -117,7 +151,7 @@ export async function POST(request: Request) {
     ...(source.notes ? [source.notes] : []),
     ...(source.terms ? [source.terms] : []),
   ];
-  let translated: string[];
+  let translated: TranslatedText[];
   try {
     translated = await deeplTranslate(apiKey, texts, from, to);
   } catch (error) {
@@ -129,13 +163,13 @@ export async function POST(request: Request) {
   }
 
   let index = source.lines.length;
-  const notes = source.notes ? cleanText(translated[index++]) : null;
-  const termsOut = source.terms ? cleanText(translated[index++]) : null;
+  const notes = source.notes ? cleanTranslated(translated[index++]) : null;
+  const termsOut = source.terms ? cleanTranslated(translated[index++]) : null;
   return NextResponse.json({
     ok: true,
     lines: source.lines.flatMap((line, i) => {
-      const text = cleanText(translated[i]);
-      return text ? [{ key: line.key, text }] : [];
+      const out = cleanTranslated(translated[i]);
+      return out ? [{ key: line.key, ...out }] : [];
     }),
     notes,
     terms: termsOut,

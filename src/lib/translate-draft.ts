@@ -52,6 +52,8 @@ type ChromeTranslatorFactory = {
 
 const ENDPOINT = "/api/admin/quotes/translate";
 const DOWNLOAD_TOAST = "translator-download";
+/** Both translation directions start together and share one download toast. */
+let activeDownloads = 0;
 /** Bullets and numbering stay as typed; only the words after them are translated. */
 const LIST_PREFIX = /^(\s*(?:[-*•–]|\d+[.)])\s+)/;
 
@@ -82,19 +84,25 @@ async function startChromeTranslator(
 ): Promise<ChromeTranslator | null> {
   const factory = (globalThis as { Translator?: ChromeTranslatorFactory }).Translator;
   if (!factory || typeof factory.create !== "function") return null;
+  let downloading = false;
   try {
     const options = { sourceLanguage: from, targetLanguage: to };
     const availability = await withTimeout(factory.availability(options), 4_000);
     if (availability === "unavailable") return null;
     const needsDownload = availability !== "available";
     if (needsDownload) {
+      downloading = true;
+      activeDownloads += 1;
       toast.loading("Downloading the browser’s translation pack…", { id: DOWNLOAD_TOAST });
     }
-    const translator = await withTimeout(
+    return await withTimeout(
       factory.create({
         ...options,
         monitor(target) {
+          // Chrome also reports progress for packs that are already installed,
+          // and can fire the last event after `create` resolves.
           target.addEventListener("downloadprogress", (event) => {
+            if (!downloading) return;
             const loaded = (event as ProgressEvent).loaded;
             toast.loading(`Downloading the browser’s translation pack… ${Math.round(loaded * 100)}%`, {
               id: DOWNLOAD_TOAST,
@@ -104,12 +112,15 @@ async function startChromeTranslator(
       }),
       needsDownload ? 180_000 : 10_000
     );
-    if (needsDownload) toast.dismiss(DOWNLOAD_TOAST);
-    return translator;
   } catch (error) {
-    toast.dismiss(DOWNLOAD_TOAST);
     console.warn("[translate] browser translator unavailable", error);
     return null;
+  } finally {
+    if (downloading) {
+      downloading = false;
+      activeDownloads -= 1;
+      if (activeDownloads === 0) toast.dismiss(DOWNLOAD_TOAST);
+    }
   }
 }
 

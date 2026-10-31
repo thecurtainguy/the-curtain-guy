@@ -1146,6 +1146,15 @@ export type LineItemInput = {
   image_alt?: string | null;
 };
 
+function lineItemUnchanged(previous: object, next: Record<string, unknown>): boolean {
+  const saved = previous as Record<string, unknown>;
+  return Object.entries(next).every(([key, value]) => {
+    const before = saved[key] ?? null;
+    if (typeof value === "number") return Number(before) === value;
+    return before === (value ?? null);
+  });
+}
+
 export async function upsertLineItems(input: {
   quoteId: string;
   items: LineItemInput[];
@@ -1160,10 +1169,13 @@ export async function upsertLineItems(input: {
     input.items.filter((item) => item.id).map((item) => item.id as string)
   );
   const categories = await listProductCategories();
+  let changed = false;
 
   for (const item of existing.line_items) {
     if (!keepIds.has(item.id)) {
-      await admin.from("quote_line_items").delete().eq("id", item.id);
+      changed = true;
+      const { error } = await admin.from("quote_line_items").delete().eq("id", item.id);
+      if (error) return { ok: false, message: error.message };
       await logQuoteEvent({
         quoteId: input.quoteId,
         actorType: "owner",
@@ -1225,7 +1237,9 @@ export async function upsertLineItems(input: {
       image_alt: item.image_alt?.trim() || null,
     };
 
-    if (item.id) {
+    if (previous) {
+      if (lineItemUnchanged(previous, payload)) continue;
+      changed = true;
       const { error } = await admin
         .from("quote_line_items")
         .update(payload)
@@ -1244,6 +1258,7 @@ export async function upsertLineItems(input: {
         metadata: { line_item_id: item.id },
       });
     } else {
+      changed = true;
       const { error } = await admin.from("quote_line_items").insert(payload);
       if (error) {
         return { ok: false, message: error.message };
@@ -1260,14 +1275,16 @@ export async function upsertLineItems(input: {
   }
 
   await recalculateQuoteTotals(input.quoteId);
-  await logQuoteEvent({
-    quoteId: input.quoteId,
-    actorType: "owner",
-    actorUserId: input.actorUserId,
-    actorEmail: input.actorEmail,
-    eventType: "quote_edited",
-    summary: "Quote line items saved",
-  });
+  if (changed) {
+    await logQuoteEvent({
+      quoteId: input.quoteId,
+      actorType: "owner",
+      actorUserId: input.actorUserId,
+      actorEmail: input.actorEmail,
+      eventType: "quote_edited",
+      summary: "Quote line items saved",
+    });
+  }
 
   return { ok: true };
 }

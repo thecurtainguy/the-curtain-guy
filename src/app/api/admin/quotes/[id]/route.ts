@@ -262,6 +262,21 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
 
+  // The editor sends every field; only write and log the ones that changed.
+  const current = existing as unknown as Record<string, unknown>;
+  for (const [key, value] of Object.entries(updates)) {
+    const before = current[key] ?? null;
+    const same =
+      typeof value === "number" ? Number(before) === value : before === (value ?? null);
+    if (same) delete updates[key];
+  }
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ ok: true, quote: existing });
+  }
+  shouldRecalculate &&= ["tax_mode", "gst_rate", "qst_rate", "manual_tax_label", "manual_tax_cents"].some(
+    (key) => key in updates
+  );
+
   const { data, error } = await admin
     .from("quotes")
     .update(updates)

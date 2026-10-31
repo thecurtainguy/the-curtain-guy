@@ -146,6 +146,8 @@ type DraftLine = {
   /** The description in the other customer language. */
   descriptionTranslated: string;
   quantity: number;
+  /** Raw text while typing, so "" and "12." aren't snapped to a number mid-edit. */
+  quantityDraft?: string;
   unitLabel: string;
   unitPriceDollars: string;
   /** Raw text while typing a line total; the unit price is derived from it. */
@@ -480,12 +482,16 @@ export function AdminQuoteBuilder({
     setManualTaxLines(manualTaxLinesFromQuote(source));
   }
 
-  // Sync when the server quote refreshes while viewing (never mid-edit).
-  const quoteSyncKey = `${quote.id}|${quote.updated_at}|${isEditing}`;
-  const [syncedQuoteKey, setSyncedQuoteKey] = useState(quoteSyncKey);
-  if (syncedQuoteKey !== quoteSyncKey) {
-    setSyncedQuoteKey(quoteSyncKey);
-    if (!isEditing) resetFromQuote(quote);
+  // Sync when a newer server quote arrives while viewing (never mid-edit).
+  // Saving records the saved version, so the older prop still on screen until
+  // router.refresh() lands can't overwrite what was just saved.
+  const [syncedQuote, setSyncedQuote] = useState({ id: quote.id, updatedAt: quote.updated_at });
+  const quoteIsNewer =
+    quote.id !== syncedQuote.id ||
+    (Date.parse(quote.updated_at) || 0) > (Date.parse(syncedQuote.updatedAt) || 0);
+  if (!isEditing && quoteIsNewer) {
+    setSyncedQuote({ id: quote.id, updatedAt: quote.updated_at });
+    resetFromQuote(quote);
   }
 
   const draftManualLines = useMemo(
@@ -761,6 +767,16 @@ export function AdminQuoteBuilder({
   }
 
   async function saveAll() {
+    if (saving) return;
+    const blankLine = lines.findIndex((line) => !line.description.trim());
+    if (blankLine >= 0) {
+      flash(undefined, `Line ${blankLine + 1} needs a description before the quote can be saved.`);
+      return;
+    }
+    if (!customerEmail.trim()) {
+      flash(undefined, "Customer email is required.");
+      return;
+    }
     setSaving(true);
     flash();
     try {
@@ -792,6 +808,7 @@ export function AdminQuoteBuilder({
       const linesResult = (await linesResponse.json()) as {
         ok?: boolean;
         message?: string;
+        quote?: QuoteWithRelations;
       };
       if (!linesResponse.ok || !linesResult.ok) {
         flash(
@@ -802,13 +819,9 @@ export function AdminQuoteBuilder({
         return;
       }
 
-      const refreshed = await fetch(`/api/admin/quotes/${quote.id}`);
-      const refreshedPayload = (await refreshed.json()) as {
-        ok?: boolean;
-        quote?: QuoteWithRelations;
-      };
-      if (refreshed.ok && refreshedPayload.quote) {
-        resetFromQuote(refreshedPayload.quote);
+      if (linesResult.quote) {
+        resetFromQuote(linesResult.quote);
+        setSyncedQuote({ id: linesResult.quote.id, updatedAt: linesResult.quote.updated_at });
       }
       setIsEditing(false);
       clearDirty();
@@ -1511,18 +1524,20 @@ export function AdminQuoteBuilder({
                     <Label className="text-xs text-muted-foreground">Qty</Label>
                     <div className="flex gap-1.5">
                       <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={line.quantity}
+                        inputMode="decimal"
+                        aria-label="Quantity"
+                        value={line.quantityDraft ?? String(line.quantity)}
                         disabled={!isEditing}
                         className="w-16 shrink-0"
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const parsed = Number.parseFloat(e.target.value.replace(",", "."));
                           updateLine(line.key, {
-                            quantity: Number(e.target.value) || 0,
+                            quantityDraft: e.target.value,
+                            quantity: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0,
                             lineTotalDraft: undefined,
-                          })
-                        }
+                          });
+                        }}
+                        onBlur={() => updateLine(line.key, { quantityDraft: undefined })}
                       />
                       <SelectInput
                         aria-label="Unit"

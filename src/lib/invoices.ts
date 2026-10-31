@@ -1363,18 +1363,37 @@ export async function saveInvoice(
         ...inventoryLineFields(line, known),
       };
     });
-    const { error: deleteError } = await admin
-      .from("invoice_line_items")
-      .delete()
-      .eq("invoice_id", invoiceId);
-    if (deleteError) {
-      console.error("[invoices] clear lines", deleteError);
-      return { error: "Could not save line items." };
-    }
-    if (rows.length > 0) {
-      const { error } = await admin.from("invoice_line_items").insert(rows);
+    const linesUnchanged =
+      rows.length === current.line_items.length &&
+      rows.every((row, index) => {
+        const saved = current.line_items[index] as unknown as Record<string, unknown>;
+        return Object.entries(row).every(([key, value]) => {
+          const before = saved[key] ?? null;
+          return typeof value === "number" ? Number(before) === value : before === (value ?? null);
+        });
+      });
+    // New rows go in before the old ones are removed, so a failed insert
+    // leaves the saved lines intact.
+    let insertedIds: string[] = [];
+    if (!linesUnchanged && rows.length > 0) {
+      const { data, error } = await admin.from("invoice_line_items").insert(rows).select("id");
       if (error) {
         console.error("[invoices] insert lines", error);
+        return { error: "Could not save line items." };
+      }
+      insertedIds = (data ?? []).map((row) => row.id as string);
+    }
+    const oldIds = current.line_items.map((line) => line.id);
+    if (!linesUnchanged && oldIds.length > 0) {
+      const { error: deleteError } = await admin
+        .from("invoice_line_items")
+        .delete()
+        .in("id", oldIds);
+      if (deleteError) {
+        console.error("[invoices] clear old lines", deleteError);
+        if (insertedIds.length > 0) {
+          await admin.from("invoice_line_items").delete().in("id", insertedIds);
+        }
         return { error: "Could not save line items." };
       }
     }

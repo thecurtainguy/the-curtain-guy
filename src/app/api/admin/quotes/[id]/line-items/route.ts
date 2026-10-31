@@ -94,7 +94,7 @@ export async function POST(request: Request, context: RouteContext) {
         typeof row.description_translated === "string"
           ? row.description_translated.trim() || null
           : undefined,
-      quantity: Number(row.quantity) || 1,
+      quantity: Number.isFinite(Number(row.quantity)) ? Math.max(0, Number(row.quantity)) : 1,
       unit_label:
         typeof row.unit_label === "string" ? row.unit_label : null,
       unit_price_cents: normalizeUnitPriceCents(row.unit_price_cents),
@@ -149,7 +149,14 @@ export async function POST(request: Request, context: RouteContext) {
   }
   if (Object.keys(taxUpdates).length > 0) {
     const admin = createAdminSupabaseClient();
-    await admin.from("quotes").update(taxUpdates).eq("id", id);
+    const { error } = await admin.from("quotes").update(taxUpdates).eq("id", id);
+    if (error) {
+      console.error("[quotes] save tax settings", error);
+      return NextResponse.json(
+        { ok: false, message: "Could not save the tax settings. Try again." },
+        { status: 500 }
+      );
+    }
   }
 
   const result = await upsertLineItems({
@@ -166,5 +173,8 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    quote: await fetchQuoteById(id, { includeEvents: true }),
+  });
 }

@@ -13,13 +13,13 @@ import {
   Languages,
   Loader2,
   Lock,
-  Package,
   Pencil,
   Plus,
+  RotateCcw,
+  ScrollText,
   Send,
   Star,
   Trash2,
-  Truck,
   UserRound,
 } from "lucide-react";
 import { PRODUCT_UNIT_LABELS } from "@/data/products";
@@ -29,8 +29,6 @@ import {
   type QuoteCategoryOption,
 } from "@/data/product-categories";
 import {
-  QUOTE_LINE_STATUS_LABELS,
-  QUOTE_LINE_STATUSES,
   QUOTE_TAX_MODE_LABELS,
   QUOTE_TAX_MODES,
   computeLineTotalCents,
@@ -44,7 +42,6 @@ import {
   isQuoteLocked,
   isZeroPricedQuoteLine,
   normalizeManualTaxLines,
-  formatQuoteUnitSuffix,
   percentInputToRate,
   quoteLineCategoryLabel,
   rateToPercentInput,
@@ -78,6 +75,8 @@ import {
   type QuotePaymentTerms,
 } from "@/data/quote-payment-terms";
 import { QuotePaymentTermsFields } from "@/components/admin/quote-payment-terms-fields";
+import { QuoteLineEditor } from "@/components/admin/quote-line-editor";
+import { AddLineBar, AddLineButtons, type AddLineActions } from "@/components/admin/add-line-bar";
 import { OptionCard } from "@/components/estimate/option-card";
 import {
   normalizeCustomerLanguage,
@@ -129,7 +128,6 @@ import {
   QuoteLineReorderGroup,
   QuoteLineReorderItem,
 } from "@/components/admin/quote-line-reorder";
-import Image from "next/image";
 import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 import { QuoteSavedView } from "@/components/admin/quote-saved-view";
 
@@ -138,7 +136,7 @@ type QuoteSourceEventPlan = {
   reference: string | null;
 };
 
-type DraftLine = {
+export type DraftLine = {
   key: string;
   id?: string;
   category: string;
@@ -451,6 +449,9 @@ export function AdminQuoteBuilder({
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [logisticsOpen, setLogisticsOpen] = useState(false);
   const [applyingDefaultTerms, setApplyingDefaultTerms] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [termsPreviewOpen, setTermsPreviewOpen] = useState(false);
+  const [defaultTerms, setDefaultTerms] = useState<Record<CustomerLanguage, string> | null>(null);
 
   const [convertFor, setConvertFor] = useState<string | null>(null);
   const [convertCategory, setConvertCategory] = useState("custom");
@@ -626,6 +627,30 @@ export function AdminQuoteBuilder({
       )?.body ?? "";
     return { en: bodyFor("en"), fr: bodyFor("fr") };
   }
+
+  useEffect(() => {
+    if (!isEditing || defaultTerms) return;
+    let cancelled = false;
+    fetch("/api/admin/document-texts")
+      .then((response) => response.json())
+      .then((json: { ok?: boolean; texts?: Array<{ slug: string; body: string }> }) => {
+        if (cancelled || !json.ok) return;
+        const bodyFor = (lang: CustomerLanguage) =>
+          json.texts?.find((item) => item.slug === localizedDocumentTextSlug("quote.terms", lang))?.body ?? "";
+        setDefaultTerms({ en: bodyFor("en"), fr: bodyFor("fr") });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditing, defaultTerms]);
+
+  const termCount = splitQuoteTerms(terms).length;
+  const termsAreDefault =
+    defaultTerms && defaultTerms[language]
+      ? splitQuoteTerms(terms).join("\n") === splitQuoteTerms(defaultTerms[language]).join("\n") &&
+        !termsTranslated.trim()
+      : null;
 
   async function applyDefaultTerms() {
     setApplyingDefaultTerms(true);
@@ -982,6 +1007,12 @@ export function AdminQuoteBuilder({
       })
     );
   }
+
+  const addLineActions: AddLineActions = {
+    onInventory: () => setInventoryOpen(true),
+    onLogistics: () => setLogisticsOpen(true),
+    onCustom: () => setLines((prev) => [...prev, emptyLine(categoryOptions[0])]),
+  };
 
   return (
     <div className="space-y-6">
@@ -1381,39 +1412,7 @@ export function AdminQuoteBuilder({
               event close-out.
             </p>
           </div>
-          {isEditing ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setInventoryOpen(true)}
-              >
-                <Package className="size-4" />
-                Add from inventory
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setLogisticsOpen(true)}
-              >
-                <Truck className="size-4" />
-                Add installation / transport
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setLines((prev) => [...prev, emptyLine(categoryOptions[0])])
-                }
-              >
-                <Plus className="size-4" />
-                Add row
-              </Button>
-            </div>
-          ) : null}
+          {isEditing && lines.length > 0 ? <AddLineButtons {...addLineActions} /> : null}
         </div>
 
         <AdminInventoryPickerDialog
@@ -1432,11 +1431,13 @@ export function AdminQuoteBuilder({
         />
 
         {lines.length === 0 ? (
-          <p className="mt-4 rounded-2xl border border-dashed border-border/40 px-4 py-8 text-center text-sm text-muted-foreground">
-            {isEditing
-              ? "No line items yet. Add from inventory or add a blank row."
-              : "No line items yet."}
-          </p>
+          isEditing ? (
+            <AddLineBar className="mt-4" title="Add the first line" {...addLineActions} />
+          ) : (
+            <p className="mt-4 rounded-2xl border border-dashed border-border/40 px-4 py-8 text-center text-sm text-muted-foreground">
+              No line items yet.
+            </p>
+          )
         ) : (
           <QuoteLineReorderGroup
             as="div"
@@ -1445,232 +1446,40 @@ export function AdminQuoteBuilder({
             onReorder={setLines}
             className="mt-4 space-y-3"
           >
-            {lines.map((line) => {
-              const lineTotal = computeLineTotalCents(
-                line.quantity,
-                unitPriceDollarsToCents(line.unitPriceDollars)
-              );
-              return (
-                <QuoteLineReorderItem
-                  key={line.key}
-                  value={line}
-                  enabled={isEditing && lines.length > 1}
-                  label={line.description || "line item"}
-                  onMove={(direction) => moveLine(line.key, direction)}
-                  className="rounded-2xl border border-border/40 bg-background/40 p-4 backdrop-blur-md"
-                >
-                <div className="grid grid-cols-1 gap-3 @min-[30rem]:grid-cols-[56px_repeat(4,minmax(0,1fr))] @min-[60rem]:grid-cols-[56px_170px_minmax(0,1fr)_168px_112px_116px_96px_120px] @min-[60rem]:items-end">
-                  <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30 @min-[30rem]:row-span-2 @min-[60rem]:row-span-1">
-                    {line.imageUrl ? (
-                      <Image
-                        src={line.imageUrl}
-                        alt={line.imageAlt || line.description}
-                        fill
-                        className="object-cover"
-                        sizes="56px"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="flex size-full items-center justify-center text-muted-foreground">
-                        <Package className="size-4" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Category
-                    </Label>
-                    <SelectInput
-                      value={line.category}
-                      disabled={!isEditing}
-                      onChange={(next) =>
-                        updateLine(line.key, {
-                          category: next,
-                          categoryLabel: labelForCategory(next),
-                        })
-                      }
-                      options={optionsIncluding(
-                        line.category,
-                        line.categoryLabel
-                      )}
-                    />
-                  </div>
-                  <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Description · {languageLabel}
-                    </Label>
-                    <Input
-                      value={line.description}
-                      disabled={!isEditing}
-                      onChange={(e) =>
-                        updateLine(line.key, { description: e.target.value })
-                      }
-                      placeholder="What is included"
-                    />
-                    <Input
-                      value={line.descriptionTranslated}
-                      disabled={!isEditing}
-                      onChange={(e) =>
-                        updateLine(line.key, { descriptionTranslated: e.target.value })
-                      }
-                      aria-label={`${otherLanguageLabel} description`}
-                      placeholder={language === "fr" ? "English version" : "Version française"}
-                      className={cn(
-                        "h-8 text-xs",
-                        onlyOneFilled(line.description, line.descriptionTranslated)
-                          ? "border-amber-500/50"
-                          : "border-border/40"
-                      )}
-                    />
-                  </div>
-                  <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
-                    <Label className="text-xs text-muted-foreground">Qty</Label>
-                    <div className="flex gap-1.5">
-                      <Input
-                        inputMode="decimal"
-                        aria-label="Quantity"
-                        value={line.quantityDraft ?? String(line.quantity)}
-                        disabled={!isEditing}
-                        className="w-16 shrink-0"
-                        onChange={(e) => {
-                          const parsed = Number.parseFloat(e.target.value.replace(",", "."));
-                          updateLine(line.key, {
-                            quantityDraft: e.target.value,
-                            quantity: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0,
-                            lineTotalDraft: undefined,
-                          });
-                        }}
-                        onBlur={() => updateLine(line.key, { quantityDraft: undefined })}
-                      />
-                      <SelectInput
-                        aria-label="Unit"
-                        value={line.unitLabel}
-                        disabled={!isEditing}
-                        className="min-w-0 flex-1"
-                        onChange={(next) =>
-                          updateLine(line.key, { unitLabel: next })
-                        }
-                        options={unitOptionsIncluding(line.unitLabel)}
-                      />
-                    </div>
-                  </div>
-                  <div className="min-w-0 space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      {currency} {formatQuoteUnitSuffix(line.unitLabel)}
-                    </Label>
-                    <Input
-                      inputMode="decimal"
-                      value={line.unitPriceDollars}
-                      disabled={!isEditing}
-                      onChange={(e) =>
-                        updateLine(line.key, {
-                          unitPriceDollars: e.target.value,
-                          lineTotalDraft: undefined,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="min-w-0 space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Status
-                    </Label>
-                    <SelectInput
-                      value={line.status}
-                      disabled={!isEditing}
-                      onChange={(next) =>
-                        updateLine(line.key, {
-                          status: next as QuoteLineStatus,
-                        })
-                      }
-                      options={QUOTE_LINE_STATUSES.map((status) => ({
-                        value: status,
-                        label: QUOTE_LINE_STATUS_LABELS[status],
-                      }))}
-                    />
-                  </div>
-                  <div className="min-w-0 space-y-1.5 @min-[30rem]:col-span-2 @min-[60rem]:col-span-1">
-                    <Label className="text-xs text-muted-foreground">Tax</Label>
-                    <label className="flex h-8 items-center gap-2 rounded-2xl border border-transparent bg-input/50 px-2.5 text-sm">
-                      <input
-                        type="checkbox"
-                        className="size-4 shrink-0 rounded border-border accent-primary"
-                        checked={line.isTaxable}
-                        disabled={!isEditing}
-                        onChange={(e) =>
-                          updateLine(line.key, {
-                            isTaxable: e.target.checked,
-                          })
-                        }
-                      />
-                      <span className="truncate text-xs text-foreground">
-                        {line.isTaxable ? "Taxable" : "Non-tax"}
-                      </span>
-                    </label>
-                  </div>
-                  <div className="flex min-w-0 items-end justify-between gap-2 @min-[30rem]:col-span-3 @min-[60rem]:col-span-1 @min-[60rem]:flex-col @min-[60rem]:items-end @min-[60rem]:justify-end">
-                    {line.status === "included" ||
-                    isZeroPricedQuoteLine({
-                      status: line.status,
-                      unit_price_cents: unitPriceDollarsToCents(line.unitPriceDollars),
-                    }) ? (
-                      <p
-                        className="w-full text-right text-sm font-medium text-primary"
-                        title="$0 lines show as Included / Inclus to the customer"
-                      >
-                        Included
-                      </p>
-                    ) : isEditing ? (
-                      <div className="w-full min-w-0 space-y-1.5">
-                        <Label
-                          htmlFor={`line-total-${line.key}`}
-                          className="justify-end text-xs text-muted-foreground"
-                        >
-                          Line total
-                        </Label>
-                        <Input
-                          id={`line-total-${line.key}`}
-                          inputMode="decimal"
-                          value={
-                            line.lineTotalDraft ?? (lineTotal / 100).toFixed(2)
-                          }
-                          title="Type a total — the unit price is worked out so the total is exact"
-                          className="text-right font-medium tabular-nums"
-                          onChange={(e) => setLineTotal(line.key, e.target.value)}
-                          onBlur={() =>
-                            updateLine(line.key, { lineTotalDraft: undefined })
-                          }
-                        />
-                      </div>
-                    ) : (
-                      <p className="w-full text-right text-sm font-medium tabular-nums">
-                        {money(lineTotal)}
-                      </p>
-                    )}
-                    {isEditing ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0 text-destructive hover:text-destructive"
-                        onClick={() =>
-                          setLines((prev) =>
-                            prev.filter((row) => row.key !== line.key)
-                          )
-                        }
-                        aria-label="Remove line"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    ) : (
-                      <span className="hidden h-8 @min-[60rem]:block" aria-hidden />
-                    )}
-                  </div>
-                </div>
-                </QuoteLineReorderItem>
-              );
-            })}
+            {lines.map((line, index) => (
+              <QuoteLineReorderItem
+                key={line.key}
+                value={line}
+                enabled={lines.length > 1}
+                label={line.description || "line item"}
+                onMove={(direction) => moveLine(line.key, direction)}
+                className="rounded-2xl border border-border/40 bg-background/40 p-3.5 backdrop-blur-md transition-colors hover:border-primary/25"
+              >
+                <QuoteLineEditor
+                  line={line}
+                  index={index}
+                  currency={currency}
+                  language={language}
+                  languageLabel={languageLabel}
+                  otherLanguageLabel={otherLanguageLabel}
+                  categoryOptions={optionsIncluding(line.category, line.categoryLabel)}
+                  unitOptions={unitOptionsIncluding(line.unitLabel)}
+                  onChange={(patch) =>
+                    updateLine(
+                      line.key,
+                      patch.category ? { ...patch, categoryLabel: labelForCategory(patch.category) } : patch
+                    )
+                  }
+                  onLineTotal={(text) => setLineTotal(line.key, text)}
+                  onRemove={() => setLines((prev) => prev.filter((row) => row.key !== line.key))}
+                />
+              </QuoteLineReorderItem>
+            ))}
           </QuoteLineReorderGroup>
         )}
+        {isEditing && lines.length > 0 ? (
+          <AddLineBar className="mt-3" title="Add another line" {...addLineActions} />
+        ) : null}
       </section>
 
       <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
@@ -2114,63 +1923,104 @@ export function AdminQuoteBuilder({
           </div>
         </div>
 
-        <div className="mt-4 space-y-3 rounded-2xl border border-border/40 bg-background/30 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Label htmlFor="terms">Terms & conditions · {languageLabel}</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                One term per line — same numbered list as the PDF.
-              </p>
+        <div className="mt-4 rounded-2xl border border-border/40 bg-background/30">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <ScrollText className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Terms & conditions</p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-full border border-border/50 px-2 py-0.5 text-[11px] text-muted-foreground">
+                    {termCount} {termCount === 1 ? "term" : "terms"} · {languageLabel}
+                  </span>
+                  {termsAreDefault === true ? (
+                    <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      Billing settings default
+                    </span>
+                  ) : termsAreDefault === false ? (
+                    <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                      Custom for this quote
+                    </span>
+                  ) : null}
+                  {termsTranslated.trim() ? (
+                    <span className="rounded-full border border-border/50 px-2 py-0.5 text-[11px] text-muted-foreground">
+                      Custom {otherLanguageLabel}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <DocumentTextPreviewButton
-                kind="pdf_terms"
-                label="Terms & conditions"
-                body={terms}
-              />
-              {isEditing ? (
-                <button
+              <DocumentTextPreviewButton kind="pdf_terms" label="Terms & conditions" body={terms} />
+              {termsAreDefault === false ? (
+                <Button
                   type="button"
-                  className="text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                  variant="outline"
+                  size="sm"
                   onClick={() => void applyDefaultTerms()}
                   disabled={applyingDefaultTerms}
                 >
-                  {applyingDefaultTerms ? "Loading…" : "Use default terms"}
-                </button>
-              ) : (
-                <Link
-                  href="/admin/documents"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Edit defaults
-                </Link>
-              )}
+                  {applyingDefaultTerms ? <Loader2 className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
+                  Use default terms
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-expanded={termsOpen}
+                aria-controls="quote-terms-editor"
+                onClick={() => setTermsOpen((open) => !open)}
+              >
+                {termsOpen ? "Show less" : "Show more"}
+                <ChevronDown className={cn("size-4 transition-transform", termsOpen && "rotate-180")} />
+              </Button>
             </div>
           </div>
-          {isEditing ? (
-            <Textarea
-              id="terms"
-              rows={8}
-              value={terms}
-              onChange={(e) => setTerms(e.target.value)}
-              className="min-h-32 resize-y"
-            />
-          ) : null}
-          <QuoteTermsList terms={terms} />
-          {isEditing || termsTranslated.trim() ? (
-            <div className="space-y-2 border-t border-border/40 pt-3">
-              <Label htmlFor="terms_translated" className="text-xs text-muted-foreground">
-                Custom terms · {otherLanguageLabel} — leave empty when using the
-                default terms
-              </Label>
-              <Textarea
-                id="terms_translated"
-                rows={5}
-                value={termsTranslated}
-                onChange={(e) => setTermsTranslated(e.target.value)}
-                disabled={!isEditing}
-                className="min-h-24 resize-y"
-              />
+          {termsOpen ? (
+            <div id="quote-terms-editor" className="space-y-4 border-t border-border/40 p-4">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="terms">Terms · {languageLabel}</Label>
+                  <Textarea
+                    id="terms"
+                    rows={8}
+                    value={terms}
+                    onChange={(e) => setTerms(e.target.value)}
+                    className="max-h-[28rem] min-h-32 resize-y overflow-y-auto"
+                  />
+                  <p className="text-xs text-muted-foreground">One term per line — same numbered list as the PDF.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="terms_translated">Terms · {otherLanguageLabel}</Label>
+                  <Textarea
+                    id="terms_translated"
+                    rows={8}
+                    value={termsTranslated}
+                    onChange={(e) => setTermsTranslated(e.target.value)}
+                    placeholder={`Leave empty to use the ${otherLanguageLabel} default from Billing settings`}
+                    className="max-h-[28rem] min-h-32 resize-y overflow-y-auto"
+                  />
+                  <p className="text-xs text-muted-foreground">Only fill this in for custom wording.</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-3">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  aria-expanded={termsPreviewOpen}
+                  onClick={() => setTermsPreviewOpen((open) => !open)}
+                >
+                  {termsPreviewOpen ? "Hide numbered preview" : "Show numbered preview"}
+                  <ChevronDown className={cn("size-3.5 transition-transform", termsPreviewOpen && "rotate-180")} />
+                </button>
+                <Link href="/admin/documents" className="text-xs font-medium text-primary hover:underline">
+                  Edit defaults in Documents
+                </Link>
+              </div>
+              {termsPreviewOpen ? <QuoteTermsList terms={terms} /> : null}
             </div>
           ) : null}
         </div>
@@ -2411,3 +2261,4 @@ export function AdminQuoteBuilder({
     </div>
   );
 }
+

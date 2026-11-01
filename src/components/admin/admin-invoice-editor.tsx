@@ -2,7 +2,6 @@
 
 import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/sonner";
@@ -36,7 +35,6 @@ import {
   Truck,
   Undo2,
   UserRound,
-  Unlink,
   Wallet,
   XCircle,
 } from "lucide-react";
@@ -83,6 +81,9 @@ import { OptionCard } from "@/components/estimate/option-card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { InvoiceSavedView } from "@/components/admin/invoice-saved-view";
+import { InvoiceLineEditor } from "@/components/admin/invoice-line-editor";
+import { AddLineBar } from "@/components/admin/add-line-bar";
+import { QuoteLineReorderGroup, QuoteLineReorderItem } from "@/components/admin/quote-line-reorder";
 import {
   AdminInventoryPickerDialog,
   type InventoryPickResult,
@@ -528,6 +529,7 @@ export function AdminInvoiceEditor({
       gst_rate: payload.gst_rate,
       qst_rate: payload.qst_rate,
       manual_tax_lines: invoice.manual_tax_lines,
+      currency: form.currency,
     },
     { variant: "admin" }
   );
@@ -1377,131 +1379,45 @@ export function AdminInvoiceEditor({
                 ))}
               </div>
             ) : (
-              <div className="@container space-y-3">
-                <div className="hidden grid-cols-[44px_minmax(0,1fr)_80px_90px_120px_110px_auto] gap-2 px-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground @3xl:grid">
-                  <span />
-                  <span>Description</span>
-                  <span>Qty</span>
-                  <span>Unit</span>
-                  <span>Unit price</span>
-                  <span className="text-right">Amount</span>
-                  <span />
-                </div>
-                {form.lines.map((line, index) => {
-                  const amount = computeLineTotalCents(parseQty(line.quantity), unitPriceDollarsToCents(line.unit_price || "0"));
-                  return (
-                    <div
+              <div className="space-y-3">
+                <QuoteLineReorderGroup
+                  as="div"
+                  axis="y"
+                  values={form.lines}
+                  onReorder={(next) => set("lines", next)}
+                  className="space-y-3"
+                >
+                  {form.lines.map((line, index) => (
+                    <QuoteLineReorderItem
                       key={line.key}
-                      className="grid grid-cols-3 gap-2 rounded-xl border border-border/40 bg-background/30 p-3 @3xl:grid-cols-[44px_minmax(0,1fr)_80px_90px_120px_110px_auto] @3xl:items-start @3xl:border-0 @3xl:bg-transparent @3xl:p-1"
+                      value={line}
+                      enabled={!locked && form.lines.length > 1}
+                      label={line.description || "line item"}
+                      onMove={(direction) => moveLine(index, direction)}
+                      className="rounded-2xl border border-border/40 bg-background/40 p-3.5 backdrop-blur-md transition-colors hover:border-primary/25"
                     >
-                      <div className="relative col-span-3 size-11 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30 @3xl:col-span-1">
-                        {line.image_url ? (
-                          <Image
-                            src={line.image_url}
-                            alt={line.image_alt || line.description}
-                            fill
-                            className="object-cover"
-                            sizes="44px"
-                            unoptimized
-                          />
-                        ) : (
-                          <div className="flex size-full items-center justify-center text-muted-foreground">
-                            {line.category === "delivery" || line.category === "installation" ? (
-                              <Truck className="size-4" />
-                            ) : (
-                              <Package className="size-4" />
-                            )}
-                          </div>
+                      <InvoiceLineEditor
+                        line={line}
+                        index={index}
+                        currency={form.currency}
+                        language={form.language}
+                        amountLabel={money(
+                          computeLineTotalCents(parseQty(line.quantity), unitPriceDollarsToCents(line.unit_price || "0"))
                         )}
-                      </div>
-                      <div className="col-span-3 min-w-0 space-y-1.5 @3xl:col-span-1">
-                        <Textarea
-                          rows={1}
-                          value={line.description}
-                          onChange={(e) => updateLine(line.key, { description: e.target.value })}
-                          className="min-h-9 resize-y text-sm"
-                          aria-label="Description"
-                          placeholder="Description"
-                        />
-                        <Textarea
-                          rows={1}
-                          value={line.description_translated ?? ""}
-                          onChange={(e) => updateLine(line.key, { description_translated: e.target.value })}
-                          className={cn(
-                            "min-h-8 resize-y text-xs",
-                            line.description.trim() && !line.description_translated?.trim()
-                              ? "border-amber-500/50"
-                              : "border-border/40"
-                          )}
-                          aria-label={form.language === "fr" ? "English description" : "French description"}
-                          placeholder={form.language === "fr" ? "English version" : "Version française"}
-                        />
-                        {line.category || line.product_id ? (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {line.category ? (
-                              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                                {line.category_label || line.category.replaceAll("_", " ")}
-                              </span>
-                            ) : null}
-                            {line.product_id ? (
-                              <button
-                                type="button"
-                                onClick={() => updateLine(line.key, { product_id: null })}
-                                className="inline-flex items-center gap-1 rounded-full border border-border/50 px-2 py-0.5 text-[10px] text-muted-foreground transition hover:border-destructive/50 hover:text-destructive"
-                                title="Keep the text but stop tracking this line against inventory"
-                              >
-                                <Package className="size-3" />
-                                Inventory item
-                                <Unlink className="size-3" />
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                      <label className="min-w-0 space-y-1">
-                        <span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground @3xl:hidden">Qty</span>
-                        <Input inputMode="decimal" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} aria-label="Quantity" />
-                      </label>
-                      <label className="min-w-0 space-y-1">
-                        <span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground @3xl:hidden">Unit</span>
-                        <Input value={line.unit_label} onChange={(e) => updateLine(line.key, { unit_label: e.target.value })} aria-label="Unit" placeholder="ft, set…" />
-                      </label>
-                      <label className="min-w-0 space-y-1">
-                        <span className="block text-[10px] uppercase tracking-[0.14em] text-muted-foreground @3xl:hidden">Unit price</span>
-                        <Input inputMode="decimal" value={line.unit_price} onChange={(e) => updateLine(line.key, { unit_price: e.target.value })} aria-label="Unit price" />
-                      </label>
-                      <div className="col-span-3 flex h-8 items-center justify-end text-sm tabular-nums @3xl:col-span-1">{money(amount)}</div>
-                      <div className="col-span-3 flex items-center gap-1 @3xl:col-span-1">
-                        <button
-                          type="button"
-                          onClick={() => updateLine(line.key, { is_taxable: !line.is_taxable })}
-                          className={cn(
-                            "rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide",
-                            line.is_taxable ? "border-primary/40 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground"
-                          )}
-                          title="Toggle taxable"
-                        >
-                          {line.is_taxable ? "Tax" : "No tax"}
-                        </button>
-                        <Button type="button" size="icon-sm" variant="ghost" aria-label="Move up" disabled={index === 0} onClick={() => moveLine(index, -1)}>
-                          ↑
-                        </Button>
-                        <Button type="button" size="icon-sm" variant="ghost" aria-label="Move down" disabled={index === form.lines.length - 1} onClick={() => moveLine(index, 1)}>
-                          ↓
-                        </Button>
-                        <Button
-                          type="button"
-                          size="icon-sm"
-                          variant="ghost"
-                          aria-label="Remove line"
-                          onClick={() => set("lines", form.lines.filter((l) => l.key !== line.key))}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
+                        onChange={(patch) => updateLine(line.key, patch)}
+                        onRemove={() => set("lines", form.lines.filter((l) => l.key !== line.key))}
+                      />
+                    </QuoteLineReorderItem>
+                  ))}
+                </QuoteLineReorderGroup>
+                {locked ? null : (
+                  <AddLineBar
+                    title="Add another line"
+                    onInventory={() => setInventoryOpen(true)}
+                    onLogistics={() => setLogisticsOpen(true)}
+                    onCustom={() => set("lines", [...form.lines, blankLine()])}
+                  />
+                )}
               </div>
             )}
 

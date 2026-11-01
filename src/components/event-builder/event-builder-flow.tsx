@@ -40,7 +40,11 @@ import {
   patchEventPlanSubmission,
   postEventPlanSubmission,
 } from "@/lib/event-builder/event-plan-client";
-import { normalizeStudioDesign } from "@/data/studio";
+import { normalizeStudioDesign, type StudioDesignJson } from "@/data/studio";
+import {
+  resolveEditedPlanDesign,
+  type SavedEventPlanDesign,
+} from "@/lib/event-builder/edit-design";
 
 const STEPS = EVENT_BUILDER_STEPS;
 const REVIEW_INDEX = STEPS.length - 1;
@@ -82,6 +86,7 @@ type EventBuilderFlowProps = {
   startFresh?: boolean;
   embedded?: boolean;
   initialEditBrief?: EventBuilderBrief;
+  initialEditDesign?: StudioDesignJson;
   initialEditContact?: EventBuilderContactDefaults;
   initialPortalContact?: EventBuilderContactDefaults;
   onEditSaved?: () => void;
@@ -95,6 +100,7 @@ export function EventBuilderFlow({
   startFresh = false,
   embedded = false,
   initialEditBrief,
+  initialEditDesign,
   initialEditContact,
   initialPortalContact,
   onEditSaved,
@@ -117,6 +123,7 @@ export function EventBuilderFlow({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [backupDraft, setBackupDraft] = useState<EventBuilderBrief | null>(null);
+  const [savedPlan, setSavedPlan] = useState<SavedEventPlanDesign | null>(null);
   const [contactDefaults, setContactDefaults] = useState({
     name: "",
     email: "",
@@ -139,8 +146,8 @@ export function EventBuilderFlow({
 
   const deferredBrief = useDeferredValue(brief);
   const design = useMemo(
-    () => normalizeStudioDesign(buildStarterDesignFromBrief(deferredBrief)),
-    [deferredBrief]
+    () => resolveEditedPlanDesign(deferredBrief, savedPlan),
+    [deferredBrief, savedPlan]
   );
   const frontWall = useMemo(
     () => computeEventWallRoles(design.room.floor).front,
@@ -170,6 +177,11 @@ export function EventBuilderFlow({
     async function hydrate() {
       if (editPlanId && initialEditBrief) {
         setBrief(initialEditBrief);
+        setSavedPlan(
+          initialEditDesign
+            ? { brief: initialEditBrief, design: initialEditDesign }
+            : null
+        );
         setContactDefaults(
           initialEditContact ?? {
             name: "",
@@ -189,6 +201,7 @@ export function EventBuilderFlow({
           const body = (await response.json().catch(() => null)) as {
             ok?: boolean;
             brief?: EventBuilderBrief;
+            design?: StudioDesignJson;
             plan?: {
               contact_name: string;
               contact_email: string;
@@ -204,6 +217,7 @@ export function EventBuilderFlow({
 
           if (cancelled) return;
           setBrief(body.brief);
+          setSavedPlan(body.design ? { brief: body.brief, design: body.design } : null);
           setContactDefaults({
             name: body.plan?.contact_name ?? "",
             email: body.plan?.contact_email ?? "",
@@ -278,6 +292,7 @@ export function EventBuilderFlow({
     editPlanId,
     startFresh,
     initialEditBrief,
+    initialEditDesign,
     initialEditContact,
     initialPortalContact,
     embedded,
@@ -434,7 +449,7 @@ export function EventBuilderFlow({
       await patchEventPlanSubmission(
         editPlanId,
         brief,
-        normalizeStudioDesign(buildStarterDesignFromBrief(brief)),
+        resolveEditedPlanDesign(brief, savedPlan),
         contactDefaults
       );
       toast.success(t("submit.toasts.updated"));
@@ -460,6 +475,7 @@ export function EventBuilderFlow({
   }, [
     editPlanId,
     brief,
+    savedPlan,
     contactDefaults,
     onEditSaved,
     successHref,

@@ -82,6 +82,7 @@ export function EventPlanPortalDetail({
             portal={audience}
             embedded
             initialEditBrief={brief}
+            initialEditDesign={design}
             initialEditContact={contactDefaults}
             onEditSaved={handleEditSaved}
             onCancelEdit={handleCancelEdit}

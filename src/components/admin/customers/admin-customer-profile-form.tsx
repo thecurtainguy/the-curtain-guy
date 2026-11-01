@@ -13,12 +13,14 @@ import {
   Languages,
   MapPin,
   NotebookPen,
+  Pencil,
   ReceiptText,
   Save,
   ShieldOff,
   Tags,
 } from "lucide-react";
 import { OptionCard } from "@/components/estimate/option-card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -36,6 +38,7 @@ import {
 import type { BalanceDueRule } from "@/data/invoices";
 import { CUSTOMER_KIND_OPTIONS, readJson } from "@/components/admin/customers/customer-ui";
 import { CustomerPanel, ToggleTile } from "@/components/admin/customers/customer-panel";
+import { CustomerProfileSavedView } from "@/components/admin/customers/customer-profile-saved-view";
 import { cn } from "@/lib/utils";
 
 type FormState = {
@@ -175,6 +178,7 @@ export function AdminCustomerProfileForm({
       setForm(toForm(customer));
     }
   }
+  const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirm, confirmDialog] = useBrandConfirm();
@@ -184,6 +188,18 @@ export function AdminCustomerProfileForm({
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
     setError(null);
+  }
+
+  function startEditing() {
+    setForm(initial);
+    setError(null);
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    setForm(initial);
+    setError(null);
+    setIsEditing(false);
   }
 
   async function save() {
@@ -230,6 +246,7 @@ export function AdminCustomerProfileForm({
         setSaved(json.customer);
         setForm(toForm(json.customer));
       }
+      setIsEditing(false);
       const cascade = json.cascade;
       const moved = cascade ? [...cascade.quotes, ...cascade.invoices] : [];
       toast.success(
@@ -247,6 +264,22 @@ export function AdminCustomerProfileForm({
   }
 
   const needsDays = form.balance_due_rule === "days_before_event" || form.balance_due_rule === "days_after_issue";
+
+  if (!isEditing) {
+    return (
+      <CustomerProfileSavedView
+        customer={saved}
+        paymentMethods={paymentMethods}
+        businessDefaults={businessDefaults}
+        editAction={
+          <Button type="button" size="sm" onClick={startEditing}>
+            <Pencil className="size-4" />
+            Edit
+          </Button>
+        }
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -528,21 +561,12 @@ export function AdminCustomerProfileForm({
           )}
           role={error ? "alert" : undefined}
         >
-          {error ?? (dirty ? "You have unsaved changes." : "All changes saved.")}
+          {error ?? (dirty ? "You have unsaved changes." : "Editing profile · no changes yet.")}
         </p>
         <div className="flex gap-2">
-          {dirty ? (
-            <button
-              type="button"
-              className="text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                setForm(initial);
-                setError(null);
-              }}
-            >
-              Discard
-            </button>
-          ) : null}
+          <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
+            Cancel
+          </Button>
           <LoadingButton
             type="button"
             onClick={() => void save()}

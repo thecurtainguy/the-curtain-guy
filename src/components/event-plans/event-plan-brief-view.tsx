@@ -1,31 +1,58 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
-import type { LucideIcon } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import {
+  CalendarDays,
+  ChevronDown,
+  CloudSun,
+  DoorOpen,
+  LayoutGrid,
+  Link2,
+  Map as MapIcon,
+  MapPin,
   MessageSquare,
   Palette,
   PanelsTopLeft,
   Ruler,
   Sparkles,
   UserRound,
+  Users,
 } from "lucide-react";
 import type { EventPlanSubmissionRow } from "@/data/event-plans";
-import type { EventBuilderBrief } from "@/data/event-builder/brief";
 import {
-  getEventCatalogItem,
-  roomPreviewStats,
-} from "@/data/event-builder/catalog";
-import { fullnessIdFromValue, type EventBuilderFullnessId } from "@/data/event-builder/look";
-import {
-  fabricDirections,
-  getEnglishOptionLabel,
-  getEnglishOptionLabels,
-} from "@/data/estimate";
+  getBriefCeilingPreset,
+  getBriefFabric,
+  getBriefLayout,
+  getBriefLightingMood,
+  getBriefOpenings,
+  getBriefUplightColor,
+  getBriefVenuePreset,
+  type EventBuilderBrief,
+  type EventLayoutId,
+} from "@/data/event-builder/brief";
+import { getEventCatalogItem, roomPreviewStats } from "@/data/event-builder/catalog";
+import { fullnessIdFromValue } from "@/data/event-builder/look";
 import { getEventTypeIcon } from "@/data/event-types";
-import { DRAPE_COLORS, type StudioDesignJson } from "@/data/studio";
+import { getOpeningPreset } from "@/data/studio-openings";
+import { getDrapeColorHex, type StudioDesignJson } from "@/data/studio";
 import { formatDisplayDate, parseISODate } from "@/lib/date";
+import {
+  getOptionLabel,
+  getOptionLabels,
+  useLocalizedAddOnOptions,
+  useLocalizedEventTypes,
+  useLocalizedFabricDirections,
+} from "@/lib/i18n/estimate";
+import { useLocalizedDrapeColors } from "@/lib/i18n/event-builder";
 import { cn } from "@/lib/utils";
+import { SavedCard, SavedChip, SavedFact } from "@/components/admin/saved-view";
+import { EventPlanThumbnail } from "@/components/event-builder/event-plan-thumbnail";
+import { countDesignSeats } from "@/components/event-builder/live-plan-sidebar";
+import { useWizardCatalog } from "@/components/event-builder/use-wizard-catalog";
+import { useWizardCopy } from "@/components/event-builder/wizard-copy";
+import { useEventPlanSavedCopy } from "@/components/event-plans/event-plan-saved-copy";
 
 export type EventPlanBriefViewData = Pick<
   EventPlanSubmissionRow,
@@ -40,69 +67,65 @@ export type EventPlanBriefViewData = Pick<
   | "owner_user_id"
 >;
 
-function SectionCard({
-  icon: Icon,
-  title,
-  children,
+const SETUP_PREVIEW = 6;
+const CHAIRLESS_LAYOUTS = new Set<EventLayoutId>(["none", "cocktail", "trade_show"]);
+
+function Swatch({ color, className }: { color: string; className?: string }) {
+  return (
+    <span
+      className={cn("inline-block size-3.5 shrink-0 rounded-full ring-1 ring-border/60", className)}
+      style={{ backgroundColor: getDrapeColorHex(color) }}
+      aria-hidden
+    />
+  );
+}
+
+function SubLine({ children }: { children: React.ReactNode }) {
+  return <p className="truncate text-xs font-normal text-muted-foreground">{children}</p>;
+}
+
+function ToggleMore({
+  expanded,
+  onClick,
+  more,
+  less,
 }: {
-  icon: LucideIcon;
-  title: string;
-  children: React.ReactNode;
+  expanded: boolean;
+  onClick: () => void;
+  more: string;
+  less: string;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-      <div className="relative border-b border-border bg-gradient-to-br from-primary/10 via-card to-card px-5 py-4">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_15%_0%,rgba(212,175,55,0.12),transparent_55%)]"
-          aria-hidden
-        />
-        <div className="relative flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
-            <Icon className="size-4" />
-          </span>
-          <h2 className="font-heading text-base font-semibold tracking-tight text-foreground sm:text-lg">
-            {title}
-          </h2>
-        </div>
-      </div>
-      <div className="p-5">{children}</div>
-    </section>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={expanded}
+      className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+    >
+      {expanded ? less : more}
+      <ChevronDown className={cn("size-3 transition-transform", expanded && "rotate-180")} />
+    </button>
   );
 }
 
-function FactTile({ label, value }: { label: string; value: string }) {
-  const pending = value === "—";
+function ClampedNotes({ text, more, less }: { text: string; more: string; less: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = text.length > 220 || text.split("\n").length > 3;
   return (
-    <div
-      className={cn(
-        "rounded-xl border px-3 py-2.5",
-        pending
-          ? "border-border bg-background/40"
-          : "border-primary/20 bg-primary/[0.06]"
-      )}
-    >
-      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-        {label}
-      </p>
+    <div>
       <p
         className={cn(
-          "mt-1 break-words text-sm",
-          pending
-            ? "italic text-muted-foreground"
-            : "font-medium text-foreground"
+          "whitespace-pre-line text-sm font-normal leading-relaxed",
+          long && !expanded && "line-clamp-3"
         )}
       >
-        {value}
+        {text}
       </p>
+      {long ? (
+        <ToggleMore expanded={expanded} onClick={() => setExpanded((v) => !v)} more={more} less={less} />
+      ) : null}
     </div>
   );
-}
-
-function formatEventDate(value: string | null): string {
-  if (!value) return "—";
-  const parsed = parseISODate(value);
-  if (parsed) return formatDisplayDate(parsed);
-  return value;
 }
 
 export function EventPlanBriefView({
@@ -118,211 +141,372 @@ export function EventPlanBriefView({
   audience: "admin" | "customer";
   className?: string;
 }) {
+  const locale = useLocale();
+  const copy = useWizardCopy();
+  const text = useEventPlanSavedCopy();
+  const catalog = useWizardCatalog();
+  const tFullness = useTranslations("eventBuilder.fullnessOptions");
+  const eventTypes = useLocalizedEventTypes({ includeHidden: true });
+  const addOnOptions = useLocalizedAddOnOptions();
+  const fabricDirectionOptions = useLocalizedFabricDirections();
+  const drapeColors = useLocalizedDrapeColors();
+  const [showAllSetups, setShowAllSetups] = useState(false);
+
+  const colorLabel = (value: string) =>
+    drapeColors.find((color) => color.value === value)?.label ?? value;
+
   const eventTypeLabel =
-    getEnglishOptionLabel("eventTypes", brief.eventType) ??
-    plan.event_type ??
-    "—";
+    getOptionLabel(eventTypes, brief.eventType) ?? plan.event_type?.trim() ?? "";
   const EventIcon = getEventTypeIcon(brief.eventType) ?? Sparkles;
+  const title = brief.eventName?.trim() || eventTypeLabel || copy.studio.briefFallback;
+
+  const rawDate = plan.event_date ?? brief.eventDate ?? "";
+  const parsedDate = parseISODate(rawDate);
+  const dateLabel = parsedDate
+    ? formatDisplayDate(parsedDate, locale.startsWith("fr") ? "fr-CA" : "en-CA")
+    : rawDate;
+  const venueName = plan.venue_name?.trim() || brief.venueName?.trim() || "";
+  const cityArea = plan.city_area?.trim() || brief.cityArea?.trim() || "";
+  const venuePreset = getBriefVenuePreset(brief);
+  const guests = brief.guestCount && brief.guestCount > 0 ? brief.guestCount : null;
+  const contactName = plan.contact_name?.trim() ?? "";
+  const contactEmail = plan.contact_email?.trim() ?? "";
+  const contactPhone = plan.contact_phone?.trim() ?? "";
+  const notes = plan.notes?.trim() ?? "";
 
   const stats = roomPreviewStats(brief);
+  const shapeLabel =
+    brief.room.shape === "l_shape"
+      ? copy.room.lShape
+      : brief.room.shape === "custom"
+        ? copy.room.custom
+        : copy.room.rectangle;
+  const layout = getBriefLayout(brief);
+  const seats = countDesignSeats(design);
+  const layoutDetails = [
+    !CHAIRLESS_LAYOUTS.has(layout.id) ? copy.chairs[layout.chairStyle ?? "chiavari_gold"] : null,
+    layout.id !== "none"
+      ? `${copy.review.linen}: ${
+          layout.linenColor === null ? copy.review.bare : colorLabel(layout.linenColor ?? "ivory")
+        }`
+      : null,
+  ].filter(Boolean);
+
+  const openingCounts = new Map<string, number>();
+  for (const opening of getBriefOpenings(brief)) {
+    const key = `${getOpeningPreset(opening.style).label} · ${copy.walls[opening.wall]}`;
+    openingCounts.set(key, (openingCounts.get(key) ?? 0) + 1);
+  }
+
+  const fabric = getBriefFabric(brief);
+  const accent = brief.look.accentColor ?? null;
+  const uplight = getBriefUplightColor(brief);
+  const legacyDirections = brief.look.fabric
+    ? []
+    : getOptionLabels(fabricDirectionOptions, brief.look.fabricDirections);
+
+  const ceilingPreset = getBriefCeilingPreset(brief);
   const setupItems = brief.catalogSelections
     .map((id) => getEventCatalogItem(id))
-    .filter(Boolean);
+    .filter((item) => item !== undefined);
+  const visibleSetups = showAllSetups ? setupItems : setupItems.slice(0, SETUP_PREVIEW);
+  const categoryLabel = (id: string) =>
+    catalog.categories.find((category) => category.id === id)?.label ?? id;
+  const addOnLabels = getOptionLabels(addOnOptions, brief.addOns);
 
-  const colorOption = DRAPE_COLORS.find(
-    (c) => c.value === brief.look.primaryColor
-  );
-  const fabricLabels = getEnglishOptionLabels(
-    "fabricDirections",
-    brief.look.fabricDirections
-  );
-  const addOnLabels = getEnglishOptionLabels("addOns", brief.addOns);
-function formatEventBuilderFullness(value: number): string {
-  const id: EventBuilderFullnessId = fullnessIdFromValue(value);
-  const labels: Record<EventBuilderFullnessId, string> = {
-    standard: "Standard (2× fullness)",
-    full: "Full (2.5× fullness)",
-    extra: "Extra full (3× fullness)",
-  };
-  return labels[id];
-}
+  const isAdmin = audience === "admin";
 
   return (
-    <div className={cn("space-y-5", className)}>
-      <SectionCard
-        icon={UserRound}
-        title={audience === "admin" ? "Contact" : "Your contact"}
+    <div className={cn("space-y-4", className)}>
+      <SavedCard
+        icon={EventIcon}
+        eyebrow={eventTypeLabel && eventTypeLabel !== title ? eventTypeLabel : text.briefEyebrow}
+        title={title}
+        aside={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {venuePreset ? <SavedChip tone="gold">{venuePreset.label}</SavedChip> : null}
+            {isAdmin ? (
+              plan.owner_user_id ? (
+                <SavedChip tone="gold">
+                  <Link2 className="size-3" />
+                  {text.linkedAccount}
+                </SavedChip>
+              ) : (
+                <SavedChip>{text.guestCheckout}</SavedChip>
+              )
+            ) : null}
+          </div>
+        }
       >
-        <div className="grid gap-2 sm:grid-cols-2">
-          <FactTile label="Name" value={plan.contact_name || "—"} />
-          <FactTile label="Email" value={plan.contact_email || "—"} />
-          <FactTile label="Phone" value={plan.contact_phone?.trim() || "—"} />
-          {audience === "admin" ? (
-            <FactTile
-              label="Account"
-              value={plan.owner_user_id ? "Linked" : "Guest"}
-            />
-          ) : null}
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={EventIcon} title="Event">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <FactTile label="Type" value={eventTypeLabel} />
-          <FactTile label="Date" value={formatEventDate(plan.event_date)} />
-          <FactTile label="Venue" value={plan.venue_name?.trim() || "—"} />
-          <FactTile label="City / area" value={plan.city_area?.trim() || "—"} />
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={Ruler} title="Room">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <FactTile
-            label="Shape"
-            value={brief.room.shape === "l_shape" ? "L-shape" : "Rectangle"}
-          />
-          <FactTile
-            label="Dimensions"
-            value={`${brief.room.widthFt}′ × ${brief.room.lengthFt}′`}
-          />
-          <FactTile label="Ceiling" value={`${brief.room.wallHeightFt}′`} />
-          <FactTile
-            label="Floor area"
-            value={`${stats.areaSqFt.toLocaleString()} ft²`}
-          />
-        </div>
-      </SectionCard>
-
-      <SectionCard icon={PanelsTopLeft} title="Selected setups">
-        {setupItems.length === 0 ? (
-          <p className="text-sm italic text-muted-foreground">
-            No setups selected.
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {setupItems.map((item) => {
-              if (!item) return null;
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.id}
-                  className="flex gap-3 rounded-2xl border border-primary/20 bg-primary/[0.04] p-3"
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_11rem] lg:grid-cols-[minmax(0,1fr)_13rem]">
+          <div className="space-y-2.5">
+            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+              {dateLabel ? (
+                <SavedFact icon={CalendarDays} label={text.date}>
+                  {dateLabel}
+                </SavedFact>
+              ) : null}
+              {guests ? (
+                <SavedFact icon={Users} label={copy.review.guests}>
+                  <span className="tabular-nums">{guests.toLocaleString(locale)}</span>
+                </SavedFact>
+              ) : null}
+              {venueName || cityArea ? (
+                <SavedFact icon={MapPin} label={text.venue}>
+                  <p className="truncate" title={venueName || cityArea}>
+                    {venueName || cityArea}
+                  </p>
+                  {venueName && cityArea ? <SubLine>{cityArea}</SubLine> : null}
+                </SavedFact>
+              ) : null}
+              {contactName || contactEmail || contactPhone ? (
+                <SavedFact
+                  icon={UserRound}
+                  label={isAdmin ? text.contact : text.yourContact}
+                  className="sm:col-span-2 xl:col-span-3"
                 >
-                  <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
-                    <Image
-                      src={item.image}
-                      alt={item.imageAlt}
-                      fill
-                      className="object-cover"
-                      sizes="64px"
-                    />
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                    {contactName ? <span>{contactName}</span> : null}
+                    {contactEmail ? (
+                      <a
+                        href={`mailto:${contactEmail}`}
+                        className="min-w-0 truncate text-xs font-normal text-primary hover:underline"
+                      >
+                        {contactEmail}
+                      </a>
+                    ) : null}
+                    {contactPhone ? (
+                      <a
+                        href={`tel:${contactPhone}`}
+                        className="text-xs font-normal tabular-nums text-muted-foreground hover:text-foreground"
+                      >
+                        {contactPhone}
+                      </a>
+                    ) : null}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start gap-2">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                        <Icon className="size-3.5" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {item.label}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                </SavedFact>
+              ) : null}
+            </div>
+            {notes ? (
+              <SavedFact icon={MessageSquare} label={isAdmin ? text.notes : text.yourNotes}>
+                <ClampedNotes text={notes} more={text.showMore} less={text.showLess} />
+              </SavedFact>
+            ) : null}
           </div>
-        )}
-        <p className="mt-4 text-xs text-muted-foreground">
-          {design.treatments.length} treatments · {design.drapeRuns.length} drape
-          runs in design snapshot
-        </p>
-      </SectionCard>
 
-      <SectionCard icon={Palette} title="Look & fabric">
-        <div className="space-y-4">
-          <div>
-            <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Fabric direction
-            </p>
-            {fabricLabels.length === 0 ? (
-              <span className="text-sm italic text-muted-foreground">
-                Not specified
+          <figure className="space-y-1.5">
+            <div className="aspect-square rounded-xl border border-border/40 bg-background/40 p-2">
+              <EventPlanThumbnail
+                design={design}
+                frontLabel={copy.walls.front.toUpperCase()}
+                ariaLabel={copy.review.plan}
+              />
+            </div>
+            <figcaption className="text-center text-[10px] text-muted-foreground">
+              {copy.review.planHint}
+            </figcaption>
+          </figure>
+        </div>
+      </SavedCard>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SavedCard
+          icon={Ruler}
+          eyebrow={`${shapeLabel} · ${stats.areaSqFt.toLocaleString(locale)} ft²`}
+          title={copy.review.room}
+        >
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            <SavedFact label={text.dimensions}>
+              <span className="tabular-nums">
+                {brief.room.widthFt}′ × {brief.room.lengthFt}′
               </span>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {brief.look.fabricDirections.map((id) => {
-                  const option = fabricDirections.find((o) => o.id === id);
-                  const Icon = option?.icon;
-                  const label =
-                    getEnglishOptionLabel("fabricDirections", id) ?? id;
-                  return (
-                    <span
-                      key={id}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium"
-                    >
-                      {Icon ? <Icon className="size-3.5 text-primary" /> : null}
-                      {label}
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-primary/20 bg-primary/[0.06] px-3 py-2.5">
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                Primary color
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <span
-                  className="size-8 rounded-lg border border-border/50 shadow-inner"
-                  style={{ backgroundColor: colorOption?.hex ?? "#eee6d7" }}
-                  aria-hidden
-                />
-                <span className="text-sm font-medium">
-                  {colorOption?.label ?? brief.look.primaryColor}
+              {brief.room.shape === "l_shape" && brief.room.cutoutWidthFt && brief.room.cutoutDepthFt ? (
+                <SubLine>
+                  {text.cutout} {brief.room.cutoutWidthFt}′ × {brief.room.cutoutDepthFt}′
+                </SubLine>
+              ) : null}
+            </SavedFact>
+            <SavedFact label={text.ceilingHeight}>
+              <span className="tabular-nums">{brief.room.wallHeightFt}′</span>
+            </SavedFact>
+            <SavedFact icon={MapIcon} label={copy.review.area}>
+              <span className="tabular-nums">{stats.areaSqFt.toLocaleString(locale)} ft²</span>
+            </SavedFact>
+            <SavedFact
+              icon={LayoutGrid}
+              label={copy.review.layout}
+              className={cn("col-span-2", seats === 0 && "sm:col-span-3")}
+            >
+              <p className="truncate">{copy.layouts[layout.id][0]}</p>
+              {layoutDetails.length > 0 ? <SubLine>{layoutDetails.join(" · ")}</SubLine> : null}
+            </SavedFact>
+            {seats > 0 ? (
+              <SavedFact label={copy.review.seats}>
+                <span className="tabular-nums">
+                  {guests ? `${seats} / ${guests}` : seats}
                 </span>
+              </SavedFact>
+            ) : null}
+          </div>
+
+          {openingCounts.size > 0 ? (
+            <div className="mt-3">
+              <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                <DoorOpen className="size-3 text-primary" />
+                {copy.room.openings}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {[...openingCounts].map(([label, count]) => (
+                  <SavedChip key={label}>
+                    {label}
+                    {count > 1 ? ` ×${count}` : ""}
+                  </SavedChip>
+                ))}
               </div>
             </div>
-            <FactTile label="Fullness" value={formatEventBuilderFullness(brief.look.fullness)} />
-          </div>
-        </div>
-      </SectionCard>
+          ) : null}
+        </SavedCard>
 
-      {addOnLabels.length > 0 ? (
-        <SectionCard icon={Sparkles} title="Add-ons">
-          <div className="flex flex-wrap gap-2">
-            {addOnLabels.map((label) => (
-              <span
-                key={label}
-                className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium"
-              >
-                {label}
+        <SavedCard
+          icon={Palette}
+          eyebrow={copy.fabrics[fabric][0]}
+          title={copy.review.look}
+          aside={
+            <div className="flex items-center -space-x-1" aria-hidden>
+              <Swatch color={brief.look.primaryColor} className="size-5 ring-2 ring-card" />
+              {accent ? <Swatch color={accent} className="size-5 ring-2 ring-card" /> : null}
+            </div>
+          }
+        >
+          <div className="grid grid-cols-2 gap-2.5">
+            <SavedFact label={copy.look.primary}>
+              <span className="flex min-w-0 items-center gap-2">
+                <Swatch color={brief.look.primaryColor} />
+                <span className="truncate">{colorLabel(brief.look.primaryColor)}</span>
               </span>
-            ))}
+              <SubLine>{copy.fabrics[fabric][0]}</SubLine>
+            </SavedFact>
+            {accent ? (
+              <SavedFact label={copy.look.accent}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <Swatch color={accent} />
+                  <span className="truncate">{colorLabel(accent)}</span>
+                </span>
+                <SubLine>{copy.accentTargets[brief.look.accentTarget ?? "both"]}</SubLine>
+              </SavedFact>
+            ) : null}
+            <SavedFact label={copy.look.fullness}>
+              {tFullness(`${fullnessIdFromValue(brief.look.fullness)}.label`)}
+              <SubLine>{brief.look.fullness}×</SubLine>
+            </SavedFact>
+            <SavedFact icon={Sparkles} label={copy.look.lighting}>
+              {copy.lighting[getBriefLightingMood(brief)]}
+            </SavedFact>
+            <SavedFact label={copy.look.uplights}>
+              {uplight ? (
+                <span className="flex min-w-0 items-center gap-2">
+                  <Swatch color={uplight} />
+                  <span className="truncate">{colorLabel(uplight)}</span>
+                </span>
+              ) : (
+                <span className="text-muted-foreground">{copy.look.uplightsOff}</span>
+              )}
+            </SavedFact>
           </div>
-        </SectionCard>
-      ) : null}
 
-      <SectionCard
-        icon={MessageSquare}
-        title={audience === "admin" ? "Customer notes" : "Your notes"}
+          {legacyDirections.length > 0 ? (
+            <div className="mt-3">
+              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                {text.fabricDirection}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {legacyDirections.map((label) => (
+                  <SavedChip key={label} tone="gold">
+                    {label}
+                  </SavedChip>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </SavedCard>
+      </div>
+
+      <SavedCard
+        icon={PanelsTopLeft}
+        eyebrow={`${copy.setups.selected(setupItems.length)} · ${text.designCounts(
+          design.treatments.length,
+          design.drapeRuns.length
+        )}`}
+        title={copy.review.walls}
+        aside={
+          ceilingPreset ? (
+            <SavedChip tone="gold">
+              <CloudSun className="size-3" />
+              {ceilingPreset.label}
+            </SavedChip>
+          ) : null
+        }
       >
-        {plan.notes?.trim() ? (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-            {plan.notes}
+        {setupItems.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border/40 px-4 py-4 text-center text-sm text-muted-foreground">
+            {text.noSetups}
           </p>
         ) : (
-          <p className="text-sm italic text-muted-foreground">
-            No notes provided.
-          </p>
+          <div>
+            <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {visibleSetups.map((item) => {
+                const placement = catalog.placementLabel(item);
+                return (
+                  <li
+                    key={item.id}
+                    className="flex min-w-0 items-center gap-3 rounded-xl border border-border/40 bg-background/30 p-2"
+                  >
+                    <div className="relative size-11 shrink-0 overflow-hidden rounded-lg border border-border/40 bg-muted/30">
+                      <Image
+                        src={item.image}
+                        alt={catalog.localizeItem(item).imageAlt}
+                        fill
+                        className="object-cover"
+                        sizes="44px"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium" title={catalog.getItemLabel(item.id)}>
+                        {catalog.getItemLabel(item.id)}
+                      </p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {categoryLabel(item.category)}
+                        {placement ? ` · ${placement}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {setupItems.length > SETUP_PREVIEW ? (
+              <ToggleMore
+                expanded={showAllSetups}
+                onClick={() => setShowAllSetups((v) => !v)}
+                more={text.showAll(setupItems.length)}
+                less={text.showLess}
+              />
+            ) : null}
+          </div>
         )}
-      </SectionCard>
+
+        {addOnLabels.length > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              {copy.look.extras}
+            </span>
+            {addOnLabels.map((label) => (
+              <SavedChip key={label} tone="gold">
+                {label}
+              </SavedChip>
+            ))}
+          </div>
+        ) : null}
+      </SavedCard>
     </div>
   );
 }

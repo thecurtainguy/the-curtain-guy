@@ -26,6 +26,7 @@ import {
   ListOrdered,
   Lock,
   Package,
+  Pencil,
   Plus,
   Receipt,
   RotateCcw,
@@ -46,6 +47,7 @@ import {
   computeInvoiceTotals,
   getInvoiceTaxRows,
   INVOICE_CLERICAL_FIELDS,
+  invoicePaymentSchedule,
   isInvoiceLocked,
   paymentMethodLabel,
   todayIsoDate,
@@ -58,6 +60,7 @@ import {
   computeLineTotalCents,
   formatMoneyFromCents,
   percentInputToRate,
+  QUOTE_TAX_MODE_LABELS,
   rateToPercentInput,
   unitPriceCentsToDollarInput,
   unitPriceDollarsToCents,
@@ -79,6 +82,7 @@ import { AdminInvoiceAuditLog } from "@/components/admin/admin-invoice-audit-log
 import { OptionCard } from "@/components/estimate/option-card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
+import { InvoiceSavedView } from "@/components/admin/invoice-saved-view";
 import {
   AdminInventoryPickerDialog,
   type InventoryPickResult,
@@ -456,6 +460,7 @@ export function AdminInvoiceEditor({
   const [form, setForm] = useState(() => toForm(initialInvoice));
   const [baseline, setBaseline] = useState(() => JSON.stringify(toPayload(toForm(initialInvoice))));
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
@@ -473,6 +478,7 @@ export function AdminInvoiceEditor({
   const isDirty = JSON.stringify(payload) !== baseline;
   const isVoid = invoice.status === "void";
   const locked = isInvoiceLocked(invoice.status);
+  const editing = isEditing && !isVoid;
   const canRevertDraft =
     invoice.status === "sent" &&
     Boolean(invoice.sent_at) &&
@@ -616,13 +622,38 @@ export function AdminInvoiceEditor({
     if (err) toast.error(err);
   }
 
-  function applyInvoice(next: InvoiceWithRelations, resetForm: boolean) {
+  function resetForm(source: InvoiceWithRelations) {
+    const nextForm = toForm(source);
+    setForm(nextForm);
+    setBaseline(JSON.stringify(toPayload(nextForm)));
+  }
+
+  function applyInvoice(next: InvoiceWithRelations, reset: boolean) {
     setInvoice(next);
-    if (resetForm) {
-      const nextForm = toForm(next);
-      setForm(nextForm);
-      setBaseline(JSON.stringify(toPayload(nextForm)));
+    // The read-only view renders form state, so a newly issued or voided invoice must drop unsaved draft edits.
+    const becameLocked = isInvoiceLocked(next.status) && !isInvoiceLocked(invoice.status);
+    const becameVoid = next.status === "void" && invoice.status !== "void";
+    if (becameLocked || becameVoid) setIsEditing(false);
+    if (reset || becameLocked || becameVoid) resetForm(next);
+  }
+
+  function startEditing() {
+    flash();
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    resetForm(invoice);
+    setIsEditing(false);
+    flash();
+  }
+
+  async function saveAndClose() {
+    if (!isDirty) {
+      setIsEditing(false);
+      return;
     }
+    await save();
   }
 
   async function save(): Promise<boolean> {
@@ -640,6 +671,7 @@ export function AdminInvoiceEditor({
         return false;
       }
       applyInvoice(json.invoice, true);
+      setIsEditing(false);
       flash("Invoice saved.");
       router.refresh();
       return true;
@@ -734,6 +766,7 @@ export function AdminInvoiceEditor({
       });
       if (!ok) return;
     }
+    if (action === "mark_sent" && !(await ensureSaved())) return;
     const labels = {
       mark_sent: invoice.replaces_invoice_id
         ? `Marked as sent — ${invoice.replaces_invoice_number ?? "the original"} is now replaced.`
@@ -967,7 +1000,10 @@ export function AdminInvoiceEditor({
                     confirmLabel: "Send without PO",
                     cancelLabel: "Add PO first",
                   });
-                  if (!proceed) return;
+                  if (!proceed) {
+                    setIsEditing(true);
+                    return;
+                  }
                 }
                 if (await ensureSaved()) setSendOpen(true);
               }}
@@ -979,6 +1015,27 @@ export function AdminInvoiceEditor({
                   ? "Send updated invoice"
                   : "Send invoice"}
             </Button>
+            {editing ? (
+              <>
+                <Button type="button" variant="outline" size="sm" disabled={saving} onClick={cancelEditing}>
+                  Cancel
+                </Button>
+                <LoadingButton
+                  type="button"
+                  size="sm"
+                  isLoading={saving}
+                  icon={<Check className="size-4" />}
+                  onClick={() => void saveAndClose()}
+                >
+                  Save invoice
+                </LoadingButton>
+              </>
+            ) : isVoid ? null : (
+              <Button type="button" size="sm" onClick={startEditing}>
+                <Pencil className="size-4" />
+                {locked ? "Edit details" : "Edit"}
+              </Button>
+            )}
           </>
         }
       />
@@ -1094,6 +1151,8 @@ export function AdminInvoiceEditor({
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="min-w-0 space-y-6">
+          {editing ? (
+          <>
           <div className="grid gap-6 lg:grid-cols-2">
             <Panel icon={UserRound} eyebrow="Bill to" title="Client & billing">
               <div className="grid gap-3">
@@ -1565,9 +1624,83 @@ export function AdminInvoiceEditor({
               </div>
             </div>
           </Panel>
+          </>
+          ) : (
+            <InvoiceSavedView
+              invoiceNumber={invoice.invoice_number}
+              revisionNumber={invoice.revision_number ?? 0}
+              replacesInvoiceNumber={invoice.replaces_invoice_number ?? null}
+              sourceLabel={`${invoice.quote_id ? "From quote" : "Ref"} ${invoice.opportunity_ref}`}
+              customerName={form.customer_name}
+              companyName={form.company_name}
+              customerEmail={form.customer_email}
+              customerPhone={form.customer_phone}
+              billingAddress={form.billing_address}
+              poNumber={form.po_number}
+              poRequired={Boolean(customerLink?.po_required)}
+              customerLink={customerLink}
+              eventType={invoice.event_type ?? ""}
+              venueName={form.venue_name}
+              venueAddress={form.venue_address}
+              issueDate={form.issue_date}
+              dueDate={form.due_date}
+              eventDate={form.event_date}
+              depositDueDate={form.deposit_due_date}
+              currency={form.currency}
+              languageLabel={form.language === "fr" ? "Français" : "English"}
+              otherLanguageLabel={otherLanguageName}
+              missingTranslationCount={
+                form.lines.filter((line) => line.description.trim() && !line.description_translated?.trim()).length +
+                (form.notes.trim() && !form.notes_translated.trim() ? 1 : 0)
+              }
+              paymentMethodLabels={visiblePaymentMethods(paymentMethods, "en", form.currency).map((m) => m.label)}
+              notices={[
+                customerLink?.tax_exempt && form.tax_mode !== "none"
+                  ? `${customerLink.display_name} is marked tax exempt on their profile.`
+                  : null,
+                customerLink && customerLink.currency !== form.currency
+                  ? `${customerLink.display_name} is billed in ${customerLink.currency} by default.`
+                  : null,
+              ].filter((notice): notice is string => Boolean(notice))}
+              lines={payload.line_items.map((line, index) => ({
+                key: form.lines[index].key,
+                description: line.description,
+                descriptionTranslated: line.description_translated ?? "",
+                categoryLabel: line.category_label || line.category?.replaceAll("_", " ") || null,
+                quantity: line.quantity,
+                unitLabel: line.unit_label ?? "",
+                unitPriceCents: line.unit_price_cents,
+                totalCents: computeLineTotalCents(line.quantity, line.unit_price_cents),
+                isTaxable: line.is_taxable,
+                fromInventory: Boolean(line.product_id),
+              }))}
+              taxModeLabel={QUOTE_TAX_MODE_LABELS[form.tax_mode]}
+              taxRows={taxRows}
+              depositMode={payload.deposit_mode}
+              depositLabel={depositHint}
+              depositCents={liveDeposit}
+              schedule={invoicePaymentSchedule({
+                deposit_mode: payload.deposit_mode,
+                deposit_cents: liveDeposit,
+                deposit_due_date: payload.deposit_due_date,
+                amount_paid_cents: invoice.amount_paid_cents,
+                total_cents: liveTotals.total_cents,
+                due_date: payload.due_date,
+                event_date: payload.event_date,
+                status: invoice.status,
+              })}
+              totalCents={liveTotals.total_cents}
+              notes={form.notes}
+              notesTranslated={form.notes_translated}
+              terms={form.terms}
+              termsTranslated={form.terms_translated}
+              internalNotes={form.internal_notes}
+            />
+          )}
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-6">
+          {editing ? (
           <Lockable locked={locked}>
           <Panel icon={BadgePercent} eyebrow="Deposit" title="Deposit request">
             <div className="space-y-2">
@@ -1624,6 +1757,7 @@ export function AdminInvoiceEditor({
             ) : null}
           </Panel>
           </Lockable>
+          ) : null}
 
           <Panel
             icon={Wallet}
@@ -1816,7 +1950,7 @@ export function AdminInvoiceEditor({
       </div>
 
       <AdminFloatingSaveButton
-        active={isDirty}
+        active={editing && isDirty}
         saving={saving}
         label="Save invoice"
         onSave={() => void save()}

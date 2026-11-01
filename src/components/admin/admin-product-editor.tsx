@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Loader2,
   Package,
+  Pencil,
   Ruler,
   ShoppingBag,
   Upload,
@@ -29,6 +30,13 @@ import { AdminSectionErrorBoundary } from "@/components/admin/admin-section-erro
 import { AdminProductGallery } from "@/components/admin/admin-product-gallery";
 import { AdminProductPickGrid } from "@/components/admin/admin-product-pick-grid";
 import { AdminProductCategoryPicker } from "@/components/admin/admin-product-category-picker";
+import {
+  ProductSavedView,
+  ProductStorefrontHero,
+  type SavedProductPhoto,
+  type SavedProductRef,
+} from "@/components/admin/product-saved-view";
+import { SavedCard, SavedChip } from "@/components/admin/saved-view";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +49,7 @@ import {
   PRODUCT_KINDS,
   PRODUCT_KIND_LABELS,
   PRODUCT_UNIT_LABELS,
+  getProductCategoryLabel,
   type ProductAvailabilityStatus,
   type ProductKind,
   type ProductRow,
@@ -70,6 +79,7 @@ import {
   deriveProductGroupName,
   normalizeHexColor,
 } from "@/data/product-colors";
+import type { ProductImageRow } from "@/data/product-images";
 
 type AdminProductRentalsBundleProp = {
   includes: ProductFormulaIncludeWithProduct[];
@@ -334,6 +344,80 @@ function serializeFormDirty(form: FormState): string {
   });
 }
 
+/** Gallery uploads persist immediately, so discarding edits keeps their image fields. */
+function revertFormToSaved(current: FormState, saved: FormState): FormState {
+  const liveDrafts = new Map(
+    current.colorDrafts.map((draft) => [draft.clientKey, draft])
+  );
+  return {
+    ...saved,
+    image_url: current.image_url,
+    image_alt: current.image_alt,
+    colorDrafts: saved.colorDrafts.map((draft) => {
+      const live = liveDrafts.get(draft.clientKey);
+      return live
+        ? { ...draft, image_url: live.image_url, image_alt: live.image_alt }
+        : draft;
+    }),
+  };
+}
+
+function CatalogReadiness({ completeness }: { completeness: ProductCompleteness }) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border px-3 py-3",
+        completeness.readyForPublic
+          ? "border-emerald-500/30 bg-emerald-500/10"
+          : "border-border/40 bg-background/40"
+      )}
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        Catalog readiness
+      </p>
+      <p
+        className={cn(
+          "mt-1 text-sm font-medium",
+          completeness.readyForPublic
+            ? "text-emerald-700 dark:text-emerald-300"
+            : "text-foreground"
+        )}
+      >
+        {completeness.readyForPublic ? "Ready for Rentals" : "Missing setup"}
+      </p>
+      {completeness.issues.length > 0 ? (
+        <ul className="mt-2 space-y-1.5">
+          {completeness.issues.map((issue) => (
+            <li
+              key={issue.code + issue.message}
+              className={cn(
+                "flex items-start gap-2 text-xs",
+                issue.severity === "error"
+                  ? "text-amber-800 dark:text-amber-200"
+                  : "text-muted-foreground"
+              )}
+            >
+              <span
+                className={cn(
+                  "mt-1 size-1.5 shrink-0 rounded-full",
+                  issue.severity === "error"
+                    ? "bg-amber-500"
+                    : "bg-muted-foreground/50"
+                )}
+              />
+              {issue.message}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Photo, price, and configurator setup look complete.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function snippetFromProduct(row: ProductRow) {
   return {
     id: row.id,
@@ -586,12 +670,14 @@ export function AdminProductEditor({
       sortProductCategories(initialCategories).find((row) => row.is_active)
         ?.slug ?? "custom"
   );
-  const [form, setForm] = useState<FormState>(() =>
+  const [savedForm, setSavedForm] = useState<FormState>(() =>
     formFromProduct(product, rentalsBundle, defaultCategory)
   );
-  const [baseline, setBaseline] = useState(() =>
-    serializeFormDirty(formFromProduct(product, rentalsBundle, defaultCategory))
-  );
+  const [form, setForm] = useState<FormState>(savedForm);
+  const baseline = useMemo(() => serializeFormDirty(savedForm), [savedForm]);
+  const [isEditing, setIsEditing] = useState(false);
+  const editing = isNew || isEditing;
+  const [galleryImages, setGalleryImages] = useState<ProductImageRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [productId, setProductId] = useState<string | null>(product?.id ?? null);
@@ -730,7 +816,7 @@ export function AdminProductEditor({
           group_name: prev.group_name,
           colorDrafts: nextColors ?? prev.colorDrafts,
         };
-        setBaseline(serializeFormDirty(next));
+        setSavedForm(next);
         return next;
       });
 
@@ -840,7 +926,88 @@ export function AdminProductEditor({
     });
   }
 
+  function startEditing() {
+    setError(null);
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    setForm((prev) => revertFormToSaved(prev, savedForm));
+    setError(null);
+    setIsEditing(false);
+  }
+
+  async function saveAndFinish() {
+    const savedId = await save();
+    if (savedId && !isNew) setIsEditing(false);
+  }
+
+  const productLookup = useMemo(() => {
+    const map = new Map<
+      string,
+      Pick<ProductRow, "name" | "kind" | "image_url">
+    >();
+    for (const row of rentalsBundle?.includes ?? []) {
+      map.set(row.included_product_id, row.included);
+    }
+    for (const row of rentalsBundle?.packageComponents ?? []) {
+      map.set(row.component_product_id, row.component);
+    }
+    for (const row of rentalsBundle?.addons ?? []) {
+      map.set(row.addon_product_id, row.addon);
+    }
+    for (const row of allProducts) map.set(row.id, row);
+    return map;
+  }, [allProducts, rentalsBundle]);
+
+  function savedRef(id: string, qtyLabel?: string): SavedProductRef {
+    const row = productLookup.get(id);
+    return {
+      key: id,
+      name: row?.name ?? "Removed item",
+      kind: row?.kind ?? null,
+      imageUrl: row?.image_url ?? null,
+      qtyLabel,
+    };
+  }
+
+  const includedLogisticsZone = DEFAULT_RENTAL_DELIVERY_ZONES.find(
+    (zone) =>
+      zone.id ===
+      (form.included_logistics_zone_id || DEFAULT_PACKAGE_LOGISTICS_ZONE_ID)
+  );
+
   const showPublicWarning = form.is_public && !completeness.readyForPublic;
+  // The public page also hides incomplete items, so readiness gates the link.
+  const liveOnSite =
+    form.is_active && form.is_public && completeness.readyForPublic;
+
+  const heroPhotos: SavedProductPhoto[] =
+    galleryImages.length > 0
+      ? galleryImages.map((image) => ({
+          key: `${image.id}:${image.image_url}`,
+          url: image.image_url,
+          alt: image.image_alt ?? "",
+        }))
+      : form.image_url
+        ? [{ key: form.image_url, url: form.image_url, alt: form.image_alt }]
+        : [];
+
+  const gallery = (
+    <AdminProductGallery
+      productId={productId}
+      onEnsureSaved={() => save({ silent: true })}
+      onImagesChange={setGalleryImages}
+      onError={setError}
+      onProductRefresh={(next) => {
+        if (next && typeof next === "object" && "id" in next) {
+          mergeProductImageIntoForm(next as ProductRow);
+        }
+      }}
+      title="Photos"
+      description={`Up to 8 photos. First is primary.`}
+    />
+  );
 
   return (
     <div className="space-y-6">
@@ -850,7 +1017,9 @@ export function AdminProductEditor({
         description={
           isNew
             ? "Add a product or service you can quote from."
-            : "Edit catalog details, photo, and stock."
+            : editing
+              ? "Edit catalog details, photo, and stock."
+              : "Saved catalog details, photos, and stock."
         }
         icon={Package}
         backHref="/admin/products"
@@ -865,7 +1034,20 @@ export function AdminProductEditor({
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {productSlug ? (
+            {editing ? null : liveOnSite && productSlug ? (
+              <a
+                href={`/rentals/${productSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                <ExternalLink className="size-4" aria-hidden />
+                View on site
+              </a>
+            ) : (
+              <SavedChip>Not on the site</SavedChip>
+            )}
+            {editing && productSlug ? (
               <a
                 href={`/rentals/${productSlug}`}
                 target="_blank"
@@ -876,27 +1058,46 @@ export function AdminProductEditor({
                 Preview on site
               </a>
             ) : null}
-            <Button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving || !canSave}
-              variant={canSave ? "default" : "outline"}
-            >
-              {saving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : !canSave ? (
-                <Check className="size-4" aria-hidden />
-              ) : null}
-              {saving
-                ? isNew
-                  ? "Creating…"
-                  : "Saving…"
-                : isNew
-                  ? "Create item"
-                  : canSave
-                    ? "Save changes"
-                    : "Saved"}
-            </Button>
+            {editing ? (
+              <>
+                {!isNew ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cancelEditing}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  onClick={() => void saveAndFinish()}
+                  disabled={saving || !canSave}
+                  variant={canSave ? "default" : "outline"}
+                >
+                  {saving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : !canSave ? (
+                    <Check className="size-4" aria-hidden />
+                  ) : null}
+                  {saving
+                    ? isNew
+                      ? "Creating…"
+                      : "Saving…"
+                    : isNew
+                      ? "Create item"
+                      : canSave
+                        ? "Save changes"
+                        : "No changes"}
+                </Button>
+              </>
+            ) : (
+              <Button type="button" onClick={startEditing}>
+                <Pencil className="size-4" aria-hidden />
+                Edit
+              </Button>
+            )}
           </div>
         }
       />
@@ -939,8 +1140,27 @@ export function AdminProductEditor({
         </div>
       ) : null}
 
+      {editing ? null : (
+        <ProductStorefrontHero
+          name={form.name}
+          kind={form.kind}
+          categoryLabel={getProductCategoryLabel(form.category, categories)}
+          unitLabel={form.unit_label}
+          priceCents={dollarsToCents(form.priceDollars)}
+          configuratorMode={form.configurator_mode}
+          shortDescription={form.short_description}
+          description={form.description}
+          photos={heroPhotos}
+          defaultColorName={form.default_color_name}
+          defaultColorHex={form.default_color_hex}
+          colors={form.colorDrafts}
+        />
+      )}
+
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
+          {editing ? (
+          <>
           <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
             <div className="mb-4 flex items-center gap-2">
               <span className="inline-flex size-8 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -956,18 +1176,7 @@ export function AdminProductEditor({
                 </p>
               </div>
             </div>
-            <AdminProductGallery
-              productId={productId}
-              onEnsureSaved={() => save({ silent: true })}
-              onError={setError}
-              onProductRefresh={(next) => {
-                if (next && typeof next === "object" && "id" in next) {
-                  mergeProductImageIntoForm(next as ProductRow);
-                }
-              }}
-              title="Photos"
-              description={`Up to 8 photos. First is primary.`}
-            />
+            {gallery}
 
             <div className="mt-6 border-t border-border/40 pt-5">
               <Label>Main listing color</Label>
@@ -1516,9 +1725,80 @@ export function AdminProductEditor({
               onError={setError}
             />
           </AdminSectionErrorBoundary>
+          </>
+          ) : (
+            <ProductSavedView
+              sku={form.sku}
+              kind={form.kind}
+              unitLabel={form.unit_label}
+              isTaxable={form.is_taxable}
+              isActive={form.is_active}
+              isPublic={form.is_public}
+              readyForPublic={completeness.readyForPublic}
+              availabilityStatus={form.availability_status}
+              quantityOnHand={Number.parseInt(form.quantity_on_hand, 10) || 0}
+              lowStockThreshold={
+                Number.parseInt(form.low_stock_threshold, 10) || 0
+              }
+              configuratorMode={form.configurator_mode}
+              formulaSegmentFeet={
+                Number(form.formula_segment_feet) > 0
+                  ? Number(form.formula_segment_feet)
+                  : null
+              }
+              fullServiceName={
+                form.full_service_product_id
+                  ? savedRef(form.full_service_product_id).name
+                  : null
+              }
+              transportOnlyName={
+                form.transport_only_product_id
+                  ? savedRef(form.transport_only_product_id).name
+                  : null
+              }
+              includedLogistics={
+                form.included_logistics_mode
+                  ? `${
+                      form.included_logistics_mode === "full_service"
+                        ? "Full service"
+                        : "Transport only"
+                    } · ${includedLogisticsZone?.shortLabel ?? "Montreal Island"}`
+                  : null
+              }
+              formulaIncludes={form.formulaIncludes
+                .filter((row) => row.includedProductId)
+                .map((row) =>
+                  savedRef(
+                    row.includedProductId,
+                    `${Number(row.qtyPerSegment) || 1} / segment`
+                  )
+                )}
+              packageComponents={form.packageComponents
+                .filter((row) => row.componentProductId)
+                .map((row) =>
+                  savedRef(
+                    row.componentProductId,
+                    `× ${Number(row.quantity) || 1}`
+                  )
+                )}
+              addons={form.addons
+                .filter((row) => row.addonProductId)
+                .map((row) => savedRef(row.addonProductId))}
+              eventTypeIds={form.event_type_ids}
+              groupName={form.group_name}
+              suggestedGroupName={
+                deriveProductGroupName(form.name, form.default_color_name) ??
+                form.name
+              }
+              colors={form.colorDrafts}
+              gallery={gallery}
+            />
+          )}
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-4">
+          {editing ? (
+          <>
           <section className="rounded-3xl border border-border/40 bg-card/25 p-5">
             <h2 className="font-heading text-lg font-semibold">Inventory</h2>
             {form.kind === "service" ? (
@@ -1614,68 +1894,31 @@ export function AdminProductEditor({
                 description="Incomplete items stay hidden even when this is on."
               />
 
-              <div
-                className={cn(
-                  "rounded-2xl border px-3 py-3",
-                  completeness.readyForPublic
-                    ? "border-emerald-500/30 bg-emerald-500/10"
-                    : "border-border/40 bg-background/40"
-                )}
-              >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Catalog readiness
-                </p>
-                <p
-                  className={cn(
-                    "mt-1 text-sm font-medium",
-                    completeness.readyForPublic
-                      ? "text-emerald-700 dark:text-emerald-300"
-                      : "text-foreground"
-                  )}
-                >
-                  {completeness.readyForPublic
-                    ? "Ready for Rentals"
-                    : "Missing setup"}
-                </p>
-                {completeness.issues.length > 0 ? (
-                  <ul className="mt-2 space-y-1.5">
-                    {completeness.issues.map((issue) => (
-                      <li
-                        key={issue.code + issue.message}
-                        className={cn(
-                          "flex items-start gap-2 text-xs",
-                          issue.severity === "error"
-                            ? "text-amber-800 dark:text-amber-200"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "mt-1 size-1.5 shrink-0 rounded-full",
-                            issue.severity === "error"
-                              ? "bg-amber-500"
-                              : "bg-muted-foreground/50"
-                          )}
-                        />
-                        {issue.message}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Photo, price, and configurator setup look complete.
-                  </p>
-                )}
-              </div>
+              <CatalogReadiness completeness={completeness} />
             </div>
           </section>
+          </>
+          ) : (
+            <SavedCard
+              icon={ShoppingBag}
+              eyebrow="Rentals"
+              title="Public catalog"
+              aside={
+                <SavedChip tone={form.is_public ? "gold" : "muted"}>
+                  {form.is_public ? "Public" : "Not public"}
+                </SavedChip>
+              }
+            >
+              <CatalogReadiness completeness={completeness} />
+            </SavedCard>
+          )}
         </div>
       </div>
       <AdminFloatingSaveButton
-        active={canSave || saving}
+        active={editing && (canSave || saving)}
         saving={saving}
         label={isNew ? "Create item" : "Save changes"}
-        onSave={() => void save()}
+        onSave={() => void saveAndFinish()}
       />
     </div>
   );

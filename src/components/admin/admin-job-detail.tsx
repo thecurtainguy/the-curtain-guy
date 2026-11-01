@@ -12,6 +12,7 @@ import {
   Mail,
   BookmarkPlus,
   PanelsTopLeft,
+  Pencil,
   RotateCcw,
 } from "lucide-react";
 import {
@@ -36,6 +37,7 @@ import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { EventTypeInput } from "@/components/ui/event-type-input";
 import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
+import { JobSavedView, type JobSavedFields } from "@/components/admin/job-saved-view";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,6 +48,37 @@ import { cn } from "@/lib/utils";
 function toDateInput(value: string | null | undefined): string {
   if (!value) return "";
   return value.slice(0, 10);
+}
+
+function jobFormValues(job: EventJobRow): JobSavedFields {
+  return {
+    eventName: job.event_name ?? "",
+    eventType: job.event_type ?? "",
+    eventDate: toDateInput(job.event_date),
+    eventStart: job.event_start_time ?? "",
+    eventEnd: job.event_end_time ?? "",
+    guestCount: job.guest_count != null ? String(job.guest_count) : "",
+    venueName: job.venue_name ?? "",
+    venueAddress: job.venue_address ?? "",
+    venueCity: job.venue_city ?? "",
+    venueRegion: job.venue_region ?? "",
+    venuePostal: job.venue_postal_code ?? "",
+    venueCountry: job.venue_country ?? "Canada",
+    installDate: toDateInput(job.install_date),
+    installStart: job.install_start_time ?? "",
+    installEnd: job.install_end_time ?? "",
+    teardownDate: toDateInput(job.teardown_date),
+    teardownStart: job.teardown_start_time ?? "",
+    teardownEnd: job.teardown_end_time ?? "",
+    accessNotes: job.access_notes ?? "",
+    loadingNotes: job.loading_notes ?? "",
+    parkingNotes: job.parking_notes ?? "",
+    elevatorNotes: job.elevator_notes ?? "",
+    roomNotes: job.room_notes ?? "",
+    productionNotes: job.production_notes ?? "",
+    customerNotes: job.customer_visible_notes ?? "",
+    internalNotes: job.internal_notes ?? "",
+  };
 }
 
 type FileListItem = {
@@ -112,6 +145,77 @@ export function AdminJobDetail({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [venueBusy, setVenueBusy] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [savedForm, setSavedForm] = useState(() => jobFormValues(initialJob));
+
+  const form: JobSavedFields = {
+    eventName,
+    eventType,
+    eventDate,
+    eventStart,
+    eventEnd,
+    guestCount,
+    venueName,
+    venueAddress,
+    venueCity,
+    venueRegion,
+    venuePostal,
+    venueCountry,
+    installDate,
+    installStart,
+    installEnd,
+    teardownDate,
+    teardownStart,
+    teardownEnd,
+    accessNotes,
+    loadingNotes,
+    parkingNotes,
+    elevatorNotes,
+    roomNotes,
+    productionNotes,
+    customerNotes,
+    internalNotes,
+  };
+
+  function applyForm(values: JobSavedFields) {
+    setEventName(values.eventName);
+    setEventType(values.eventType);
+    setEventDate(values.eventDate);
+    setEventStart(values.eventStart);
+    setEventEnd(values.eventEnd);
+    setGuestCount(values.guestCount);
+    setVenueName(values.venueName);
+    setVenueAddress(values.venueAddress);
+    setVenueCity(values.venueCity);
+    setVenueRegion(values.venueRegion);
+    setVenuePostal(values.venuePostal);
+    setVenueCountry(values.venueCountry);
+    setInstallDate(values.installDate);
+    setInstallStart(values.installStart);
+    setInstallEnd(values.installEnd);
+    setTeardownDate(values.teardownDate);
+    setTeardownStart(values.teardownStart);
+    setTeardownEnd(values.teardownEnd);
+    setAccessNotes(values.accessNotes);
+    setLoadingNotes(values.loadingNotes);
+    setParkingNotes(values.parkingNotes);
+    setElevatorNotes(values.elevatorNotes);
+    setRoomNotes(values.roomNotes);
+    setProductionNotes(values.productionNotes);
+    setCustomerNotes(values.customerNotes);
+    setInternalNotes(values.internalNotes);
+  }
+
+  function startEditing() {
+    flash();
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    applyForm(savedForm);
+    setIsEditing(false);
+    flash();
+  }
 
   function applySavedVenue(venue: CustomerVenueRow, linked = true) {
     setVenueName(venue.name);
@@ -291,6 +395,8 @@ export function AdminJobDetail({
       const events = payload.events;
       if (saved) setJob((prev) => ({ ...prev, ...saved, events: events ?? prev.events }));
       setBaseline(JSON.stringify(buildPayload()));
+      setSavedForm(form);
+      setIsEditing(false);
       const synced = payload.invoicesUpdated ?? [];
       const venueNote =
         payload.venueSavedTo && customer ? ` ${payload.venueSavedTo} added to ${customer.display_name}'s venues.` : "";
@@ -426,6 +532,27 @@ export function AdminJobDetail({
     ? `mailto:${encodeURIComponent(job.customer_email)}?subject=${encodeURIComponent(`Your Curtain Guy event — ${job.opportunity_ref}`)}`
     : null;
 
+  const saveVenueButton =
+    customer && venueName.trim() && !venueIsSaved ? (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={venueBusy}
+        onClick={() => void saveVenueToCustomer()}
+      >
+        {venueBusy ? <Loader2 className="size-4 animate-spin" /> : <BookmarkPlus className="size-4" />}
+        Save to customer
+      </Button>
+    ) : null;
+
+  const customerVenuesLink = customer ? (
+    <Link href={`/admin/customers/${customer.id}#venues`} className="text-xs text-muted-foreground hover:text-primary">
+      {formatCustomerNumber(customer.customer_number)} {customer.display_name}
+      {customer.venues.length ? ` · ${customer.venues.length} saved venue${customer.venues.length === 1 ? "" : "s"}` : " · no saved venues yet"}
+    </Link>
+  ) : null;
+
   return (
     <div className="space-y-6">
       <PortalPageHeader
@@ -444,19 +571,31 @@ export function AdminJobDetail({
         }
         actions={
           <>
-            <Button
-              type="button"
-              onClick={() => void saveJob()}
-              disabled={saving || !isDirty}
-              variant={isDirty ? "default" : "outline"}
-            >
-              {saving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : !isDirty ? (
-                <Check className="size-4" aria-hidden />
-              ) : null}
-              {saving ? "Saving…" : isDirty ? "Save changes" : "Saved"}
-            </Button>
+            {isEditing ? (
+              <>
+                <Button type="button" variant="outline" onClick={cancelEditing} disabled={saving}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => void saveJob()}
+                  disabled={saving || !isDirty}
+                  variant={isDirty ? "default" : "outline"}
+                >
+                  {saving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : !isDirty ? (
+                    <Check className="size-4" aria-hidden />
+                  ) : null}
+                  {saving ? "Saving…" : isDirty ? "Save changes" : "No changes"}
+                </Button>
+              </>
+            ) : (
+              <Button type="button" onClick={startEditing}>
+                <Pencil className="size-4" />
+                Edit
+              </Button>
+            )}
             {job.quote_id ? (
               <Button asChild variant="outline" size="sm">
                 <Link href={`/admin/quotes/${job.quote_id}`}>Open quote</Link>
@@ -507,6 +646,8 @@ export function AdminJobDetail({
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0 space-y-6">
 
+      {isEditing ? (
+      <>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
           <h2 className="font-heading text-lg font-semibold">Event details</h2>
@@ -551,27 +692,9 @@ export function AdminJobDetail({
         <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-heading text-lg font-semibold">Venue</h2>
-            {customer && venueName.trim() && !venueIsSaved ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={venueBusy}
-                onClick={() => void saveVenueToCustomer()}
-              >
-                {venueBusy ? <Loader2 className="size-4 animate-spin" /> : <BookmarkPlus className="size-4" />}
-                Save to customer
-              </Button>
-            ) : null}
+            {saveVenueButton}
           </div>
-          {customer ? (
-            <div className="mt-3 space-y-2">
-              <Link href={`/admin/customers/${customer.id}#venues`} className="text-xs text-muted-foreground hover:text-primary">
-                {formatCustomerNumber(customer.customer_number)} {customer.display_name}
-                {customer.venues.length ? ` · ${customer.venues.length} saved venue${customer.venues.length === 1 ? "" : "s"}` : " · no saved venues yet"}
-              </Link>
-            </div>
-          ) : null}
+          {customerVenuesLink ? <div className="mt-3 space-y-2">{customerVenuesLink}</div> : null}
           <SavedVenuePicker
             className="mt-3"
             customer={customer ?? null}
@@ -682,6 +805,20 @@ export function AdminJobDetail({
           </div>
         </div>
       </section>
+      </>
+      ) : (
+        <JobSavedView
+          values={form}
+          contact={{
+            name: job.customer_name,
+            company: job.company_name,
+            email: job.customer_email,
+            phone: job.customer_phone,
+          }}
+          venueActions={saveVenueButton}
+          venueFooter={customerVenuesLink}
+        />
+      )}
 
       {job.quote ? (
         <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
@@ -956,7 +1093,7 @@ export function AdminJobDetail({
       </div>
 
       <AdminFloatingSaveButton
-        active={isDirty || saving}
+        active={isEditing && (isDirty || saving)}
         saving={saving}
         label="Save changes"
         onSave={() => void saveJob()}

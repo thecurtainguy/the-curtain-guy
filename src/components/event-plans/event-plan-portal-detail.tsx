@@ -34,6 +34,7 @@ type EventPlanPortalDetailProps = {
   backHref: string;
   backLabel: string;
   afterHeader?: ReactNode;
+  afterBrief?: ReactNode;
 };
 
 export function EventPlanPortalDetail({
@@ -49,6 +50,7 @@ export function EventPlanPortalDetail({
   backHref,
   backLabel,
   afterHeader,
+  afterBrief,
 }: EventPlanPortalDetailProps) {
   const t = useTranslations("eventBuilder.portalDetail");
   const router = useRouter();
@@ -118,6 +120,8 @@ export function EventPlanPortalDetail({
         design={design}
         audience={audience}
       />
+
+      {afterBrief}
     </div>
   );
 }

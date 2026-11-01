@@ -69,19 +69,19 @@ export default async function AdminEventPlanDetailPage({ params }: PageProps) {
         backHref="/admin/event-plans"
         backLabel="All event plans"
         afterHeader={
-          <>
-            <AdminEventPlanQuotesSection
-              eventPlanId={plan.id}
-              estimateId={plan.estimate_request_id}
-              quotes={quotes}
-            />
-            <StudioDesignReviewSection
-              design={design}
-              designId={plan.studio_design_id}
-              eventPlanId={plan.id}
-              existingQuoteId={designQuoteId}
-            />
-          </>
+          <AdminEventPlanQuotesSection
+            eventPlanId={plan.id}
+            estimateId={plan.estimate_request_id}
+            quotes={quotes}
+          />
+        }
+        afterBrief={
+          <StudioDesignReviewSection
+            design={design}
+            designId={plan.studio_design_id}
+            eventPlanId={plan.id}
+            existingQuoteId={designQuoteId}
+          />
         }
       />
     </AdminPageFrame>

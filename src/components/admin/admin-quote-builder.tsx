@@ -131,6 +131,7 @@ import {
 } from "@/components/admin/quote-line-reorder";
 import Image from "next/image";
 import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
+import { QuoteSavedView } from "@/components/admin/quote-saved-view";
 
 type QuoteSourceEventPlan = {
   id: string;
@@ -1150,6 +1151,8 @@ export function AdminQuoteBuilder({
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0 space-y-6">
+      {isEditing ? (
+      <>
       <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-heading text-lg font-semibold">Customer & event</h2>
@@ -1847,6 +1850,59 @@ export function AdminQuoteBuilder({
           disabled={!isEditing}
         />
       </section>
+      </>
+      ) : (
+        <QuoteSavedView
+          customerName={customerName}
+          customerEmail={customerEmail}
+          eventType={eventType}
+          venueName={venueName}
+          venueAddress={venueAddress}
+          cityArea={cityArea}
+          validUntil={validUntil}
+          eventDate={eventDate}
+          schedule={schedule}
+          currency={currency}
+          languageLabel={languageLabel}
+          otherLanguageLabel={otherLanguageLabel}
+          missingTranslationCount={missingTranslationCount}
+          notices={[
+            customer?.tax_exempt && taxMode !== "none"
+              ? `${customer.display_name} is marked tax exempt on their profile.`
+              : null,
+            customer && customer.currency !== currency
+              ? `${customer.display_name} is billed in ${customer.currency} by default.`
+              : null,
+          ].filter((notice): notice is string => Boolean(notice))}
+          lines={lines.map((line) => {
+            const unitPriceCents = unitPriceDollarsToCents(line.unitPriceDollars);
+            return {
+              key: line.key,
+              description: line.description,
+              descriptionTranslated: line.descriptionTranslated,
+              categoryLabel: line.categoryLabel || labelForCategory(line.category),
+              quantity: line.quantity,
+              unitLabel: line.unitLabel,
+              unitPriceCents,
+              totalCents: computeLineTotalCents(line.quantity, unitPriceCents),
+              status: line.status,
+              isTaxable: line.isTaxable,
+              included:
+                line.status === "included" ||
+                isZeroPricedQuoteLine({ status: line.status, unit_price_cents: unitPriceCents }),
+            };
+          })}
+          taxModeLabel={QUOTE_TAX_MODE_LABELS[taxMode]}
+          totals={<QuoteTaxBreakdown quote={draftBreakdownQuote} variant="admin" currency={currency} />}
+          totalCents={draftTotals.total_cents}
+          paymentTerms={paymentTerms}
+          customerNotes={customerNotes}
+          customerNotesTranslated={customerNotesTranslated}
+          ownerNotes={ownerNotes}
+          terms={terms}
+          termsTranslated={termsTranslated}
+        />
+      )}
 
       <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <h2 className="font-heading text-lg font-semibold">Customer requests</h2>
@@ -2011,6 +2067,7 @@ export function AdminQuoteBuilder({
         </div>
       </section>
 
+      {isEditing ? (
       <section className="rounded-2xl border border-border/40 bg-card/25 p-5">
         <h2 className="font-heading text-lg font-semibold">Notes & terms</h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -2118,6 +2175,7 @@ export function AdminQuoteBuilder({
           ) : null}
         </div>
       </section>
+      ) : null}
       </div>
 
       <aside

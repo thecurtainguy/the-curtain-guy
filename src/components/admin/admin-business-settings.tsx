@@ -38,6 +38,7 @@ import { OptionCard } from "@/components/estimate/option-card";
 import { SiteMediaImage } from "@/components/media/site-media-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -358,11 +359,11 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="bs-dep">Default deposit %</Label>
-                <Input
+                <NumericInput
                   id="bs-dep"
-                  inputMode="decimal"
-                  value={String(settings.default_deposit_percent)}
-                  onChange={(e) => set("default_deposit_percent", Number.parseFloat(e.target.value) || 0)}
+                  decimal
+                  value={settings.default_deposit_percent}
+                  onValueChange={(value) => set("default_deposit_percent", value)}
                 />
                 <div className="flex gap-1.5">
                   {[25, 30, 50].map((pct) => (
@@ -382,7 +383,7 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="bs-depdue">Deposit due (days after issue)</Label>
-                <Input id="bs-depdue" inputMode="numeric" className="sm:max-w-40" value={String(settings.default_deposit_due_days)} onChange={(e) => set("default_deposit_due_days", Number.parseInt(e.target.value, 10) || 0)} />
+                <NumericInput id="bs-depdue" className="sm:max-w-40" value={settings.default_deposit_due_days} onValueChange={(value) => set("default_deposit_due_days", value)} />
                 <p className="text-xs text-muted-foreground">0 = due on receipt</p>
               </div>
               <div className="space-y-2 sm:col-span-2">
@@ -400,13 +401,12 @@ export function AdminBusinessSettings({ initial }: { initial: BusinessSettings }
                 </div>
                 {settings.default_balance_due_rule !== "event_date" ? (
                   <div className="flex items-center gap-2 pt-1">
-                    <Input
+                    <NumericInput
                       id="bs-due"
-                      inputMode="numeric"
                       aria-label="Number of days"
                       className="w-24"
-                      value={String(settings.default_due_days)}
-                      onChange={(e) => set("default_due_days", Number.parseInt(e.target.value, 10) || 0)}
+                      value={settings.default_due_days}
+                      onValueChange={(value) => set("default_due_days", value)}
                     />
                     <span className="text-sm text-muted-foreground">
                       {settings.default_balance_due_rule === "days_before_event" ? "days before the event" : "days after the invoice is issued"}

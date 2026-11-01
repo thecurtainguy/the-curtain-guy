@@ -61,14 +61,14 @@ export function AdminDocumentTextsEditor({
   );
 
   const dirtySlugs = useMemo(() => {
-    return fields
+    return DOCUMENT_TEXT_DEFS
       .map((def) => def.slug)
       .filter((slug) => {
         const stored = texts.find((item) => item.slug === slug);
         const draft = drafts[slug] ?? stored?.body ?? "";
         return draft !== (stored?.body ?? DOCUMENT_TEXT_DEFS.find((d) => d.slug === slug)?.defaultBody ?? "");
       });
-  }, [drafts, fields, texts]);
+  }, [drafts, texts]);
 
   function fail(message: string) {
     setError(message);
@@ -204,9 +204,11 @@ export function AdminDocumentTextsEditor({
           const meta = DOCUMENT_TYPE_META[type];
           const Icon = DOC_ICONS[type];
           const selected = selectedType === type;
-          const fieldCount = DOCUMENT_TEXT_DEFS.filter(
+          const typeSlugs = DOCUMENT_TEXT_DEFS.filter(
             (def) => def.documentType === type
-          ).length;
+          ).map((def) => def.slug);
+          const fieldCount = typeSlugs.length;
+          const unsavedCount = typeSlugs.filter((slug) => dirtySlugs.includes(slug)).length;
           return (
             <button
               key={type}
@@ -242,6 +244,7 @@ export function AdminDocumentTextsEditor({
                 </span>
                 <span className="mt-2 inline-flex text-[10px] uppercase tracking-[0.14em] text-primary">
                   {fieldCount} {fieldCount === 1 ? "field" : "fields"}
+                  {unsavedCount > 0 ? ` · ${unsavedCount} unsaved` : null}
                 </span>
               </span>
               <span

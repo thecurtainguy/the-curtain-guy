@@ -101,10 +101,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   const normalizedDesign = normalizeStudioDesign(parsed.design);
-  const updateResult = await updateEventPlanSubmission(config, id, {
-    ...parsed,
-    design: normalizedDesign,
-  });
+  const updateResult = await updateEventPlanSubmission(
+    config,
+    id,
+    { ...parsed, design: normalizedDesign },
+    { resetStatus: profile?.profile.role !== "owner" }
+  );
 
   if (!updateResult.ok) {
     return NextResponse.json(

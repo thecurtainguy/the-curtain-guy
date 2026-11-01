@@ -632,29 +632,12 @@ export function AdminProductEditor({
     setForm((prev) => ({ ...prev, ...partial }));
   }
 
-  function mergeProductIntoForm(next: ProductRow, keepRentals = true) {
-    setForm((prev) => {
-      const base = formFromProduct(next, null);
-      if (!keepRentals) return base;
-      return {
-        ...base,
-        is_public: prev.is_public,
-        configurator_mode: prev.configurator_mode,
-        formula_segment_feet: prev.formula_segment_feet,
-        full_service_product_id: prev.full_service_product_id,
-        transport_only_product_id: prev.transport_only_product_id,
-        included_logistics_mode: prev.included_logistics_mode,
-        included_logistics_zone_id: prev.included_logistics_zone_id,
-        formulaIncludes: prev.formulaIncludes,
-        packageComponents: prev.packageComponents,
-        addons: prev.addons,
-        event_type_ids: prev.event_type_ids,
-        default_color_name: prev.default_color_name,
-        default_color_hex: prev.default_color_hex,
-        group_name: prev.group_name,
-        colorDrafts: prev.colorDrafts,
-      };
-    });
+  function mergeProductImageIntoForm(next: ProductRow) {
+    setForm((prev) => ({
+      ...prev,
+      image_url: next.image_url ?? null,
+      image_alt: next.image_alt ?? "",
+    }));
   }
 
   function buildCorePayload() {
@@ -979,7 +962,7 @@ export function AdminProductEditor({
               onError={setError}
               onProductRefresh={(next) => {
                 if (next && typeof next === "object" && "id" in next) {
-                  mergeProductIntoForm(next as ProductRow, true);
+                  mergeProductImageIntoForm(next as ProductRow);
                 }
               }}
               title="Photos"

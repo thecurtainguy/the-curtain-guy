@@ -501,40 +501,41 @@ export async function ensureDraftJobAfterQuoteAccepted(input: {
   }
 }
 
+const JOB_EDITABLE_FIELDS = [
+  "event_name",
+  "event_type",
+  "event_date",
+  "event_start_time",
+  "event_end_time",
+  "guest_count",
+  "venue_name",
+  "venue_address",
+  "venue_city",
+  "venue_region",
+  "venue_postal_code",
+  "venue_country",
+  "install_date",
+  "install_start_time",
+  "install_end_time",
+  "teardown_date",
+  "teardown_start_time",
+  "teardown_end_time",
+  "access_notes",
+  "loading_notes",
+  "parking_notes",
+  "elevator_notes",
+  "room_notes",
+  "production_notes",
+  "customer_visible_notes",
+  "internal_notes",
+  "customer_name",
+  "customer_email",
+  "customer_phone",
+  "company_name",
+] as const satisfies ReadonlyArray<keyof EventJobRow>;
+
 export type JobUpdatePayload = Partial<
-  Pick<
-    EventJobRow,
-    | "event_name"
-    | "event_type"
-    | "event_date"
-    | "event_start_time"
-    | "event_end_time"
-    | "guest_count"
-    | "venue_name"
-    | "venue_address"
-    | "venue_city"
-    | "venue_region"
-    | "venue_postal_code"
-    | "venue_country"
-    | "install_date"
-    | "install_start_time"
-    | "install_end_time"
-    | "teardown_date"
-    | "teardown_start_time"
-    | "teardown_end_time"
-    | "access_notes"
-    | "loading_notes"
-    | "parking_notes"
-    | "elevator_notes"
-    | "room_notes"
-    | "production_notes"
-    | "customer_visible_notes"
-    | "internal_notes"
-    | "customer_name"
-    | "customer_email"
-    | "customer_phone"
-    | "company_name"
-  >
+  Pick<EventJobRow, (typeof JOB_EDITABLE_FIELDS)[number]>
 >;
 
 export async function fetchJobRow(jobId: string): Promise<EventJobRow | null> {
@@ -559,7 +560,7 @@ export async function updateJob(
   if (!before) return null;
 
   const update = Object.fromEntries(
-    (Object.keys(payload) as Array<keyof JobUpdatePayload>)
+    JOB_EDITABLE_FIELDS.filter((key) => key in payload)
       .filter((key) => (before[key] ?? null) !== (payload[key] ?? null))
       .map((key) => [key, payload[key]])
   ) as JobUpdatePayload;

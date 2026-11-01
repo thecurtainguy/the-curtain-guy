@@ -477,7 +477,7 @@ function MappingRow({
               variant="ghost"
               aria-label={`Unlink ${entry.label}`}
               disabled={saving}
-              onClick={() => void persist({ productId: null, notes }, `${entry.label} unlinked.`)}
+              onClick={() => void persist({ productId: null, notes: saved.notes }, `${entry.label} unlinked.`)}
             >
               <X className="size-4" />
             </Button>

@@ -99,6 +99,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Textarea } from "@/components/ui/textarea";
+import { parseDollarInput } from "@/lib/money-input";
 import { draftTranslation, onlyOneFilled, placeTranslation } from "@/lib/translate-draft";
 import { cn } from "@/lib/utils";
 
@@ -260,7 +261,7 @@ function parseQty(value: string): number {
 }
 
 function dollarsToCents(value: string): number {
-  const n = Number.parseFloat(value.replace(/[$\s]/g, "").replace(",", "."));
+  const n = parseDollarInput(value);
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
 }
 

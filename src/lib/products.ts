@@ -259,9 +259,10 @@ export async function updateProduct(
             isActive,
           });
 
-  const slugBase = slugifyProductName(input.slug?.trim() || name);
+  const requestedSlug = input.slug?.trim();
+  const slugBase = slugifyProductName(requestedSlug || name);
   const slug =
-    slugBase === existing.slug
+    (!requestedSlug && existing.slug) || slugBase === existing.slug
       ? existing.slug
       : await ensureUniqueSlug(slugBase, id);
 

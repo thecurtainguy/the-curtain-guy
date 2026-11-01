@@ -37,11 +37,11 @@ export function AdminEstimateActions({
       const response = await fetch(`/api/admin/estimates/${estimateId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: next?.status ?? status,
-          internalNotes: next?.notes ?? notes,
-          markViewed: true,
-        }),
+        body: JSON.stringify(
+          next?.status
+            ? { status: next.status, markViewed: true }
+            : { internalNotes: next?.notes ?? notes, markViewed: true }
+        ),
       });
       const payload = (await response.json()) as {
         ok?: boolean;

@@ -203,7 +203,10 @@ export type EventPlanUpdateResult =
   | { ok: true; id: string; reference: string }
   | { ok: false; message: string };
 
-export function buildEventPlanUpdateRow(payload: EventPlanSubmitPayload) {
+export function buildEventPlanUpdateRow(
+  payload: EventPlanSubmitPayload,
+  options: { resetStatus?: boolean } = {}
+) {
   const normalized = normalizeStudioDesign(payload.design);
   return {
     contact_name: payload.contact.name.trim(),
@@ -218,16 +221,17 @@ export function buildEventPlanUpdateRow(payload: EventPlanSubmitPayload) {
     brief_json: payload.brief,
     design_json: normalized,
     notes: payload.contact.notes?.trim() || null,
-    status: "new",
+    ...(options.resetStatus === false ? {} : { status: "new" }),
   };
 }
 
 export async function updateEventPlanSubmission(
   config: { url: string; serviceRoleKey: string },
   planId: string,
-  payload: EventPlanSubmitPayload
+  payload: EventPlanSubmitPayload,
+  options: { resetStatus?: boolean } = {}
 ): Promise<EventPlanUpdateResult> {
-  const row = buildEventPlanUpdateRow(payload);
+  const row = buildEventPlanUpdateRow(payload, options);
   const endpoint = `${config.url.replace(/\/$/, "")}/rest/v1/event_plan_submissions?id=eq.${planId}&select=id,reference`;
 
   const response = await fetch(endpoint, {

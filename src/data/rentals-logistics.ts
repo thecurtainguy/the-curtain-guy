@@ -1,4 +1,5 @@
 import { formatCadFromCents, type RentalCartLine } from "@/data/rentals";
+import { parseDollarInput } from "@/lib/money-input";
 
 export const RENTAL_LOGISTICS_MODES = [
   "full_service",
@@ -391,8 +392,7 @@ export function stripServiceLines(lines: RentalCartLine[]): RentalCartLine[] {
 }
 
 export function dollarsToLogisticsCents(dollars: string | number): number {
-  const n =
-    typeof dollars === "string" ? Number.parseFloat(dollars) : Number(dollars);
+  const n = typeof dollars === "string" ? parseDollarInput(dollars) : Number(dollars);
   if (!Number.isFinite(n) || n < 0) return 0;
   return Math.round(n * 100);
 }

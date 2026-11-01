@@ -94,7 +94,13 @@ export async function PATCH(request: Request, context: RouteContext) {
           ? body.image_alt
           : undefined,
     quantity_on_hand: Math.round(Number(body.quantity_on_hand) || 0),
-    low_stock_threshold: Math.round(Number(body.low_stock_threshold) || 2),
+    low_stock_threshold:
+      body.low_stock_threshold === undefined ||
+      body.low_stock_threshold === null ||
+      body.low_stock_threshold === "" ||
+      !Number.isFinite(Number(body.low_stock_threshold))
+        ? undefined
+        : Math.round(Number(body.low_stock_threshold)),
     availability_status:
       typeof body.availability_status === "string" &&
       isProductAvailabilityStatus(body.availability_status)
@@ -103,7 +109,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     availability_manual: body.availability_manual === true,
     is_active: typeof body.is_active === "boolean" ? body.is_active : true,
     is_public: typeof body.is_public === "boolean" ? body.is_public : undefined,
-    sort_order: Math.round(Number(body.sort_order) || 0),
+    sort_order:
+      body.sort_order === undefined || !Number.isFinite(Number(body.sort_order))
+        ? undefined
+        : Math.round(Number(body.sort_order)),
     event_type_ids: Array.isArray(body.event_type_ids)
       ? body.event_type_ids
           .map((id) => String(id || "").trim())

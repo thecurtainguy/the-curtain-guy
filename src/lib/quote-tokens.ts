@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { formatEstimateReference } from "@/data/estimate";
 import { formatQuoteDisplayRef } from "@/data/quotes";
+import { parseDollarInput } from "@/lib/money-input";
 
 /** Public quote link tokens — 32 bytes hex, store hash only. */
 export const QUOTE_TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 90; // 90 days
@@ -68,7 +69,7 @@ export function buildQuoteDisplayRef(
 
 export function dollarsToCents(dollars: number | string): number {
   const n =
-    typeof dollars === "string" ? Number.parseFloat(dollars) : Number(dollars);
+    typeof dollars === "string" ? parseDollarInput(dollars) : Number(dollars);
   if (!Number.isFinite(n)) return 0;
   return Math.round(n * 100);
 }

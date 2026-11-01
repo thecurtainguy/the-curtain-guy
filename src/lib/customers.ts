@@ -883,9 +883,9 @@ export async function updateCustomer(
   customerId: string,
   input: CustomerInput,
   actor: Actor,
-  options?: { applyLanguageToOpenDocuments?: boolean }
+  options?: { applyLanguageToOpenDocuments?: boolean; loaded?: CustomerRow | null }
 ): Promise<{ customer: CustomerRow; cascade: LanguageCascadeResult | null } | { error: string }> {
-  const before = await fetchCustomerById(customerId);
+  const before = options?.loaded ?? (await fetchCustomerById(customerId));
   if (!before) return { error: "Customer not found." };
   const { update, error } = buildCustomerUpdate(input);
   if (error) return { error };

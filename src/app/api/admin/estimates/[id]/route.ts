@@ -16,7 +16,11 @@ type RouteContext = {
 };
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const owner = await requireOwner();
+  const { id } = await context.params;
+  const [owner, existing] = await Promise.all([
+    requireOwner(),
+    fetchEstimateById(id),
+  ]);
   if (!owner) {
     return NextResponse.json(
       { ok: false, message: "Owner access required." },
@@ -24,8 +28,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
   }
 
-  const { id } = await context.params;
-  const existing = await fetchEstimateById(id);
   if (!existing) {
     return NextResponse.json(
       { ok: false, message: "Estimate not found." },

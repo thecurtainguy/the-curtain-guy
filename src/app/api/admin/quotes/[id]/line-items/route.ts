@@ -21,16 +21,14 @@ type RouteContext = {
 };
 
 export async function POST(request: Request, context: RouteContext) {
-  const owner = await requireOwner();
+  const { id } = await context.params;
+  const [owner, quote] = await Promise.all([requireOwner(), fetchQuoteById(id)]);
   if (!owner) {
     return NextResponse.json(
       { ok: false, message: "Owner access required." },
       { status: 403 }
     );
   }
-
-  const { id } = await context.params;
-  const quote = await fetchQuoteById(id);
   if (!quote) {
     return NextResponse.json({ ok: false, message: "Quote not found." }, { status: 404 });
   }
@@ -147,7 +145,19 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
   }
-  if (Object.keys(taxUpdates).length > 0) {
+  const saved = quote as unknown as Record<string, unknown>;
+  for (const [key, value] of Object.entries(taxUpdates)) {
+    const before = saved[key] ?? null;
+    const same =
+      typeof value === "number"
+        ? Number(before) === value
+        : typeof value === "object" && value !== null
+          ? JSON.stringify(before) === JSON.stringify(value)
+          : before === (value ?? null);
+    if (same) delete taxUpdates[key];
+  }
+  const taxChanged = Object.keys(taxUpdates).length > 0;
+  if (taxChanged) {
     const admin = createAdminSupabaseClient();
     const { error } = await admin.from("quotes").update(taxUpdates).eq("id", id);
     if (error) {
@@ -164,6 +174,8 @@ export async function POST(request: Request, context: RouteContext) {
     items,
     actorUserId: owner.user.id,
     actorEmail: owner.profile.email,
+    existing: quote,
+    forceRecalculate: taxChanged,
   });
 
   if (!result.ok) {
@@ -171,6 +183,16 @@ export async function POST(request: Request, context: RouteContext) {
       { ok: false, message: result.message },
       { status: 500 }
     );
+  }
+
+  if (!result.changed && !taxChanged) {
+    const { data: events } = await createAdminSupabaseClient()
+      .from("quote_events")
+      .select("*")
+      .eq("quote_id", id)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    return NextResponse.json({ ok: true, quote: { ...quote, events: events ?? [] } });
   }
 
   return NextResponse.json({

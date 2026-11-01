@@ -82,6 +82,12 @@ export function AdminCustomerVenues({
   venues: CustomerVenueRow[];
 }) {
   const router = useRouter();
+  const [list, setList] = useState(venues);
+  const [syncedVenues, setSyncedVenues] = useState(venues);
+  if (venues !== syncedVenues) {
+    setSyncedVenues(venues);
+    setList(venues);
+  }
   const [editing, setEditing] = useState<CustomerVenueRow | "new" | null>(null);
   const [draft, setDraft] = useState<VenueDraft>(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -107,12 +113,20 @@ export function AdminCustomerVenues({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(draft),
       });
-      const json = await readJson(response);
+      const json = await readJson<{ venue?: CustomerVenueRow }>(response);
       if (!response.ok || !json.ok) {
         const message = json.message ?? "Could not save venue.";
         setError(message);
         toast.error(message);
         return;
+      }
+      const saved = json.venue;
+      if (saved) {
+        setList((rows) =>
+          rows.some((row) => row.id === saved.id)
+            ? rows.map((row) => (row.id === saved.id ? saved : row))
+            : [...rows, saved]
+        );
       }
       const label = draft.name.trim();
       setEditing(null);
@@ -143,6 +157,7 @@ export function AdminCustomerVenues({
         toast.error(json.message ?? "Could not remove venue.");
         return;
       }
+      setList((rows) => rows.filter((row) => row.id !== venue.id));
       toast.success(`${venue.name} removed.`);
       router.refresh();
     } catch {
@@ -165,7 +180,7 @@ export function AdminCustomerVenues({
       }
     >
       {confirmDialog}
-      {venues.length === 0 ? (
+      {list.length === 0 ? (
         <button
           type="button"
           onClick={() => open("new")}
@@ -181,7 +196,7 @@ export function AdminCustomerVenues({
         </button>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {venues.map((venue) => {
+          {list.map((venue) => {
             const address = [venue.address, venue.city, venue.region, venue.postal_code].filter(Boolean).join(", ");
             const notes = NOTE_FIELDS.filter((f) => venue[f.key as keyof CustomerVenueRow]);
             return (

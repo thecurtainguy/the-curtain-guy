@@ -57,16 +57,14 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  const owner = await requireOwner();
+  const { id } = await context.params;
+  const [owner, existing] = await Promise.all([requireOwner(), fetchQuoteById(id)]);
   if (!owner) {
     return NextResponse.json(
       { ok: false, message: "Owner access required." },
       { status: 403 }
     );
   }
-
-  const { id } = await context.params;
-  const existing = await fetchQuoteById(id);
   if (!existing) {
     return NextResponse.json(
       { ok: false, message: "Quote not found." },
@@ -126,7 +124,7 @@ export async function PUT(request: Request, context: RouteContext) {
   const admin = createAdminSupabaseClient();
   if ("customer_venue_id" in body) {
     const venueId = typeof body.customer_venue_id === "string" ? body.customer_venue_id : null;
-    if (venueId) {
+    if (venueId && venueId !== existing.customer_venue_id) {
       const { data: venue } = await admin
         .from("customer_venues")
         .select("id, customer_id")

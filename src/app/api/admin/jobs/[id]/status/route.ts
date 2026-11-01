@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { isJobStatus } from "@/data/jobs";
-import { getAdminJob, updateJobStatus } from "@/lib/jobs";
+import { updateJobStatus } from "@/lib/jobs";
+import { listJobEvents } from "@/lib/job-events";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,6 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const full = await getAdminJob(id);
-  return NextResponse.json({ ok: true, job: full });
+  const events = await listJobEvents(id);
+  return NextResponse.json({ ok: true, job, events });
 }

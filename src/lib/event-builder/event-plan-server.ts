@@ -228,7 +228,7 @@ export async function updateEventPlanSubmission(
   payload: EventPlanSubmitPayload
 ): Promise<EventPlanUpdateResult> {
   const row = buildEventPlanUpdateRow(payload);
-  const endpoint = `${config.url.replace(/\/$/, "")}/rest/v1/event_plan_submissions?id=eq.${planId}`;
+  const endpoint = `${config.url.replace(/\/$/, "")}/rest/v1/event_plan_submissions?id=eq.${planId}&select=id,reference`;
 
   const response = await fetch(endpoint, {
     method: "PATCH",

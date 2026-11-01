@@ -40,44 +40,34 @@ export async function listChecklistItems(
 }
 
 export async function completeChecklistItem(
+  jobId: string,
   itemId: string,
   ownerUserId: string
 ): Promise<EventJobChecklistItemRow | null> {
   const admin = createAdminSupabaseClient();
-  const { data: item, error: loadError } = await admin
-    .from("event_job_checklist_items")
-    .select("*")
-    .eq("id", itemId)
-    .maybeSingle();
-
-  if (loadError || !item) {
-    console.error("[jobs] completeChecklistItem load failed", loadError);
-    return null;
-  }
-
-  const now = new Date().toISOString();
   const { data: updated, error } = await admin
     .from("event_job_checklist_items")
     .update({
       is_completed: true,
-      completed_at: now,
+      completed_at: new Date().toISOString(),
       completed_by_user_id: ownerUserId,
     })
     .eq("id", itemId)
+    .eq("job_id", jobId)
     .select("*")
-    .single();
+    .maybeSingle();
 
   if (error || !updated) {
-    console.error("[jobs] completeChecklistItem update failed", error);
+    if (error) console.error("[jobs] completeChecklistItem update failed", error);
     return null;
   }
 
   await recordJobEvent({
-    jobId: item.job_id as string,
+    jobId,
     actorUserId: ownerUserId,
     actorRole: "owner",
     eventType: "checklist_completed",
-    title: `Checklist: ${item.label}`,
+    title: `Checklist: ${updated.label}`,
     body: "Marked complete.",
     customerVisible: false,
     metadata: { checklist_item_id: itemId },
@@ -87,21 +77,11 @@ export async function completeChecklistItem(
 }
 
 export async function reopenChecklistItem(
+  jobId: string,
   itemId: string,
   ownerUserId: string
 ): Promise<EventJobChecklistItemRow | null> {
   const admin = createAdminSupabaseClient();
-  const { data: item, error: loadError } = await admin
-    .from("event_job_checklist_items")
-    .select("*")
-    .eq("id", itemId)
-    .maybeSingle();
-
-  if (loadError || !item) {
-    console.error("[jobs] reopenChecklistItem load failed", loadError);
-    return null;
-  }
-
   const { data: updated, error } = await admin
     .from("event_job_checklist_items")
     .update({
@@ -110,20 +90,21 @@ export async function reopenChecklistItem(
       completed_by_user_id: null,
     })
     .eq("id", itemId)
+    .eq("job_id", jobId)
     .select("*")
-    .single();
+    .maybeSingle();
 
   if (error || !updated) {
-    console.error("[jobs] reopenChecklistItem update failed", error);
+    if (error) console.error("[jobs] reopenChecklistItem update failed", error);
     return null;
   }
 
   await recordJobEvent({
-    jobId: item.job_id as string,
+    jobId,
     actorUserId: ownerUserId,
     actorRole: "owner",
     eventType: "checklist_reopened",
-    title: `Checklist reopened: ${item.label}`,
+    title: `Checklist reopened: ${updated.label}`,
     customerVisible: false,
     metadata: { checklist_item_id: itemId },
   });

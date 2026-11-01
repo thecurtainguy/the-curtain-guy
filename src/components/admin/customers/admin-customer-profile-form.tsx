@@ -164,12 +164,16 @@ export function AdminCustomerProfileForm({
   openDocuments: OpenDocumentCounts;
 }) {
   const router = useRouter();
-  const initial = useMemo(() => toForm(customer), [customer]);
+  const [saved, setSaved] = useState(customer);
+  const initial = useMemo(() => toForm(saved), [saved]);
   const [form, setForm] = useState<FormState>(initial);
   const [syncedAt, setSyncedAt] = useState(customer.updated_at);
   if (syncedAt !== customer.updated_at) {
     setSyncedAt(customer.updated_at);
-    setForm(initial);
+    if (customer.id !== saved.id || (Date.parse(customer.updated_at) || 0) > (Date.parse(saved.updated_at) || 0)) {
+      setSaved(customer);
+      setForm(toForm(customer));
+    }
   }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -213,6 +217,7 @@ export function AdminCustomerProfileForm({
         body: JSON.stringify({ ...toPayload(form), applyLanguageToOpenDocuments: applyLanguage }),
       });
       const json = await readJson<{
+        customer?: CustomerRow;
         cascade?: { quotes: string[]; invoices: string[]; estimates: number } | null;
       }>(response);
       if (!response.ok || !json.ok) {
@@ -220,6 +225,10 @@ export function AdminCustomerProfileForm({
         setError(message);
         toast.error(message);
         return;
+      }
+      if (json.customer) {
+        setSaved(json.customer);
+        setForm(toForm(json.customer));
       }
       const cascade = json.cascade;
       const moved = cascade ? [...cascade.quotes, ...cascade.invoices] : [];

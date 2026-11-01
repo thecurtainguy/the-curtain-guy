@@ -696,6 +696,7 @@ export function AdminProductEditor({
         ok?: boolean;
         message?: string;
         product?: ProductRow;
+        variants?: import("@/data/product-colors").ProductColorVariantRow[];
       };
       if (!response.ok || !data.ok || !data.product) {
         const failure = data.message ?? "Could not save item.";
@@ -706,20 +707,24 @@ export function AdminProductEditor({
       setProductId(data.product.id);
       setProductSlug(data.product.slug);
 
-      let nextColors: ColorDraft[] | null = null;
-      try {
-        const colorsResponse = await fetch(
-          `/api/admin/products/${data.product.id}/colors`
-        );
-        const colorsData = (await colorsResponse.json()) as {
-          ok?: boolean;
-          variants?: import("@/data/product-colors").ProductColorVariantRow[];
-        };
-        if (colorsResponse.ok && colorsData.ok && colorsData.variants) {
-          nextColors = colorDraftsFromRows(colorsData.variants);
+      let nextColors: ColorDraft[] | null = data.variants
+        ? colorDraftsFromRows(data.variants)
+        : null;
+      if (!nextColors) {
+        try {
+          const colorsResponse = await fetch(
+            `/api/admin/products/${data.product.id}/colors`
+          );
+          const colorsData = (await colorsResponse.json()) as {
+            ok?: boolean;
+            variants?: import("@/data/product-colors").ProductColorVariantRow[];
+          };
+          if (colorsResponse.ok && colorsData.ok && colorsData.variants) {
+            nextColors = colorDraftsFromRows(colorsData.variants);
+          }
+        } catch {
+          /* keep local color drafts */
         }
-      } catch {
-        /* keep local color drafts */
       }
 
       setForm((prev) => {

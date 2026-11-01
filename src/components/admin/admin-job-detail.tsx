@@ -22,6 +22,7 @@ import {
   getChecklistProgress,
   getJobStatusLabel,
   getNextJobStatuses,
+  type EventJobRow,
   type JobStatus,
 } from "@/data/jobs";
 import { formatMoneyFromCents, quoteLineCategoryLabel, resolveQuoteDisplayRef } from "@/data/quotes";
@@ -277,7 +278,8 @@ export function AdminJobDetail({
       const payload = (await response.json()) as {
         ok?: boolean;
         message?: string;
-        job?: JobWithRelations;
+        job?: EventJobRow;
+        events?: JobWithRelations["events"];
         invoicesUpdated?: string[];
         venueSavedTo?: string | null;
       };
@@ -285,6 +287,9 @@ export function AdminJobDetail({
         flash(undefined, payload.message ?? "Could not save job.");
         return;
       }
+      const saved = payload.job;
+      const events = payload.events;
+      if (saved) setJob((prev) => ({ ...prev, ...saved, events: events ?? prev.events }));
       setBaseline(JSON.stringify(buildPayload()));
       const synced = payload.invoicesUpdated ?? [];
       const venueNote =
@@ -314,13 +319,16 @@ export function AdminJobDetail({
       const payload = (await response.json()) as {
         ok?: boolean;
         message?: string;
-        job?: JobWithRelations;
+        job?: EventJobRow;
+        events?: JobWithRelations["events"];
       };
       if (!response.ok || !payload.ok || !payload.job) {
         flash(undefined, payload.message ?? "Could not update status.");
         return;
       }
-      setJob(payload.job);
+      const updated = payload.job;
+      const events = payload.events;
+      setJob((prev) => ({ ...prev, ...updated, events: events ?? prev.events }));
       flash(`Status updated to ${getJobStatusLabel(status)}.`);
       router.refresh();
     } catch {
@@ -341,13 +349,20 @@ export function AdminJobDetail({
       );
       const payload = (await response.json()) as {
         ok?: boolean;
-        job?: JobWithRelations;
+        item?: JobWithRelations["checklist_items"][number];
+        events?: JobWithRelations["events"];
       };
-      if (!response.ok || !payload.ok || !payload.job) {
+      const item = payload.item;
+      const events = payload.events;
+      if (!response.ok || !payload.ok || !item) {
         flash(undefined, "Could not update checklist.");
         return;
       }
-      setJob(payload.job);
+      setJob((prev) => ({
+        ...prev,
+        checklist_items: prev.checklist_items.map((row) => (row.id === item.id ? item : row)),
+        events: events ?? prev.events,
+      }));
       flash(complete ? `Checked off “${label}”.` : `Reopened “${label}”.`);
     } catch {
       flash(undefined, "Could not update checklist.");
@@ -371,14 +386,20 @@ export function AdminJobDetail({
       });
       const payload = (await response.json()) as {
         ok?: boolean;
-        job?: JobWithRelations;
-        message?: string;
+        message?: string | JobWithRelations["messages"][number];
+        events?: JobWithRelations["events"] | null;
       };
-      if (!response.ok || !payload.ok || !payload.job) {
-        flash(undefined, payload.message ?? "Could not send message.");
+      const row = typeof payload.message === "object" ? payload.message : null;
+      if (!response.ok || !payload.ok || !row) {
+        flash(undefined, typeof payload.message === "string" ? payload.message : "Could not send message.");
         return;
       }
-      setJob(payload.job);
+      const events = payload.events;
+      setJob((prev) => ({
+        ...prev,
+        messages: [...prev.messages, row],
+        events: events ?? prev.events,
+      }));
       setOwnerMessage("");
       flash("Message saved.");
     } catch {

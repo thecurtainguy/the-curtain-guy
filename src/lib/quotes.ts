@@ -1160,32 +1160,32 @@ export async function upsertLineItems(input: {
   items: LineItemInput[];
   actorUserId?: string | null;
   actorEmail?: string | null;
-}): Promise<{ ok: true } | { ok: false; message: string }> {
+  /** Skips re-reading the quote when the caller already has it. */
+  existing?: QuoteWithRelations;
+  /** Recalculate totals even when no line changed (e.g. tax settings changed). */
+  forceRecalculate?: boolean;
+}): Promise<{ ok: true; changed: boolean } | { ok: false; message: string }> {
   const admin = createAdminSupabaseClient();
-  const existing = await fetchQuoteById(input.quoteId);
+  const [existing, categories] = await Promise.all([
+    input.existing ?? fetchQuoteById(input.quoteId),
+    listProductCategories(),
+  ]);
   if (!existing) return { ok: false, message: "Quote not found." };
 
   const keepIds = new Set(
     input.items.filter((item) => item.id).map((item) => item.id as string)
   );
-  const categories = await listProductCategories();
-  let changed = false;
+  const events: Array<{ eventType: QuoteEventType; summary: string; metadata?: Record<string, unknown> }> = [];
+  const updates: Array<{ id: string; payload: Record<string, unknown> }> = [];
+  const inserts: Array<Record<string, unknown>> = [];
 
-  for (const item of existing.line_items) {
-    if (!keepIds.has(item.id)) {
-      changed = true;
-      const { error } = await admin.from("quote_line_items").delete().eq("id", item.id);
-      if (error) return { ok: false, message: error.message };
-      await logQuoteEvent({
-        quoteId: input.quoteId,
-        actorType: "owner",
-        actorUserId: input.actorUserId,
-        actorEmail: input.actorEmail,
-        eventType: "line_item_removed",
-        summary: `Removed line item: ${item.description}`,
-        metadata: { line_item_id: item.id },
-      });
-    }
+  const removed = existing.line_items.filter((item) => !keepIds.has(item.id));
+  for (const item of removed) {
+    events.push({
+      eventType: "line_item_removed",
+      summary: `Removed line item: ${item.description}`,
+      metadata: { line_item_id: item.id },
+    });
   }
 
   for (let index = 0; index < input.items.length; index++) {
@@ -1239,54 +1239,54 @@ export async function upsertLineItems(input: {
 
     if (previous) {
       if (lineItemUnchanged(previous, payload)) continue;
-      changed = true;
-      const { error } = await admin
-        .from("quote_line_items")
-        .update(payload)
-        .eq("id", item.id)
-        .eq("quote_id", input.quoteId);
-      if (error) {
-        return { ok: false, message: error.message };
-      }
-      await logQuoteEvent({
-        quoteId: input.quoteId,
-        actorType: "owner",
-        actorUserId: input.actorUserId,
-        actorEmail: input.actorEmail,
+      updates.push({ id: previous.id, payload });
+      events.push({
         eventType: "line_item_updated",
         summary: `Updated line item: ${payload.description}`,
-        metadata: { line_item_id: item.id },
+        metadata: { line_item_id: previous.id },
       });
     } else {
-      changed = true;
-      const { error } = await admin.from("quote_line_items").insert(payload);
-      if (error) {
-        return { ok: false, message: error.message };
-      }
-      await logQuoteEvent({
-        quoteId: input.quoteId,
-        actorType: "owner",
-        actorUserId: input.actorUserId,
-        actorEmail: input.actorEmail,
-        eventType: "line_item_added",
-        summary: `Added line item: ${payload.description}`,
-      });
+      inserts.push(payload);
+      events.push({ eventType: "line_item_added", summary: `Added line item: ${payload.description}` });
     }
   }
 
-  await recalculateQuoteTotals(input.quoteId);
+  const changed = removed.length + updates.length + inserts.length > 0;
+  const results = await Promise.all([
+    removed.length > 0
+      ? admin.from("quote_line_items").delete().in("id", removed.map((item) => item.id))
+      : null,
+    ...updates.map(({ id, payload }) =>
+      admin.from("quote_line_items").update(payload).eq("id", id).eq("quote_id", input.quoteId)
+    ),
+    inserts.length > 0 ? admin.from("quote_line_items").insert(inserts) : null,
+  ]);
+  const failed = results.find((result) => result?.error);
+  if (failed?.error) return { ok: false, message: failed.error.message };
+
+  if (changed || input.forceRecalculate) {
+    await recalculateQuoteTotals(input.quoteId);
+  }
   if (changed) {
-    await logQuoteEvent({
-      quoteId: input.quoteId,
-      actorType: "owner",
-      actorUserId: input.actorUserId,
-      actorEmail: input.actorEmail,
-      eventType: "quote_edited",
-      summary: "Quote line items saved",
-    });
+    const actor = {
+      quote_id: input.quoteId,
+      actor_type: "owner",
+      actor_user_id: input.actorUserId ?? null,
+      actor_email: input.actorEmail ?? null,
+    };
+    const { error } = await admin.from("quote_events").insert([
+      ...events.map((event) => ({
+        ...actor,
+        event_type: event.eventType,
+        summary: event.summary,
+        metadata: event.metadata ?? {},
+      })),
+      { ...actor, event_type: "quote_edited", summary: "Quote line items saved", metadata: {} },
+    ]);
+    if (error) console.error("[quotes] log line item events", error);
   }
 
-  return { ok: true };
+  return { ok: true, changed };
 }
 
 export async function createCustomerRequest(input: {

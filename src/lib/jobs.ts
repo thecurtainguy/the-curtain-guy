@@ -537,26 +537,37 @@ export type JobUpdatePayload = Partial<
   >
 >;
 
-export async function updateJob(
-  jobId: string,
-  payload: JobUpdatePayload,
-  ownerUserId: string
-): Promise<{ job: EventJobRow; before: EventJobRow } | null> {
+export async function fetchJobRow(jobId: string): Promise<EventJobRow | null> {
   const admin = createAdminSupabaseClient();
-  const { data: beforeData, error: loadError } = await admin
+  const { data, error } = await admin
     .from("event_jobs")
     .select("*")
     .eq("id", jobId)
     .maybeSingle();
-  if (loadError || !beforeData) {
-    console.error("[jobs] updateJob load failed", loadError);
-    return null;
-  }
-  const before = beforeData as EventJobRow;
+  if (error) console.error("[jobs] fetchJobRow failed", error);
+  return (data as EventJobRow | null) ?? null;
+}
+
+export async function updateJob(
+  jobId: string,
+  payload: JobUpdatePayload,
+  ownerUserId: string,
+  loaded?: EventJobRow | null
+): Promise<{ job: EventJobRow; before: EventJobRow } | null> {
+  const admin = createAdminSupabaseClient();
+  const before = loaded ?? (await fetchJobRow(jobId));
+  if (!before) return null;
+
+  const update = Object.fromEntries(
+    (Object.keys(payload) as Array<keyof JobUpdatePayload>)
+      .filter((key) => (before[key] ?? null) !== (payload[key] ?? null))
+      .map((key) => [key, payload[key]])
+  ) as JobUpdatePayload;
+  if (Object.keys(update).length === 0) return { job: before, before };
 
   const { data, error } = await admin
     .from("event_jobs")
-    .update(payload)
+    .update(update)
     .eq("id", jobId)
     .select("*")
     .single();
@@ -567,7 +578,7 @@ export async function updateJob(
   }
   const job = data as EventJobRow;
 
-  const changes = (Object.keys(payload) as Array<keyof JobUpdatePayload>)
+  const changes = (Object.keys(update) as Array<keyof JobUpdatePayload>)
     .filter((key) => (before[key] ?? null) !== (job[key] ?? null))
     .map((key) => ({ field: key, from: before[key] ?? null, to: job[key] ?? null }));
 

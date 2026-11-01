@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import {
   deleteProductCategory,
+  fetchCategoryById,
   updateProductCategory,
 } from "@/lib/product-categories";
 
@@ -19,10 +20,19 @@ function forbidden() {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const owner = await requireOwner();
-  if (!owner) return forbidden();
-
   const { id } = await context.params;
+  const [owner, existing] = await Promise.all([
+    requireOwner(),
+    fetchCategoryById(id),
+  ]);
+  if (!owner) return forbidden();
+  if (!existing) {
+    return NextResponse.json(
+      { ok: false, message: "Category not found." },
+      { status: 404 }
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
@@ -38,7 +48,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     label_fr: body.label_fr,
     description: body.description,
     is_active: body.is_active,
-  });
+  }, existing);
   if ("error" in result) {
     return NextResponse.json(
       { ok: false, message: result.error },

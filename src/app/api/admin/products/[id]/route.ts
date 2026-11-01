@@ -173,6 +173,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
+  const relatedSaves: Array<Promise<{ ok: true } | { error: string }>> = [];
+
   if (
     Array.isArray(body.formula_includes) ||
     Array.isArray(body.addons) ||
@@ -185,7 +187,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     } = await import("@/lib/rentals");
     if (Array.isArray(body.formula_includes)) {
       const includes = body.formula_includes as Array<Record<string, unknown>>;
-      await replaceFormulaIncludes({
+      relatedSaves.push(replaceFormulaIncludes({
         productId: id,
         includes: includes
           .map((row) => ({
@@ -193,11 +195,11 @@ export async function PATCH(request: Request, context: RouteContext) {
             qtyPerSegment: Number(row.qtyPerSegment ?? row.qty_per_segment) || 1,
           }))
           .filter((row) => row.includedProductId),
-      });
+      }));
     }
     if (Array.isArray(body.addons)) {
       const addons = body.addons as Array<Record<string, unknown>>;
-      await replaceProductAddons({
+      relatedSaves.push(replaceProductAddons({
         productId: id,
         addons: addons
           .map((row) => ({
@@ -205,13 +207,13 @@ export async function PATCH(request: Request, context: RouteContext) {
             isActive: row.isActive !== false && row.is_active !== false,
           }))
           .filter((row) => row.addonProductId),
-      });
+      }));
     }
     if (Array.isArray(body.package_components)) {
       const components = body.package_components as Array<
         Record<string, unknown>
       >;
-      const packageResult = await replacePackageComponents({
+      relatedSaves.push(replacePackageComponents({
         packageProductId: id,
         components:
           result.product.kind === "package"
@@ -224,27 +226,24 @@ export async function PATCH(request: Request, context: RouteContext) {
                 }))
                 .filter((row) => row.componentProductId)
             : [],
-      });
-      if ("error" in packageResult) {
-        return NextResponse.json(
-          { ok: false, message: packageResult.error },
-          { status: 400 }
-        );
-      }
+      }));
     }
   }
 
+  let colorSave: ReturnType<
+    typeof import("@/lib/product-colors").replaceProductColorVariants
+  > | null = null;
   if (Array.isArray(body.color_variants)) {
     const { replaceProductColorVariants } = await import("@/lib/product-colors");
-    const { isProductAvailabilityStatus } = await import("@/data/products");
     const variants = body.color_variants as Array<Record<string, unknown>>;
-    const colorResult = await replaceProductColorVariants({
+    colorSave = replaceProductColorVariants({
       productId: id,
       variants: variants
         .map((row) => {
           const name = String(row.name || "").trim();
           if (!name) return null;
           return {
+            id: typeof row.id === "string" && row.id ? row.id : undefined,
             name,
             hex: String(row.hex || "#8B909A"),
             sort_order: Math.round(Number(row.sort_order) || 0),
@@ -272,6 +271,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           };
         })
         .filter(Boolean) as Array<{
+        id?: string;
         name: string;
         hex: string;
         sort_order: number;
@@ -285,13 +285,18 @@ export async function PATCH(request: Request, context: RouteContext) {
         availability_status: import("@/data/products").ProductAvailabilityStatus | null;
       }>,
     });
-    if ("error" in colorResult) {
-      return NextResponse.json(
-        { ok: false, message: colorResult.error },
-        { status: 400 }
-      );
-    }
+    relatedSaves.push(colorSave);
   }
 
-  return NextResponse.json({ ok: true, product: result.product });
+  const failed = (await Promise.all(relatedSaves)).find((saved) => "error" in saved);
+  if (failed && "error" in failed) {
+    return NextResponse.json({ ok: false, message: failed.error }, { status: 400 });
+  }
+  const colors = colorSave ? await colorSave : null;
+
+  return NextResponse.json({
+    ok: true,
+    product: result.product,
+    variants: colors && "variants" in colors ? colors.variants : undefined,
+  });
 }

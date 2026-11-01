@@ -38,6 +38,16 @@ type PreparedVariantRow = {
   availability_status: ProductAvailabilityStatus | null;
 };
 
+function variantUnchanged(
+  existing: ProductColorVariantRow | undefined,
+  next: PreparedVariantRow
+): boolean {
+  if (!existing) return false;
+  return (Object.keys(next) as Array<keyof PreparedVariantRow>).every(
+    (key) => key === "id" || (existing[key as keyof ProductColorVariantRow] ?? null) === (next[key] ?? null)
+  );
+}
+
 function prepareVariantRows(input: {
   productId: string;
   variants: ProductColorVariantInput[];
@@ -212,16 +222,19 @@ export async function replaceProductColorVariants(input: {
     if (deleteError) return { error: deleteError.message };
   }
 
-  for (const row of prepared) {
-    if (!row.id) continue;
-    const { id, ...fields } = row;
-    const { error } = await admin
-      .from("product_color_variants")
-      .update(fields)
-      .eq("id", id)
-      .eq("product_id", input.productId);
-    if (error) return { error: error.message };
-  }
+  const updates = await Promise.all(
+    prepared
+      .filter((row) => row.id && !variantUnchanged(existingById.get(row.id), row))
+      .map(({ id, ...fields }) =>
+        admin
+          .from("product_color_variants")
+          .update(fields)
+          .eq("id", id!)
+          .eq("product_id", input.productId)
+      )
+  );
+  const updateError = updates.find((result) => result.error)?.error;
+  if (updateError) return { error: updateError.message };
 
   const toInsert = prepared
     .filter((row) => !row.id)

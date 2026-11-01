@@ -26,9 +26,12 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const owner = await requireOwner();
-  if (!owner) return forbidden();
   const { id } = await context.params;
+  const [owner, current] = await Promise.all([requireOwner(), fetchCustomerById(id)]);
+  if (!owner) return forbidden();
+  if (!current) {
+    return NextResponse.json({ ok: false, message: "Customer not found." }, { status: 404 });
+  }
   const body = (await request.json().catch(() => null)) as
     | (CustomerInput & { applyLanguageToOpenDocuments?: boolean })
     | null;
@@ -40,7 +43,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     id,
     input,
     { userId: owner.user.id, email: owner.profile.email },
-    { applyLanguageToOpenDocuments: applyLanguageToOpenDocuments !== false }
+    { applyLanguageToOpenDocuments: applyLanguageToOpenDocuments !== false, loaded: current }
   );
   if ("error" in result) {
     return NextResponse.json({ ok: false, message: result.error }, { status: 400 });

@@ -97,6 +97,12 @@ export function AdminCustomerContacts({
   contacts: CustomerContactRow[];
 }) {
   const router = useRouter();
+  const [list, setList] = useState(contacts);
+  const [syncedContacts, setSyncedContacts] = useState(contacts);
+  if (contacts !== syncedContacts) {
+    setSyncedContacts(contacts);
+    setList(contacts);
+  }
   const [editing, setEditing] = useState<CustomerContactRow | "new" | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -142,12 +148,16 @@ export function AdminCustomerContacts({
           notes: draft.notes || null,
         }),
       });
-      const json = await readJson(response);
+      const json = await readJson<{ contact?: CustomerContactRow }>(response);
       if (!response.ok || !json.ok) {
         const message = json.message ?? "Could not save contact.";
         setError(message);
         toast.error(message);
         return;
+      }
+      const saved = json.contact;
+      if (saved) {
+        setList((rows) => (isNew ? [...rows, saved] : rows.map((row) => (row.id === saved.id ? saved : row))));
       }
       const label = draft.name.trim() || draft.email.trim();
       setEditing(null);
@@ -178,6 +188,7 @@ export function AdminCustomerContacts({
         toast.error(json.message ?? "Could not remove contact.");
         return;
       }
+      setList((rows) => rows.filter((row) => row.id !== contact.id));
       toast.success(`${contact.name || contact.email || "Contact"} removed.`);
       router.refresh();
     } catch {
@@ -200,7 +211,7 @@ export function AdminCustomerContacts({
       }
     >
       {confirmDialog}
-      {contacts.length === 0 ? (
+      {list.length === 0 ? (
         <button
           type="button"
           onClick={openNew}
@@ -216,7 +227,7 @@ export function AdminCustomerContacts({
         </button>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {contacts.map((contact) => {
+          {list.map((contact) => {
             const Icon = ROLE_ICONS[contact.role] ?? Users;
             return (
               <div key={contact.id} className="flex flex-col gap-3 rounded-2xl border border-border/40 bg-card/40 p-4">

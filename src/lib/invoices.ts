@@ -1211,9 +1211,11 @@ function defaultTextIn(
 export async function saveInvoice(
   invoiceId: string,
   input: InvoiceSaveInput,
-  ownerUserId: string
+  ownerUserId: string,
+  /** Skips re-reading the invoice when the caller already loaded it. */
+  loaded?: InvoiceWithRelations | null
 ): Promise<InvoiceWithRelations | { error: string }> {
-  const current = await fetchInvoiceById(invoiceId);
+  const current = loaded ?? (await fetchInvoiceById(invoiceId));
   if (!current) return { error: "Invoice not found." };
   if (isInvoiceLocked(current.status)) {
     const locked = lockedInvoiceInput(current, input);
@@ -1335,6 +1337,7 @@ export async function saveInvoice(
     }
   }
 
+  let linesRewritten = false;
   // Incoming lines are already in the new language (the editor swaps them).
   if (Array.isArray(input.line_items)) {
     const incoming = input.line_items.slice(0, 200);
@@ -1372,6 +1375,7 @@ export async function saveInvoice(
           return typeof value === "number" ? Number(before) === value : before === (value ?? null);
         });
       });
+    linesRewritten = !linesUnchanged;
     // New rows go in before the old ones are removed, so a failed insert
     // leaves the saved lines intact.
     let insertedIds: string[] = [];
@@ -1407,8 +1411,18 @@ export async function saveInvoice(
     }
   }
 
-  await recalculateInvoice(invoiceId, ownerUserId);
-  const after = await fetchInvoiceById(invoiceId);
+  const saved = current as unknown as Record<string, unknown>;
+  const totalsTouched =
+    linesRewritten ||
+    ["tax_mode", "gst_rate", "qst_rate", "deposit_mode", "deposit_percent", "deposit_cents"].some(
+      (key) =>
+        key in update &&
+        (typeof update[key] === "number"
+          ? Number(saved[key]) !== update[key]
+          : saved[key] !== update[key])
+    );
+  if (totalsTouched) await recalculateInvoice(invoiceId, ownerUserId);
+  const after = await fetchInvoiceById(invoiceId, { includeEvents: true });
   if (after) {
     const changes = diffInvoiceFields(
       current as unknown as Record<string, unknown>,
@@ -1439,23 +1453,30 @@ export async function saveInvoice(
         [...labels, ...lineParts].join(", "),
         totalChange ? `total ${totalChange.from ?? "$0"} → ${totalChange.to ?? "$0"}` : null,
       ].filter(Boolean);
-      await logInvoiceEvent({
-        invoiceId,
-        actorUserId: ownerUserId,
-        eventType: "invoice_edited",
-        summary: `Edited: ${summaryParts.join(" · ")}`,
-        metadata: {
-          changes,
-          lines_added: lineDiff.added,
-          lines_removed: lineDiff.removed,
-          lines_reordered: lineDiff.reordered,
-        },
-      });
+      const { data: event, error: eventError } = await admin
+        .from("invoice_events")
+        .insert({
+          invoice_id: invoiceId,
+          actor_type: "owner",
+          actor_user_id: ownerUserId,
+          event_type: "invoice_edited",
+          summary: `Edited: ${summaryParts.join(" · ")}`,
+          metadata: {
+            changes,
+            lines_added: lineDiff.added,
+            lines_removed: lineDiff.removed,
+            lines_reordered: lineDiff.reordered,
+          },
+        })
+        .select("*")
+        .single();
+      if (eventError) console.error("[invoices] log invoice edit", eventError);
+      if (event) after.events = [event as InvoiceEventRow, ...(after.events ?? [])];
     }
+    return after;
   }
 
-  const saved = await fetchInvoiceById(invoiceId, { includeEvents: true });
-  return saved ?? { error: "Invoice not found." };
+  return { error: "Invoice not found." };
 }
 
 export async function addInvoicePayment(

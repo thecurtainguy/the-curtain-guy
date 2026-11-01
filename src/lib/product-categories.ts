@@ -48,7 +48,7 @@ export async function listProductCategoriesWithCounts(): Promise<
   }));
 }
 
-async function fetchCategoryById(id: string): Promise<ProductCategoryRow | null> {
+export async function fetchCategoryById(id: string): Promise<ProductCategoryRow | null> {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from(TABLE)
@@ -184,9 +184,10 @@ export async function updateProductCategory(
     label_fr?: unknown;
     description?: unknown;
     is_active?: unknown;
-  }
+  },
+  loaded?: ProductCategoryRow | null
 ): Promise<{ category: ProductCategoryRow } | { error: string }> {
-  const existing = await fetchCategoryById(id);
+  const existing = loaded ?? (await fetchCategoryById(id));
   if (!existing) return { error: "Category not found." };
 
   const patch: Partial<ProductCategoryRow> = {};

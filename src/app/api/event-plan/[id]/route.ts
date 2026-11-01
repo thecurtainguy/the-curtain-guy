@@ -50,12 +50,15 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id } = await context.params;
-  const plan = await fetchEventPlanById(id);
+  const [plan, user, profile] = await Promise.all([
+    fetchEventPlanById(id),
+    getCurrentUser(),
+    getCurrentProfile(),
+  ]);
   if (!plan) {
     return NextResponse.json({ ok: false, message: "Not found." }, { status: 404 });
   }
 
-  const [user, profile] = await Promise.all([getCurrentUser(), getCurrentProfile()]);
   if (!canManageEventPlan({ plan, user, profile: profile?.profile ?? null })) {
     return NextResponse.json({ ok: false, message: "Forbidden." }, { status: 403 });
   }

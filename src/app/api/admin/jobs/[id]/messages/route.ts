@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
-import { addJobMessage, getAdminJob } from "@/lib/jobs";
+import { listJobEvents } from "@/lib/job-events";
+import { addJobMessage } from "@/lib/jobs";
 
 export const runtime = "nodejs";
 
@@ -50,8 +51,8 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const job = await getAdminJob(id);
-    return NextResponse.json({ ok: true, message: row, job });
+    const events = row.is_internal ? null : await listJobEvents(id);
+    return NextResponse.json({ ok: true, message: row, events });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Could not save message.";
     return NextResponse.json({ ok: false, message: msg }, { status: 400 });

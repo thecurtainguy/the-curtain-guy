@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwner } from "@/lib/auth";
 import { completeChecklistItem } from "@/lib/job-checklist";
-import { getAdminJob } from "@/lib/jobs";
+import { listJobEvents } from "@/lib/job-events";
 
 export const runtime = "nodejs";
 
@@ -17,14 +17,14 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   const { id, itemId } = await context.params;
-  const item = await completeChecklistItem(itemId, owner.user.id);
-  if (!item || item.job_id !== id) {
+  const item = await completeChecklistItem(id, itemId, owner.user.id);
+  if (!item) {
     return NextResponse.json(
       { ok: false, message: "Checklist item not found." },
       { status: 404 }
     );
   }
 
-  const job = await getAdminJob(id);
-  return NextResponse.json({ ok: true, item, job });
+  const events = await listJobEvents(id);
+  return NextResponse.json({ ok: true, item, events });
 }

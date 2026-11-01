@@ -7,12 +7,12 @@ export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
-  const owner = await requireOwner();
+  const { id } = await context.params;
+  const [owner, customer] = await Promise.all([requireOwner(), fetchCustomerById(id)]);
   if (!owner) {
     return NextResponse.json({ ok: false, message: "Owner access required." }, { status: 403 });
   }
-  const { id } = await context.params;
-  if (!(await fetchCustomerById(id))) {
+  if (!customer) {
     return NextResponse.json({ ok: false, message: "Customer not found." }, { status: 404 });
   }
   const body = (await request.json().catch(() => null)) as ContactInput | null;

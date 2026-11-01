@@ -29,14 +29,14 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  const owner = await requireOwner();
-  if (!owner) return forbidden();
   const { id } = await context.params;
+  const [owner, current] = await Promise.all([requireOwner(), fetchInvoiceById(id)]);
+  if (!owner) return forbidden();
   const body = (await request.json().catch(() => null)) as InvoiceSaveInput | null;
   if (!body || typeof body !== "object") {
     return NextResponse.json({ ok: false, message: "Invalid request." }, { status: 400 });
   }
-  const result = await saveInvoice(id, body, owner.user.id);
+  const result = await saveInvoice(id, body, owner.user.id, current);
   if ("error" in result) {
     return NextResponse.json({ ok: false, message: result.error }, { status: 400 });
   }

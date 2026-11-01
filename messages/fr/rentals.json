@@ -204,5 +204,122 @@
     "toasts": {
       "sent": "Demande envoyée — nous vous contacterons sous peu."
     }
+  },
+  "planner": {
+    "metaTitle": "Planificateur de rideaux sur structure",
+    "metaDescription": "Dessinez vos murs, visualisez votre installation à l’échelle et ajoutez rideaux et quincaillerie au panier en quelques minutes.",
+    "back": "Toutes les locations",
+    "eyebrow": "Planificateur de rideaux",
+    "title": "Planifiez votre installation",
+    "description": "Dessinez vos murs, voyez-les à l’échelle et ajoutez tout au panier. On compte la structure pour vous.",
+    "trust": {
+      "scale": "Dessins à l’échelle",
+      "hardware": "Quincaillerie calculée pour vous",
+      "service": "Livraison et installation disponibles"
+    },
+    "photoCaption": "Toiles de fond, scènes et salles complètes",
+    "photoTitle": "D’une toile de fond de 10′ à une salle de bal complète",
+    "loading": "Chargement du planificateur…",
+    "chips": {
+      "feet": "{feet} pi",
+      "walls": "{count, plural, one {# mur} other {# murs}}",
+      "height": "{height} de haut",
+      "corners": "{count, plural, one {# coin} other {# coins}}"
+    },
+    "presetsEyebrow": "Étape 1",
+    "presetsTitle": "Partir d’un modèle",
+    "presets": {
+      "backdrop": {
+        "label": "Toile de fond",
+        "detail": "Un mur de 20′"
+      },
+      "booth": {
+        "label": "Kiosque 10×10",
+        "detail": "3 côtés, 2 coins"
+      },
+      "stage": {
+        "label": "Scène en U",
+        "detail": "12′ + 24′ + 12′"
+      },
+      "room": {
+        "label": "Salle complète",
+        "detail": "Périmètre 30′ × 20′"
+      }
+    },
+    "runNames": {
+      "backdrop": "Toile de fond",
+      "left": "Côté gauche",
+      "back": "Mur du fond",
+      "right": "Côté droit",
+      "stageLeft": "Côté jardin",
+      "upstage": "Fond de scène",
+      "stageRight": "Côté cour",
+      "front": "Avant"
+    },
+    "wallsEyebrow": "Étape 2",
+    "wallsTitle": "Vos murs",
+    "addWall": "Ajouter un mur",
+    "wallDefault": "Mur {n}",
+    "wallName": "Nom du mur {n}",
+    "wallLength": "Longueur du mur {n} en pieds",
+    "removeWall": "Retirer {name}",
+    "shorter": "Plus court",
+    "longer": "Plus long",
+    "feetUnit": "pi",
+    "sections": "{count, plural, one {# section} other {# sections}} de {width}",
+    "cornerWith": "Coin avec le mur {n}, partage un poteau",
+    "closesRoom": "Ferme la salle avec le mur {n}",
+    "heightEyebrow": "Étape 3",
+    "heightTitle": "Quelle hauteur?",
+    "heightUnit": "pi de haut",
+    "lower": "Plus bas",
+    "higher": "Plus haut",
+    "heightHint": "Les toiles de fond font souvent 8′ à 10′. Salles de bal et scènes : souvent 12′ à 16′.",
+    "drapeEyebrow": "Étape 4",
+    "drapeTitle": "Choisissez votre rideau",
+    "perFoot": "{price} / pi linéaire",
+    "colorTitle": "Couleur",
+    "noDrapes": "Nos rideaux arrivent bientôt en ligne. Écrivez-nous et nous chiffrerons votre installation.",
+    "tiles": {
+      "uprights": "Poteaux",
+      "bases": "Bases",
+      "crossbars": "Traverses",
+      "drape": "Rideau"
+    },
+    "specs": {
+      "upright": "{range} ajustable",
+      "base": "{size} en acier",
+      "crossbar": "{range} télescopique",
+      "crossbarMixed": "{count} tailles",
+      "drape": "pi linéaires"
+    },
+    "drawing": {
+      "front": "Vue de face",
+      "plan": "Plan au sol",
+      "toScale": "À l’échelle",
+      "tapPlan": "Touchez un mur pour le voir de face",
+      "frame": "Poteau et traverse",
+      "cornerPost": "Poteau de coin partagé",
+      "drape": "Rideau {color}",
+      "empty": "Entrez une longueur de mur pour voir le dessin.",
+      "corner": "Coin",
+      "high": "{height} de haut",
+      "person": "Personne à l’échelle (5′9″)",
+      "summary": "{label} : {length} de long, {bays} sections, {height} de haut",
+      "showWall": "Voir {label} de face"
+    },
+    "rentalEyebrow": "Votre location",
+    "rentalTitle": "Ce qui va dans votre panier",
+    "drapeLine": "{feet} pi linéaires",
+    "includedTitle": "Inclus avec votre rideau",
+    "included": "Inclus",
+    "subtotal": "Estimation avant taxes",
+    "subtotalHint": "Livraison, installation et démontage se choisissent dans le panier.",
+    "addToCart": "Ajouter au panier",
+    "added": "Votre installation est dans le panier",
+    "tallNote": "Plus de 16′? Nous confirmerons l’accrochage avec vous avant la soumission.",
+    "minNote": "Chaque mur a au moins une section : 2 poteaux, 2 bases et 1 traverse.",
+    "disclaimer": "Estimation de planification. Notre équipe confirme les mesures et la disponibilité avant votre soumission finale.",
+    "cartLayout": "Installation : {walls} · {height} de haut"
   }
 }

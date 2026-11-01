@@ -8,7 +8,8 @@
     "contact": "Contact",
     "studio": "Studio",
     "faq": "FAQ",
-    "reviews": "Avis"
+    "reviews": "Avis",
+    "planner": "Planificateur"
   },
   "explore": "Explorer",
   "mega": {
@@ -18,7 +19,8 @@
       "gallery": "De vraies installations : mariages, galas et scènes.",
       "reviews": "Ce que disent les couples et planificateurs.",
       "about": "L’équipe derrière chaque drapé installé.",
-      "faq": "Livraison, installation, horaires et prix."
+      "faq": "Livraison, installation, horaires et prix.",
+      "planner": "Dessinez votre installation et ajoutez-la au panier."
     },
     "card": {
       "eyebrow": "Estimation gratuite",

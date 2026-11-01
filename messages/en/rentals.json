@@ -204,5 +204,122 @@
     "toasts": {
       "sent": "Request sent — we’ll be in touch shortly."
     }
+  },
+  "planner": {
+    "metaTitle": "Pipe & drape planner",
+    "metaDescription": "Sketch your walls, see your pipe and drape to scale, and add drapes and hardware to your cart in minutes.",
+    "back": "All rentals",
+    "eyebrow": "Pipe & drape planner",
+    "title": "Plan your drape layout",
+    "description": "Sketch your walls, see them to scale, and add everything to your cart. We count the frame for you.",
+    "trust": {
+      "scale": "To-scale drawings",
+      "hardware": "Hardware counted for you",
+      "service": "Delivery & install available"
+    },
+    "photoCaption": "Backdrops, stages and full rooms",
+    "photoTitle": "From a 10′ backdrop to a full ballroom",
+    "loading": "Loading the planner…",
+    "chips": {
+      "feet": "{feet} ft",
+      "walls": "{count, plural, one {# wall} other {# walls}}",
+      "height": "{height} high",
+      "corners": "{count, plural, one {# corner} other {# corners}}"
+    },
+    "presetsEyebrow": "Step 1",
+    "presetsTitle": "Start from a layout",
+    "presets": {
+      "backdrop": {
+        "label": "Backdrop",
+        "detail": "One 20′ wall"
+      },
+      "booth": {
+        "label": "10×10 booth",
+        "detail": "3 sides, 2 corners"
+      },
+      "stage": {
+        "label": "U-shape stage",
+        "detail": "12′ + 24′ + 12′"
+      },
+      "room": {
+        "label": "Full room",
+        "detail": "30′ × 20′ perimeter"
+      }
+    },
+    "runNames": {
+      "backdrop": "Backdrop",
+      "left": "Left side",
+      "back": "Back wall",
+      "right": "Right side",
+      "stageLeft": "Stage left",
+      "upstage": "Upstage",
+      "stageRight": "Stage right",
+      "front": "Front"
+    },
+    "wallsEyebrow": "Step 2",
+    "wallsTitle": "Your walls",
+    "addWall": "Add wall",
+    "wallDefault": "Wall {n}",
+    "wallName": "Wall {n} name",
+    "wallLength": "Wall {n} length in feet",
+    "removeWall": "Remove {name}",
+    "shorter": "Shorter",
+    "longer": "Longer",
+    "feetUnit": "ft",
+    "sections": "{count, plural, one {# section} other {# sections}} of {width}",
+    "cornerWith": "Corner with wall {n}, shares a post",
+    "closesRoom": "Closes the room with wall {n}",
+    "heightEyebrow": "Step 3",
+    "heightTitle": "How tall?",
+    "heightUnit": "ft high",
+    "lower": "Lower",
+    "higher": "Higher",
+    "heightHint": "Backdrops are usually 8′–10′. Ballrooms and stages often go 12′–16′.",
+    "drapeEyebrow": "Step 4",
+    "drapeTitle": "Choose your drape",
+    "perFoot": "{price} / linear ft",
+    "colorTitle": "Colour",
+    "noDrapes": "Drapes are being added to the shop. Contact us and we'll quote your layout.",
+    "tiles": {
+      "uprights": "Uprights",
+      "bases": "Base plates",
+      "crossbars": "Crossbars",
+      "drape": "Drape"
+    },
+    "specs": {
+      "upright": "{range} adjustable",
+      "base": "{size} steel",
+      "crossbar": "{range} telescopic",
+      "crossbarMixed": "{count} sizes",
+      "drape": "linear ft"
+    },
+    "drawing": {
+      "front": "Front view",
+      "plan": "Floor plan",
+      "toScale": "To scale",
+      "tapPlan": "Tap a wall to see it from the front",
+      "frame": "Pipe & crossbar",
+      "cornerPost": "Shared corner post",
+      "drape": "{color} drape",
+      "empty": "Enter a wall length to see the drawing.",
+      "corner": "Corner",
+      "high": "{height} high",
+      "person": "Person for scale (5′9″)",
+      "summary": "{label}: {length} long, {bays} sections, {height} high",
+      "showWall": "Show {label} from the front"
+    },
+    "rentalEyebrow": "Your rental",
+    "rentalTitle": "What goes in your cart",
+    "drapeLine": "{feet} linear ft",
+    "includedTitle": "Included with your drape",
+    "included": "Included",
+    "subtotal": "Estimate before tax",
+    "subtotalHint": "Delivery, installation and teardown are chosen in the cart.",
+    "addToCart": "Add to cart",
+    "added": "Your layout is in the cart",
+    "tallNote": "Taller than 16′? We'll confirm the rigging with you before your quote.",
+    "minNote": "Every wall needs at least one section: 2 uprights, 2 base plates and 1 crossbar.",
+    "disclaimer": "Planning estimate. Our team confirms measurements and availability before your final quote.",
+    "cartLayout": "Layout: {walls} · {height} high"
   }
 }

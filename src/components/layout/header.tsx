@@ -15,6 +15,7 @@ import {
   Mail,
   Menu,
   Package,
+  Ruler,
   Sparkles,
   Star,
   Users,
@@ -51,6 +52,7 @@ type NavItem = {
     | "studio"
     | "gallery"
     | "reviews"
+    | "planner"
     | "about"
     | "faq"
     | "contact";
@@ -68,6 +70,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { key: "studio", href: "/studio", icon: Box, slot: "lead", special: true },
   { key: "gallery", href: "/gallery", icon: Images, slot: "inspire" },
   { key: "reviews", href: "/reviews", icon: Star, slot: "inspire" },
+  { key: "planner", href: "/rentals/drape-calculator", icon: Ruler, slot: "company" },
   { key: "about", href: "/about", icon: Users, slot: "company" },
   { key: "faq", href: "/faq", icon: CircleHelp, slot: "company" },
   { key: "contact", href: "/contact", icon: Mail, slot: "tail" },

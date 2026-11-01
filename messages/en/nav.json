@@ -8,7 +8,8 @@
     "contact": "Contact",
     "studio": "Studio",
     "faq": "FAQ",
-    "reviews": "Reviews"
+    "reviews": "Reviews",
+    "planner": "Drape planner"
   },
   "explore": "Explore",
   "mega": {
@@ -18,7 +19,8 @@
       "gallery": "Real installs from weddings, galas and stages.",
       "reviews": "What couples and planners say about us.",
       "about": "The team behind every drape we hang.",
-      "faq": "Delivery, install, timing and pricing answers."
+      "faq": "Delivery, install, timing and pricing answers.",
+      "planner": "Sketch your layout to scale and add it to your cart."
     },
     "card": {
       "eyebrow": "Free estimate",

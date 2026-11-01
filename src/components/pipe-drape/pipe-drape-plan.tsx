@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { formatFeetInches, type PipeDrapeRunResult } from "@/lib/pipe-drape";
-import { svgSafeId, useElementWidth } from "@/components/admin/pipe-drape/use-element-width";
+import { svgSafeId, useElementWidth } from "@/components/pipe-drape/use-element-width";
 
 const MAX_HEIGHT_PX = 380;
 const PAD = 56;
@@ -71,10 +71,20 @@ type PipeDrapePlanProps = {
   colorHex: string;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** Feet unit for the scale bar ("ft", "pi"). */
+  feetUnit?: string;
+  showRunLabel?: (label: string) => string;
 };
 
 /** Top-down layout, to scale. Connected runs turn 90° at their shared corner. */
-export function PipeDrapePlan({ runs, colorHex, selectedId, onSelect }: PipeDrapePlanProps) {
+export function PipeDrapePlan({
+  runs,
+  colorHex,
+  selectedId,
+  onSelect,
+  feetUnit = "ft",
+  showRunLabel = (label) => `Show ${label} elevation`,
+}: PipeDrapePlanProps) {
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const uid = svgSafeId(useId());
   const placed = layoutRuns(runs);
@@ -130,7 +140,7 @@ export function PipeDrapePlan({ runs, colorHex, selectedId, onSelect }: PipeDrap
                 key={run.id}
                 role="button"
                 tabIndex={0}
-                aria-label={`Show ${run.label} elevation`}
+                aria-label={showRunLabel(run.label)}
                 className="cursor-pointer outline-none"
                 onClick={() => onSelect(run.id)}
                 onKeyDown={(event) => {
@@ -209,7 +219,7 @@ export function PipeDrapePlan({ runs, colorHex, selectedId, onSelect }: PipeDrap
             <line x1={0} x2={0} y1={-4} y2={4} className="stroke-foreground/70" strokeWidth={2} />
             <line x1={scaleBarFt * scale} x2={scaleBarFt * scale} y1={-4} y2={4} className="stroke-foreground/70" strokeWidth={2} />
             <text x={scaleBarFt * scale + 8} y={4} className="fill-muted-foreground text-[10px]">
-              {scaleBarFt} ft
+              {scaleBarFt} {feetUnit}
             </text>
           </g>
         </svg>

@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { formatFeetInches, type PipeDrapeRunResult } from "@/lib/pipe-drape";
-import { svgSafeId, useElementWidth } from "@/components/admin/pipe-drape/use-element-width";
+import { svgSafeId, useElementWidth } from "@/components/pipe-drape/use-element-width";
 
 const MAX_HEIGHT_PX = 380;
 const MIN_PX_PER_FT = 7;
@@ -19,6 +19,21 @@ type PipeDrapeElevationProps = {
   panelWidthIn: number;
   puddleIn: number;
   baseWidthIn: number;
+  labels?: Partial<PipeDrapeElevationLabels>;
+};
+
+export type PipeDrapeElevationLabels = {
+  corner: string;
+  high: (height: string) => string;
+  person: string;
+  summary: (run: { label: string; length: string; bays: number; height: string }) => string;
+};
+
+const DEFAULT_LABELS: PipeDrapeElevationLabels = {
+  corner: "Corner",
+  high: (height) => `${height} high`,
+  person: "Person for scale (5′9″)",
+  summary: ({ label, length, bays, height }) => `${label}: ${length} long, ${bays} bays, ${height} high`,
 };
 
 /** Front elevation of one straight run, drawn to scale. */
@@ -30,7 +45,9 @@ export function PipeDrapeElevation({
   panelWidthIn,
   puddleIn,
   baseWidthIn,
+  labels,
 }: PipeDrapeElevationProps) {
+  const text = { ...DEFAULT_LABELS, ...labels };
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const uid = svgSafeId(useId());
   const H = Math.max(1, heightFt);
@@ -88,7 +105,7 @@ export function PipeDrapeElevation({
           height={svgHeight}
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           role="img"
-          aria-label={`${run.label}: ${formatFeetInches(len)} long, ${run.bays} bays, ${formatFeetInches(H)} high`}
+          aria-label={text.summary({ label: run.label, length: formatFeetInches(len), bays: run.bays, height: formatFeetInches(H) })}
           className="block"
         >
           <defs>
@@ -195,7 +212,7 @@ export function PipeDrapeElevation({
                       textAnchor={i === 0 ? "start" : "end"}
                       className="fill-primary text-[10px] font-semibold tracking-[0.14em] uppercase"
                     >
-                      Corner
+                      {text.corner}
                     </text>
                   </g>
                 ) : null}
@@ -212,7 +229,7 @@ export function PipeDrapeElevation({
                   l${-0.06 * px},${-2.55 * px} h${-0.32 * px} Z`}
               fill="currentColor"
             />
-            <title>Person for scale (5′9″)</title>
+            <title>{text.person}</title>
           </g>
 
           <g className="stroke-muted-foreground/70" strokeWidth={1}>
@@ -227,7 +244,7 @@ export function PipeDrapeElevation({
             transform={`rotate(-90 ${LEFT - 30} ${(crossbarY + floorY) / 2})`}
             className="fill-foreground text-[11px] font-semibold tabular-nums"
           >
-            {formatFeetInches(H)} high
+            {text.high(formatFeetInches(H))}
           </text>
 
           {showBayLabels

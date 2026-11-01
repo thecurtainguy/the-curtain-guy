@@ -344,6 +344,19 @@ const HARDWARE_TYPE: Record<Exclude<PipeDrapeHardwareKey, "panel">, RegExp> = {
   crossbar: /cross\s*bar|drape support/i,
 };
 
+export function hardwareKeyForProductName(name: string): Exclude<PipeDrapeHardwareKey, "panel"> | null {
+  return (["upright", "base", "crossbar"] as const).find((key) => HARDWARE_TYPE[key].test(name)) ?? null;
+}
+
+/** Total uprights, bases and crossbars (all sizes) for a layout. */
+export function pipeDrapeHardwareTotals(result: PipeDrapeResult) {
+  const totals = { upright: 0, base: 0, crossbar: 0 };
+  for (const item of result.items) {
+    if (item.key !== "panel") totals[item.key] += item.quantity + item.spare;
+  }
+  return totals;
+}
+
 const RANGE_IN_NAME = /\d+\s*[′'’]?\s*(?:-|–|to|à)\s*\d+/;
 
 function sizePattern(key: PipeDrapeHardwareKey, sizeId: string): RegExp {

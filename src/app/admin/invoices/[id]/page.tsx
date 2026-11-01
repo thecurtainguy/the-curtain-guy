@@ -48,7 +48,7 @@ export default async function AdminInvoicePage({ params }: PageProps) {
         customerLink={customerLink}
         engagementPanel={
           invoice.status === "draft" && engagement.activity.length === 0 ? null : (
-            <DocumentEngagementCard engagement={engagement} documentLabel="invoice" />
+            <DocumentEngagementCard key="engagement" engagement={engagement} documentLabel="invoice" />
           )
         }
       />

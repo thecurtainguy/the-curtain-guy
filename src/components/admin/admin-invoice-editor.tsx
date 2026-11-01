@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/sonner";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   Ban,
@@ -82,6 +83,7 @@ import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
 import { InvoiceSavedView } from "@/components/admin/invoice-saved-view";
 import { InvoiceLineEditor } from "@/components/admin/invoice-line-editor";
+import { isLogisticsCategory } from "@/components/admin/line-thumb";
 import { AddLineBar } from "@/components/admin/add-line-bar";
 import { QuoteLineReorderGroup, QuoteLineReorderItem } from "@/components/admin/quote-line-reorder";
 import {
@@ -376,6 +378,49 @@ function Lockable({ locked, children, className }: { locked: boolean; children: 
     <fieldset disabled={locked} className={cn("m-0 min-w-0 border-0 p-0", locked && "opacity-75", className)}>
       {children}
     </fieldset>
+  );
+}
+
+function ChoiceToggleGroup<T extends string>({
+  label,
+  icon: Icon,
+  value,
+  options,
+  onSelect,
+}: {
+  label: string;
+  icon?: LucideIcon;
+  value: T;
+  options: Array<{ id: T; label: string }>;
+  onSelect: (id: T) => void;
+}) {
+  return (
+    <div className="min-w-0 space-y-1.5" role="radiogroup" aria-label={label}>
+      <Label className="flex items-center gap-1.5">
+        {Icon ? <Icon className="size-3.5 text-primary" /> : null}
+        {label}
+      </Label>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="radio"
+            aria-checked={value === option.id}
+            onClick={() => onSelect(option.id)}
+            className={cn(
+              "flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2 text-sm transition-colors",
+              value === option.id
+                ? "border-primary/50 bg-primary/10 text-foreground"
+                : "border-border/40 bg-card/40 text-muted-foreground hover:border-primary/30"
+            )}
+          >
+            {value === option.id ? <Check className="size-3.5 shrink-0 text-primary" /> : null}
+            <span className="truncate">{option.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1180,50 +1225,48 @@ export function AdminInvoiceEditor({
                   <Label htmlFor="inv-address">Billing address</Label>
                   <Textarea id="inv-address" rows={3} value={form.billing_address} onChange={(e) => set("billing_address", e.target.value)} placeholder={"123 Rue Example\nMontréal, QC H2X 1Y4"} />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="inv-po">
-                      PO number
-                      {customerLink?.po_required ? <span className="ml-1 text-primary">· required</span> : null}
-                    </Label>
-                    <Input
-                      id="inv-po"
-                      value={form.po_number}
-                      onChange={(e) => set("po_number", e.target.value)}
-                      placeholder={customerLink?.default_po_number ?? "Optional"}
-                      className={cn(customerLink?.po_required && !form.po_number.trim() && "border-primary/60")}
+                <div className="space-y-1.5">
+                  <Label htmlFor="inv-po">
+                    PO number
+                    {customerLink?.po_required ? <span className="ml-1 text-primary">· required</span> : null}
+                  </Label>
+                  <Input
+                    id="inv-po"
+                    value={form.po_number}
+                    onChange={(e) => set("po_number", e.target.value)}
+                    placeholder={customerLink?.default_po_number ?? "Optional"}
+                    className={cn(customerLink?.po_required && !form.po_number.trim() && "border-primary/60")}
+                  />
+                </div>
+                <Lockable locked={locked} className="space-y-1.5">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <ChoiceToggleGroup
+                      label="Currency"
+                      value={form.currency}
+                      options={[
+                        { id: "CAD", label: "CAD" },
+                        { id: "USD", label: "USD" },
+                      ]}
+                      onSelect={(currency) => set("currency", currency)}
+                    />
+                    <ChoiceToggleGroup
+                      label="Invoice language"
+                      icon={Languages}
+                      value={form.language}
+                      options={[
+                        { id: "en", label: "English" },
+                        { id: "fr", label: "Français" },
+                      ]}
+                      onSelect={(lang) => changeLanguage(lang)}
                     />
                   </div>
-                  <Lockable locked={locked} className="space-y-1.5">
-                    <Label>Currency</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(["CAD", "USD"] as const).map((currency) => (
-                        <button
-                          key={currency}
-                          type="button"
-                          role="radio"
-                          aria-checked={form.currency === currency}
-                          onClick={() => set("currency", currency)}
-                          className={cn(
-                            "flex h-9 items-center justify-center gap-1.5 rounded-xl border text-sm transition-colors",
-                            form.currency === currency
-                              ? "border-primary/50 bg-primary/10 text-foreground"
-                              : "border-border/40 bg-card/40 text-muted-foreground hover:border-primary/30"
-                          )}
-                        >
-                          {form.currency === currency ? <Check className="size-3.5 text-primary" /> : null}
-                          {currency}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Client sees:{" "}
-                      {visiblePaymentMethods(paymentMethods, "en", form.currency)
-                        .map((m) => m.label)
-                        .join(", ") || "no payment methods — check Billing settings"}
-                    </p>
-                  </Lockable>
-                </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Client sees:{" "}
+                    {visiblePaymentMethods(paymentMethods, "en", form.currency)
+                      .map((m) => m.label)
+                      .join(", ") || "no payment methods — check Billing settings"}
+                  </p>
+                </Lockable>
                 {customerLink ? (
                   <Link
                     href={`/admin/customers/${customerLink.id}`}
@@ -1313,23 +1356,6 @@ export function AdminInvoiceEditor({
                   }))
                 }
               />
-              <div className="mt-4 space-y-1.5">
-                <Label className="flex items-center gap-1.5">
-                  <Languages className="size-3.5 text-primary" />
-                  Invoice language
-                </Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["en", "fr"] as const).map((lang) => (
-                    <OptionCard
-                      key={lang}
-                      option={{ id: lang, label: lang === "en" ? "English" : "Français" }}
-                      selected={form.language === lang}
-                      onSelect={() => changeLanguage(lang)}
-                      className="p-3"
-                    />
-                  ))}
-                </div>
-              </div>
             </Panel>
             </Lockable>
           </div>
@@ -1589,6 +1615,9 @@ export function AdminInvoiceEditor({
                 totalCents: computeLineTotalCents(line.quantity, line.unit_price_cents),
                 isTaxable: line.is_taxable,
                 fromInventory: Boolean(line.product_id),
+                imageUrl: form.lines[index].image_url,
+                imageAlt: form.lines[index].image_alt,
+                logistics: isLogisticsCategory(line.category),
               }))}
               taxModeLabel={QUOTE_TAX_MODE_LABELS[form.tax_mode]}
               taxRows={taxRows}

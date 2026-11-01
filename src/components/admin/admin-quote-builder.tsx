@@ -76,6 +76,7 @@ import {
 } from "@/data/quote-payment-terms";
 import { QuotePaymentTermsFields } from "@/components/admin/quote-payment-terms-fields";
 import { QuoteLineEditor } from "@/components/admin/quote-line-editor";
+import { isLogisticsCategory } from "@/components/admin/line-thumb";
 import { AddLineBar, AddLineButtons, type AddLineActions } from "@/components/admin/add-line-bar";
 import { OptionCard } from "@/components/estimate/option-card";
 import {
@@ -1699,6 +1700,9 @@ export function AdminQuoteBuilder({
               included:
                 line.status === "included" ||
                 isZeroPricedQuoteLine({ status: line.status, unit_price_cents: unitPriceCents }),
+              imageUrl: line.imageUrl,
+              imageAlt: line.imageAlt,
+              logistics: isLogisticsCategory(line.category),
             };
           })}
           taxModeLabel={QUOTE_TAX_MODE_LABELS[taxMode]}

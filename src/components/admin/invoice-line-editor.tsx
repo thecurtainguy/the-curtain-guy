@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import { Check, Minus, Package, Trash2, Truck, Unlink } from "lucide-react";
+import { Check, Minus, Package, Trash2, Unlink } from "lucide-react";
+import { LineThumb, isLogisticsCategory } from "@/components/admin/line-thumb";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ghostField, stripControl, UnitPriceInput } from "@/components/admin/quote-line-editor";
@@ -45,32 +45,16 @@ export function InvoiceLineEditor({
   const translated = line.description_translated ?? "";
   const missingTranslation = Boolean(line.description.trim()) && !translated.trim();
   const otherLanguageLabel = language === "fr" ? "English" : "French";
-  const isLogistics = line.category === "delivery" || line.category === "installation";
   const unitSuffix = formatQuoteUnitSuffix(line.unit_label);
 
   return (
     <div className="flex gap-3">
-      <div className="relative size-12 shrink-0">
-        <div className="relative size-12 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
-          {line.image_url ? (
-            <Image
-              src={line.image_url}
-              alt={line.image_alt || line.description}
-              fill
-              className="object-cover"
-              sizes="48px"
-              unoptimized
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-muted-foreground">
-              {isLogistics ? <Truck className="size-4" /> : <Package className="size-4" />}
-            </div>
-          )}
-        </div>
-        <span className="absolute -top-1.5 -left-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground shadow-sm tabular-nums">
-          {index + 1}
-        </span>
-      </div>
+      <LineThumb
+        imageUrl={line.image_url}
+        imageAlt={line.image_alt || line.description}
+        index={index}
+        logistics={isLogisticsCategory(line.category)}
+      />
 
       <div className="min-w-0 flex-1 space-y-2.5">
         <div className="flex items-start gap-2">

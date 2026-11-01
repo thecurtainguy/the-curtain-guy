@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useState, type KeyboardEvent } from "react";
-import { Check, Minus, Package, Trash2 } from "lucide-react";
+import { Check, Minus, Trash2 } from "lucide-react";
 import type { DraftLine } from "@/components/admin/admin-quote-builder";
+import { LineThumb, isLogisticsCategory } from "@/components/admin/line-thumb";
 import { Button } from "@/components/ui/button";
 import { SelectInput, type SelectOption } from "@/components/ui/select-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,27 +76,12 @@ export function QuoteLineEditor({
 
   return (
     <div className="flex gap-3">
-      <div className="relative size-12 shrink-0">
-        <div className="relative size-12 overflow-hidden rounded-xl border border-border/40 bg-muted/30">
-          {line.imageUrl ? (
-            <Image
-              src={line.imageUrl}
-              alt={line.imageAlt || line.description}
-              fill
-              className="object-cover"
-              sizes="48px"
-              unoptimized
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-muted-foreground">
-              <Package className="size-4" />
-            </div>
-          )}
-        </div>
-        <span className="absolute -top-1.5 -left-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground shadow-sm tabular-nums">
-          {index + 1}
-        </span>
-      </div>
+      <LineThumb
+        imageUrl={line.imageUrl}
+        imageAlt={line.imageAlt || line.description}
+        index={index}
+        logistics={isLogisticsCategory(line.category)}
+      />
 
       <div className="min-w-0 flex-1 space-y-2.5">
         <div className="flex items-start gap-2">

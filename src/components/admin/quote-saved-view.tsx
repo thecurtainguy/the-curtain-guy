@@ -27,6 +27,7 @@ import {
 } from "@/data/quotes";
 import type { QuoteScheduleDraft } from "@/components/admin/quote-schedule-fields";
 import { DocumentTextPreviewButton } from "@/components/admin/document-text-preview";
+import { LineThumb } from "@/components/admin/line-thumb";
 import {
   SavedCard,
   SavedChip,
@@ -49,6 +50,9 @@ export type SavedQuoteLine = {
   isTaxable: boolean;
   /** Shown as "Included" instead of a price. */
   included: boolean;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  logistics: boolean;
 };
 
 type QuoteSavedViewProps = {
@@ -249,22 +253,30 @@ export function QuoteSavedView(props: QuoteSavedViewProps) {
               <span className="text-right">Total</span>
             </div>
             <ul className="divide-y divide-border/40">
-              {lines.map((line) => {
+              {lines.map((line, index) => {
                 const showStatus = line.status !== "priced" && line.status !== "approved" && line.status !== "included";
                 return (
                   <li
                     key={line.key}
                     className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_150px_120px] sm:items-start"
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium leading-snug text-foreground">
-                        {line.description || line.categoryLabel}
-                      </p>
-                      {line.descriptionTranslated ? (
-                        <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
-                          {line.descriptionTranslated}
+                    <div className="flex min-w-0 gap-3">
+                      <LineThumb
+                        imageUrl={line.imageUrl}
+                        imageAlt={line.imageAlt || line.description}
+                        index={index}
+                        logistics={line.logistics}
+                      />
+                      <div className="min-w-0 pt-0.5">
+                        <p className="text-sm font-medium leading-snug text-foreground">
+                          {line.description || line.categoryLabel}
                         </p>
-                      ) : null}
+                        {line.descriptionTranslated ? (
+                          <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                            {line.descriptionTranslated}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="text-sm tabular-nums text-muted-foreground sm:text-right">
                       <p>

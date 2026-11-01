@@ -38,6 +38,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { EventTypeInput } from "@/components/ui/event-type-input";
 import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 import { JobSavedView, type JobSavedFields } from "@/components/admin/job-saved-view";
+import { LineThumb, isLogisticsCategory } from "@/components/admin/line-thumb";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -838,15 +839,23 @@ export function AdminJobDetail({
             </Button>
           </div>
           <ul className="mt-4 divide-y divide-border/40 rounded-2xl border border-border/40">
-            {(job.quote_line_items || []).map((item) => (
-              <li key={item.id} className="flex flex-wrap justify-between gap-2 px-4 py-3 text-sm">
-                <div>
-                  <p className="font-medium">{item.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {quoteLineCategoryLabel(item)}
-                  </p>
+            {(job.quote_line_items || []).map((item, index) => (
+              <li key={item.id} className="flex items-start justify-between gap-3 px-4 py-3 text-sm">
+                <div className="flex min-w-0 gap-3">
+                  <LineThumb
+                    imageUrl={item.image_url}
+                    imageAlt={item.image_alt || item.description}
+                    index={index}
+                    logistics={isLogisticsCategory(item.category)}
+                  />
+                  <div className="min-w-0 pt-0.5">
+                    <p className="font-medium">{item.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {quoteLineCategoryLabel(item)}
+                    </p>
+                  </div>
                 </div>
-                <p className="tabular-nums text-foreground">
+                <p className="shrink-0 pt-0.5 tabular-nums text-foreground">
                   {formatMoneyFromCents(item.line_total_cents, "en", job.currency)}
                 </p>
               </li>

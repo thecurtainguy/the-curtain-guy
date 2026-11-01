@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import Image from "next/image";
 import {
   AlertTriangle,
@@ -299,8 +299,33 @@ function DialogCalculator(props: Omit<PipeDrapeCalculatorProps, "trigger" | "cla
   return <CalculatorBody variant="dialog" {...props} initialPlan={loaded.plan} persist={!loaded.failed} />;
 }
 
-/** Standalone page: one scratch layout per owner, synced across devices. */
-export function PipeDrapeCalculatorPage({ initialPlan, currency }: { initialPlan: PipeDrapePlan | null; currency: string }) {
+const SCRATCH_STORAGE_KEY = "tcg:pipe-drape:scratch";
+const NOT_LOADED = "\u0000";
+const noopSubscribe = () => () => {};
+
+function readScratch() {
+  try {
+    return window.localStorage.getItem(SCRATCH_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Standalone scratch pad: kept on this device only. */
+export function PipeDrapeCalculatorPage({ currency }: { currency: string }) {
+  const stored = useSyncExternalStore(noopSubscribe, readScratch, () => NOT_LOADED);
+  const initialPlan = useMemo(() => {
+    if (stored === NOT_LOADED || !stored) return null;
+    try {
+      return normalizePipeDrapePlan(JSON.parse(stored));
+    } catch {
+      return null;
+    }
+  }, [stored]);
+
+  if (stored === NOT_LOADED) {
+    return <div className="h-[70dvh] animate-pulse rounded-4xl border border-border/40 bg-card/40" aria-hidden />;
+  }
   return (
     <CalculatorBody
       variant="page"
@@ -309,7 +334,8 @@ export function PipeDrapeCalculatorPage({ initialPlan, currency }: { initialPlan
       currency={currency}
       linearSources={[]}
       initialPlan={initialPlan}
-      persist
+      persist={false}
+      localStorageKey={SCRATCH_STORAGE_KEY}
     />
   );
 }
@@ -322,6 +348,8 @@ type CalculatorBodyProps = CalculatorContext & {
   onAddLines?: (lines: PipeDrapeLinePick[]) => void;
   readOnlyHint?: string;
   onDone?: () => void;
+  /** Keep the layout in this browser instead of the database. */
+  localStorageKey?: string;
 };
 
 function CalculatorBody({
@@ -336,6 +364,7 @@ function CalculatorBody({
   onAddLines,
   readOnlyHint,
   onDone,
+  localStorageKey,
 }: CalculatorBodyProps) {
   const standalone = variant === "page";
   const [state, setState] = useState<PipeDrapePlan>(() => initialPlan ?? defaultPlan(linearSources, standalone));
@@ -372,6 +401,15 @@ function CalculatorBody({
       if (pending.current) void putPlan(planKey, pending.current, true);
     };
   }, [planKey]);
+
+  useEffect(() => {
+    if (!localStorageKey) return;
+    try {
+      window.localStorage.setItem(localStorageKey, stateJson);
+    } catch {
+      // Storage blocked; the calculator still works for this visit.
+    }
+  }, [localStorageKey, stateJson]);
 
   const syncState = useRef({ stateJson, savedJson });
   useEffect(() => {

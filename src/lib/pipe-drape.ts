@@ -290,7 +290,7 @@ export function calculatePipeDrape(
 
 export type PipeDrapePriceMode = "charge" | "included";
 
-/** What the calculator saves per quote, invoice, or the standalone scratch layout. */
+/** What the calculator saves per quote or invoice (and the standalone page keeps locally). */
 export type PipeDrapePlan = {
   runs: PipeDrapeRun[];
   settings: PipeDrapeSettings;
@@ -298,7 +298,7 @@ export type PipeDrapePlan = {
   drapeProductId?: string | null;
 };
 
-export const PIPE_DRAPE_PLAN_KEY = /^(quote|invoice):[0-9a-f-]{36}$|^scratch$/;
+export const PIPE_DRAPE_PLAN_KEY = /^(quote|invoice):[0-9a-f-]{36}$/;
 const MAX_RUNS = 60;
 
 function finite(value: unknown, fallback: number, min: number, max: number) {

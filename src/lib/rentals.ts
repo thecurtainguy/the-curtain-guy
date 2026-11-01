@@ -10,6 +10,7 @@ import {
   compareProductsBeforeServices,
   evaluateProductCompleteness,
   isProductConfiguratorMode,
+  formulaIncludeQuantity,
   segmentsForLinearFeet,
   type ProductAddonRow,
   type ProductAddonWithProduct,
@@ -695,7 +696,7 @@ export function buildLinearFtCartLines(input: {
     return a.sort_order - b.sort_order;
   });
   for (const include of orderedIncludes) {
-    const qty = segments * Number(include.qty_per_segment || 0);
+    const qty = formulaIncludeQuantity(segments, include);
     if (!(qty > 0)) continue;
     lines.push({
       key: `include:${parentKey}:${include.included_product_id}`,

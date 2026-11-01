@@ -1645,6 +1645,10 @@ export function AdminProductEditor({
                             );
                           }}
                         />
+                        <p className="text-xs text-muted-foreground">
+                          Uprights and base plates count one extra per run for the end post, so a single
+                          segment gets 2 uprights, 2 bases and 1 crossbar.
+                        </p>
                       </div>
 
                       <div className="grid gap-4 sm:grid-cols-2">

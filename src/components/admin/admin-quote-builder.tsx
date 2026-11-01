@@ -77,6 +77,8 @@ import {
 import { QuotePaymentTermsFields } from "@/components/admin/quote-payment-terms-fields";
 import { QuoteLineEditor } from "@/components/admin/quote-line-editor";
 import { isLogisticsCategory } from "@/components/admin/line-thumb";
+import { PipeDrapeCalculatorButton } from "@/components/admin/pipe-drape/pipe-drape-calculator";
+import { linearFootSources } from "@/lib/pipe-drape";
 import { AddLineBar, AddLineButtons, type AddLineActions } from "@/components/admin/add-line-bar";
 import { OptionCard } from "@/components/estimate/option-card";
 import {
@@ -1015,6 +1017,48 @@ export function AdminQuoteBuilder({
     onCustom: () => setLines((prev) => [...prev, emptyLine(categoryOptions[0])]),
   };
 
+  const hardwareCalculator = (editable: boolean) => (
+    <PipeDrapeCalculatorButton
+      planKey={`quote:${quote.id}`}
+      documentLabel="quote"
+      documentRef={resolveQuoteDisplayRef(quote)}
+      currency={currency}
+      linearSources={linearFootSources(
+        lines.map((line) => ({
+          key: line.key,
+          description: line.description,
+          quantity: line.quantity,
+          unit: line.unitLabel,
+        }))
+      )}
+      onAddLines={
+        editable
+          ? (picks) =>
+              setLines((prev) => [
+                ...prev,
+                ...picks.map(
+                  (pick): DraftLine => ({
+                    key: `new-${crypto.randomUUID()}`,
+                    category: pick.category,
+                    categoryLabel: labelForCategory(pick.category) || pick.categoryLabel,
+                    description: pick.description,
+                    descriptionTranslated: "",
+                    quantity: pick.quantity,
+                    unitLabel: pick.unitLabel,
+                    unitPriceDollars: unitPriceCentsToDollarInput(pick.unitPriceCents),
+                    status: pick.included ? "included" : pick.needsPricing ? "not_priced_yet" : "priced",
+                    isTaxable: pick.isTaxable,
+                    productId: pick.productId,
+                    imageUrl: pick.imageUrl,
+                    imageAlt: pick.imageAlt,
+                  })
+                ),
+              ])
+          : undefined
+      }
+    />
+  );
+
   return (
     <div className="space-y-6">
       <PortalPageHeader
@@ -1413,7 +1457,10 @@ export function AdminQuoteBuilder({
               event close-out.
             </p>
           </div>
-          {isEditing && lines.length > 0 ? <AddLineButtons {...addLineActions} /> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {hardwareCalculator(isEditing)}
+            {isEditing && lines.length > 0 ? <AddLineButtons {...addLineActions} /> : null}
+          </div>
         </div>
 
         <AdminInventoryPickerDialog
@@ -1663,6 +1710,7 @@ export function AdminQuoteBuilder({
       </>
       ) : (
         <QuoteSavedView
+          lineItemsAction={hardwareCalculator(false)}
           customerName={customerName}
           customerEmail={customerEmail}
           eventType={eventType}

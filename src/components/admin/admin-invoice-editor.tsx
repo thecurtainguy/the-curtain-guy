@@ -84,6 +84,11 @@ import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-
 import { InvoiceSavedView } from "@/components/admin/invoice-saved-view";
 import { InvoiceLineEditor } from "@/components/admin/invoice-line-editor";
 import { isLogisticsCategory } from "@/components/admin/line-thumb";
+import {
+  PipeDrapeCalculatorButton,
+  type PipeDrapeLinePick,
+} from "@/components/admin/pipe-drape/pipe-drape-calculator";
+import { linearFootSources } from "@/lib/pipe-drape";
 import { AddLineBar } from "@/components/admin/add-line-bar";
 import { QuoteLineReorderGroup, QuoteLineReorderItem } from "@/components/admin/quote-line-reorder";
 import {
@@ -159,6 +164,23 @@ function lineFromInventory(item: InventoryPickResult): LineDraft {
     category_label: item.categoryLabel,
     image_url: item.imageUrl,
     image_alt: item.imageAlt,
+  };
+}
+
+function lineFromHardware(pick: PipeDrapeLinePick): LineDraft {
+  return {
+    key: newLineKey(),
+    description: pick.included ? `${pick.description} (included)` : pick.description,
+    quantity: String(pick.quantity),
+    unit_label: pick.unitLabel,
+    unit_price: unitPriceCentsToDollarInput(pick.unitPriceCents),
+    is_taxable: pick.isTaxable,
+    ...UNLINKED,
+    product_id: pick.productId,
+    category: pick.category,
+    category_label: pick.categoryLabel,
+    image_url: pick.imageUrl,
+    image_alt: pick.imageAlt,
   };
 }
 
@@ -992,6 +1014,35 @@ export function AdminInvoiceEditor({
         ? "Custom amount"
         : "No deposit";
 
+  const hardwareCalculator = (editable: boolean) => (
+    <PipeDrapeCalculatorButton
+      planKey={`invoice:${invoice.id}`}
+      documentLabel="invoice"
+      documentRef={invoice.invoice_number}
+      currency={form.currency}
+      linearSources={linearFootSources(
+        payload.line_items.map((line, index) => ({
+          key: form.lines[index]?.key ?? String(index),
+          description: line.description,
+          quantity: line.quantity,
+          unit: line.unit_label,
+        }))
+      )}
+      onAddLines={
+        editable
+          ? (picks) => setForm((prev) => ({ ...prev, lines: [...prev.lines, ...picks.map(lineFromHardware)] }))
+          : undefined
+      }
+      readOnlyHint={
+        isVoid
+          ? "This invoice is void."
+          : locked && isEditing
+            ? "This invoice is locked. Revise it to add hardware lines."
+            : undefined
+      }
+    />
+  );
+
   return (
     <div className="space-y-6 pb-20">
       <PortalPageHeader
@@ -1360,13 +1411,14 @@ export function AdminInvoiceEditor({
             </Lockable>
           </div>
 
-          <Lockable locked={locked}>
           <Panel
             icon={ListOrdered}
             eyebrow="Scope"
             title="Line items"
             actions={
               <div className="flex flex-wrap gap-2">
+                {hardwareCalculator(!locked && !isVoid)}
+                <Lockable locked={locked} className="flex flex-wrap gap-2">
                 <Button type="button" size="sm" variant="outline" disabled={isVoid} onClick={() => setInventoryOpen(true)}>
                   <Package className="size-4" />
                   From inventory
@@ -1379,9 +1431,11 @@ export function AdminInvoiceEditor({
                   <Plus className="size-4" />
                   Custom line
                 </Button>
+                </Lockable>
               </div>
             }
           >
+            <Lockable locked={locked}>
             {form.lines.length === 0 ? (
               <div className="grid gap-3 sm:grid-cols-3">
                 {[
@@ -1492,8 +1546,8 @@ export function AdminInvoiceEditor({
                 ))}
               </div>
             </div>
+            </Lockable>
           </Panel>
-          </Lockable>
 
           <Panel
             icon={ClipboardCheck}
@@ -1569,6 +1623,7 @@ export function AdminInvoiceEditor({
           </>
           ) : (
             <InvoiceSavedView
+              lineItemsAction={hardwareCalculator(false)}
               invoiceNumber={invoice.invoice_number}
               revisionNumber={invoice.revision_number ?? 0}
               replacesInvoiceNumber={invoice.replaces_invoice_number ?? null}

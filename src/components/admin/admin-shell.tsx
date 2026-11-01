@@ -3,6 +3,7 @@
 import { Suspense, use } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Calculator,
   CalendarDays,
   ClipboardList,
   FileText,
@@ -45,6 +46,7 @@ const links: PortalNavItem[] = [
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
+  { href: "/admin/drape-calculator", label: "Drape calculator", icon: Calculator },
   { href: "/admin/products", label: "Inventory", icon: Package },
   { href: "/admin/logistics", label: "Logistics", icon: Truck },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },

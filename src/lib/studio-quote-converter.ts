@@ -35,6 +35,7 @@ import {
 } from "@/data/product-categories";
 import type { ProductRow } from "@/data/products";
 import {
+  formulaIncludeQuantity,
   segmentsForLinearFeet,
   type ProductFormulaIncludeRow,
   type ProductFormulaIncludeWithProduct,
@@ -527,7 +528,7 @@ export function convertStudioBomToQuoteLines(
       Number(resolved.product.formula_segment_feet)
     );
     for (const include of resolved.product.includes) {
-      const quantity = segments * (Number(include.qty_per_segment) || 0);
+      const quantity = formulaIncludeQuantity(segments, include);
       if (!(quantity > 0)) continue;
       const entry = includedTotals.get(include.included.id) ?? {
         include,

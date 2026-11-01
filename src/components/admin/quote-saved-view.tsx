@@ -80,6 +80,7 @@ type QuoteSavedViewProps = {
   ownerNotes: string;
   terms: string;
   termsTranslated: string;
+  lineItemsAction?: ReactNode;
 };
 
 export function QuoteSavedView(props: QuoteSavedViewProps) {
@@ -239,7 +240,12 @@ export function QuoteSavedView(props: QuoteSavedViewProps) {
           pricedCount !== lines.length ? ` · ${lines.length - pricedCount} included` : ""
         }`}
         title="Line items"
-        aside={<SavedChip tone="gold">{props.taxModeLabel}</SavedChip>}
+        aside={
+          <div className="flex flex-wrap items-center gap-2">
+            <SavedChip tone="gold">{props.taxModeLabel}</SavedChip>
+            {props.lineItemsAction}
+          </div>
+        }
       >
         {lines.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-center text-sm text-muted-foreground">

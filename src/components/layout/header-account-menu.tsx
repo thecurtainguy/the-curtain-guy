@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { LucideIcon } from "lucide-react";
 import {
+  Calculator,
   CalendarDays,
   ChevronDown,
   ClipboardList,
@@ -57,6 +58,7 @@ const ownerLinks: MenuLink[] = [
   { href: "/admin", label: "Admin dashboard", icon: Shield },
   { href: "/admin/estimates", label: "Estimates", icon: ClipboardList },
   { href: "/admin/quotes", label: "Quotes", icon: FileText },
+  { href: "/admin/drape-calculator", label: "Drape calculator", icon: Calculator },
   { href: "/admin/jobs", label: "Jobs", icon: CalendarDays },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/studio", label: "Studio leads", icon: PanelsTopLeft },

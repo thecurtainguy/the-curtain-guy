@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   BadgePercent,
@@ -88,6 +89,7 @@ type InvoiceSavedViewProps = {
   terms: string;
   termsTranslated: string;
   internalNotes: string;
+  lineItemsAction?: ReactNode;
 };
 
 function DateTile({
@@ -323,7 +325,12 @@ export function InvoiceSavedView(props: InvoiceSavedViewProps) {
           pricedCount !== lines.length ? ` · ${lines.length - pricedCount} included` : ""
         }`}
         title="Line items"
-        aside={<SavedChip tone="gold">{props.taxModeLabel}</SavedChip>}
+        aside={
+          <div className="flex flex-wrap items-center gap-2">
+            <SavedChip tone="gold">{props.taxModeLabel}</SavedChip>
+            {props.lineItemsAction}
+          </div>
+        }
       >
         {lines.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-center text-sm text-muted-foreground">

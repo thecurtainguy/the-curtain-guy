@@ -13,6 +13,7 @@ import {
 import {
   compareProductsBeforeServices,
   formatCadFromCents,
+  formulaIncludeQuantity,
   segmentsForLinearFeet,
   type PublicRentalProduct,
 } from "@/data/rentals";
@@ -296,7 +297,7 @@ export function RentalProductConfigurator({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {orderedIncludes.map((include) => {
-              const qty = segments * Number(include.qty_per_segment || 0);
+              const qty = formulaIncludeQuantity(segments, include);
               return (
                 <div
                   key={include.id}

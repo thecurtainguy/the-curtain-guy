@@ -342,6 +342,22 @@ export function segmentsForLinearFeet(
   return Math.ceil(linearFeet / segmentFeet);
 }
 
+const END_POST_PRODUCT = /upright|base\s*plate|\bbase\b|stanchion/i;
+
+/** Uprights and base plates stand at both ends of every segment, so a run needs one more of them than it has segments. */
+export function isEndPostInclude(include: { included: { name: string; kind: string } }) {
+  return include.included.kind === "product" && END_POST_PRODUCT.test(include.included.name);
+}
+
+export function formulaIncludeQuantity(
+  segments: number,
+  include: { qty_per_segment: number; included: { name: string; kind: string } }
+): number {
+  if (!(segments > 0)) return 0;
+  const perSegment = Number(include.qty_per_segment) || 0;
+  return (segments + (isEndPostInclude(include) ? 1 : 0)) * perSegment;
+}
+
 export function formatCadFromCents(cents: number): string {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",

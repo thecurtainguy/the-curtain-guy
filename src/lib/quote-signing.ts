@@ -26,6 +26,11 @@ import {
   type CustomerSafeQuote,
   type QuoteContractProvider,
 } from "@/data/quotes";
+import {
+  SIGNER_SESSION_MISMATCH,
+  resolveSigningSigner,
+  signerFromSession,
+} from "@/data/quote-signers";
 import { getBusinessSettings } from "@/lib/business-settings";
 import { getLocalizedDocumentTexts } from "@/lib/document-texts";
 import { describeUserAgent } from "@/lib/document-views";
@@ -264,10 +269,12 @@ export async function issueSigningCode(input: {
   language: CustomerLanguage;
   userId?: string | null;
   signatureId?: string | null;
+  signerEmail?: unknown;
 }): Promise<{ signatureId: string; code: string; email: string }> {
   assertQuoteSignable(input.quote);
-  const email = input.quote.customer_email.trim().toLowerCase();
-  if (!email.includes("@")) throw new SigningError("This quote has no email address on file.");
+  const resolved = resolveSigningSigner(input.quote, input.signerEmail);
+  if (!resolved.ok) throw new SigningError(resolved.message, 400);
+  const email = resolved.signer.email;
   const admin = createAdminSupabaseClient();
 
   let row: QuoteSignatureRow | null = null;
@@ -275,6 +282,9 @@ export async function issueSigningCode(input: {
     row = await loadSession(input.quote.id, input.signatureId).catch(() => null);
   }
   if (row) {
+    if (row.verified_at && row.signer_email.trim().toLowerCase() !== email) {
+      throw new SigningError(SIGNER_SESSION_MISMATCH, 409);
+    }
     const lastSent = row.otp_last_sent_at ? Date.parse(row.otp_last_sent_at) : 0;
     if (Date.now() - lastSent < SIGNING_RESEND_COOLDOWN_SECONDS * 1000) {
       throw new SigningError("Please wait a moment before requesting another code.", 429);
@@ -320,6 +330,7 @@ export async function issueSigningCode(input: {
       otp_attempts: 0,
       otp_sent_count: row.otp_sent_count + 1,
       otp_last_sent_at: now.toISOString(),
+      signer_email: email,
       language: input.language,
       updated_at: now.toISOString(),
     })
@@ -407,10 +418,19 @@ export async function signQuote(input: SignQuoteInput): Promise<QuoteSignatureRo
     throw new SigningError("Your signing session expired. Please verify your email again.", 403);
   }
 
-  const signerName = typeof input.signerName === "string" ? input.signerName.trim().slice(0, 120) : "";
+  const sessionSigner = signerFromSession(quote, row.signer_email);
+  if (!sessionSigner.ok) throw new SigningError(sessionSigner.message, 400);
+  const signerName = sessionSigner.locked
+    ? sessionSigner.signer.name
+    : typeof input.signerName === "string"
+      ? input.signerName.trim().slice(0, 120)
+      : "";
   if (signerName.length < 2) throw new SigningError("Please enter your full legal name.");
-  const signerTitle =
-    typeof input.signerTitle === "string" ? input.signerTitle.trim().slice(0, 120) || null : null;
+  const signerTitle = sessionSigner.locked
+    ? sessionSigner.signer.title
+    : typeof input.signerTitle === "string"
+      ? input.signerTitle.trim().slice(0, 120) || null
+      : null;
   const method: SignatureMethod = input.method === "drawn" ? "drawn" : "typed";
   if (!isPngDataUrl(input.signatureImage)) throw new SigningError("Please type or draw your signature.");
   const initials = typeof input.initials === "string" ? input.initials.trim().slice(0, 6) : "";

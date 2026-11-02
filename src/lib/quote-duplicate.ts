@@ -12,6 +12,7 @@ import {
   type QuoteRow,
 } from "@/data/quotes";
 import { normalizeCustomerLanguage } from "@/data/customer-language";
+import { quoteSignerChoices } from "@/data/quote-signers";
 import { ensureCustomerVenue } from "@/lib/customers";
 import { getLocalizedDocumentText, resolveQuoteTermsForView } from "@/lib/document-texts";
 import { fetchEstimateFiles } from "@/lib/estimate-access";
@@ -201,6 +202,9 @@ export async function duplicateQuote(input: {
       manual_tax_label: source.manual_tax_label,
       manual_tax_cents: source.manual_tax_cents || 0,
       manual_tax_lines: normalizeManualTaxLines(source.manual_tax_lines),
+      authorized_signers: quoteSignerChoices(source)
+        .slice(1)
+        .filter((signer) => signer.email !== details.customer_email.trim().toLowerCase()),
       customer_notes: copy.customerNotes ? notes.text : null,
       customer_notes_translated: copy.customerNotes ? notes.translated : null,
       owner_notes: copy.ownerNotes ? source.owner_notes : null,

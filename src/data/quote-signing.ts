@@ -238,6 +238,8 @@ export const QUOTE_SIGNING_COPY = {
     verifyTitle: "Confirm it’s you",
     verifyBody: (email: string) =>
       `We’ll email a 6-digit code to ${email} to confirm the signer’s identity.`,
+    whoSigns: "Who is signing?",
+    whoSignsHint: "Choose the person authorized to sign. The code goes only to their email.",
     fullName: "Full legal name",
     fullNamePlaceholder: "First and last name",
     titleLabel: "Title or role (optional)",
@@ -313,6 +315,8 @@ export const QUOTE_SIGNING_COPY = {
     verifyTitle: "Confirmez votre identité",
     verifyBody: (email: string) =>
       `Nous enverrons un code à 6 chiffres à ${email} pour confirmer l’identité du signataire.`,
+    whoSigns: "Qui signe?",
+    whoSignsHint: "Choisissez la personne autorisée à signer. Le code est envoyé seulement à son courriel.",
     fullName: "Nom légal complet",
     fullNamePlaceholder: "Prénom et nom",
     titleLabel: "Titre ou rôle (facultatif)",

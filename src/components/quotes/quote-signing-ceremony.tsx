@@ -42,6 +42,7 @@ import {
 import { renderScriptToPng, signatureFont } from "@/components/signing/signature-font";
 import { QuoteTermsList } from "@/components/quotes/quote-terms-list";
 import { formatQuoteDate, localizeQuoteApiError, getQuoteCopy } from "@/data/quote-copy";
+import { quoteSignerChoices } from "@/data/quote-signers";
 import { quotePaymentRows } from "@/data/quote-payment-terms";
 import {
   QUOTE_SCHEDULE_COPY,
@@ -365,8 +366,14 @@ export function QuoteSigningCeremony({
   const taxRows = getQuoteTaxBreakdownRows(quote, { variant: "customer", language, currency });
   const items = quote.line_items.filter((item) => item.status === "priced" || item.status === "included");
   const venue = [quote.venue_name, quote.venue_address].filter(Boolean).join(", ") || quote.city_area;
+  const signerChoices = useMemo(
+    () => (quote.signers && quote.signers.length > 0 ? quote.signers : quoteSignerChoices(quote)),
+    [quote]
+  );
+  const mustChooseSigner = signerChoices.length > 1;
 
   const [step, setStep] = useState<Step>("verify");
+  const [signerEmail, setSignerEmail] = useState(signerChoices[0]?.email ?? quote.customer_email);
   const [signerName, setSignerName] = useState(quote.customer_name || "");
   const [signerTitle, setSignerTitle] = useState("");
   const [signatureId, setSignatureId] = useState<string | null>(null);
@@ -387,7 +394,13 @@ export function QuoteSigningCeremony({
   const [agreement, setAgreement] = useState<QuoteAgreementSummary | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  const initials = (initialsOverride ?? initialsFromName(signerName)).slice(0, 4);
+  const selectedSigner = mustChooseSigner
+    ? (signerChoices.find((choice) => choice.email === signerEmail) ?? signerChoices[0])
+    : null;
+  const activeName = selectedSigner?.name ?? signerName;
+  const activeTitle = selectedSigner ? (selectedSigner.title ?? "") : signerTitle;
+  const activeEmail = selectedSigner?.email ?? quote.customer_email;
+  const initials = (initialsOverride ?? initialsFromName(activeName)).slice(0, 4);
   const allInitialed = SIGNING_CLAUSE_KEYS.every((key) => Boolean(initialedAt[key]));
   const resendIn = Math.max(0, Math.ceil((resendAt - now) / 1000));
   const stepIndex = STEPS.findIndex((item) => item.key === step);
@@ -442,22 +455,36 @@ export function QuoteSigningCeremony({
     setLanguage(next);
   }
 
+  function chooseSigner(email: string) {
+    if (busy || email === activeEmail) return;
+    setError(null);
+    setSignerEmail(email);
+    setSignatureId(null);
+    setMaskedEmail(null);
+    setCode("");
+    setSigningToken(null);
+  }
+
   function sendCode() {
     if (englishNeedsFrench) {
       setError(L.errors.frenchFirst);
       return;
     }
-    if (signerName.trim().length < 2) {
+    if (activeName.trim().length < 2) {
       setError(s.errors.name);
       return;
     }
     void run(async () => {
       if (preview) {
         setSignatureId("preview");
-        setMaskedEmail(maskEmail(quote.customer_email));
+        setMaskedEmail(maskEmail(activeEmail));
         setNote(s.previewNote);
       } else {
-        const data = await call({ action: "signing_send_code", signatureId });
+        const data = await call({
+          action: "signing_send_code",
+          signatureId,
+          signerEmail: activeEmail,
+        });
         setSignatureId(data.signatureId as string);
         setMaskedEmail(data.maskedEmail as string);
         toast.success(s.codeSent(data.maskedEmail as string));
@@ -505,7 +532,7 @@ export function QuoteSigningCeremony({
     if (method === "drawn" && !drawnImage) return setError(s.errors.signature);
     if (!consent) return setError(s.errors.consent);
     void run(async () => {
-      const signatureImage = await adoptedSignatureImage({ method, name: signerName, drawnImage });
+      const signatureImage = await adoptedSignatureImage({ method, name: activeName, drawnImage });
       if (!signatureImage) throw new Error(s.errors.signature);
       if (preview) {
         setNote(s.previewNote);
@@ -517,8 +544,8 @@ export function QuoteSigningCeremony({
         action: "sign",
         signatureId,
         signingToken,
-        signerName: signerName.trim(),
-        signerTitle: signerTitle.trim() || null,
+        signerName: activeName.trim(),
+        signerTitle: activeTitle.trim() || null,
         method,
         signatureImage,
         initials,
@@ -556,7 +583,7 @@ export function QuoteSigningCeremony({
             className="h-11 flex-1 rounded-full sm:flex-none sm:px-8"
             isLoading={busy}
             loadingText={s.sendCode}
-            disabled={signerName.trim().length < 2 || englishNeedsFrench}
+            disabled={activeName.trim().length < 2 || englishNeedsFrench}
             icon={<Mail className="size-4" />}
             onClick={sendCode}
           >
@@ -713,7 +740,7 @@ export function QuoteSigningCeremony({
                   <StepHeading
                     eyebrow={s.verifyEyebrow}
                     title={s.verifyTitle}
-                    body={s.verifyBody(maskedEmail ?? maskEmail(quote.customer_email))}
+                    body={s.verifyBody(maskedEmail ?? maskEmail(activeEmail))}
                   />
                   {onlyLanguage ? null : (
                     <div className={cn(cardClass, "space-y-4 p-4 sm:p-5")}>
@@ -772,39 +799,66 @@ export function QuoteSigningCeremony({
                       ) : null}
                     </div>
                   )}
-                  <div className={cn(cardClass, "space-y-4 p-5")}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="sign-name">{s.fullName}</Label>
-                        <Input
-                          id="sign-name"
-                          value={signerName}
-                          onChange={(event) => setSignerName(event.target.value)}
-                          autoComplete="name"
-                          placeholder={s.fullNamePlaceholder}
-                          disabled={Boolean(signatureId) || busy}
-                        />
+                  {mustChooseSigner ? (
+                    <div className={cn(cardClass, "space-y-4 p-4 sm:p-5")}>
+                      <div className="flex items-start gap-3">
+                        <IconBadge icon={UserRound} />
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="font-heading text-base font-semibold text-foreground">{s.whoSigns}</p>
+                          <p className="text-xs leading-relaxed text-muted-foreground">{s.whoSignsHint}</p>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sign-title">{s.titleLabel}</Label>
-                        <Input
-                          id="sign-title"
-                          value={signerTitle}
-                          onChange={(event) => setSignerTitle(event.target.value)}
-                          autoComplete="organization-title"
-                          placeholder={s.titlePlaceholder}
-                          disabled={busy}
-                        />
+                      <div role="radiogroup" aria-label={s.whoSigns} className="grid gap-3 sm:grid-cols-2">
+                        {signerChoices.map((choice) => (
+                          <OptionCard
+                            key={choice.email}
+                            option={{
+                              id: choice.email,
+                              label: choice.name,
+                              description: [choice.title, maskEmail(choice.email)].filter(Boolean).join(" · "),
+                              icon: UserRound,
+                            }}
+                            selected={choice.email === activeEmail}
+                            onSelect={() => chooseSigner(choice.email)}
+                          />
+                        ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 rounded-xl border border-border/35 bg-background/40 px-3 py-2.5">
-                      <Mail className="size-4 shrink-0 text-primary" aria-hidden />
-                      <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                        {maskedEmail ?? maskEmail(quote.customer_email)}
-                      </span>
-                      <ShieldCheck className="size-4 text-primary/70" aria-hidden />
+                  ) : (
+                    <div className={cn(cardClass, "space-y-4 p-5")}>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="sign-name">{s.fullName}</Label>
+                          <Input
+                            id="sign-name"
+                            value={signerName}
+                            onChange={(event) => setSignerName(event.target.value)}
+                            autoComplete="name"
+                            placeholder={s.fullNamePlaceholder}
+                            disabled={Boolean(signatureId) || busy}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="sign-title">{s.titleLabel}</Label>
+                          <Input
+                            id="sign-title"
+                            value={signerTitle}
+                            onChange={(event) => setSignerTitle(event.target.value)}
+                            autoComplete="organization-title"
+                            placeholder={s.titlePlaceholder}
+                            disabled={busy}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-xl border border-border/35 bg-background/40 px-3 py-2.5">
+                        <Mail className="size-4 shrink-0 text-primary" aria-hidden />
+                        <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                          {maskedEmail ?? maskEmail(quote.customer_email)}
+                        </span>
+                        <ShieldCheck className="size-4 text-primary/70" aria-hidden />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {signatureId ? (
                     <div className={cn(cardClass, "space-y-4 p-5")}>
@@ -839,7 +893,7 @@ export function QuoteSigningCeremony({
                   <StepHeading eyebrow={s.reviewEyebrow} title={s.reviewTitle} body={s.reviewBody} />
                   <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 w-fit">
                     <BadgeCheck className="size-3.5" aria-hidden />
-                    {s.verified} · {signerName.trim()}
+                    {s.verified} · {activeName.trim()}
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -1030,7 +1084,7 @@ export function QuoteSigningCeremony({
                 <>
                   <StepHeading eyebrow={s.signEyebrow} title={s.signTitle} body={s.signBody} />
                   <SignatureAdopter
-                    name={signerName}
+                    name={activeName}
                     method={method}
                     onMethodChange={(next) => {
                       setError(null);
@@ -1044,7 +1098,7 @@ export function QuoteSigningCeremony({
                       drawTab: s.drawTab,
                       drawHint: s.drawHint,
                       clear: s.clear,
-                      caption: `${s.signatureOf(signerName.trim())}${signerTitle.trim() ? `, ${signerTitle.trim()}` : ""} · ${today}`,
+                      caption: `${s.signatureOf(activeName.trim())}${activeTitle.trim() ? `, ${activeTitle.trim()}` : ""} · ${today}`,
                     }}
                   />
                   <CheckTile
@@ -1053,7 +1107,7 @@ export function QuoteSigningCeremony({
                     icon={ShieldCheck}
                     title={s.consentTitle}
                   >
-                    {signingConsentText(language, signerName.trim(), quote.quote_display_ref, !onlyLanguage)}
+                    {signingConsentText(language, activeName.trim(), quote.quote_display_ref, !onlyLanguage)}
                   </CheckTile>
                   <p className="flex items-start gap-2 text-xs text-muted-foreground">
                     <Lock className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />

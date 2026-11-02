@@ -26,6 +26,7 @@ import {
   type QuoteLineStatus,
 } from "@/data/quotes";
 import type { QuoteScheduleDraft } from "@/components/admin/quote-schedule-fields";
+import type { QuoteAuthorizedSigner } from "@/data/quote-signers";
 import { DocumentTextPreviewButton } from "@/components/admin/document-text-preview";
 import { LineThumb } from "@/components/admin/line-thumb";
 import {
@@ -58,6 +59,7 @@ export type SavedQuoteLine = {
 type QuoteSavedViewProps = {
   customerName: string;
   customerEmail: string;
+  signers?: QuoteAuthorizedSigner[];
   eventType: string;
   venueName: string;
   venueAddress: string;
@@ -189,6 +191,36 @@ export function QuoteSavedView(props: QuoteSavedViewProps) {
           ) : null}
           {props.validUntil ? <SavedFact label="Valid until">{date(props.validUntil)}</SavedFact> : null}
         </div>
+
+        {(props.signers?.length ?? 0) > 1 ? (
+          <div className="mt-3">
+            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-primary">Who can sign</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {props.signers?.map((signer) => (
+                <div
+                  key={signer.email}
+                  className="flex items-center gap-3 rounded-xl border border-border/40 bg-background/30 px-3 py-2.5"
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                    <UserRound className="size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{signer.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {[
+                        signer.title,
+                        signer.email,
+                        signer.email === props.customerEmail.trim().toLowerCase() ? "Quote contact" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {scheduleTiles.length > 0 ? (
           <div

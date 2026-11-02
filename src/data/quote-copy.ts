@@ -596,6 +596,12 @@ const API_ERRORS_FR: Record<string, string> = {
     "Veuillez réviser et signer l’entente pour accepter.",
   "This quote is not available for signing.": "Cette soumission n’est pas disponible pour la signature.",
   "This quote has no email address on file.": "Aucune adresse courriel n’est associée à cette soumission.",
+  "Choose one of the people authorized to sign this quote.":
+    "Choisissez l’une des personnes autorisées à signer cette soumission.",
+  "This person is no longer authorized to sign. Please start again.":
+    "Cette personne n’est plus autorisée à signer. Veuillez recommencer.",
+  "This signing session is already verified for someone else. Start again.":
+    "Cette session est déjà vérifiée pour une autre personne. Veuillez recommencer.",
   "Email is not configured. Please contact us to sign.":
     "Le courriel n’est pas configuré. Veuillez nous contacter pour signer.",
   "Please wait a moment before requesting another code.":

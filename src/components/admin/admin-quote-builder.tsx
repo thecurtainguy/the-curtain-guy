@@ -133,6 +133,12 @@ import {
 } from "@/components/admin/quote-line-reorder";
 import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 import { QuoteSavedView } from "@/components/admin/quote-saved-view";
+import {
+  QuoteSignersEditor,
+  signerDraftsFromStored,
+  type QuoteSignerDraft,
+} from "@/components/admin/quote-signers-editor";
+import { parseAuthorizedSignersInput, quoteSignerChoices } from "@/data/quote-signers";
 
 type QuoteSourceEventPlan = {
   id: string;
@@ -406,6 +412,9 @@ export function AdminQuoteBuilder({
   const [saving, setSaving] = useState(false);
   const [customerName, setCustomerName] = useState(quote.customer_name ?? "");
   const [customerEmail, setCustomerEmail] = useState(quote.customer_email ?? "");
+  const [extraSigners, setExtraSigners] = useState<QuoteSignerDraft[]>(() =>
+    signerDraftsFromStored(quote.authorized_signers)
+  );
   const [eventDate, setEventDate] = useState(toDateInput(quote.event_date));
   const [schedule, setSchedule] = useState<QuoteScheduleDraft>(() =>
     scheduleDraftFromQuote(quote)
@@ -466,6 +475,7 @@ export function AdminQuoteBuilder({
   function resetFromQuote(source: QuoteWithRelations) {
     setCustomerName(source.customer_name ?? "");
     setCustomerEmail(source.customer_email ?? "");
+    setExtraSigners(signerDraftsFromStored(source.authorized_signers));
     setEventDate(toDateInput(source.event_date));
     setSchedule(scheduleDraftFromQuote(source));
     setEventType(source.event_type ?? "");
@@ -571,6 +581,7 @@ export function AdminQuoteBuilder({
     return {
       customer_name: customerName,
       customer_email: customerEmail,
+      authorized_signers: extraSigners,
       event_date: eventDate || null,
       ...scheduleDraftPayload(schedule),
       event_type: eventType,
@@ -804,6 +815,11 @@ export function AdminQuoteBuilder({
     }
     if (!customerEmail.trim()) {
       flash(undefined, "Customer email is required.");
+      return;
+    }
+    const signerCheck = parseAuthorizedSignersInput(extraSigners, customerEmail);
+    if (!signerCheck.ok) {
+      flash(undefined, signerCheck.message);
       return;
     }
     setSaving(true);
@@ -1356,6 +1372,14 @@ export function AdminQuoteBuilder({
           />
         ) : null}
 
+        <QuoteSignersEditor
+          primaryName={customerName}
+          primaryEmail={customerEmail}
+          signers={extraSigners}
+          contacts={customer?.contactOptions ?? []}
+          onChange={setExtraSigners}
+        />
+
         <QuoteScheduleFields
           eventDate={eventDate}
           onEventDateChange={setEventDate}
@@ -1713,6 +1737,11 @@ export function AdminQuoteBuilder({
           lineItemsAction={hardwareCalculator(false)}
           customerName={customerName}
           customerEmail={customerEmail}
+          signers={quoteSignerChoices({
+            customer_name: customerName,
+            customer_email: customerEmail,
+            authorized_signers: extraSigners,
+          })}
           eventType={eventType}
           venueName={venueName}
           venueAddress={venueAddress}

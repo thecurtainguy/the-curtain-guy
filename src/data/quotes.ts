@@ -5,6 +5,7 @@ import {
 } from "@/data/customer-language";
 import type { DepositMode } from "@/data/invoices";
 import type { QuoteBalanceDueRule, QuoteDepositDueRule } from "@/data/quote-payment-terms";
+import type { QuoteAuthorizedSigner } from "@/data/quote-signers";
 
 export const QUOTE_STATUSES = [
   "draft",
@@ -718,6 +719,8 @@ export type QuoteRow = {
   quote_display_ref: string;
   customer_name: string | null;
   customer_email: string;
+  /** Extra people who may sign, besides the quote contact. */
+  authorized_signers?: QuoteAuthorizedSigner[] | null;
   event_date: string | null;
   event_start_time?: string | null;
   event_end_time?: string | null;
@@ -856,6 +859,8 @@ export type CustomerSafeQuote = {
   quote_display_ref: string;
   customer_name: string | null;
   customer_email: string;
+  /** People who may sign. The quote contact is first; further people were added by admin. */
+  signers?: QuoteAuthorizedSigner[];
   event_date: string | null;
   event_start_time: string | null;
   event_end_time: string | null;

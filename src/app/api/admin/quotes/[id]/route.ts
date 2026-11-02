@@ -14,6 +14,7 @@ import { isCustomerLanguage } from "@/data/customer-language";
 import { isCustomerCurrency, type CustomerVenueRow } from "@/data/customers";
 import { ensureCustomerVenue } from "@/lib/customers";
 import { parseQuotePaymentTerms } from "@/data/quote-payment-terms";
+import { parseAuthorizedSignersInput } from "@/data/quote-signers";
 import {
   QUOTE_SCHEDULE_DATE_FIELDS,
   QUOTE_SCHEDULE_TIME_FIELDS,
@@ -114,6 +115,17 @@ export async function PUT(request: Request, context: RouteContext) {
         typeof value === "string" ? value.trim() || null : null;
     }
   }
+  if ("authorized_signers" in body) {
+    const primaryEmail = String(
+      "customer_email" in updates ? updates.customer_email ?? "" : existing.customer_email
+    );
+    const parsed = parseAuthorizedSignersInput(body.authorized_signers, primaryEmail);
+    if (!parsed.ok) {
+      return NextResponse.json({ ok: false, message: parsed.message }, { status: 400 });
+    }
+    updates.authorized_signers = parsed.signers;
+  }
+
   if (typeof updates.venue_address === "string" && updates.venue_address.length > 400) {
     return NextResponse.json(
       { ok: false, message: "Venue address is too long (400 characters max)." },

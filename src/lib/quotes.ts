@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import { quoteSignerChoices } from "@/data/quote-signers";
 import {
   DEFAULT_GST_RATE,
   DEFAULT_QST_RATE,
@@ -129,6 +130,7 @@ export function toCustomerSafeQuote(
     quote_display_ref: customerQuoteDisplayRef(quote),
     customer_name: quote.customer_name,
     customer_email: quote.customer_email,
+    signers: quoteSignerChoices(quote),
     event_date: quote.event_date,
     event_start_time: quote.event_start_time ?? null,
     event_end_time: quote.event_end_time ?? null,
@@ -920,6 +922,7 @@ export async function createQuoteRevision(input: {
       quote_display_ref: displayRef,
       customer_name: source.customer_name,
       customer_email: source.customer_email,
+      authorized_signers: quoteSignerChoices(source).slice(1),
       event_date: source.event_date,
       event_start_time: source.event_start_time ?? null,
       event_end_time: source.event_end_time ?? null,

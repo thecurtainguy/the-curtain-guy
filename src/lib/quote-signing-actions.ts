@@ -100,6 +100,7 @@ export async function handleSigningAction(input: {
         language,
         userId: input.userId,
         signatureId,
+        signerEmail: body.signerEmail,
       });
       await sendSigningCodeEmail({ apiKey, quote, email: issued.email, code: issued.code, language });
       return NextResponse.json({

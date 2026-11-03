@@ -317,6 +317,7 @@ export function AdminQuoteBuilder({
   defaultCc = [],
   customer = null,
   studioPanel = null,
+  agreementPanel = null,
   engagementPanel = null,
   bookingActions = null,
   paymentDefaults = FALLBACK_PAYMENT_DEFAULTS,
@@ -334,7 +335,9 @@ export function AdminQuoteBuilder({
   customer?: CustomerLinkSummary | null;
   /** Studio card rendered in the right rail. */
   studioPanel?: ReactNode;
-  /** Views and email delivery card rendered under the quote summary. */
+  /** E-signed agreement card, shown once a customer has signed. */
+  agreementPanel?: ReactNode;
+  /** Views and email delivery card. */
   engagementPanel?: ReactNode;
   /** Mark accepted / job / invoice buttons for the Actions grid (2 columns). */
   bookingActions?: ReactNode;
@@ -2017,11 +2020,6 @@ export function AdminQuoteBuilder({
         ref={stickyRailRef}
         className="min-w-0 space-y-4 xl:sticky"
       >
-        <QuoteGuestProposalCard
-          ensureEndpoint={`/api/admin/quotes/${quote.id}/guest-link`}
-          initialUrl={publicUrl}
-        />
-
         {customer ? (
           <QuoteCustomerCard
             customer={customer}
@@ -2029,6 +2027,11 @@ export function AdminQuoteBuilder({
             contactEmail={customerEmail}
           />
         ) : null}
+
+        <QuoteGuestProposalCard
+          ensureEndpoint={`/api/admin/quotes/${quote.id}/guest-link`}
+          initialUrl={publicUrl}
+        />
 
         <section className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between gap-2">
@@ -2080,7 +2083,15 @@ export function AdminQuoteBuilder({
           ) : null}
         </section>
 
-        {engagementPanel}
+        {quote.estimate_request_id ? (
+          <OpportunityFilesPanel
+            estimateRequestId={quote.estimate_request_id}
+            files={opportunityFiles}
+            deletedFiles={deletedOpportunityFiles}
+            audience="admin"
+            title="Opportunity files"
+          />
+        ) : null}
 
         <section className="rounded-2xl border border-border/40 bg-card/25 p-4">
           <h2 className="font-heading text-lg font-semibold">Actions</h2>
@@ -2136,17 +2147,11 @@ export function AdminQuoteBuilder({
           </div>
         </section>
 
-        {studioPanel}
+        {agreementPanel}
 
-        {quote.estimate_request_id ? (
-          <OpportunityFilesPanel
-            estimateRequestId={quote.estimate_request_id}
-            files={opportunityFiles}
-            deletedFiles={deletedOpportunityFiles}
-            audience="admin"
-            title="Opportunity files"
-          />
-        ) : null}
+        {engagementPanel}
+
+        {studioPanel}
 
         <details className="group rounded-2xl border border-border/40 bg-card/25">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">

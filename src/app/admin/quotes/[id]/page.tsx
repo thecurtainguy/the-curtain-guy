@@ -99,20 +99,20 @@ export default async function AdminQuoteDetailPage({ params }: PageProps) {
               customerName={quote.customer_name}
             />
           }
+          agreementPanel={
+            signature ? (
+              <AdminQuoteAgreementPanel
+                quoteId={quote.id}
+                audit={toAgreementAudit(signature)}
+                defaultCountersignerName={owner.profile.full_name || "The Curtain Guy"}
+                linkedInvoice={linkedInvoice}
+              />
+            ) : null
+          }
           engagementPanel={
-            <>
-              {signature ? (
-                <AdminQuoteAgreementPanel
-                  quoteId={quote.id}
-                  audit={toAgreementAudit(signature)}
-                  defaultCountersignerName={owner.profile.full_name || "The Curtain Guy"}
-                  linkedInvoice={linkedInvoice}
-                />
-              ) : null}
-              {quote.status === "draft" && engagement.activity.length === 0 ? null : (
-                <DocumentEngagementCard engagement={engagement} documentLabel="quote" />
-              )}
-            </>
+            quote.status === "draft" && engagement.activity.length === 0 ? null : (
+              <DocumentEngagementCard engagement={engagement} documentLabel="quote" />
+            )
           }
           studioPanel={
             <AdminQuoteStudioCard

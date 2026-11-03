@@ -89,6 +89,7 @@ import { AdminInvoiceAuditLog } from "@/components/admin/admin-invoice-audit-log
 import { OptionCard } from "@/components/estimate/option-card";
 import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { AdminFloatingSaveButton } from "@/components/admin/admin-floating-save-button";
+import { InvoiceCustomerCard } from "@/components/admin/invoice-customer-card";
 import { InvoiceSavedView } from "@/components/admin/invoice-saved-view";
 import { InvoiceLineEditor } from "@/components/admin/invoice-line-editor";
 import { isLogisticsCategory } from "@/components/admin/line-thumb";
@@ -1724,6 +1725,14 @@ export function AdminInvoiceEditor({
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-6">
+          <InvoiceCustomerCard
+            customer={customerLink}
+            contactName={form.customer_name}
+            companyName={form.company_name}
+            email={form.customer_email}
+            currency={form.currency}
+            poNumber={form.po_number}
+          />
           {editing ? (
           <Lockable locked={locked}>
           <Panel icon={BadgePercent} eyebrow="Deposit" title="Deposit request">

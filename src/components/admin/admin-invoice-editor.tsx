@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  CustomTaxLinesEditor,
+  newManualTaxDraft,
+  storedManualTaxLines,
+  TaxModePicker,
+  type ManualTaxDraft,
+} from "@/components/admin/custom-tax-lines";
 import { SavedVenuePicker } from "@/components/admin/saved-venue-picker";
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -58,6 +65,7 @@ import {
 import {
   computeLineTotalCents,
   formatMoneyFromCents,
+  normalizeManualTaxLines,
   percentInputToRate,
   QUOTE_TAX_MODE_LABELS,
   rateToPercentInput,
@@ -219,6 +227,7 @@ type FormState = {
   tax_mode: QuoteTaxMode;
   gst_percent: string;
   qst_percent: string;
+  manual_tax_lines: ManualTaxDraft[];
   deposit_mode: DepositMode;
   deposit_percent: string;
   deposit_fixed: string;
@@ -256,6 +265,11 @@ function toForm(invoice: InvoiceWithRelations): FormState {
     tax_mode: invoice.tax_mode,
     gst_percent: rateToPercentInput(invoice.gst_rate),
     qst_percent: rateToPercentInput(invoice.qst_rate),
+    manual_tax_lines: normalizeManualTaxLines(invoice.manual_tax_lines).map((line) => ({
+      key: `tax-${crypto.randomUUID()}`,
+      label: line.label,
+      ratePercent: rateToPercentInput(line.rate),
+    })),
     deposit_mode: invoice.deposit_mode,
     deposit_percent: String(invoice.deposit_percent),
     deposit_fixed: (invoice.deposit_cents / 100).toFixed(2),
@@ -313,6 +327,9 @@ function toPayload(form: FormState) {
     tax_mode: form.tax_mode,
     gst_rate: percentInputToRate(form.gst_percent),
     qst_rate: percentInputToRate(form.qst_percent),
+    ...(form.tax_mode === "manual"
+      ? { manual_tax_lines: storedManualTaxLines(form.manual_tax_lines) }
+      : {}),
     deposit_mode: form.deposit_mode,
     deposit_percent: Number.parseFloat(form.deposit_percent) || 0,
     deposit_fixed_cents: dollarsToCents(form.deposit_fixed),
@@ -351,11 +368,6 @@ const DEPOSIT_OPTIONS = [
   { id: "percent", label: "Percentage", description: "Auto-calculated from the total", icon: BadgePercent },
   { id: "fixed", label: "Custom amount", description: "Any dollar amount you set", icon: CircleDollarSign },
   { id: "none", label: "No deposit", description: "Full balance by the due date", icon: Ban },
-] as const;
-
-const TAX_OPTIONS = [
-  { id: "quebec_gst_qst", label: "Québec GST + QST", description: "5% + 9.975% on taxable lines", icon: Receipt },
-  { id: "none", label: "No tax", description: "Exempt or out-of-province", icon: Ban },
 ] as const;
 
 const QUICK_PERCENTS = [25, 30, 50, 100];
@@ -568,7 +580,10 @@ export function AdminInvoiceEditor({
           tax_mode: payload.tax_mode,
           gst_rate: payload.gst_rate,
           qst_rate: payload.qst_rate,
-          manual_tax_lines: invoice.manual_tax_lines,
+          manual_tax_lines:
+            form.tax_mode === "manual"
+              ? storedManualTaxLines(form.manual_tax_lines)
+              : invoice.manual_tax_lines,
         }
       ),
     [payload, invoice.manual_tax_lines]
@@ -595,7 +610,8 @@ export function AdminInvoiceEditor({
       tax_mode: payload.tax_mode,
       gst_rate: payload.gst_rate,
       qst_rate: payload.qst_rate,
-      manual_tax_lines: invoice.manual_tax_lines,
+      manual_tax_lines:
+        form.tax_mode === "manual" ? storedManualTaxLines(form.manual_tax_lines) : invoice.manual_tax_lines,
       currency: form.currency,
     },
     { variant: "admin" }
@@ -1504,18 +1520,26 @@ export function AdminInvoiceEditor({
             <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
               <div className="space-y-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Tax</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {TAX_OPTIONS.map((option) => (
-                    <OptionCard
-                      key={option.id}
-                      option={option}
-                      selected={form.tax_mode === option.id}
-                      onSelect={() => set("tax_mode", option.id)}
-                    />
-                  ))}
-                </div>
+                <TaxModePicker
+                  value={form.tax_mode}
+                  disabled={locked}
+                  onChange={(mode) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      tax_mode: mode,
+                      manual_tax_lines:
+                        mode === "manual" && prev.manual_tax_lines.length === 0
+                          ? [newManualTaxDraft()]
+                          : prev.manual_tax_lines,
+                    }))
+                  }
+                />
                 {form.tax_mode === "manual" ? (
-                  <p className="text-xs text-muted-foreground">Using the custom tax rates copied from the quote.</p>
+                  <CustomTaxLinesEditor
+                    lines={form.manual_tax_lines}
+                    disabled={locked}
+                    onChange={(manual_tax_lines) => set("manual_tax_lines", manual_tax_lines)}
+                  />
                 ) : null}
                 {form.tax_mode === "quebec_gst_qst" ? (
                   <div className="grid grid-cols-2 gap-3">

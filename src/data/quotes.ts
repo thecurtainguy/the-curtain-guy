@@ -651,7 +651,7 @@ export type QuoteTaxMode = (typeof QUOTE_TAX_MODES)[number];
 export const QUOTE_TAX_MODE_LABELS: Record<QuoteTaxMode, string> = {
   quebec_gst_qst: "Quebec GST/QST",
   none: "No tax",
-  manual: "Manual tax",
+  manual: "Custom tax",
 };
 
 export const QUOTE_TAX_CATEGORIES = ["standard", "exempt", "custom"] as const;

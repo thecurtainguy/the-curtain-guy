@@ -1106,6 +1106,7 @@ export type InvoiceSaveInput = {
   tax_mode?: string | null;
   gst_rate?: number | null;
   qst_rate?: number | null;
+  manual_tax_lines?: unknown;
   deposit_mode?: string | null;
   deposit_percent?: number | null;
   deposit_fixed_cents?: number | null;
@@ -1301,6 +1302,9 @@ export async function saveInvoice(
   }
   if (input.gst_rate !== undefined) update.gst_rate = cleanRate(input.gst_rate, current.gst_rate);
   if (input.qst_rate !== undefined) update.qst_rate = cleanRate(input.qst_rate, current.qst_rate);
+  if ("manual_tax_lines" in input) {
+    update.manual_tax_lines = normalizeManualTaxLines(input.manual_tax_lines);
+  }
 
   let depositMode: DepositMode = current.deposit_mode;
   if (isDepositMode(input.deposit_mode)) {
@@ -1414,12 +1418,14 @@ export async function saveInvoice(
   const saved = current as unknown as Record<string, unknown>;
   const totalsTouched =
     linesRewritten ||
-    ["tax_mode", "gst_rate", "qst_rate", "deposit_mode", "deposit_percent", "deposit_cents"].some(
-      (key) =>
-        key in update &&
-        (typeof update[key] === "number"
-          ? Number(saved[key]) !== update[key]
-          : saved[key] !== update[key])
+    ["tax_mode", "gst_rate", "qst_rate", "manual_tax_lines", "deposit_mode", "deposit_percent", "deposit_cents"].some(
+      (key) => {
+        if (!(key in update)) return false;
+        if (key === "manual_tax_lines") {
+          return JSON.stringify(normalizeManualTaxLines(saved[key])) !== JSON.stringify(update[key]);
+        }
+        return typeof update[key] === "number" ? Number(saved[key]) !== update[key] : saved[key] !== update[key];
+      }
     );
   if (totalsTouched) await recalculateInvoice(invoiceId, ownerUserId);
   const after = await fetchInvoiceById(invoiceId, { includeEvents: true });

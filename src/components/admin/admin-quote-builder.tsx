@@ -14,12 +14,10 @@ import {
   Loader2,
   Lock,
   Pencil,
-  Plus,
   RotateCcw,
   ScrollText,
   Send,
   Star,
-  Trash2,
   UserRound,
 } from "lucide-react";
 import { PRODUCT_UNIT_LABELS } from "@/data/products";
@@ -30,7 +28,6 @@ import {
 } from "@/data/product-categories";
 import {
   QUOTE_TAX_MODE_LABELS,
-  QUOTE_TAX_MODES,
   computeLineTotalCents,
   computeQuoteTaxTotals,
   unitPriceCentsForLineTotal,
@@ -42,7 +39,6 @@ import {
   isQuoteLocked,
   isZeroPricedQuoteLine,
   normalizeManualTaxLines,
-  percentInputToRate,
   quoteLineCategoryLabel,
   rateToPercentInput,
   resolveQuoteDisplayRef,
@@ -74,6 +70,12 @@ import {
   type QuotePaymentDefaults,
   type QuotePaymentTerms,
 } from "@/data/quote-payment-terms";
+import {
+  CustomTaxLinesEditor,
+  newManualTaxDraft,
+  storedManualTaxLines,
+  TaxModePicker,
+} from "@/components/admin/custom-tax-lines";
 import { QuotePaymentTermsFields } from "@/components/admin/quote-payment-terms-fields";
 import { QuoteLineEditor } from "@/components/admin/quote-line-editor";
 import { isLogisticsCategory } from "@/components/admin/line-thumb";
@@ -199,11 +201,7 @@ function linesFromQuote(quote: QuoteWithRelations): DraftLine[] {
 }
 
 function emptyManualTaxLine(): DraftManualTaxLine {
-  return {
-    key: `tax-${crypto.randomUUID()}`,
-    label: "Sales tax",
-    ratePercent: "0",
-  };
+  return newManualTaxDraft();
 }
 
 function manualTaxLinesFromQuote(
@@ -235,15 +233,8 @@ function manualTaxLinesFromQuote(
   return [emptyManualTaxLine()];
 }
 
-function toStoredManualTaxLines(
-  drafts: DraftManualTaxLine[]
-): QuoteManualTaxLine[] {
-  return drafts
-    .map((line) => ({
-      label: line.label.trim() || "Tax",
-      rate: percentInputToRate(line.ratePercent),
-    }))
-    .filter((line) => line.rate > 0 || line.label.length > 0);
+function toStoredManualTaxLines(drafts: DraftManualTaxLine[]): QuoteManualTaxLine[] {
+  return storedManualTaxLines(drafts);
 }
 
 function emptyLine(first: QuoteCategoryOption | undefined): DraftLine {
@@ -1560,7 +1551,7 @@ export function AdminQuoteBuilder({
             <h2 className="font-heading text-lg font-semibold">Tax</h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {taxMode === "manual"
-                ? `Manual percentage lines on taxable line items. ${currency}.`
+                ? `Custom tax lines on taxable items. ${currency}.`
                 : taxMode === "quebec_gst_qst"
                   ? `Quebec GST 5% + QST 9.975% on taxable line items. ${currency}.`
                   : `No tax applied. ${currency}.`}
@@ -1570,19 +1561,16 @@ export function AdminQuoteBuilder({
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.1fr_1fr]">
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="tax_mode">Tax mode</Label>
-              <SelectInput
-                id="tax_mode"
-                value={taxMode}
-                disabled={!isEditing}
-                onChange={(next) => setTaxMode(next as QuoteTaxMode)}
-                options={QUOTE_TAX_MODES.map((mode) => ({
-                  value: mode,
-                  label: QUOTE_TAX_MODE_LABELS[mode],
-                }))}
-              />
-            </div>
+            <TaxModePicker
+              value={taxMode}
+              disabled={!isEditing}
+              onChange={(mode) => {
+                setTaxMode(mode);
+                if (mode === "manual") {
+                  setManualTaxLines((prev) => (prev.length > 0 ? prev : [emptyManualTaxLine()]));
+                }
+              }}
+            />
 
             {customer?.tax_exempt && taxMode !== "none" ? (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
@@ -1621,95 +1609,11 @@ export function AdminQuoteBuilder({
             ) : null}
 
             {taxMode === "manual" ? (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Each line is a percentage of the taxable subtotal.
-                </p>
-                {manualTaxLines.map((line) => (
-                  <div
-                    key={line.key}
-                    className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_110px_auto]"
-                  >
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Tax label
-                      </Label>
-                      <Input
-                        value={line.label}
-                        disabled={!isEditing}
-                        onChange={(e) =>
-                          setManualTaxLines((prev) =>
-                            prev.map((row) =>
-                              row.key === line.key
-                                ? { ...row, label: e.target.value }
-                                : row
-                            )
-                          )
-                        }
-                        placeholder="Sales tax"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Rate %
-                      </Label>
-                      <Input
-                        inputMode="decimal"
-                        value={line.ratePercent}
-                        disabled={!isEditing}
-                        onChange={(e) =>
-                          setManualTaxLines((prev) =>
-                            prev.map((row) =>
-                              row.key === line.key
-                                ? { ...row, ratePercent: e.target.value }
-                                : row
-                            )
-                          )
-                        }
-                        placeholder="13"
-                      />
-                    </div>
-                    {isEditing ? (
-                      <div className="flex items-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Remove tax line"
-                          disabled={manualTaxLines.length <= 1}
-                          onClick={() =>
-                            setManualTaxLines((prev) =>
-                              prev.length <= 1
-                                ? prev
-                                : prev.filter((row) => row.key !== line.key)
-                            )
-                          }
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div />
-                    )}
-                  </div>
-                ))}
-                {isEditing ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setManualTaxLines((prev) => [
-                        ...prev,
-                        emptyManualTaxLine(),
-                      ])
-                    }
-                  >
-                    <Plus className="size-4" />
-                    Add tax line
-                  </Button>
-                ) : null}
-              </div>
+              <CustomTaxLinesEditor
+                lines={manualTaxLines}
+                disabled={!isEditing}
+                onChange={setManualTaxLines}
+              />
             ) : null}
           </div>
 
